@@ -37,10 +37,10 @@ export function getErrorMessage(error: ServerErrorData): string {
 
     // Check for partial matches in message
     if (message.toLowerCase().includes('rate limit')) {
-        return errorMessages['RATE_LIMITED'];
+        return errorMessages['RATE_LIMITED']!;
     }
     if (message.toLowerCase().includes('not your turn')) {
-        return errorMessages['NOT_YOUR_TURN'];
+        return errorMessages['NOT_YOUR_TURN']!;
     }
     if (message.toLowerCase().includes('must join a team')) {
         return 'Join a team first by clicking a team score, then select a role';

@@ -9,6 +9,7 @@ export const RELEASE_LOCK_SCRIPT = _RELEASE_LOCK_SCRIPT;
 export const EXTEND_LOCK_SCRIPT = _EXTEND_LOCK_SCRIPT;
 
 const LOCK_OPERATION_TIMEOUT = 5000;
+const MIN_LOCK_TIMEOUT = 1000;
 
 interface LockConfig {
     lockTimeout: number;
@@ -46,6 +47,10 @@ class DistributedLock {
 
     async acquire(lockKey: string, options: LockOptions = {}): Promise<LockResult> {
         const config = { ...this.config, ...options };
+        // Enforce minimum lock timeout to prevent locks expiring before operations complete
+        if (config.lockTimeout < MIN_LOCK_TIMEOUT) {
+            config.lockTimeout = MIN_LOCK_TIMEOUT;
+        }
         const redis = getRedis();
         const key = `lock:${lockKey}`;
         const ownerId = `${this.instanceId}:${uuidv4()}`;

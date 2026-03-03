@@ -64,21 +64,30 @@ function validateOrigin(socket: Socket): OriginValidationResult {
     // Parse allowed origins from CORS_ORIGIN
     const allowedOrigins = (corsOrigin || '').split(',').map((o: string) => o.trim().toLowerCase());
 
-    // Check if origin is allowed
-    const originLower = origin.toLowerCase();
+    // Parse origin hostname for robust comparison (handles ports, protocols)
+    let originHostname: string;
+    try {
+        originHostname = new URL(origin).hostname.toLowerCase();
+    } catch {
+        return { valid: false, reason: 'Malformed origin URL' };
+    }
+
     const isAllowed = allowedOrigins.some((allowed: string) => {
         if (allowed === '*') return true;
-        // Exact match
-        if (allowed === originLower) return true;
-        // Support wildcard subdomains (e.g., *.example.com)
-        if (allowed.startsWith('*.')) {
-            const domain = allowed.slice(2);
-            return (
-                originLower.endsWith(domain) &&
-                (originLower.length === domain.length || originLower[originLower.length - domain.length - 1] === '.')
-            );
+        // Parse allowed origin to extract hostname
+        let allowedHostname: string;
+        try {
+            // Handle wildcard subdomains (e.g., *.example.com)
+            if (allowed.startsWith('*.')) {
+                const domain = allowed.slice(2);
+                return originHostname === domain || originHostname.endsWith('.' + domain);
+            }
+            // Parse as URL if it contains ://, otherwise treat as hostname
+            allowedHostname = allowed.includes('://') ? new URL(allowed).hostname.toLowerCase() : allowed;
+        } catch {
+            allowedHostname = allowed;
         }
-        return false;
+        return allowedHostname === originHostname;
     });
 
     if (!isAllowed) {

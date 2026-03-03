@@ -354,11 +354,14 @@ describe('Health Routes', () => {
 
         it('should omit process details in production', async () => {
             process.env.NODE_ENV = 'production';
+            process.env.ADMIN_PASSWORD = 'test-admin-pass';
             app = createTestApp();
 
-            const res = await request(app).get('/health/metrics').expect(200);
+            const authHeader = 'Basic ' + Buffer.from('admin:test-admin-pass').toString('base64');
+            const res = await request(app).get('/health/metrics').set('Authorization', authHeader).expect(200);
 
             expect(res.body.process).toBeUndefined();
+            delete process.env.ADMIN_PASSWORD;
         });
 
         // --- Production vs dev: Redis memory details ---
@@ -376,11 +379,14 @@ describe('Health Routes', () => {
 
         it('should omit Redis memory details in production', async () => {
             process.env.NODE_ENV = 'production';
+            process.env.ADMIN_PASSWORD = 'test-admin-pass';
             app = createTestApp();
 
-            const res = await request(app).get('/health/metrics').expect(200);
+            const authHeader = 'Basic ' + Buffer.from('admin:test-admin-pass').toString('base64');
+            const res = await request(app).get('/health/metrics').set('Authorization', authHeader).expect(200);
 
             expect(res.body.redis.memory).toBeUndefined();
+            delete process.env.ADMIN_PASSWORD;
         });
 
         // --- Production vs dev: PubSub counters ---
@@ -401,15 +407,18 @@ describe('Health Routes', () => {
 
         it('should omit PubSub counters in production', async () => {
             process.env.NODE_ENV = 'production';
+            process.env.ADMIN_PASSWORD = 'test-admin-pass';
             app = createTestApp();
 
-            const res = await request(app).get('/health/metrics').expect(200);
+            const authHeader = 'Basic ' + Buffer.from('admin:test-admin-pass').toString('base64');
+            const res = await request(app).get('/health/metrics').set('Authorization', authHeader).expect(200);
 
             expect(res.body.pubsub).toEqual({ healthy: true });
             expect(res.body.pubsub.totalPublishes).toBeUndefined();
             expect(res.body.pubsub.totalFailures).toBeUndefined();
             expect(res.body.pubsub.failureRate).toBeUndefined();
             expect(res.body.pubsub.consecutiveFailures).toBeUndefined();
+            delete process.env.ADMIN_PASSWORD;
         });
 
         // --- Memory alert thresholds ---
@@ -492,6 +501,7 @@ describe('Health Routes', () => {
 
         it('should omit alert details in production', async () => {
             process.env.NODE_ENV = 'production';
+            process.env.ADMIN_PASSWORD = 'test-admin-pass';
             app = createTestApp();
 
             mockGetRedisMemoryInfo.mockResolvedValue(
@@ -503,13 +513,15 @@ describe('Health Routes', () => {
                 })
             );
 
-            const res = await request(app).get('/health/metrics').expect(200);
+            const authHeader = 'Basic ' + Buffer.from('admin:test-admin-pass').toString('base64');
+            const res = await request(app).get('/health/metrics').set('Authorization', authHeader).expect(200);
 
             expect(res.body.alerts[0]).toMatchObject({
                 type: 'redis_memory',
                 level: 'critical',
             });
             expect(res.body.alerts[0].details).toBeUndefined();
+            delete process.env.ADMIN_PASSWORD;
         });
 
         // --- Redis mode reported correctly ---

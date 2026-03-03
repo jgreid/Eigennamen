@@ -390,23 +390,23 @@ describe('multiplayerUI module', () => {
     });
 
     describe('updateForfeitButton', () => {
-        test('shows button for host during active game', () => {
-            document.body.innerHTML = '<button id="btn-forfeit" style="display: none"></button>';
+        test('shows section for host during active game', () => {
+            document.body.innerHTML = '<div id="settings-forfeit-section" style="display: none"></div>';
             state.isMultiplayerMode = true;
             state.gameState.gameOver = false;
 
             updateForfeitButton();
 
-            expect(document.getElementById('btn-forfeit')!.style.display).toBe('');
+            expect(document.getElementById('settings-forfeit-section')!.style.display).toBe('');
         });
 
-        test('hides button when game is over', () => {
-            document.body.innerHTML = '<button id="btn-forfeit" style="display: inline-block"></button>';
+        test('hides section when game is over', () => {
+            document.body.innerHTML = '<div id="settings-forfeit-section" style="display: block"></div>';
             state.gameState.gameOver = true;
 
             updateForfeitButton();
 
-            expect(document.getElementById('btn-forfeit')!.style.display).toBe('none');
+            expect(document.getElementById('settings-forfeit-section')!.style.display).toBe('none');
         });
     });
 

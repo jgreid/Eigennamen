@@ -44,6 +44,10 @@ export const JWT_CONFIG = {
 // Minimum secret length for production
 export const MIN_SECRET_LENGTH = 32;
 
+// Maximum allowed token lifetime
+const MAX_TOKEN_LIFETIME = '7d';
+const ALLOWED_EXPIRY_PATTERN = /^(\d+)(s|m|h|d)$/;
+
 /**
  * Get JWT secret with validation.
  *
@@ -64,6 +68,15 @@ function getJwtSecret(): string | null {
             logger.debug('JWT_SECRET not set - JWT authentication disabled in development');
         }
         return null;
+    }
+
+    // Reject .env.example placeholder values
+    if (secret.startsWith('CHANGE-ME') || secret === 'your-secret-key-change-in-production') {
+        if (isProduction) {
+            throw new Error('JWT_SECRET contains a placeholder value. Set a real secret for production.');
+        } else {
+            logger.warn('JWT_SECRET contains a placeholder value — change it before deploying');
+        }
     }
 
     if (isProduction && secret.length < MIN_SECRET_LENGTH) {
@@ -101,6 +114,41 @@ interface SignOptions {
 }
 
 /**
+ * Convert an expiry string to seconds
+ */
+function expiryToSeconds(value: string): number {
+    const match = ALLOWED_EXPIRY_PATTERN.exec(value);
+    if (!match) return 0;
+    const num = parseInt(match[1]!, 10);
+    const unit = match[2]!;
+    switch (unit) {
+        case 's':
+            return num;
+        case 'm':
+            return num * 60;
+        case 'h':
+            return num * 3600;
+        case 'd':
+            return num * 86400;
+        default:
+            return 0;
+    }
+}
+
+/**
+ * Cap expiresIn to MAX_TOKEN_LIFETIME to prevent unbounded token lifetimes
+ */
+function capExpiresIn(value: string): string {
+    const maxSeconds = expiryToSeconds(MAX_TOKEN_LIFETIME);
+    const requestedSeconds = expiryToSeconds(value);
+    if (requestedSeconds <= 0 || requestedSeconds > maxSeconds) {
+        logger.warn(`JWT expiresIn '${value}' exceeds maximum, capping to '${MAX_TOKEN_LIFETIME}'`);
+        return MAX_TOKEN_LIFETIME;
+    }
+    return value;
+}
+
+/**
  * Sign a JWT token with proper configuration
  * @param payload - Token payload
  * @param options - Additional options to merge with defaults
@@ -112,7 +160,7 @@ function signToken(payload: JwtPayload, options: SignOptions = {}): string | nul
         return null;
     }
 
-    const expiresIn = options.expiresIn || JWT_CONFIG.expiresIn;
+    const expiresIn = capExpiresIn(options.expiresIn || JWT_CONFIG.expiresIn);
 
     const signOptions = {
         ...options,
@@ -267,10 +315,11 @@ function generateSessionToken(
     additionalClaims: Record<string, unknown> = {}
 ): string | null {
     return signToken({
+        ...additionalClaims,
+        // Security-critical fields AFTER spread to prevent caller override
         userId,
         sessionId,
         type: 'session',
-        ...additionalClaims,
     });
 }
 

@@ -368,16 +368,17 @@ export function forfeitGame(): void {
 }
 
 /**
- * Update forfeit button visibility based on game state
- * Shows only for host during an active multiplayer game
+ * Update forfeit button visibility based on game state.
+ * The forfeit button lives inside the settings modal (Game tab).
+ * Shows only for host during an active multiplayer game.
  */
 export function updateForfeitButton(): void {
-    const forfeitBtn = document.getElementById('btn-forfeit');
-    if (!forfeitBtn) return;
+    const forfeitSection = document.getElementById('settings-forfeit-section');
+    if (!forfeitSection) return;
 
     const shouldShow = state.isMultiplayerMode && getClient()?.player?.isHost && !state.gameState.gameOver;
 
-    forfeitBtn.style.display = shouldShow ? '' : 'none';
+    forfeitSection.style.display = shouldShow ? '' : 'none';
 }
 
 /**

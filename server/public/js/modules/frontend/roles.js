@@ -106,7 +106,6 @@ export function updateControls() {
     const clickerBtn = document.getElementById('btn-clicker');
     const redTeamBtn = document.getElementById('btn-team-red');
     const blueTeamBtn = document.getElementById('btn-team-blue');
-    const spectateBtn = document.getElementById('btn-spectate');
     const roleHint = document.getElementById('role-hint');
     // Clicker (or fallback) can end turn when it's their team's turn
     const clickerCanAct = canActAsClicker();
@@ -130,7 +129,6 @@ export function updateControls() {
     // Team selection (scoreboard buttons)
     const isRedTeam = state.playerTeam === 'red';
     const isBlueTeam = state.playerTeam === 'blue';
-    const isUnaffiliated = !state.playerTeam;
     if (redTeamBtn) {
         redTeamBtn.classList.toggle('selected', isRedTeam);
         redTeamBtn.classList.toggle('loading', isChangingRole() && changingTarget() === 'red');
@@ -140,11 +138,6 @@ export function updateControls() {
         blueTeamBtn.classList.toggle('selected', isBlueTeam);
         blueTeamBtn.classList.toggle('loading', isChangingRole() && changingTarget() === 'blue');
         blueTeamBtn.setAttribute('aria-pressed', isBlueTeam.toString());
-    }
-    if (spectateBtn) {
-        spectateBtn.classList.toggle('active', isUnaffiliated);
-        spectateBtn.classList.toggle('loading', isChangingRole() && changingTarget() === 'spectate');
-        spectateBtn.setAttribute('aria-pressed', isUnaffiliated.toString());
     }
     // Role buttons - styled based on selected team
     const isSpy = isSpymaster();

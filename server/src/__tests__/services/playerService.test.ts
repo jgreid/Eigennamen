@@ -688,13 +688,13 @@ describe('Player Service', () => {
     describe('validateRoomReconnectToken', () => {
         test('validates correct token', async () => {
             const tokenData = { sessionId: 's1', roomCode: 'ABC123' };
-            mockRedis.get.mockResolvedValue(JSON.stringify(tokenData)); // token lookup
-            mockRedis.del.mockResolvedValue(1);
+            // Atomic Lua script returns token data JSON on success
+            mockRedis.eval.mockResolvedValueOnce(JSON.stringify(tokenData));
 
             const result = await playerService.validateRoomReconnectToken('validtoken123', 's1');
 
             expect(result.valid).toBe(true);
-            expect(mockRedis.del).toHaveBeenCalledWith('reconnect:token:validtoken123');
+            expect(mockRedis.eval).toHaveBeenCalled();
         });
 
         test('returns invalid for null token', async () => {
@@ -705,7 +705,8 @@ describe('Player Service', () => {
         });
 
         test('returns invalid when token not found in Redis', async () => {
-            mockRedis.get.mockResolvedValue(null);
+            // Atomic Lua script returns 'NOT_FOUND' when token key is missing
+            mockRedis.eval.mockResolvedValueOnce('NOT_FOUND');
 
             const result = await playerService.validateRoomReconnectToken('sometoken', 's1');
 
@@ -714,8 +715,8 @@ describe('Player Service', () => {
         });
 
         test('returns invalid for session mismatch', async () => {
-            const tokenData = { sessionId: 'other-session', roomCode: 'ABC123' };
-            mockRedis.get.mockResolvedValue(JSON.stringify(tokenData));
+            // Atomic Lua script returns 'SESSION_MISMATCH' when sessionId doesn't match
+            mockRedis.eval.mockResolvedValueOnce('SESSION_MISMATCH');
 
             const result = await playerService.validateRoomReconnectToken('validtoken', 's1');
 
@@ -724,7 +725,8 @@ describe('Player Service', () => {
         });
 
         test('returns invalid for corrupted token data', async () => {
-            mockRedis.get.mockResolvedValue('invalid-json');
+            // Lua returns data but tryParseJSON fails on it
+            mockRedis.eval.mockResolvedValueOnce('invalid-json');
 
             const result = await playerService.validateRoomReconnectToken('validtoken', 's1');
 
@@ -786,15 +788,21 @@ describe('Player Service', () => {
     describe('validateRoomReconnectToken', () => {
         test('validates and consumes correct token', async () => {
             const tokenData = { sessionId: 's1', roomCode: 'ABC123' };
-            mockRedis.get.mockResolvedValue(JSON.stringify(tokenData));
-            mockRedis.del.mockResolvedValue(1);
+            // Atomic Lua script returns token data JSON on success (GET + validate + DEL)
+            mockRedis.eval.mockResolvedValueOnce(JSON.stringify(tokenData));
 
             const result = await playerService.validateRoomReconnectToken('mytoken', 's1');
 
             expect(result.valid).toBe(true);
             expect(result.tokenData).toEqual(tokenData);
-            expect(mockRedis.del).toHaveBeenCalledWith('reconnect:token:mytoken');
-            expect(mockRedis.del).toHaveBeenCalledWith('reconnect:session:s1');
+            // Verify the atomic eval was called with correct keys
+            expect(mockRedis.eval).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.objectContaining({
+                    keys: ['reconnect:token:mytoken', 'reconnect:session:s1'],
+                    arguments: ['s1'],
+                })
+            );
         });
 
         test('returns invalid for null token', async () => {
@@ -812,7 +820,8 @@ describe('Player Service', () => {
         });
 
         test('returns invalid for expired/missing token', async () => {
-            mockRedis.get.mockResolvedValue(null);
+            // Atomic Lua script returns 'NOT_FOUND' when token missing
+            mockRedis.eval.mockResolvedValueOnce('NOT_FOUND');
 
             const result = await playerService.validateRoomReconnectToken('expiredtoken', 's1');
 
@@ -821,7 +830,8 @@ describe('Player Service', () => {
         });
 
         test('returns invalid for corrupted token data', async () => {
-            mockRedis.get.mockResolvedValue('invalid json');
+            // Lua returns data but tryParseJSON fails on it
+            mockRedis.eval.mockResolvedValueOnce('invalid json');
 
             const result = await playerService.validateRoomReconnectToken('mytoken', 's1');
 
@@ -830,8 +840,8 @@ describe('Player Service', () => {
         });
 
         test('returns invalid for session mismatch', async () => {
-            const tokenData = { sessionId: 'different-session', roomCode: 'ABC123' };
-            mockRedis.get.mockResolvedValue(JSON.stringify(tokenData));
+            // Atomic Lua script returns 'SESSION_MISMATCH'
+            mockRedis.eval.mockResolvedValueOnce('SESSION_MISMATCH');
 
             const result = await playerService.validateRoomReconnectToken('mytoken', 's1');
 
@@ -984,33 +994,32 @@ describe('Player Service', () => {
             const entry = JSON.stringify({ sessionId: 's1', roomCode: 'ABC123' });
             const player = mockPlayer({ sessionId: 's1', connected: false });
 
-            mockRedis.zRangeByScore.mockResolvedValue([entry]);
-            // The atomic cleanup Lua script returns player data JSON on success
-            mockRedis.eval.mockResolvedValue(JSON.stringify(player));
-            mockRedis.zRem.mockResolvedValue(1);
+            // Atomic dequeue via eval: 1st call returns entries, 2nd trims ancient, 3rd is cleanup script
+            mockRedis.eval.mockResolvedValueOnce([entry]);
+            mockRedis.eval.mockResolvedValueOnce(0);
+            mockRedis.eval.mockResolvedValueOnce(JSON.stringify(player));
 
             const count = await playerService.processScheduledCleanups();
 
             expect(count).toBe(1);
-            expect(mockRedis.zRem).toHaveBeenCalledWith('scheduled:player:cleanup', entry);
         });
 
         test('skips reconnected players', async () => {
             const entry = JSON.stringify({ sessionId: 's1', roomCode: 'ABC123' });
 
-            mockRedis.zRangeByScore.mockResolvedValue([entry]);
+            mockRedis.eval.mockResolvedValueOnce([entry]);
+            mockRedis.eval.mockResolvedValueOnce(0);
             // The atomic cleanup Lua script returns 'RECONNECTED' if player is connected
-            mockRedis.eval.mockResolvedValue('RECONNECTED');
-            mockRedis.zRem.mockResolvedValue(1);
+            mockRedis.eval.mockResolvedValueOnce('RECONNECTED');
 
             const count = await playerService.processScheduledCleanups();
 
             expect(count).toBe(0);
-            expect(mockRedis.zRem).toHaveBeenCalledWith('scheduled:player:cleanup', entry);
         });
 
         test('returns 0 when no cleanups due', async () => {
-            mockRedis.zRangeByScore.mockResolvedValue([]);
+            // Atomic dequeue returns empty array
+            mockRedis.eval.mockResolvedValueOnce([]);
 
             const count = await playerService.processScheduledCleanups();
 
@@ -1018,18 +1027,18 @@ describe('Player Service', () => {
         });
 
         test('handles invalid cleanup entries', async () => {
-            mockRedis.zRangeByScore.mockResolvedValue(['invalid json']);
-            mockRedis.zRem.mockResolvedValue(1);
+            mockRedis.eval.mockResolvedValueOnce(['invalid json']);
+            mockRedis.eval.mockResolvedValueOnce(0);
 
             const count = await playerService.processScheduledCleanups();
 
             expect(count).toBe(0);
             expect(logger.error).toHaveBeenCalledWith('Failed to parse cleanup entry:', expect.any(String));
-            expect(mockRedis.zRem).toHaveBeenCalled();
         });
 
         test('handles errors gracefully', async () => {
-            mockRedis.zRangeByScore.mockRejectedValue(new Error('Redis error'));
+            // Dequeue eval rejects
+            mockRedis.eval.mockRejectedValueOnce(new Error('Redis error'));
 
             const count = await playerService.processScheduledCleanups();
 
@@ -1245,23 +1254,23 @@ describe('Player Service', () => {
 
         test('handles null result from eval (player key already gone)', async () => {
             const entry = JSON.stringify({ sessionId: 's1', roomCode: 'ABC123' });
-            mockRedis.zRangeByScore.mockResolvedValue([entry]);
-            mockRedis.eval.mockResolvedValue(null);
-            mockRedis.zRem.mockResolvedValue(1);
+            // Atomic dequeue returns entries, trim ancient, cleanup returns null
+            mockRedis.eval.mockResolvedValueOnce([entry]);
+            mockRedis.eval.mockResolvedValueOnce(0);
+            mockRedis.eval.mockResolvedValueOnce(null);
 
             const count = await playerService.processScheduledCleanups();
 
             expect(count).toBe(0);
-            expect(mockRedis.zRem).toHaveBeenCalledWith('scheduled:player:cleanup', entry);
         });
 
         test('checks for orphaned room when no players remaining', async () => {
             const entry = JSON.stringify({ sessionId: 's1', roomCode: 'ORPHAN' });
             const player = mockPlayer({ sessionId: 's1', connected: false, roomCode: 'ORPHAN' });
 
-            mockRedis.zRangeByScore.mockResolvedValue([entry]);
-            mockRedis.eval.mockResolvedValue(JSON.stringify(player));
-            mockRedis.zRem.mockResolvedValue(1);
+            mockRedis.eval.mockResolvedValueOnce([entry]);
+            mockRedis.eval.mockResolvedValueOnce(0);
+            mockRedis.eval.mockResolvedValueOnce(JSON.stringify(player));
             mockRedis.sCard.mockResolvedValue(0);
             mockRedis.exists.mockResolvedValue(0); // room already gone
 
@@ -1276,9 +1285,9 @@ describe('Player Service', () => {
             const entry = JSON.stringify({ sessionId: 's1', roomCode: 'ABC123' });
             const player = mockPlayer({ sessionId: 's1', connected: false });
 
-            mockRedis.zRangeByScore.mockResolvedValue([entry]);
-            mockRedis.eval.mockResolvedValue(JSON.stringify(player));
-            mockRedis.zRem.mockResolvedValue(1);
+            mockRedis.eval.mockResolvedValueOnce([entry]);
+            mockRedis.eval.mockResolvedValueOnce(0);
+            mockRedis.eval.mockResolvedValueOnce(JSON.stringify(player));
             // sCard > 0 means room is not empty
             mockRedis.sCard.mockResolvedValue(2);
 

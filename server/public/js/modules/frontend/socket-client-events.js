@@ -125,6 +125,12 @@ export function registerAllEventListeners(register, emit, client) {
     register('game:over', (raw) => {
         emit('gameOver', raw);
     });
+    register('game:roundEnded', (raw) => {
+        emit('game:roundEnded', raw);
+    });
+    register('game:matchOver', (raw) => {
+        emit('game:matchOver', raw);
+    });
     register('game:spymasterView', (raw) => {
         emit('spymasterView', raw);
     });

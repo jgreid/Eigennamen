@@ -1,11 +1,11 @@
 local playerKey = KEYS[1]
--- KEYS[2] is reserved (previously teamSetKey passed from JS; now derived atomically below)
-local roomCode = KEYS[3]
+-- KEYS[2] is reserved for backwards compatibility (unused)
 local newTeam = ARGV[1]
 local sessionId = ARGV[2]
 local ttl = tonumber(ARGV[3])
 local now = tonumber(ARGV[4])
 local checkEmpty = ARGV[5] == 'true'
+local roomCode = ARGV[6]
 
 -- Defense-in-depth: Validate team is one of allowed values
 -- JS already validates via Zod schema, but Lua should also check

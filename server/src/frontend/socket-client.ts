@@ -90,7 +90,7 @@ import type { JoinCreateResult } from './multiplayerTypes.js';
             if (!this.listeners[event]) {
                 (this.listeners as Record<string, unknown[]>)[event] = [];
             }
-            (this.listeners as Record<string, unknown[]>)[event].push(callback);
+            (this.listeners as Record<string, unknown[]>)[event]!.push(callback);
             return this;
         },
 

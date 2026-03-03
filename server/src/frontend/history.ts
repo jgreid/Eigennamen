@@ -478,7 +478,7 @@ export function cycleReplaySpeed(): void {
     const speedKeys = Object.keys(REPLAY_SPEEDS);
     const currentIndex = speedKeys.indexOf(currentReplaySpeed);
     const nextIndex = (currentIndex + 1) % speedKeys.length;
-    currentReplaySpeed = speedKeys[nextIndex];
+    currentReplaySpeed = speedKeys[nextIndex]!;
 
     const speedBtn = document.getElementById('replay-speed');
     if (speedBtn) {

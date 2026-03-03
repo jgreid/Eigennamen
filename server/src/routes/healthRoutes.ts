@@ -1,4 +1,4 @@
-import type { Request, Response, Router as ExpressRouter } from 'express';
+import type { Request, Response, NextFunction, Router as ExpressRouter } from 'express';
 
 import express from 'express';
 import { isRedisHealthy, isUsingMemoryMode, getRedisMemoryInfo } from '../config/redis';
@@ -157,11 +157,37 @@ router.get('/live', (_req: Request, res: Response) => {
     });
 });
 
+// In production, require basic auth for metrics endpoints to prevent reconnaissance.
+// /health, /health/ready, /health/live remain unauthenticated for load balancers.
+const requireMetricsAuth = (req: Request, res: Response, next: NextFunction): void => {
+    if (process.env.NODE_ENV !== 'production') return next();
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        res.status(401).set('WWW-Authenticate', 'Basic realm="Metrics"').json({ error: 'Authentication required' });
+        return;
+    }
+    // Delegate to the admin basicAuth — import is avoided to prevent circular deps.
+    // Instead, check ADMIN_PASSWORD directly (same mechanism as adminRoutes.ts).
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    if (!adminPassword) {
+        res.status(503).json({ error: 'Metrics auth not configured' });
+        return;
+    }
+    const encoded = authHeader.replace('Basic ', '');
+    const decoded = Buffer.from(encoded, 'base64').toString('utf8');
+    const [, password] = decoded.split(':');
+    if (password === adminPassword) {
+        next();
+    } else {
+        res.status(401).set('WWW-Authenticate', 'Basic realm="Metrics"').json({ error: 'Invalid credentials' });
+    }
+};
+
 /**
  * Detailed health metrics - for monitoring dashboards
  * Returns comprehensive system information
  */
-router.get('/metrics', async (_req: Request, res: Response) => {
+router.get('/metrics', requireMetricsAuth, async (_req: Request, res: Response) => {
     try {
         const memUsage = process.memoryUsage();
         const pubSubStatus = pubSubHealth.getHealth();
@@ -258,7 +284,7 @@ router.get('/metrics', async (_req: Request, res: Response) => {
  * Prometheus-compatible metrics endpoint
  * Returns metrics in Prometheus text exposition format
  */
-router.get('/metrics/prometheus', (_req: Request, res: Response) => {
+router.get('/metrics/prometheus', requireMetricsAuth, (_req: Request, res: Response) => {
     try {
         // Update system metrics before export
         updateSystemMetrics();

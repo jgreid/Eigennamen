@@ -156,8 +156,8 @@ export function revealCard(index: number): void {
         neutral: t('board.neutralCard'),
         assassin: t('board.assassinCard'),
     };
-    const typeName = typeNames[type] || type;
-    announceToScreenReader(t('game.wordRevealedAs', { word, type: typeName }));
+    const typeName = typeNames[type!] || type || 'unknown';
+    announceToScreenReader(t('game.wordRevealedAs', { word: word!, type: typeName }));
 
     if (state.gameState.gameOver) {
         showGameOverModal();

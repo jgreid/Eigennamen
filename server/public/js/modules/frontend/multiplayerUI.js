@@ -130,14 +130,8 @@ export function initPlayerListUI() {
         });
     }
 }
-// Show/hide room settings nav item based on multiplayer host status
+// Show/hide room settings based on multiplayer host status
 export function updateRoomSettingsNavVisibility() {
-    // Support legacy nav tab (if present)
-    const navItem = document.getElementById('nav-room-settings');
-    if (navItem) {
-        const isHost = getClient()?.player?.isHost;
-        navItem.style.display = state.isMultiplayerMode && isHost ? 'flex' : 'none';
-    }
     // Show/hide inline game mode section in the merged Game panel
     const gameModeSection = document.getElementById('settings-game-mode-section');
     if (gameModeSection) {
@@ -341,15 +335,16 @@ export function forfeitGame() {
     EigennamenClient.forfeit();
 }
 /**
- * Update forfeit button visibility based on game state
- * Shows only for host during an active multiplayer game
+ * Update forfeit button visibility based on game state.
+ * The forfeit button lives inside the settings modal (Game tab).
+ * Shows only for host during an active multiplayer game.
  */
 export function updateForfeitButton() {
-    const forfeitBtn = document.getElementById('btn-forfeit');
-    if (!forfeitBtn)
+    const forfeitSection = document.getElementById('settings-forfeit-section');
+    if (!forfeitSection)
         return;
     const shouldShow = state.isMultiplayerMode && getClient()?.player?.isHost && !state.gameState.gameOver;
-    forfeitBtn.style.display = shouldShow ? '' : 'none';
+    forfeitSection.style.display = shouldShow ? '' : 'none';
 }
 /**
  * Initialize nickname edit UI event handlers
@@ -428,8 +423,10 @@ function cancelNicknameEdit() {
     const editBtn = document.getElementById('btn-edit-nickname');
     if (form)
         form.style.display = 'none';
-    if (editBtn)
+    if (editBtn) {
         editBtn.style.display = '';
+        editBtn.focus();
+    }
 }
 /**
  * Show the reconnection overlay banner with a timeout fallback.

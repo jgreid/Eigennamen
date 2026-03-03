@@ -276,7 +276,7 @@ export function renderBoard(): void {
             card.setAttribute('tabindex', isRevealed ? '-1' : '0');
             card.setAttribute(
                 'aria-label',
-                buildCardAriaLabel(word, isRevealed, state.gameState.types[index], row, col)
+                buildCardAriaLabel(word, isRevealed ?? false, state.gameState.types[index] ?? '', row, col)
             );
             if (isRevealed) {
                 card.setAttribute('aria-disabled', 'true');
@@ -284,12 +284,12 @@ export function renderBoard(): void {
 
             // Add spymaster hints (show all card types when game is over)
             if (showSpymasterView()) {
-                card.classList.add(`spy-${state.gameState.types[index]}`);
+                card.classList.add(`spy-${state.gameState.types[index] ?? 'neutral'}`);
             }
 
             // Show revealed cards
             if (isRevealed) {
-                card.classList.add('revealed', state.gameState.types[index]);
+                card.classList.add('revealed', state.gameState.types[index] ?? 'neutral');
             }
 
             // Match mode: add score badge
@@ -337,8 +337,8 @@ export function updateBoardIncremental(): void {
             // Guard against array length mismatch between DOM and state
             if (index >= wordCount) break;
             const isRevealed = state.gameState.revealed[index];
-            const type = state.gameState.types[index];
-            const word = state.gameState.words[index];
+            const type = state.gameState.types[index] ?? 'neutral';
+            const word = state.gameState.words[index] ?? '';
 
             // Update card text if it changed (safety measure for sync issues)
             // Compare via data-word to avoid false mismatches from badge child text
@@ -363,7 +363,7 @@ export function updateBoardIncremental(): void {
             const row = Math.floor(index / 5) + 1;
             const col = (index % 5) + 1;
             card.setAttribute('tabindex', isRevealed ? '-1' : '0');
-            card.setAttribute('aria-label', buildCardAriaLabel(word, isRevealed, type, row, col));
+            card.setAttribute('aria-label', buildCardAriaLabel(word, isRevealed ?? false, type, row, col));
             if (isRevealed) {
                 card.setAttribute('aria-disabled', 'true');
             } else {
@@ -412,11 +412,11 @@ export function updateSingleCard(index: number): void {
     if (index >= state.gameState.types.length || index >= state.gameState.words.length) return;
 
     const card = board.children[index] as HTMLElement;
-    const type = state.gameState.types[index];
+    const type = state.gameState.types[index] ?? 'neutral';
 
     card.classList.add('revealed', type);
     card.setAttribute('tabindex', '-1');
-    const word = state.gameState.words[index];
+    const word = state.gameState.words[index] ?? '';
     const row = Math.floor(index / 5) + 1;
     const col = (index % 5) + 1;
     card.setAttribute('aria-label', buildCardAriaLabel(word, true, type, row, col));

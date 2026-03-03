@@ -30,7 +30,7 @@ describe('Service behavior when Redis is down', () => {
         const timerService = require('../../services/timerService');
 
         test('startTimer rejects with Redis error', async () => {
-            await expect(timerService.startTimer('ROOM01', 30)).rejects.toThrow('Connection refused');
+            await expect(timerService.startTimer('ROOM01', 30)).rejects.toThrow(/Connection refused|Failed to acquire lock/);
         });
 
         test('stopTimer rejects with Redis error', async () => {

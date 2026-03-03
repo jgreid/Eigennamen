@@ -120,7 +120,9 @@ app.use(
             directives: {
                 defaultSrc: ["'self'"],
                 scriptSrc: ["'self'"], // All scripts loaded from external files
-                styleSrc: ["'self'", "'unsafe-inline'"], // Game uses inline styles
+                // TODO: Migrate inline styles to CSS classes and remove 'unsafe-inline'
+                // once all dynamic style.* assignments in frontend/ use CSS classes instead
+                styleSrc: ["'self'", "'unsafe-inline'"],
                 imgSrc: ["'self'", 'data:', 'blob:'],
                 connectSrc: ["'self'", 'wss:', 'ws:'], // WebSocket connections
                 fontSrc: ["'self'"],
@@ -152,6 +154,12 @@ app.use(
             : false,
     })
 );
+
+// Permissions-Policy: disable browser features not needed by the game
+app.use((_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+    next();
+});
 
 app.use(
     cors({
@@ -220,6 +228,10 @@ app.use(
 app.use('/health', healthRoutes);
 
 // OpenAPI/Swagger documentation (accessible at /api-docs)
+// In production, gate behind admin auth to prevent API reconnaissance
+if (isProduction) {
+    app.use('/api-docs', basicAuth);
+}
 setupSwagger(app as unknown as Express);
 
 // Metrics response interface

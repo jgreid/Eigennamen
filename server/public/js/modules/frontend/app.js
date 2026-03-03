@@ -33,6 +33,7 @@ setCardClickHandler(revealCard);
 registerModalCloseHandler('settings-modal', closeSettings);
 registerModalCloseHandler('help-modal', closeHelp);
 registerModalCloseHandler('confirm-modal', closeConfirm);
+registerModalCloseHandler('confirm-end-turn-modal', closeEndTurnConfirm);
 registerModalCloseHandler('game-over-modal', closeGameOver);
 registerModalCloseHandler('error-modal', closeError);
 registerModalCloseHandler('multiplayer-modal', closeMultiplayer);
@@ -85,20 +86,6 @@ function setupEventListeners() {
                 break;
             case 'set-clicker-current':
                 setClickerCurrent();
-                break;
-            case 'spectate':
-                // Spectate clears team affiliation and roles
-                if (state.isMultiplayerMode && isClientConnected()) {
-                    setTeam(null);
-                }
-                else {
-                    state.spymasterTeam = null;
-                    state.clickerTeam = null;
-                    state.playerTeam = null;
-                    updateRoleBanner();
-                    updateControls();
-                    renderBoard();
-                }
                 break;
             case 'open-settings':
                 openSettings();

@@ -35,8 +35,8 @@ export async function initI18n() {
         // localStorage unavailable (private browsing, storage quota, etc.)
     }
     const browserLang = navigator.language?.split('-')[0];
-    const detected = stored || (browserLang in LANGUAGES ? browserLang : DEFAULT_LANGUAGE);
-    await setLanguage(detected, false);
+    const detected = stored || (browserLang && browserLang in LANGUAGES ? browserLang : DEFAULT_LANGUAGE);
+    await setLanguage(detected ?? DEFAULT_LANGUAGE, false);
 }
 /**
  * Set the active language and translate the page
@@ -106,8 +106,8 @@ export function getLanguage() {
  * @returns Translated string or key as fallback
  */
 export function t(key, params = {}) {
-    const value = getNestedValue(translations[currentLanguage], key) ||
-        getNestedValue(translations[DEFAULT_LANGUAGE], key) ||
+    const value = getNestedValue(translations[currentLanguage] ?? {}, key) ||
+        getNestedValue(translations[DEFAULT_LANGUAGE] ?? {}, key) ||
         key;
     if (typeof value !== 'string')
         return key;

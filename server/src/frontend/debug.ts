@@ -131,14 +131,14 @@ export function setState(state: AppState, property: string, value: unknown, sour
     let target: Record<string, unknown> = state as unknown as Record<string, unknown>;
 
     for (let i = 0; i < parts.length - 1; i++) {
-        target = target[parts[i]] as Record<string, unknown>;
+        target = target[parts[i]!] as Record<string, unknown>;
         if (target === undefined) {
             console.error(`[State] Invalid property path: ${property}`);
             return;
         }
     }
 
-    const lastPart = parts[parts.length - 1];
+    const lastPart = parts[parts.length - 1]!;
     const oldValue = target[lastPart];
     target[lastPart] = value;
 

@@ -8,5 +8,5 @@ export { subscribe, emit, clearAllListeners, getListenerCount } from './eventBus
 export { batch, isBatching } from './batch.js';
 export { createReactiveProxy } from './reactiveProxy.js';
 // Selectors — derived state
-export { isSpymaster, isClicker, hasTeam, hasRole, isPlayerTurn, isTeamOnTurn, showSpymasterView, gameInProgress, redRemaining, blueRemaining, currentTeamName, teamName, isCurrentTeamClickerUnavailable, isClickerFallback, canActAsClicker, isDuetMode, playerCount, } from './selectors.js';
+export { isSpymaster, isClicker, hasTeam, hasRole, isPlayerTurn, isTeamOnTurn, showSpymasterView, gameInProgress, redRemaining, blueRemaining, currentTeamName, teamName, isCurrentTeamClickerUnavailable, isClickerFallback, canActAsClicker, isDuetMode, isMatchMode, playerCount, } from './selectors.js';
 //# sourceMappingURL=index.js.map

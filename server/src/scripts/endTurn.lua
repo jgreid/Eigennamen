@@ -13,6 +13,7 @@ local gameKey = KEYS[1]
 local playerNickname = ARGV[1]
 local timestamp = tonumber(ARGV[2])
 local maxHistoryEntries = tonumber(ARGV[3])
+if maxHistoryEntries == nil or maxHistoryEntries < 1 then maxHistoryEntries = 100 end
 local expectedTeam = ARGV[4]
 
 -- Preserve existing TTL so the key doesn't become permanent
