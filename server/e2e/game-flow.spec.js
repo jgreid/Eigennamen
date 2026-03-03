@@ -122,16 +122,15 @@ test.describe('Modal Interactions', () => {
         await expect(modal).not.toHaveClass(/active/);
     });
 
-    test('can open and close help modal', async ({ page }) => {
-        const helpBtn = page.locator('[aria-label*="Help"]').first();
-        if (await helpBtn.isVisible().catch(() => false)) {
-            await helpBtn.click();
+    test('logo opens help modal', async ({ page }) => {
+        // The Eigennamen logo in the status bar opens the help overlay
+        const logoBtn = page.locator('.game-title-btn');
+        await logoBtn.click();
 
-            const modal = page.locator(sel.helpModal);
-            await expect(modal).toHaveClass(/active/);
+        const modal = page.locator(sel.helpModal);
+        await expect(modal).toHaveClass(/active/);
 
-            await page.locator('#help-modal.modal-overlay').click({ position: { x: 5, y: 5 } });
-            await expect(modal).not.toHaveClass(/active/);
-        }
+        await page.keyboard.press('Escape');
+        await expect(modal).not.toHaveClass(/active/);
     });
 });

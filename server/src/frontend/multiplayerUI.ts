@@ -469,7 +469,10 @@ function cancelNicknameEdit(): void {
     const form = document.getElementById('nickname-edit-form');
     const editBtn = document.getElementById('btn-edit-nickname');
     if (form) form.style.display = 'none';
-    if (editBtn) editBtn.style.display = '';
+    if (editBtn) {
+        editBtn.style.display = '';
+        editBtn.focus();
+    }
 }
 
 /**
