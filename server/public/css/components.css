@@ -1050,6 +1050,14 @@ button:focus-visible,
     }
 }
 
+.board-error {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px;
+    color: var(--color-red-light);
+    font-size: var(--font-size-lg);
+}
+
 #board-loading {
     background: linear-gradient(
         90deg,

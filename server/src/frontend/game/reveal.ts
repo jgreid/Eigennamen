@@ -153,8 +153,8 @@ export function revealCard(index: number): void {
     const typeNames: Record<string, string> = {
         red: state.teamNames.red,
         blue: state.teamNames.blue,
-        neutral: 'neutral',
-        assassin: 'assassin',
+        neutral: t('board.neutralCard'),
+        assassin: t('board.assassinCard'),
     };
     const typeName = typeNames[type] || type;
     announceToScreenReader(t('game.wordRevealedAs', { word, type: typeName }));
