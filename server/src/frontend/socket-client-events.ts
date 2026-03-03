@@ -29,6 +29,8 @@ import type {
     CardRevealedData,
     TurnEndedData,
     GameOverData,
+    RoundEndedData,
+    MatchOverData,
     SpymasterViewData,
     HistoryResultData,
     ReplayData,
@@ -191,6 +193,14 @@ export function registerAllEventListeners(register: RegisterFn, emit: EmitFn, cl
 
     register('game:over', (raw: unknown) => {
         emit('gameOver', raw as GameOverData);
+    });
+
+    register('game:roundEnded', (raw: unknown) => {
+        emit('game:roundEnded', raw as RoundEndedData);
+    });
+
+    register('game:matchOver', (raw: unknown) => {
+        emit('game:matchOver', raw as MatchOverData);
     });
 
     register('game:spymasterView', (raw: unknown) => {

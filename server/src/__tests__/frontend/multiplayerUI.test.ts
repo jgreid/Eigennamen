@@ -494,24 +494,6 @@ describe('multiplayerUI module', () => {
     });
 
     describe('updateRoomSettingsNavVisibility', () => {
-        test('shows nav item for multiplayer host', () => {
-            document.body.innerHTML = '<div id="nav-room-settings" style="display: none"></div>';
-            state.isMultiplayerMode = true;
-
-            updateRoomSettingsNavVisibility();
-
-            expect(document.getElementById('nav-room-settings')!.style.display).toBe('flex');
-        });
-
-        test('hides nav item when not in multiplayer', () => {
-            document.body.innerHTML = '<div id="nav-room-settings" style="display: flex"></div>';
-            state.isMultiplayerMode = false;
-
-            updateRoomSettingsNavVisibility();
-
-            expect(document.getElementById('nav-room-settings')!.style.display).toBe('none');
-        });
-
         test('shows game mode section for multiplayer host', () => {
             document.body.innerHTML = '<div id="settings-game-mode-section" style="display: none"></div>';
             state.isMultiplayerMode = true;

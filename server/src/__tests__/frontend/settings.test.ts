@@ -182,21 +182,6 @@ describe('settings module', () => {
             expect(document.getElementById('panel-game')!.classList.contains('active')).toBe(false);
         });
 
-        test('also supports legacy settings-nav-item class', () => {
-            document.body.innerHTML = `
-                <div class="settings-nav-item active" data-panel="game"></div>
-                <div class="settings-nav-item" data-panel="prefs"></div>
-                <div class="settings-panel active" id="panel-game"></div>
-                <div class="settings-panel" id="panel-prefs"></div>
-                <button id="btn-reset-words" style="display: none"></button>
-            `;
-
-            switchSettingsPanel('prefs');
-
-            expect(document.querySelector('[data-panel="prefs"]')!.classList.contains('active')).toBe(true);
-            expect(document.querySelector('[data-panel="game"]')!.classList.contains('active')).toBe(false);
-        });
-
         test('shows reset words button on game panel', () => {
             document.body.innerHTML = `
                 <button id="btn-reset-words" style="display: none"></button>

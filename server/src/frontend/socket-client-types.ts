@@ -13,6 +13,8 @@ import type {
     CardRevealedData,
     TurnEndedData,
     GameOverData,
+    RoundEndedData,
+    MatchOverData,
     SpymasterViewData,
     PlayerJoinedData,
     PlayerLeftData,
@@ -94,6 +96,8 @@ export interface ClientEventMap {
     cardRevealed: CardRevealedData;
     turnEnded: TurnEndedData;
     gameOver: GameOverData;
+    'game:roundEnded': RoundEndedData;
+    'game:matchOver': MatchOverData;
     spymasterView: SpymasterViewData;
     historyResult: HistoryResultData;
     replayData: ReplayData;

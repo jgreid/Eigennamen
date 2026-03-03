@@ -158,7 +158,8 @@
         "accessibility": "Accesibilidad",
         "colorBlindMode": "Modo para daltonismo (naranja/azul con etiquetas)",
         "teamsDesc": "Personaliza los nombres de equipo para esta partida. Los nombres se incluyen en el enlace compartido.",
-        "wordsDesc": "Elige qué palabras aparecen en el tablero. Las palabras personalizadas se incluyen en el enlace compartido."
+        "wordsDesc": "Elige qué palabras aparecen en el tablero. Las palabras personalizadas se incluyen en el enlace compartido.",
+        "storageFailed": "Los ajustes se aplicaron pero no se pudieron guardar. Se perderán al recargar."
     },
     "roomSettings": {
         "gameMode": "Modo de juego",
