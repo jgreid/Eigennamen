@@ -80,15 +80,16 @@
     overflow-x: hidden;
 }
 
-/* Right Main Area */
+/* Right Main Area — constrained to viewport so board + chat fit without scrollbar */
 .main-content {
     flex: 1;
-    padding: var(--spacing-md) var(--spacing-lg);
+    padding: var(--spacing-sm) var(--spacing-lg);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: calc(100vh - 48px);
+    min-height: 0;
+    overflow-y: auto;
 }
 
 /* ========== HEADER / TITLE ========== */
@@ -103,21 +104,7 @@
 }
 
 .game-title-btn::after {
-    content: '?';
-    position: absolute;
-    bottom: -1px;
-    right: -2px;
-    font-size: 0.55rem;
-    font-weight: 700;
-    width: 14px;
-    height: 14px;
-    line-height: 14px;
-    text-align: center;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.12);
-    color: rgba(255, 255, 255, 0.5);
-    font-family: var(--font-family-primary);
-    -webkit-text-fill-color: rgba(255, 255, 255, 0.5);
+    display: none;
 }
 
 .game-title-btn:hover {
@@ -131,9 +118,7 @@
 }
 
 .game-title-btn:hover::after {
-    background: rgba(255, 255, 255, 0.2);
-    color: rgba(255, 255, 255, 0.7);
-    -webkit-text-fill-color: rgba(255, 255, 255, 0.7);
+    display: none;
 }
 
 .game-title {

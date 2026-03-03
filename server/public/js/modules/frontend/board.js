@@ -400,8 +400,8 @@ export function updateSingleCard(index) {
     const typeNames = {
         red: state.teamNames.red,
         blue: state.teamNames.blue,
-        neutral: 'neutral',
-        assassin: 'assassin',
+        neutral: t('board.neutralCard'),
+        assassin: t('board.assassinCard'),
     };
     const typeName = typeNames[type] || type;
     announceToScreenReader(t('game.wordRevealedAs', { word, type: typeName }));

@@ -396,19 +396,6 @@
               <span class="btn-icon" aria-hidden="true">📜</span>
               <span class="btn-label" data-i18n="nav.history">History</span>
             </button>
-            <button
-              type="button"
-              class="btn-secondary-action btn-forfeit mp-only-btn"
-              id="btn-forfeit"
-              data-testid="forfeit-btn"
-              data-action="confirm-forfeit"
-              title="Forfeit the current game (host only)"
-              aria-label="Forfeit"
-              style="display: none"
-            >
-              <span class="btn-icon" aria-hidden="true">🏳️</span>
-              <span class="btn-label" data-i18n="game.forfeit">Forfeit</span>
-            </button>
           </div>
         </div>
 
@@ -694,6 +681,27 @@
                   </div>
                 </div>
               </div>
+            </div>
+
+            <!-- Forfeit Section (host only, active multiplayer game) -->
+            <div
+              class="settings-forfeit-section"
+              id="settings-forfeit-section"
+              style="display: none"
+            >
+              <h3 class="settings-section-title" data-i18n="game.dangerZone">
+                Danger Zone
+              </h3>
+              <button
+                type="button"
+                class="btn-forfeit-settings"
+                id="btn-forfeit"
+                data-testid="forfeit-btn"
+                data-action="confirm-forfeit"
+              >
+                <span aria-hidden="true">🏳️</span>
+                <span data-i18n="game.forfeitGame">Forfeit Current Game</span>
+              </button>
             </div>
           </div>
 
