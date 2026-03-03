@@ -549,7 +549,7 @@ describe('createGame', () => {
     test('updates room status when room data exists', async () => {
         const roomData = JSON.stringify({ code: 'TEST09', status: 'waiting', players: [] });
         // FIX: Updated for new room check at game creation
-        // Order: getGame (null), preCheckRoomData (room exists), final room update via Lua
+        // Order: getGame (null), preCheckRoomData (room exists), persistGameState via Lua
         mockRedis.get.mockImplementation((key) => {
             if (key.includes(':game')) return Promise.resolve(null); // No existing game
             if (key.startsWith('room:')) return Promise.resolve(roomData); // Room exists
@@ -558,15 +558,15 @@ describe('createGame', () => {
 
         await createGame('TEST09');
 
-        // Should have called set 2 times (lock + game data); room status update now uses eval (Lua)
-        expect(mockRedis.set).toHaveBeenCalledTimes(2);
-        // Room status update is now atomic via Lua script
+        // set is called 1 time (lock acquisition); game + room persist is now atomic via eval (Lua)
+        expect(mockRedis.set).toHaveBeenCalledTimes(1);
+        // persistGameState + lock release both use eval
         expect(mockRedis.eval).toHaveBeenCalled();
     });
 
     test('handles corrupted room data gracefully', async () => {
-        // Room status update uses atomic Lua script. If Lua fails (e.g., corrupted data),
-        // the error is caught and logged, but game creation still succeeds.
+        // persistGameState now atomically writes game + room status + player TTL via Lua.
+        // If the Lua script fails persistently (e.g., corrupted room data), game creation fails.
         const roomData = JSON.stringify({ code: 'TEST10', status: 'waiting' });
         mockRedis.get.mockImplementation((key) => {
             if (key.includes(':game')) return Promise.resolve(null); // No existing game
@@ -574,19 +574,16 @@ describe('createGame', () => {
             return Promise.resolve(null);
         });
         // Simulate persistent Lua script failure (e.g., corrupted room data in Redis)
-        // Must reject for all retry attempts (initial + 2 retries = 3 total)
+        // Must reject for all retry attempts (initial + 2 retries = 3 total) + lock release
         mockRedis.eval
             .mockRejectedValueOnce(new Error('ERR Error running script: cjson.decode failed'))
             .mockRejectedValueOnce(new Error('ERR Error running script: cjson.decode failed'))
             .mockRejectedValueOnce(new Error('ERR Error running script: cjson.decode failed'));
 
-        const game = await createGame('TEST10');
+        await expect(createGame('TEST10')).rejects.toThrow();
 
-        expect(game).toBeDefined();
-        expect(mockLogger.error).toHaveBeenCalledWith(
-            expect.stringContaining('Failed to update room status'),
-            expect.any(String)
-        );
+        // The retry mechanism should have logged the failures
+        expect(mockLogger.warn).toHaveBeenCalled();
     });
 });
 
