@@ -84,6 +84,7 @@ setCardClickHandler(revealCard);
 registerModalCloseHandler('settings-modal', closeSettings);
 registerModalCloseHandler('help-modal', closeHelp);
 registerModalCloseHandler('confirm-modal', closeConfirm);
+registerModalCloseHandler('confirm-end-turn-modal', closeEndTurnConfirm);
 registerModalCloseHandler('game-over-modal', closeGameOver);
 registerModalCloseHandler('error-modal', closeError);
 registerModalCloseHandler('multiplayer-modal', closeMultiplayer);

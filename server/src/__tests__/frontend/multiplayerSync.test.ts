@@ -60,7 +60,6 @@ jest.mock('../../frontend/state', () => ({
             clickerBtn: null,
             redTeamBtn: null,
             blueTeamBtn: null,
-            spectateBtn: null,
             redRemaining: null,
             blueRemaining: null,
             redTeamName: null,

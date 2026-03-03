@@ -158,7 +158,8 @@
         "accessibility": "Barrierefreiheit",
         "colorBlindMode": "Farbenblind-Modus (Orange/Blau mit Beschriftung)",
         "teamsDesc": "Passe die Teamnamen für dieses Spiel an. Namen werden im teilbaren Link gespeichert.",
-        "wordsDesc": "Wähle, welche Wörter auf dem Spielfeld erscheinen. Eigene Wörter werden im teilbaren Link gespeichert."
+        "wordsDesc": "Wähle, welche Wörter auf dem Spielfeld erscheinen. Eigene Wörter werden im teilbaren Link gespeichert.",
+        "storageFailed": "Einstellungen wurden angewendet, konnten aber nicht gespeichert werden. Sie gehen beim Neuladen verloren."
     },
     "roomSettings": {
         "gameMode": "Spielmodus",

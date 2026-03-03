@@ -54,7 +54,6 @@ const _rawState: AppState = {
         clickerBtn: null,
         redTeamBtn: null,
         blueTeamBtn: null,
-        spectateBtn: null,
         redRemaining: null,
         blueRemaining: null,
         redTeamName: null,
@@ -179,7 +178,6 @@ export function initCachedElements(): void {
     state.cachedElements.clickerBtn = document.getElementById('btn-clicker');
     state.cachedElements.redTeamBtn = document.getElementById('btn-team-red');
     state.cachedElements.blueTeamBtn = document.getElementById('btn-team-blue');
-    state.cachedElements.spectateBtn = document.getElementById('btn-spectate');
     state.cachedElements.redRemaining = document.getElementById('red-remaining');
     state.cachedElements.blueRemaining = document.getElementById('blue-remaining');
     state.cachedElements.redTeamName = document.getElementById('red-team-name');

@@ -67,12 +67,6 @@ export function switchSettingsPanel(panelId: string): void {
         tab.classList.toggle('active', (tab as HTMLElement).dataset.panel === panelId);
     });
 
-    // Also support legacy nav items for backward compatibility with tests
-    const navItems = document.querySelectorAll('.settings-nav-item');
-    navItems.forEach((item) => {
-        item.classList.toggle('active', (item as HTMLElement).dataset.panel === panelId);
-    });
-
     // Update panels
     const panels = document.querySelectorAll('.settings-panel');
     panels.forEach((panel) => {
@@ -94,8 +88,7 @@ export function initSettingsNav(): void {
     if (settingsNavInitialized) return;
     settingsNavInitialized = true;
 
-    // Support both new .settings-tab and legacy .settings-nav-item selectors
-    const navItems = document.querySelectorAll('.settings-tab, .settings-nav-item');
+    const navItems = document.querySelectorAll('.settings-tab');
     navItems.forEach((item) => {
         item.addEventListener('click', () => {
             switchSettingsPanel((item as HTMLElement).dataset.panel || '');

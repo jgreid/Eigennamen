@@ -6,8 +6,8 @@ import { t } from './i18n.js';
 import { logger } from './logger.js';
 export function openSettings() {
     openModal('settings-modal');
-    // Reset to Teams panel when opening
-    switchSettingsPanel('teams');
+    // Reset to Game panel when opening
+    switchSettingsPanel('game');
     const redNameInput = document.getElementById('red-name-input');
     const blueNameInput = document.getElementById('blue-name-input');
     const customWordsTextarea = document.getElementById('custom-words');
@@ -44,9 +44,20 @@ export function openSettings() {
 export function closeSettings() {
     closeModal('settings-modal');
 }
+export function openHelp() {
+    openModal('help-modal');
+}
+export function closeHelp() {
+    closeModal('help-modal');
+}
 // Settings tab navigation
 export function switchSettingsPanel(panelId) {
-    // Update nav items
+    // Update tab buttons
+    const tabs = document.querySelectorAll('.settings-tab');
+    tabs.forEach((tab) => {
+        tab.classList.toggle('active', tab.dataset.panel === panelId);
+    });
+    // Also support legacy nav items for backward compatibility with tests
     const navItems = document.querySelectorAll('.settings-nav-item');
     navItems.forEach((item) => {
         item.classList.toggle('active', item.dataset.panel === panelId);
@@ -56,10 +67,10 @@ export function switchSettingsPanel(panelId) {
     panels.forEach((panel) => {
         panel.classList.toggle('active', panel.id === `panel-${panelId}`);
     });
-    // Show/hide context-specific buttons
+    // Show/hide context-specific buttons (reset words visible on game panel)
     const resetWordsBtn = document.getElementById('btn-reset-words');
     if (resetWordsBtn) {
-        resetWordsBtn.style.display = panelId === 'words' ? '' : 'none';
+        resetWordsBtn.style.display = panelId === 'game' ? '' : 'none';
     }
 }
 // Guard: prevent duplicate registration of settings nav listeners
@@ -69,7 +80,8 @@ export function initSettingsNav() {
     if (settingsNavInitialized)
         return;
     settingsNavInitialized = true;
-    const navItems = document.querySelectorAll('.settings-nav-item');
+    // Support both new .settings-tab and legacy .settings-nav-item selectors
+    const navItems = document.querySelectorAll('.settings-tab, .settings-nav-item');
     navItems.forEach((item) => {
         item.addEventListener('click', () => {
             switchSettingsPanel(item.dataset.panel || '');
