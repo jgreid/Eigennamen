@@ -629,7 +629,7 @@ button:focus-visible,
 /* ========== GAME BOARD ========== */
 .board-container {
     width: 100%;
-    max-width: min(1100px, calc((100vh - 100px) * 1.6));
+    max-width: min(880px, calc((100vh - 100px) * 1.28));
     margin: auto 0;
 }
 
