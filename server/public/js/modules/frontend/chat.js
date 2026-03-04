@@ -32,7 +32,7 @@ function toggleChat() {
     if (!body || !toggle)
         return;
     chatOpen = !chatOpen;
-    body.style.display = chatOpen ? 'block' : 'none';
+    body.hidden = !chatOpen;
     toggle.setAttribute('aria-expanded', String(chatOpen));
     if (chatOpen) {
         // Clear unread badge
@@ -133,10 +133,10 @@ function updateUnreadBadge() {
         return;
     if (unreadCount > 0) {
         badge.textContent = String(unreadCount > 99 ? '99+' : unreadCount);
-        badge.style.display = 'inline-block';
+        badge.hidden = false;
     }
     else {
-        badge.style.display = 'none';
+        badge.hidden = true;
     }
 }
 /**
@@ -148,7 +148,7 @@ export function updateChatForRole() {
     const isSpectator = player?.role === 'spectator';
     const teamOnlyLabel = document.querySelector('.chat-team-only');
     if (teamOnlyLabel) {
-        teamOnlyLabel.style.display = isSpectator ? 'none' : '';
+        teamOnlyLabel.hidden = isSpectator;
     }
     const input = document.getElementById('chat-input');
     if (input) {
@@ -161,7 +161,7 @@ export function updateChatForRole() {
 export function showChatPanel() {
     const panel = document.getElementById('chat-panel');
     if (panel)
-        panel.style.display = 'block';
+        panel.hidden = false;
 }
 /**
  * Hide and reset the chat panel (called when leaving multiplayer mode)
@@ -169,7 +169,7 @@ export function showChatPanel() {
 export function hideChatPanel() {
     const panel = document.getElementById('chat-panel');
     if (panel)
-        panel.style.display = 'none';
+        panel.hidden = true;
     // Reset state — includes chatInitialized so listeners are re-attached
     // when the panel is shown again (DOM elements are recreated between rooms)
     chatOpen = false;
@@ -178,7 +178,7 @@ export function hideChatPanel() {
     updateUnreadBadge();
     const body = document.getElementById('chat-body');
     if (body)
-        body.style.display = 'none';
+        body.hidden = true;
     const toggle = document.getElementById('chat-toggle');
     if (toggle)
         toggle.setAttribute('aria-expanded', 'false');

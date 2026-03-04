@@ -4,7 +4,10 @@
 -- KEYS[1]: Timer key
 -- ARGV[1]: Current timestamp (ms)
 --
--- Returns: JSON timer object, or 'EXPIRED' if paused timer expired
+-- Returns: JSON timer object on success
+--          'EXPIRED' if paused timer expired (key is deleted)
+--          'CORRUPTED_DATA' if stored JSON is malformed
+--          nil if timer not found
 
 local timerKey = KEYS[1]
 local now = tonumber(ARGV[1])
@@ -16,7 +19,7 @@ end
 
 local ok, timer = pcall(cjson.decode, timerData)
 if not ok then
-    return nil
+    return 'CORRUPTED_DATA'
 end
 
 -- Handle paused timer: check if it would have expired during pause

@@ -136,7 +136,7 @@ describe('handleChatMessage', () => {
         });
 
         const badge = document.getElementById('chat-unread-badge')!;
-        expect(badge.style.display).toBe('inline-block');
+        expect(badge.hidden).toBe(false);
         expect(badge.textContent).toBe('2');
     });
 
@@ -158,7 +158,7 @@ describe('handleChatMessage', () => {
 describe('showChatPanel', () => {
     test('makes chat panel visible', () => {
         showChatPanel();
-        expect(document.getElementById('chat-panel')!.style.display).toBe('block');
+        expect(document.getElementById('chat-panel')!.hidden).toBe(false);
     });
 });
 
@@ -174,10 +174,10 @@ describe('hideChatPanel', () => {
 
         hideChatPanel();
 
-        expect(document.getElementById('chat-panel')!.style.display).toBe('none');
-        expect(document.getElementById('chat-body')!.style.display).toBe('none');
+        expect(document.getElementById('chat-panel')!.hidden).toBe(true);
+        expect(document.getElementById('chat-body')!.hidden).toBe(true);
         expect(document.getElementById('chat-toggle')!.getAttribute('aria-expanded')).toBe('false');
-        expect(document.getElementById('chat-unread-badge')!.style.display).toBe('none');
+        expect(document.getElementById('chat-unread-badge')!.hidden).toBe(true);
         expect(document.getElementById('chat-messages')!.innerHTML).toBe('');
     });
 });
@@ -195,11 +195,11 @@ describe('initChat', () => {
         const body = document.getElementById('chat-body')!;
 
         toggle.click();
-        expect(body.style.display).toBe('block');
+        expect(body.hidden).toBe(false);
         expect(toggle.getAttribute('aria-expanded')).toBe('true');
 
         toggle.click();
-        expect(body.style.display).toBe('none');
+        expect(body.hidden).toBe(true);
         expect(toggle.getAttribute('aria-expanded')).toBe('false');
     });
 
@@ -213,10 +213,10 @@ describe('initChat', () => {
         });
 
         const badge = document.getElementById('chat-unread-badge')!;
-        expect(badge.style.display).toBe('inline-block');
+        expect(badge.hidden).toBe(false);
 
         // Open chat
         document.getElementById('chat-toggle')!.click();
-        expect(badge.style.display).toBe('none');
+        expect(badge.hidden).toBe(true);
     });
 });

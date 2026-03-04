@@ -120,14 +120,14 @@ describe('history module', () => {
         test('shows empty state when no games', () => {
             setupHistoryDOM();
             renderGameHistory([]);
-            expect(document.getElementById('history-empty')!.style.display).toBe('block');
-            expect(document.getElementById('history-list')!.style.display).toBe('none');
+            expect(document.getElementById('history-empty')!.hidden).toBe(false);
+            expect(document.getElementById('history-list')!.hidden).toBe(true);
         });
 
         test('hides loading indicator', () => {
             setupHistoryDOM();
             renderGameHistory([]);
-            expect(document.getElementById('history-loading')!.style.display).toBe('none');
+            expect(document.getElementById('history-loading')!.hidden).toBe(true);
         });
 
         test('renders game history items', () => {
@@ -461,7 +461,7 @@ describe('history module', () => {
             setupHistoryDOM();
             openGameHistory();
 
-            expect(document.getElementById('history-loading')!.style.display).toBe('flex');
+            expect(document.getElementById('history-loading')!.hidden).toBe(false);
             expect(mockOpenModal).toHaveBeenCalledWith('history-modal');
             expect((global as any).EigennamenClient.getGameHistory).toHaveBeenCalledWith(10);
         });

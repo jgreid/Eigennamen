@@ -119,8 +119,8 @@ interface SignOptions {
 function expiryToSeconds(value: string): number {
     const match = ALLOWED_EXPIRY_PATTERN.exec(value);
     if (!match) return 0;
-    const num = parseInt(match[1]!, 10);
-    const unit = match[2]!;
+    const num = parseInt(match[1] ?? '0', 10);
+    const unit = match[2] ?? 's';
     switch (unit) {
         case 's':
             return num;

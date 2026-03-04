@@ -120,9 +120,7 @@ app.use(
             directives: {
                 defaultSrc: ["'self'"],
                 scriptSrc: ["'self'"], // All scripts loaded from external files
-                // TODO: Migrate inline styles to CSS classes and remove 'unsafe-inline'
-                // once all dynamic style.* assignments in frontend/ use CSS classes instead
-                styleSrc: ["'self'", "'unsafe-inline'"],
+                styleSrc: ["'self'"],
                 imgSrc: ["'self'", 'data:', 'blob:'],
                 connectSrc: ["'self'", 'wss:', 'ws:'], // WebSocket connections
                 fontSrc: ["'self'"],
@@ -185,15 +183,19 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use('/api', apiLimiter);
 
 // CSP violation reporting endpoint (must be before CSRF to accept browser-generated reports)
-app.post('/api/csp-report', express.json({ type: 'application/csp-report', limit: '10kb' }), (req: Request, res: Response) => {
-    const report = (req.body as Record<string, unknown>)?.['csp-report'] ?? req.body;
-    logger.warn('CSP violation', {
-        blockedUri: (report as Record<string, unknown>)?.['blocked-uri'],
-        violatedDirective: (report as Record<string, unknown>)?.['violated-directive'],
-        documentUri: (report as Record<string, unknown>)?.['document-uri'],
-    });
-    res.status(204).end();
-});
+app.post(
+    '/api/csp-report',
+    express.json({ type: 'application/csp-report', limit: '10kb' }),
+    (req: Request, res: Response) => {
+        const report = (req.body as Record<string, unknown>)?.['csp-report'] ?? req.body;
+        logger.warn('CSP violation', {
+            blockedUri: (report as Record<string, unknown>)?.['blocked-uri'],
+            violatedDirective: (report as Record<string, unknown>)?.['violated-directive'],
+            documentUri: (report as Record<string, unknown>)?.['document-uri'],
+        });
+        res.status(204).end();
+    }
+);
 
 // CSRF protection for state-changing API routes
 app.use('/api', csrfProtection);

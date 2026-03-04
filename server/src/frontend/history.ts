@@ -28,9 +28,9 @@ export function openGameHistory(): void {
     const loadingEl = document.getElementById('history-loading');
     const emptyEl = document.getElementById('history-empty');
     const listEl = document.getElementById('history-list');
-    if (loadingEl) loadingEl.style.display = 'flex';
-    if (emptyEl) emptyEl.style.display = 'none';
-    if (listEl) listEl.style.display = 'none';
+    if (loadingEl) loadingEl.hidden = false;
+    if (emptyEl) emptyEl.hidden = true;
+    if (listEl) listEl.hidden = true;
 
     openModal('history-modal');
 
@@ -47,16 +47,16 @@ export function renderGameHistory(games: GameHistoryEntry[]): void {
     const emptyEl = document.getElementById('history-empty');
     const listEl = document.getElementById('history-list');
 
-    if (loadingEl) loadingEl.style.display = 'none';
+    if (loadingEl) loadingEl.hidden = true;
 
     if (!games || games.length === 0) {
-        if (emptyEl) emptyEl.style.display = 'block';
-        if (listEl) listEl.style.display = 'none';
+        if (emptyEl) emptyEl.hidden = false;
+        if (listEl) listEl.hidden = true;
         return;
     }
 
-    if (emptyEl) emptyEl.style.display = 'none';
-    if (listEl) listEl.style.display = 'flex';
+    if (emptyEl) emptyEl.hidden = true;
+    if (listEl) listEl.hidden = false;
 
     if (!listEl) return;
     listEl.innerHTML = '';

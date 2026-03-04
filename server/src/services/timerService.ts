@@ -278,6 +278,13 @@ export async function getTimerStatus(roomCode: string): Promise<TimerStatus | nu
         return null;
     }
 
+    // Corrupted timer data — log and treat as missing
+    if (result === 'CORRUPTED_DATA') {
+        logger.error(`Corrupted timer data detected in Redis for room ${roomCode}`);
+        localTimers.delete(roomCode);
+        return null;
+    }
+
     // Timer expired while paused — Lua script already cleaned it up
     if (result === 'EXPIRED') {
         localTimers.delete(roomCode);
@@ -461,6 +468,11 @@ async function addTimeLocal(
     )) as string | null;
 
     if (!result) {
+        return null;
+    }
+
+    if (result === 'CORRUPTED_DATA') {
+        logger.error(`Corrupted timer data detected during addTime for room ${roomCode}`);
         return null;
     }
 

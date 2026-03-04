@@ -200,13 +200,13 @@ describe('showErrorModal', () => {
         showErrorModal('Error', 'Stack trace here');
         const details = document.getElementById('error-details')!;
         expect(details.textContent).toBe('Stack trace here');
-        expect((details as HTMLElement).style.display).toBe('block');
+        expect((details as HTMLElement).hidden).toBe(false);
     });
 
     test('hides details when not provided', () => {
         showErrorModal('Error');
         const details = document.getElementById('error-details')!;
-        expect((details as HTMLElement).style.display).toBe('none');
+        expect((details as HTMLElement).hidden).toBe(true);
     });
 
     test('opens the error modal', () => {

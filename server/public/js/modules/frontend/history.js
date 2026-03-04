@@ -24,11 +24,11 @@ export function openGameHistory() {
     const emptyEl = document.getElementById('history-empty');
     const listEl = document.getElementById('history-list');
     if (loadingEl)
-        loadingEl.style.display = 'flex';
+        loadingEl.hidden = false;
     if (emptyEl)
-        emptyEl.style.display = 'none';
+        emptyEl.hidden = true;
     if (listEl)
-        listEl.style.display = 'none';
+        listEl.hidden = true;
     openModal('history-modal');
     // Request game history from server
     EigennamenClient.getGameHistory(10);
@@ -41,18 +41,18 @@ export function renderGameHistory(games) {
     const emptyEl = document.getElementById('history-empty');
     const listEl = document.getElementById('history-list');
     if (loadingEl)
-        loadingEl.style.display = 'none';
+        loadingEl.hidden = true;
     if (!games || games.length === 0) {
         if (emptyEl)
-            emptyEl.style.display = 'block';
+            emptyEl.hidden = false;
         if (listEl)
-            listEl.style.display = 'none';
+            listEl.hidden = true;
         return;
     }
     if (emptyEl)
-        emptyEl.style.display = 'none';
+        emptyEl.hidden = true;
     if (listEl)
-        listEl.style.display = 'flex';
+        listEl.hidden = false;
     if (!listEl)
         return;
     listEl.innerHTML = '';

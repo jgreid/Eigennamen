@@ -106,9 +106,9 @@ export function showErrorModal(message: string, details: string | null = null): 
     if (detailsEl) {
         if (details) {
             detailsEl.textContent = details;
-            (detailsEl as HTMLElement).style.display = 'block';
+            (detailsEl as HTMLElement).hidden = false;
         } else {
-            (detailsEl as HTMLElement).style.display = 'none';
+            (detailsEl as HTMLElement).hidden = true;
         }
     }
 

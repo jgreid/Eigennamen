@@ -10,6 +10,7 @@
 --
 -- Returns: JSON string of the updated player on success
 --          nil if the player key does not exist
+--          'CORRUPTED_DATA' if stored JSON is malformed
 
 local playerKey = KEYS[1]
 local updatesJson = ARGV[1]
@@ -23,9 +24,9 @@ if not playerData then
 end
 
 local ok1, player = pcall(cjson.decode, playerData)
-if not ok1 then return nil end
+if not ok1 then return 'CORRUPTED_DATA' end
 local ok2, updates = pcall(cjson.decode, updatesJson)
-if not ok2 then return nil end
+if not ok2 then return 'CORRUPTED_DATA' end
 
 -- Merge updates into the player object
 for k, v in pairs(updates) do
