@@ -314,7 +314,7 @@ jobs:
             -e NODE_ENV=production \
             -e REDIS_URL=memory \
             -e JWT_SECRET=ci-test-secret-that-is-long-enough-for-production \
-            -e CORS_ORIGIN='*' \
+            -e CORS_ORIGIN='http://localhost:3000' \
             -e MEMORY_MODE_ALLOW_FLY=true \
             -p 3000:3000 \
             eigennamen:ci
@@ -354,7 +354,7 @@ jobs:
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'HIGH,CRITICAL'
-          exit-code: '0'
+          exit-code: '1'
 
       - name: Upload Trivy results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v4

@@ -11,92 +11,24 @@ The Eigennamen codebase demonstrates strong security foundations: multi-layer ra
 
 ---
 
-## CRITICAL — Must Fix Before Production
+## Reevaluation Notes (Post-Fix)
 
-### 1. CORS Wildcard Not Blocked in Production
+After detailed code review, several original findings were **reclassified**:
 
-**File:** `server/src/app.ts` (~line 106-114)
-**Issue:** `.env.example` defaults `CORS_ORIGIN=*`. While there are warnings, the server does **not** refuse to start in production with wildcard CORS. This undermines CSRF protections entirely.
-**Fix:** Add startup validation:
-```typescript
-if (isProduction && corsOrigin === '*') {
-    throw new Error('FATAL: CORS_ORIGIN=* is not allowed in production. Set a specific origin.');
-}
-```
-
-### 2. ADMIN_PASSWORD Not Required in Production
-
-**File:** `server/src/routes/adminRoutes.ts` (~line 32-42)
-**Issue:** If `ADMIN_PASSWORD` is accidentally unset, admin routes return 503 but the server still starts. Unlike `JWT_SECRET`, this isn't enforced at startup.
-**Fix:** Enforce at startup (similar to JWT_SECRET enforcement in `config/jwt.ts`):
-```typescript
-if (isProduction && !process.env.ADMIN_PASSWORD) {
-    throw new Error('ADMIN_PASSWORD is required in production');
-}
-```
-
-### 3. Trivy Container Scan Doesn't Fail CI
-
-**File:** `.github/workflows/ci.yml` (~line 356)
-**Issue:** Trivy scans for HIGH/CRITICAL vulnerabilities but `exit-code: '0'` means it never fails the build. Vulnerabilities are reported but never block deployment.
-**Fix:** Set `exit-code: '1'` to block merges with known critical vulnerabilities.
+| # | Original | Revised Status | Reason |
+|---|----------|----------------|--------|
+| 1 | CORS wildcard not blocked | **FALSE POSITIVE** | Already enforced at `app.ts:109-114` with `process.exit(1)`. CI docker test was using `CORS_ORIGIN='*'` with `NODE_ENV=production` — **fixed**. |
+| 2 | ADMIN_PASSWORD not required | **OVERBLOWN** | Admin routes return 401 when unset — proper behavior. Not a security gap. |
+| 3 | Trivy exit-code: '0' | **VALID — FIXED** | Changed to `exit-code: '1'`. |
+| 4 | Blocking scryptSync | **PARTIALLY MITIGATED — FIXED** | Admin hash was already cached at startup; only incoming password was blocking. Converted to async `scryptAsync`. |
+| 5 | No socket connection rate limit | **FALSE POSITIVE** | `connectionTracker.ts` already enforces per-IP limits (`MAX_CONNECTIONS_PER_IP: 10`) and auth failure blocking (`AUTH_FAILURE_MAX_PER_IP: 10`, 5-min block). |
+| 6 | Mixed-protocol bypass | **FALSE POSITIVE** | REST and WebSocket serve different operations; no shared auth path exploitable across protocols. |
+| 7 | Docker container hardening | **VALID — FIXED** | Added `security_opt`, `cap_drop`, `cap_add` to both services. |
+| 8 | No security test suite | **VALID — FIXED** | Created `adversarial.test.ts` with 25 tests. Existing `security/` directory already had `errorScenarios.test.ts`, `codeQuality.test.ts`, `redos.test.ts`. |
 
 ---
 
-## HIGH — Strong Recommendations
-
-### 4. Blocking `scryptSync` in Admin Auth (DoS Vector)
-
-**File:** `server/src/routes/adminRoutes.ts` (~line 68-69)
-**Issue:** `crypto.scryptSync()` blocks the Node.js event loop. An attacker can submit ~10 concurrent admin auth attempts to stall the entire server for seconds.
-**Fix:** Use async `crypto.scrypt()` or pre-hash the admin password at startup and compare hashes:
-```typescript
-// At startup:
-const cachedAdminHash = crypto.scryptSync(process.env.ADMIN_PASSWORD, salt, 64);
-// At request time: only compare hashes (fast, non-blocking)
-```
-
-### 5. No Socket Connection Rate Limit
-
-**File:** `server/src/middleware/socketAuth.ts` (~line 17)
-**Issue:** Event-level rate limiting is thorough, but there's no limit on **new WebSocket connections** per IP. An attacker can open thousands of sockets before any event-level limits kick in.
-**Fix:** Add per-IP connection rate limiting (e.g., max 10 new connections/IP/minute) in the Socket.io authentication middleware.
-
-### 6. Mixed-Protocol Rate Limit Bypass
-
-**File:** `server/src/routes/adminRoutes.ts`, `server/src/middleware/rateLimit.ts`
-**Issue:** Socket events and REST API use separate rate limiting systems. An attacker could spread auth attempts across both protocols to exceed intended limits.
-**Fix:** Unify IP-based rate counting across WebSocket and REST at the middleware level.
-
-### 7. Docker Container Security Defaults
-
-**File:** `docker-compose.yml` (~line 31, 61)
-**Issue:** Missing container hardening directives.
-**Fix:** Add to both `api` and `redis` services:
-```yaml
-security_opt:
-  - no-new-privileges:true
-cap_drop:
-  - ALL
-cap_add:
-  - NET_BIND_SERVICE
-```
-
-### 8. No Security-Focused Test Suite
-
-**File:** `server/src/__tests__/`
-**Issue:** Tests cover functionality but not adversarial scenarios.
-**Fix:** Create `server/src/__tests__/security/` covering:
-- CORS bypass attempts
-- CSRF token validation
-- Session hijacking (IP mismatch)
-- Rate limit evasion across event types
-- Error message information disclosure
-- Expired/invalid JWT handling
-
----
-
-## MEDIUM — Significant Improvements
+## Remaining Recommendations (Not Yet Fixed)
 
 ### 9. No JWT Token Revocation
 

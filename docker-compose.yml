@@ -29,6 +29,12 @@ services:
         condition: service_healthy
     command: node dist/index.js
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
     networks:
       - eigennamen-network
     healthcheck:
@@ -57,6 +63,10 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     networks:
       - eigennamen-network
 
