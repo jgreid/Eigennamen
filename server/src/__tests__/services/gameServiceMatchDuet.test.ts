@@ -582,9 +582,7 @@ describe('startNextRound', () => {
     test('rejects when current round is still in progress', async () => {
         const currentGame = createMatchGameState({ gameOver: false });
 
-        await expect(startNextRound('MATCH3', currentGame)).rejects.toThrow(
-            'Current round is still in progress'
-        );
+        await expect(startNextRound('MATCH3', currentGame)).rejects.toThrow('Current round is still in progress');
     });
 
     test('rejects when match is already over', async () => {

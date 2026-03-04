@@ -550,7 +550,6 @@ describe('updateControls (multiplayer scenarios)', () => {
         const clicker = document.getElementById('btn-clicker')!;
         expect(clicker.classList.contains('loading')).toBe(true);
     });
-
 });
 
 // ========== STANDALONE ROLE ANNOUNCEMENTS ==========

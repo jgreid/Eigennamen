@@ -1,5 +1,5 @@
 import { state, ROLE_BANNER_CONFIG } from './state.js';
-import { isSpymaster, isClicker as isClickerSelector, canActAsClicker, isClickerFallback } from './store/selectors.js';
+import { isSpymaster, isClicker as isClickerSelector, canActAsClicker } from './store/selectors.js';
 import { escapeHTML } from './utils.js';
 import { showToast, announceToScreenReader } from './ui.js';
 import { renderBoard } from './board.js';

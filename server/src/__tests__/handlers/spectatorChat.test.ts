@@ -431,5 +431,4 @@ describe('Spectator Chat Feature', () => {
             });
         });
     });
-
 });

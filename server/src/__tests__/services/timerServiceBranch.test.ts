@@ -200,7 +200,6 @@ describe('Timer Service Branch Coverage', () => {
             expect(status.remainingSeconds).toBe(30);
             expect(status.expired).toBe(false);
         });
-
     });
 
     describe('resumeTimer expired-while-paused branch (lines 358-371)', () => {
@@ -493,5 +492,4 @@ describe('Timer Service Branch Coverage', () => {
             expect(result).toBe(false);
         });
     });
-
 });
