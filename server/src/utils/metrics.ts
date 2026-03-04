@@ -1,3 +1,5 @@
+import { instanceId } from '../config/env';
+
 interface MetricLabels {
     [key: string]: string;
 }
@@ -94,9 +96,6 @@ const config: MetricsConfig = {
     maxHistogramSize: 1000,
     reportingInterval: 60000, // 1 minute
 };
-
-// Instance ID for distributed metrics — shared constant from config/env
-import { instanceId } from '../config/env';
 
 /**
  * Calculate a percentile value from a sorted array of numbers.
