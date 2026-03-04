@@ -2,7 +2,7 @@
 .app-layout {
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
+    height: 100vh;
     max-width: var(--max-content-width);
     margin: 0 auto;
 }
