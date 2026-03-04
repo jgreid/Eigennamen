@@ -3,6 +3,7 @@ import type { ZodSchema, ZodError as ZodErrorType, ZodIssue } from 'zod';
 
 import { ZodError } from 'zod';
 import { ERROR_CODES } from '../config/constants';
+import { isProduction } from '../config/env';
 
 /**
  * Validation error structure
@@ -25,9 +26,8 @@ function validateInput<T>(schema: ZodSchema<T>, data: unknown): T {
             const zodError = error as ZodErrorType;
             // In production, strip field paths to prevent schema structure disclosure
             // (consistent with errorHandler.ts Zod handling)
-            const isProduction = process.env.NODE_ENV === 'production';
-            const issues = isProduction ? zodError.issues.map((e) => ({ message: e.message })) : zodError.issues;
-            const message = isProduction
+            const issues = isProduction() ? zodError.issues.map((e) => ({ message: e.message })) : zodError.issues;
+            const message = isProduction()
                 ? zodError.issues.map((e) => e.message).join(', ')
                 : zodError.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
             const validationError: ValidationError = {

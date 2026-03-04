@@ -1,6 +1,6 @@
 import type { Server } from 'socket.io';
 import type { GameState, Room } from '../../types';
-import type { GameDataInput } from '../../services/gameHistoryService';
+import type { GameDataInput, HistoryEntry } from '../../services/gameHistoryService';
 
 import * as gameService from '../../services/gameService';
 import * as roomService from '../../services/roomService';
@@ -19,12 +19,28 @@ export async function saveCompletedGameHistory(roomCode: string): Promise<void> 
             roomService.getRoom(roomCode),
         ])) as [GameState | null, Room | null];
         if (completedGame) {
-            const gameDataWithTeamNames = {
-                ...completedGame,
+            // Explicitly extract GameDataInput fields to avoid unsafe cast
+            // and ensure compile-time errors if GameState stops including required fields.
+            const gameData: GameDataInput = {
+                id: completedGame.id,
+                words: completedGame.words,
+                types: completedGame.types,
+                seed: completedGame.seed,
+                redScore: completedGame.redScore,
+                blueScore: completedGame.blueScore,
+                redTotal: completedGame.redTotal,
+                blueTotal: completedGame.blueTotal,
                 winner: completedGame.winner ?? undefined,
+                gameOver: completedGame.gameOver,
+                createdAt: completedGame.createdAt,
+                clues: completedGame.clues,
+                // Map GameHistoryEntry[] to HistoryEntry[] (winner: Team|null → Team|undefined)
+                history: completedGame.history as unknown as HistoryEntry[],
                 teamNames: roomForHistory?.settings?.teamNames || { red: 'Red', blue: 'Blue' },
-            } as GameDataInput;
-            await gameHistoryService.saveGameResult(roomCode, gameDataWithTeamNames);
+                wordListId: completedGame.wordListId,
+                stateVersion: completedGame.stateVersion,
+            };
+            await gameHistoryService.saveGameResult(roomCode, gameData);
         }
     } catch (historyError) {
         logger.error(`Failed to save game history for room ${roomCode}:`, historyError);

@@ -10,6 +10,7 @@ import type { Socket } from 'socket.io';
 import logger from '../../utils/logger';
 import { audit } from '../../services/auditService';
 import { getClientIP } from './clientIP';
+import { isProduction, parseCorsOrigins } from '../../config/env';
 
 /**
  * Origin validation result
@@ -24,17 +25,16 @@ interface OriginValidationResult {
  */
 function validateOrigin(socket: Socket): OriginValidationResult {
     const origin = socket.handshake.headers.origin;
-    const corsOrigin = process.env.CORS_ORIGIN;
-    const isProduction = process.env.NODE_ENV === 'production';
+    const corsOrigins = parseCorsOrigins();
 
     // In development with wildcard CORS, allow all origins
-    if (!isProduction && (!corsOrigin || corsOrigin === '*')) {
+    if (!isProduction() && corsOrigins === true) {
         return { valid: true };
     }
 
     // If no origin header (e.g., same-origin or non-browser client)
     if (!origin) {
-        if (isProduction && corsOrigin && corsOrigin !== '*') {
+        if (isProduction() && corsOrigins !== true) {
             // In production with explicit CORS origins, reject connections without Origin header.
             // Missing Origin is the primary WebSocket CSRF vector.
             logger.warn('WebSocket connection rejected: missing origin header in production', {
@@ -47,7 +47,7 @@ function validateOrigin(socket: Socket): OriginValidationResult {
                     'WebSocket connection without origin header in production',
                     (socket.handshake.auth as { sessionId?: string })?.sessionId || 'unknown',
                     getClientIP(socket),
-                    { corsOrigin }
+                    { corsOrigins }
                 )
                 .catch((err: Error) => {
                     logger.debug('Failed to audit origin violation:', err.message);
@@ -61,8 +61,8 @@ function validateOrigin(socket: Socket): OriginValidationResult {
         return { valid: true };
     }
 
-    // Parse allowed origins from CORS_ORIGIN
-    const allowedOrigins = (corsOrigin || '').split(',').map((o: string) => o.trim().toLowerCase());
+    // Use the shared parsed origins (already trimmed); lowercase for comparison
+    const allowedOrigins = corsOrigins === true ? ['*'] : corsOrigins.map((o: string) => o.toLowerCase());
 
     // Parse origin hostname for robust comparison (handles ports, protocols)
     let originHostname: string;

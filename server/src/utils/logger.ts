@@ -69,7 +69,9 @@ const colors: Record<string, string> = {
 
 winston.addColors(colors);
 
-// Instance ID for multi-instance logging
+// Instance ID for multi-instance logging.
+// Duplicated here (instead of importing from config/env) to avoid circular dependency:
+// config/env.ts imports logger → logger.ts cannot import from config/env.ts.
 const instanceId: string = process.env.FLY_ALLOC_ID || process.env.INSTANCE_ID || 'local';
 
 const consoleFormat = winston.format.combine(

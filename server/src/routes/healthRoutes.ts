@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction, Router as ExpressRouter } from 'express';
 
+import crypto from 'crypto';
 import express from 'express';
 import { isRedisHealthy, isUsingMemoryMode, getRedisMemoryInfo } from '../config/redis';
 import type { RedisMemoryInfo } from '../config/redis';
@@ -9,6 +10,7 @@ import logger from '../utils/logger';
 import { getPrometheusMetrics, updateSystemMetrics, getAllMetrics } from '../utils/metrics';
 import { withTimeout } from '../utils/timeout';
 import { getActiveTimerCount } from '../services/timerService';
+import { isProduction } from '../config/env';
 
 const router: ExpressRouter = express.Router();
 
@@ -160,7 +162,7 @@ router.get('/live', (_req: Request, res: Response) => {
 // In production, require basic auth for metrics endpoints to prevent reconnaissance.
 // /health, /health/ready, /health/live remain unauthenticated for load balancers.
 const requireMetricsAuth = (req: Request, res: Response, next: NextFunction): void => {
-    if (process.env.NODE_ENV !== 'production') return next();
+    if (!isProduction()) return next();
     const authHeader = req.headers.authorization;
     if (!authHeader) {
         res.status(401).set('WWW-Authenticate', 'Basic realm="Metrics"').json({ error: 'Authentication required' });
@@ -176,7 +178,10 @@ const requireMetricsAuth = (req: Request, res: Response, next: NextFunction): vo
     const encoded = authHeader.replace('Basic ', '');
     const decoded = Buffer.from(encoded, 'base64').toString('utf8');
     const [, password] = decoded.split(':');
-    if (password === adminPassword) {
+    // Use timing-safe comparison to prevent timing attacks
+    const passwordBuf = Buffer.from(password || '', 'utf8');
+    const adminBuf = Buffer.from(adminPassword, 'utf8');
+    if (passwordBuf.length === adminBuf.length && crypto.timingSafeEqual(passwordBuf, adminBuf)) {
         next();
     } else {
         res.status(401).set('WWW-Authenticate', 'Basic realm="Metrics"').json({ error: 'Invalid credentials' });
@@ -199,8 +204,6 @@ router.get('/metrics', requireMetricsAuth, async (_req: Request, res: Response) 
             'Redis memory check'
         );
 
-        const isProduction = process.env.NODE_ENV === 'production';
-
         const metrics: MetricsResponse = {
             timestamp: new Date().toISOString(),
             uptime: {
@@ -217,12 +220,12 @@ router.get('/metrics', requireMetricsAuth, async (_req: Request, res: Response) 
                 mode: isUsingMemoryMode() ? 'memory' : 'redis',
                 healthy: await withTimeout(isRedisHealthy(), HEALTH_CHECK_TIMEOUT_MS, 'Redis health check'),
                 // Only expose Redis memory details outside production
-                ...(isProduction ? {} : { memory: redisMemory }),
+                ...(isProduction() ? {} : { memory: redisMemory }),
             },
             pubsub: {
                 healthy: pubSubStatus.isHealthy,
                 // Only expose pubsub counters outside production
-                ...(isProduction
+                ...(isProduction()
                     ? {}
                     : {
                           totalPublishes: pubSubStatus.totalPublishes,
@@ -235,7 +238,7 @@ router.get('/metrics', requireMetricsAuth, async (_req: Request, res: Response) 
 
         // Only expose process details (PID, Node version, platform) outside production
         // to prevent fingerprinting attacks
-        if (!isProduction) {
+        if (!isProduction()) {
             metrics.process = {
                 pid: process.pid,
                 nodeVersion: process.version,
@@ -244,7 +247,7 @@ router.get('/metrics', requireMetricsAuth, async (_req: Request, res: Response) 
         }
 
         // Include application-level metrics from the central metrics registry
-        if (!isProduction) {
+        if (!isProduction()) {
             const appMetrics = getAllMetrics();
             metrics.application = {
                 counters: appMetrics.counters,
@@ -260,7 +263,7 @@ router.get('/metrics', requireMetricsAuth, async (_req: Request, res: Response) 
                 type: 'redis_memory',
                 level: redisMemory.alert,
                 message: `Redis memory usage at ${redisMemory.memory_usage_percent}%`,
-                ...(isProduction
+                ...(isProduction()
                     ? {}
                     : {
                           details: {

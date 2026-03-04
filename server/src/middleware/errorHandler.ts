@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 
 import logger from '../utils/logger';
 import { ERROR_CODES } from '../config/constants';
+import { isProduction } from '../config/env';
 
 /**
  * Custom error type with code and details
@@ -105,10 +106,7 @@ function errorHandler(err: AppError | ZodError, _req: Request, res: Response, _n
         const zodErr = err as ZodError;
         // In production, strip field paths to avoid exposing schema structure.
         // In development, keep full issue details for debugging convenience.
-        const issues =
-            process.env.NODE_ENV === 'production'
-                ? zodErr.issues.map((issue) => ({ message: issue.message }))
-                : zodErr.issues;
+        const issues = isProduction() ? zodErr.issues.map((issue) => ({ message: issue.message })) : zodErr.issues;
         return res.status(400).json({
             error: {
                 code: ERROR_CODES.INVALID_INPUT,
@@ -122,7 +120,7 @@ function errorHandler(err: AppError | ZodError, _req: Request, res: Response, _n
     return res.status(500).json({
         error: {
             code: ERROR_CODES.SERVER_ERROR,
-            message: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message,
+            message: isProduction() ? 'Internal server error' : err.message,
         },
     });
 }

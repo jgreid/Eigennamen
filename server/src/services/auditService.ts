@@ -263,29 +263,32 @@ export async function getAuditLogs(options: AuditLogOptions = {}): Promise<Audit
         if (category === 'admin') key = AUDIT_ADMIN_KEY;
         else if (category === 'security') key = AUDIT_SECURITY_KEY;
 
-        let parsed: AuditLogEntry[];
+        let allEntries: AuditLogEntry[];
 
         if (isUsingMemoryMode()) {
-            const list = memoryLogs.get(key) || [];
-            parsed = list.slice(offset, offset + limit);
+            allEntries = memoryLogs.get(key) || [];
         } else {
             const redis: RedisClient = getRedis();
+            // When filtering by severity, we must fetch all entries first since
+            // Redis lRange doesn't support content-based filtering.
+            // Without severity filter, we can use offset/limit directly.
+            const fetchLimit = severity ? MAX_LOGS_PER_CATEGORY : offset + limit;
             const logs = await withTimeout(
-                redis.lRange(key, offset, offset + limit - 1),
+                redis.lRange(key, 0, fetchLimit - 1),
                 TIMEOUTS.REDIS_OPERATION,
                 'getAuditLogs-lRange'
             );
-            parsed = logs
+            allEntries = logs
                 .map((log) => tryParseJSON(log, auditLogEntrySchema, 'audit log entry') as AuditLogEntry | null)
                 .filter((entry): entry is AuditLogEntry => entry !== null);
         }
 
-        // Filter by severity if specified
+        // Filter by severity before applying pagination
         if (severity) {
-            parsed = parsed.filter((log) => log.severity === severity);
+            allEntries = allEntries.filter((log) => log.severity === severity);
         }
 
-        return parsed;
+        return allEntries.slice(offset, offset + limit);
     } catch (error) {
         logger.error('Failed to retrieve audit logs', { error: (error as Error).message });
         return [];

@@ -152,10 +152,9 @@ export function validateEnv(): boolean {
     }
 
     // Validate CORS_ORIGIN format if provided (applies to all environments)
-    const corsOrigin = process.env['CORS_ORIGIN'];
-    if (corsOrigin && corsOrigin !== '*') {
-        const origins = corsOrigin.split(',').map((s) => s.trim());
-        for (const origin of origins) {
+    const parsedOrigins = parseCorsOrigins();
+    if (parsedOrigins !== true) {
+        for (const origin of parsedOrigins) {
             if (origin && !origin.startsWith('http://') && !origin.startsWith('https://')) {
                 warnings.push(`CORS_ORIGIN value "${origin}" does not start with http:// or https://`);
             }
@@ -228,3 +227,20 @@ export function isProduction(): boolean {
 export function isDevelopment(): boolean {
     return process.env['NODE_ENV'] === 'development' || !process.env['NODE_ENV'];
 }
+
+/**
+ * Parse CORS_ORIGIN environment variable into an array of origins.
+ * Handles wildcard ('*'), comma-separated values, and trimming.
+ * Returns `true` for wildcard (meaning all origins), or an array of trimmed origin strings.
+ */
+export function parseCorsOrigins(): true | string[] {
+    const corsOrigin = process.env['CORS_ORIGIN'] || '*';
+    if (corsOrigin === '*') return true;
+    return corsOrigin.split(',').map((s) => s.trim());
+}
+
+/**
+ * Get the instance ID for multi-instance deployments.
+ * Prefers FLY_ALLOC_ID (set by Fly.io), falls back to INSTANCE_ID env var, then 'local'.
+ */
+export const instanceId: string = process.env.FLY_ALLOC_ID || process.env.INSTANCE_ID || 'local';

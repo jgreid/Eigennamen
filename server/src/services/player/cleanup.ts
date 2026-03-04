@@ -241,7 +241,10 @@ export function startCleanupTask(): void {
         clearInterval(cleanupInterval);
     }
 
+    let cleanupRunning = false;
     cleanupInterval = setInterval(async () => {
+        if (cleanupRunning) return; // Prevent overlapping cleanup cycles
+        cleanupRunning = true;
         try {
             const cleaned = await processScheduledCleanups(PLAYER_CLEANUP.BATCH_SIZE);
 
@@ -298,6 +301,8 @@ export function startCleanupTask(): void {
             await cleanupOrphanedReconnectionTokens();
         } catch (error) {
             logger.error('Error in reconnection token cleanup:', (error as Error).message);
+        } finally {
+            cleanupRunning = false;
         }
     }, PLAYER_CLEANUP.INTERVAL_MS);
 

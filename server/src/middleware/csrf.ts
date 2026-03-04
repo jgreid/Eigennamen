@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 
 import logger from '../utils/logger';
 import { audit } from '../services/auditService';
+import { isProduction, parseCorsOrigins } from '../config/env';
 
 /**
  * Log a CSRF violation to the audit service (fire-and-forget)
@@ -117,12 +118,12 @@ function csrfProtection(req: Request, res: Response, next: NextFunction): Respon
  * Get list of allowed origins from configuration
  */
 function getAllowedOrigins(): string[] | null {
-    const corsOrigin = process.env.CORS_ORIGIN;
+    const parsed = parseCorsOrigins();
 
-    if (!corsOrigin || corsOrigin === '*') {
+    if (parsed === true) {
         // CORS not configured or wildcard — rely on X-Requested-With header only.
         // Log at warn in production (critical) and info in development (visible but not alarming).
-        if (process.env.NODE_ENV === 'production') {
+        if (isProduction()) {
             logger.warn(
                 'CSRF: CORS_ORIGIN not configured or set to wildcard — origin validation disabled. Set CORS_ORIGIN to your domain.'
             );
@@ -134,8 +135,7 @@ function getAllowedOrigins(): string[] | null {
         return null;
     }
 
-    // Parse comma-separated origins
-    return corsOrigin.split(',').map((o) => o.trim());
+    return parsed;
 }
 
 /**

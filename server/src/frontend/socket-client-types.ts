@@ -135,13 +135,15 @@ export interface SocketClientInstance {
     disconnect(): void;
 }
 
-/** Player data as tracked by the client adapter. */
+/** Player data as tracked by the client adapter.
+ * Team/Role unions mirror the canonical types in types/game.ts.
+ */
 export interface Player {
     sessionId: string;
     roomCode?: string;
     nickname: string;
-    team: string | null;
-    role: string | null;
+    team: 'red' | 'blue' | null;
+    role: 'spymaster' | 'clicker' | 'spectator' | null;
     isHost: boolean;
     connected: boolean;
 }

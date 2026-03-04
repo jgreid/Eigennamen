@@ -227,7 +227,8 @@ async function handleJoinGame(): Promise<void> {
         // Use toLocaleLowerCase('en-US') to match the server-side normalization
         // (toEnglishLowerCase).  Plain .toLowerCase() can differ for non-ASCII
         // characters depending on the browser locale, causing key mismatches.
-        const normalizedRoomId = roomId!.toLocaleLowerCase('en-US');
+        // roomId is guaranteed non-null here: validateRoomCode above rejects falsy values
+        const normalizedRoomId = (roomId ?? '').toLocaleLowerCase('en-US');
         const result: JoinCreateResult = await EigennamenClient.joinRoom(normalizedRoomId, nickname);
 
         if (signal.aborted) return;
