@@ -44,6 +44,7 @@ interface EigennamenClientAPI {
 
     // Game actions
     startGame(options: Record<string, unknown>): void;
+    nextRound(): void;
     revealCard(index: number): void;
     endTurn(): void;
     forfeit(): void;
