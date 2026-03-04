@@ -11,7 +11,6 @@
 
 const request = require('supertest');
 const express = require('express');
-const crypto = require('crypto');
 
 // Mock Redis
 jest.mock('../../config/redis', () => {

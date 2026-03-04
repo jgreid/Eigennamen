@@ -31,6 +31,7 @@ import { ATOMIC_PERSIST_GAME_STATE_SCRIPT } from '../scripts';
 import { withLock } from '../utils/distributedLock';
 import { retryAsync } from '../utils/retryAsync';
 import { notifyGameMutation } from '../socket/gameMutationNotifier';
+import { z } from 'zod';
 
 // Focused modules
 import {
@@ -99,6 +100,26 @@ async function resolveGameWords(
     return { words, usedWordListId: null };
 }
 
+// Zod schema for match carry-over data to prevent score manipulation
+const roundResultSchema = z.object({
+    roundNumber: z.number().int().min(1),
+    roundWinner: z.enum(['red', 'blue']).nullable(),
+    redRoundScore: z.number().int().min(0),
+    blueRoundScore: z.number().int().min(0),
+    redBonusAwarded: z.boolean(),
+    blueBonusAwarded: z.boolean(),
+    endReason: z.string(),
+    completedAt: z.number(),
+});
+
+const matchCarryOverSchema = z.object({
+    matchRound: z.number().int().min(1).max(100),
+    redMatchScore: z.number().int().min(0),
+    blueMatchScore: z.number().int().min(0),
+    roundHistory: z.array(roundResultSchema),
+    firstTeamHistory: z.array(z.enum(['red', 'blue'])),
+});
+
 /**
  * Build a GameState object from resolved words and layout.
  */
@@ -152,7 +173,8 @@ function buildGameState(
 
         // Carry forward match state or initialize fresh
         if (options.matchCarryOver) {
-            const carry = options.matchCarryOver;
+            // Validate carry-over data to prevent score manipulation
+            const carry = matchCarryOverSchema.parse(options.matchCarryOver);
             base.matchRound = carry.matchRound;
             base.redMatchScore = carry.redMatchScore;
             base.blueMatchScore = carry.blueMatchScore;

@@ -67,6 +67,21 @@ function setupRoomMocks() {
     });
 }
 
+/** Helper to create a valid RoundResult for test data */
+function makeRoundResult(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+        roundNumber: 1,
+        roundWinner: 'red',
+        redRoundScore: 10,
+        blueRoundScore: 8,
+        redBonusAwarded: true,
+        blueBonusAwarded: false,
+        endReason: 'all_found',
+        completedAt: Date.now() - 60000,
+        ...overrides,
+    };
+}
+
 /** Helper: creates a base game state for match mode tests */
 function createMatchGameState(overrides = {}) {
     return {
@@ -177,8 +192,29 @@ describe('createGame - match mode', () => {
             matchRound: 3,
             redMatchScore: 28,
             blueMatchScore: 22,
-            roundHistory: [{ roundNumber: 1 }, { roundNumber: 2 }],
-            firstTeamHistory: ['red', 'blue'],
+            roundHistory: [
+                {
+                    roundNumber: 1,
+                    roundWinner: 'red' as const,
+                    redRoundScore: 15,
+                    blueRoundScore: 10,
+                    redBonusAwarded: true,
+                    blueBonusAwarded: false,
+                    endReason: 'assassin',
+                    completedAt: Date.now() - 60000,
+                },
+                {
+                    roundNumber: 2,
+                    roundWinner: 'blue' as const,
+                    redRoundScore: 13,
+                    blueRoundScore: 12,
+                    redBonusAwarded: false,
+                    blueBonusAwarded: true,
+                    endReason: 'all_found',
+                    completedAt: Date.now() - 30000,
+                },
+            ],
+            firstTeamHistory: ['red', 'blue'] as ('red' | 'blue')[],
         };
 
         const game = await createGame('MATCH2', {
@@ -548,7 +584,7 @@ describe('startNextRound', () => {
             matchRound: 1,
             redMatchScore: 15,
             blueMatchScore: 10,
-            roundHistory: [{ roundNumber: 1, roundWinner: 'red' }],
+            roundHistory: [makeRoundResult({ roundNumber: 1, roundWinner: 'red' })],
             firstTeamHistory: ['red'],
         });
 
@@ -600,9 +636,9 @@ describe('startNextRound', () => {
             gameOver: true,
             matchRound: 3,
             roundHistory: [
-                { roundNumber: 1, roundWinner: 'red' },
-                { roundNumber: 2, roundWinner: 'blue' },
-                { roundNumber: 3, roundWinner: 'red' },
+                makeRoundResult({ roundNumber: 1, roundWinner: 'red' }),
+                makeRoundResult({ roundNumber: 2, roundWinner: 'blue' }),
+                makeRoundResult({ roundNumber: 3, roundWinner: 'red' }),
             ],
             firstTeamHistory: ['red', 'blue', 'red'],
         });

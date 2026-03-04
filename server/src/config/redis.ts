@@ -182,11 +182,14 @@ async function stopEmbeddedRedis(): Promise<void> {
 }
 
 function reconnectStrategy(retries: number): number | Error {
-    if (retries > 10) {
+    if (retries > 20) {
         logger.error('Redis max reconnection attempts reached');
         return new Error('Max reconnection attempts reached');
     }
-    const delay = Math.min(retries * 100, 3000);
+    // Exponential backoff with jitter to prevent thundering herd across instances
+    const baseDelay = Math.min(100 * Math.pow(2, retries), 15000);
+    const jitter = Math.random() * 0.2 * baseDelay;
+    const delay = Math.floor(baseDelay + jitter);
     logger.warn(`Redis reconnecting in ${delay}ms (attempt ${retries})`);
     return delay;
 }
