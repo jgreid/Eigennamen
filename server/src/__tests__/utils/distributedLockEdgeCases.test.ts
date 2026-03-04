@@ -175,7 +175,6 @@ describe('Distributed Lock Edge Cases', () => {
             // Lock should have been released
             expect(mockRedis.eval).toHaveBeenCalled();
         });
-
     });
 
     describe('Redis Failure Handling', () => {
@@ -201,7 +200,6 @@ describe('Distributed Lock Edge Cases', () => {
             expect(result.acquired).toBe(false);
             expect(mockRedis.set).toHaveBeenCalledTimes(3);
         });
-
     });
 
     describe('Lock Key Format', () => {
@@ -231,7 +229,6 @@ describe('Distributed Lock Edge Cases', () => {
 
             expect(firstOwnerId).not.toBe(secondOwnerId);
         });
-
     });
 
     describe('Memory Leak Prevention', () => {

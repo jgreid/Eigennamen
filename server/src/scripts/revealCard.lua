@@ -87,6 +87,18 @@ else
 end
 game.guessesUsed = (game.guessesUsed or 0) + 1
 
+-- Match mode: accumulate card score into match score immediately
+if isMatch and game.cardScores then
+    local cs = game.cardScores[luaIndex] or 0
+    if cs ~= 0 then
+        if previousTurn == 'red' then
+            game.redMatchScore = (game.redMatchScore or 0) + cs
+        else
+            game.blueMatchScore = (game.blueMatchScore or 0) + cs
+        end
+    end
+end
+
 -- Determine outcome
 local turnEnded = false
 local endReason = cjson.null

@@ -195,5 +195,4 @@ describe('Metrics Extended Tests', () => {
             expect(Object.keys(metrics.histograms).length).toBe(0);
         });
     });
-
 });
