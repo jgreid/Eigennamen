@@ -415,7 +415,8 @@ export function finalizeRound(game: GameState): RoundResult {
     const cardScores = game.cardScores || [];
     const revealedBy = game.revealedBy || [];
 
-    // Sum card points by revealing team
+    // Card points are already accumulated per-reveal in the Lua script.
+    // Recompute here only for the round result summary.
     let redCardPoints = 0;
     let blueCardPoints = 0;
     for (let i = 0; i < BOARD_SIZE; i++) {
@@ -429,7 +430,7 @@ export function finalizeRound(game: GameState): RoundResult {
         }
     }
 
-    // Award round bonus
+    // Only add round bonus — card points were already accumulated per-reveal
     const roundWinner = game.winner;
     const redBonus = roundWinner === 'red';
     const blueBonus = roundWinner === 'blue';
@@ -437,9 +438,8 @@ export function finalizeRound(game: GameState): RoundResult {
     const redRoundTotal = redCardPoints + (redBonus ? ROUND_WIN_BONUS : 0);
     const blueRoundTotal = blueCardPoints + (blueBonus ? ROUND_WIN_BONUS : 0);
 
-    // Update cumulative match scores
-    game.redMatchScore = (game.redMatchScore ?? 0) + redRoundTotal;
-    game.blueMatchScore = (game.blueMatchScore ?? 0) + blueRoundTotal;
+    if (redBonus) game.redMatchScore = (game.redMatchScore ?? 0) + ROUND_WIN_BONUS;
+    if (blueBonus) game.blueMatchScore = (game.blueMatchScore ?? 0) + ROUND_WIN_BONUS;
 
     const roundResult: RoundResult = {
         roundNumber: game.matchRound ?? 1,
@@ -465,8 +465,8 @@ export function finalizeRound(game: GameState): RoundResult {
     game.roundHistory.push(roundResult);
 
     // Check match end condition: either team ≥ target AND lead ≥ margin
-    const red = game.redMatchScore;
-    const blue = game.blueMatchScore;
+    const red = game.redMatchScore ?? 0;
+    const blue = game.blueMatchScore ?? 0;
     if (red >= MATCH_TARGET || blue >= MATCH_TARGET) {
         const lead = Math.abs(red - blue);
         if (lead >= MATCH_WIN_MARGIN) {

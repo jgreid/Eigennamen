@@ -184,23 +184,9 @@ export function updateControls(): void {
         clickerBtn.setAttribute('aria-pressed', isClickerRole.toString());
     }
 
-    // Update role hint - only show when helpful (hide when role is in banner)
+    // Role hint removed — players are oriented via quickstart guide
     if (roleHint) {
-        if (!state.playerTeam) {
-            roleHint.textContent = t('roles.selectTeamFirst');
-            roleHint.classList.remove('hidden');
-        } else if (isSpy || isClickerRole) {
-            // Role already displayed in banner - hide redundant hint
-            roleHint.classList.add('hidden');
-        } else {
-            if (isClickerFallback()) {
-                roleHint.textContent = t('roles.clickerOfflineCanClick');
-                roleHint.classList.remove('hidden');
-            } else {
-                roleHint.textContent = t('roles.chooseRole');
-                roleHint.classList.remove('hidden');
-            }
-        }
+        roleHint.classList.add('hidden');
     }
 }
 

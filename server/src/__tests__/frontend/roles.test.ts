@@ -244,13 +244,12 @@ describe('updateControls', () => {
         expect(clicker.classList.contains('active')).toBe(true);
     });
 
-    test('shows role hint to select team when no team', () => {
+    test('always hides role hint', () => {
         state.playerTeam = null;
         updateControls();
 
         const hint = document.getElementById('role-hint')!;
-        expect(hint.textContent).toBe('roles.selectTeamFirst');
-        expect(hint.classList.contains('hidden')).toBe(false);
+        expect(hint.classList.contains('hidden')).toBe(true);
     });
 
     test('hides role hint when role is set', () => {
@@ -262,14 +261,14 @@ describe('updateControls', () => {
         expect(hint.classList.contains('hidden')).toBe(true);
     });
 
-    test('shows choose role hint when on team but no role', () => {
+    test('hides role hint when on team but no role', () => {
         state.playerTeam = 'red';
         state.spymasterTeam = null;
         state.clickerTeam = null;
         updateControls();
 
         const hint = document.getElementById('role-hint')!;
-        expect(hint.textContent).toBe('roles.chooseRole');
+        expect(hint.classList.contains('hidden')).toBe(true);
     });
 
     test('adds loading class when role change in progress', () => {
@@ -485,7 +484,7 @@ describe('updateControls (multiplayer scenarios)', () => {
         expect(btn.title).toBe('roles.endTurnTitle');
     });
 
-    test('shows clickerOfflineCanClick hint in multiplayer', () => {
+    test('hides role hint even with clicker offline in multiplayer', () => {
         state.isMultiplayerMode = true;
         state.playerTeam = 'red';
         state.spymasterTeam = null;
@@ -497,7 +496,7 @@ describe('updateControls (multiplayer scenarios)', () => {
         updateControls();
 
         const hint = document.getElementById('role-hint')!;
-        expect(hint.textContent).toBe('roles.clickerOfflineCanClick');
+        expect(hint.classList.contains('hidden')).toBe(true);
     });
 
     test('adds team color class to spymaster button', () => {

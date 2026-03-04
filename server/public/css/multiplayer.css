@@ -254,11 +254,11 @@
     flex-wrap: wrap;
     align-items: center;
     gap: var(--spacing-xs);
-    padding: 3px var(--spacing-sm);
+    padding: 6px var(--spacing-sm);
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid var(--color-border-light);
     border-radius: var(--radius-xs);
-    font-size: var(--font-size-xs);
+    font-size: var(--font-size-sm);
     color: rgba(255, 255, 255, 0.7);
     position: relative;
 }
@@ -306,8 +306,9 @@
 
 .multiplayer-indicator .room-code {
     font-family: monospace;
-    font-weight: 600;
-    letter-spacing: 1px;
+    font-weight: 700;
+    font-size: 1.1em;
+    letter-spacing: 2px;
 }
 
 .multiplayer-indicator .player-count {

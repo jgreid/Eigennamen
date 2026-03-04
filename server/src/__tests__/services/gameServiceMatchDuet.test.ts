@@ -321,9 +321,10 @@ describe('finalizeRound', () => {
         expect(result.redBonusAwarded).toBe(false);
     });
 
-    test('updates cumulative match scores', () => {
+    test('updates cumulative match scores (card points pre-accumulated, bonus added at finalize)', () => {
+        // Card points (3) are already accumulated per-reveal into redMatchScore
         const game = createMatchGameState({
-            redMatchScore: 10,
+            redMatchScore: 10 + 3, // 10 from previous rounds + 3 from this round's card reveals
             blueMatchScore: 15,
             revealed: [true, false, ...Array(23).fill(false)],
             revealedBy: ['red', null, ...Array(23).fill(null)],
@@ -353,8 +354,9 @@ describe('finalizeRound', () => {
     });
 
     test('detects match end when team reaches target with sufficient margin', () => {
+        // Card point (1) is already accumulated per-reveal into redMatchScore
         const game = createMatchGameState({
-            redMatchScore: MATCH_TARGET - 1, // Will become >= MATCH_TARGET after round points
+            redMatchScore: MATCH_TARGET - 1 + 1, // per-reveal accumulated: previous + card point
             blueMatchScore: 0,
             revealed: [true, ...Array(24).fill(false)],
             revealedBy: ['red', ...Array(24).fill(null)],
@@ -365,16 +367,17 @@ describe('finalizeRound', () => {
 
         finalizeRound(game);
 
-        // Red gets 1 card point + 7 bonus = 8, total = (MATCH_TARGET - 1) + 8
-        // Lead = (MATCH_TARGET - 1 + 8) - 0 = MATCH_TARGET + 7
+        // Red gets bonus only at finalize: MATCH_TARGET + ROUND_WIN_BONUS
+        // Lead = MATCH_TARGET + ROUND_WIN_BONUS - 0
         expect(game.matchOver).toBe(true);
         expect(game.matchWinner).toBe('red');
     });
 
     test('does not end match when margin is insufficient', () => {
+        // Card point (1) pre-accumulated per-reveal into redMatchScore
         const game = createMatchGameState({
             // Both teams close - exceeds target but margin < MATCH_WIN_MARGIN
-            redMatchScore: MATCH_TARGET - 1,
+            redMatchScore: MATCH_TARGET - 1 + 1, // per-reveal accumulated
             blueMatchScore: MATCH_TARGET - 2,
             revealed: [true, ...Array(24).fill(false)],
             revealedBy: ['red', ...Array(24).fill(null)],
@@ -385,11 +388,9 @@ describe('finalizeRound', () => {
 
         finalizeRound(game);
 
-        // Red: (MATCH_TARGET-1) + 1 + 7 = MATCH_TARGET+7
-        // Blue: MATCH_TARGET-2
-        // Lead: MATCH_TARGET+7 - (MATCH_TARGET-2) = 9 >= MATCH_WIN_MARGIN (3)
-        // Actually this IS enough margin. Let me adjust the test.
-        // The test should have scores close enough that margin < MATCH_WIN_MARGIN
+        // Red: MATCH_TARGET + ROUND_WIN_BONUS
+        // Blue: MATCH_TARGET - 2
+        // Lead: ROUND_WIN_BONUS + 2 = 9 >= MATCH_WIN_MARGIN (3)
         expect(game.matchOver).toBe(true);
     });
 
