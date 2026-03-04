@@ -42,14 +42,14 @@ Eigennamen/
 └── server/
     ├── public/
     │   ├── js/                 # Compiled frontend JS (esbuild output)
-    │   ├── css/                # Stylesheets (8 modules)
+    │   ├── css/                # Stylesheets (9 modules)
     │   ├── locales/            # i18n (en, de, es, fr) + wordlists
     │   ├── icons/              # App icons
     │   ├── manifest.json       # PWA manifest
     │   ├── service-worker.js   # Service worker
     │   └── admin.html          # Admin dashboard
     ├── loadtest/               # Load/stress testing scripts
-    ├── e2e/                    # Playwright E2E tests (10 specs)
+    ├── e2e/                    # Playwright E2E tests (11 specs)
     └── src/
         ├── index.ts            # Server entry point
         ├── app.ts              # Express 5 + Swagger setup
@@ -65,7 +65,7 @@ Eigennamen/
         │   └── room/           # Room sub-module (membership)
         ├── socket/             # WebSocket setup (11 files + handlers/)
         │   └── handlers/       # Event handlers (9 files)
-        ├── frontend/           # Frontend TypeScript source (53 modules)
+        ├── frontend/           # Frontend TypeScript source (54 modules)
         │   ├── handlers/       # Client-side event handlers (6 files)
         │   ├── store/          # Reactive state store + actions (13 files)
         │   └── game/           # Game sub-modules (reveal, scoring)
@@ -73,8 +73,8 @@ Eigennamen/
         ├── types/              # TypeScript definitions (11 files)
         ├── utils/              # Utilities (12 files)
         ├── validators/         # Zod schemas (7 files)
-        ├── scripts/            # Redis Lua scripts (23 atomic ops)
-        └── __tests__/          # Jest tests (126 suites)
+        ├── scripts/            # Redis Lua scripts (26 atomic ops)
+        └── __tests__/          # Jest tests (127 suites)
 ```
 
 ## Key Services
@@ -177,8 +177,8 @@ All paths relative to `server/src/`.
 
 ## Testing
 
-- **Unit/Integration**: Jest with 126 test suites in `server/src/__tests__/`
-- **E2E**: Playwright with 10 spec files in `server/e2e/`
+- **Unit/Integration**: Jest with 127 test suites in `server/src/__tests__/`
+- **E2E**: Playwright with 11 spec files in `server/e2e/`
 - **Load testing**: Scripts in `server/loadtest/` (stress test, memory leak, room flow, WebSocket game)
 - Run `npm run test:watch` for TDD workflow
 - Run `npm run test:e2e:headed` to debug E2E tests visually

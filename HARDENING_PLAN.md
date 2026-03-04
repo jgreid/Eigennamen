@@ -130,21 +130,17 @@ Below is what remains.
 
 ## Priority 3: Low Severity
 
-### L1. Missing `Permissions-Policy` header
-- **File:** `server/src/app.ts:117-154`
-- **Fix:** Add `Permissions-Policy: camera=(), microphone=(), geolocation=()`.
+### ~~L1. Missing `Permissions-Policy` header~~ ✅ FIXED
+- **Status:** Already implemented at `app.ts:157-159` — `camera=(), microphone=(), geolocation=(), payment=()`.
 
-### L2. CSP allows `'unsafe-inline'` for styles
-- **File:** `server/src/app.ts:123`
-- **Fix:** Migrate inline styles to external CSS and remove `'unsafe-inline'`.
+### ~~L2. CSP allows `'unsafe-inline'` for styles~~ ✅ FIXED
+- **Status:** `'unsafe-inline'` removed from `styleSrc`. All inline styles migrated to CSS classes and HTML `hidden` attribute. External `admin.css` extracted from `admin.html`.
 
-### L3. `allowEIO3: true` enables legacy Engine.IO protocol
-- **File:** `server/src/socket/serverConfig.ts:50`
-- **Fix:** Remove unless legacy client support is needed.
+### ~~L3. `allowEIO3: true` enables legacy Engine.IO protocol~~ ✅ FIXED
+- **Status:** Already set to `allowEIO3: false` at `serverConfig.ts:50`.
 
-### L4. Socket Zod validation errors expose field paths in all environments
-- **File:** `server/src/middleware/validation.ts:26`
-- **Fix:** Apply the same production path-stripping logic as `errorHandler.ts:108-111`.
+### ~~L4. Socket Zod validation errors expose field paths in all environments~~ ✅ FIXED
+- **Status:** Production path stripping implemented at `validation.ts:28-29`.
 
 ### L5. `revealCard.lua` doesn't validate `maxHistoryEntries` bounds
 - **File:** `server/src/scripts/revealCard.lua:5`
@@ -154,9 +150,8 @@ Below is what remains.
 - **File:** `server/src/utils/distributedLock.ts:47-98`
 - **Fix:** Enforce minimum (e.g., 1000ms) to prevent locks expiring before operations complete.
 
-### L7. ESLint `no-explicit-any` is `warn` not `error`
-- **File:** `server/eslint.config.js:70`
-- **Fix:** Promote to `error` (current codebase has zero violations in source).
+### ~~L7. ESLint `no-explicit-any` is `warn` not `error`~~ ✅ FIXED
+- **Status:** Already set to `error` at `eslint.config.js:70,109`.
 
 ### L8. Frontend tsconfig missing advanced strictness flags
 - **File:** `server/tsconfig.frontend.json`
@@ -202,9 +197,9 @@ Below is what remains.
 
 2. **Structured logging with correlation IDs** — Add a `traceId` flowing through handler → service → Lua for production debugging.
 
-3. **Lua script preloading** — Use `SCRIPT LOAD` + `EVALSHA` instead of `EVAL` for the 23 Lua scripts to save bandwidth and parsing.
+3. **Lua script preloading** — Use `SCRIPT LOAD` + `EVALSHA` instead of `EVAL` for the 26 Lua scripts to save bandwidth and parsing.
 
-4. **Automated dependency scanning** — Add `npm audit` to CI and consider `.github/dependabot.yml`.
+4. ~~**Automated dependency scanning**~~ ✅ DONE — `npm audit` in CI security job, Dependabot configured, Trivy container scanning, all GitHub Actions SHA-pinned.
 
 ---
 
@@ -213,15 +208,18 @@ Below is what remains.
 - Zero `as any` in production source code; zero `@ts-ignore` / `@ts-nocheck` directives
 - Maximally strict TypeScript config (`noUncheckedIndexedAccess`, `useUnknownInCatchVariables`, etc.)
 - Constant-time token comparison via `crypto.timingSafeEqual`
-- 23 Lua scripts for atomic Redis operations
+- 26 Lua scripts for atomic Redis operations with `CORRUPTED_DATA` error signaling
 - Error detail allowlisting (only `roomCode`, `team`, `index`, `max`, `recoverable`, `suggestion`, `retryable`)
-- Production Zod path stripping to prevent schema disclosure
+- Production Zod path stripping to prevent schema disclosure (both HTTP and WebSocket)
 - Production CORS wildcard is fatal (`process.exit(1)`)
 - JWT algorithm pinned to `HS256` with restricted `algorithms` in verify; no hardcoded fallback secret
 - Multi-layer rate limiting (per-socket, per-IP, global-IP) with LRU eviction
 - Non-root Docker user with multi-stage build; Redis not port-exposed outside Docker network
 - Distributed locks with exponential backoff, auto-extension, and Lua-based safe release
 - CSRF protection via `X-Requested-With` header requirement + origin validation
-- Comprehensive XSS prevention: main frontend uses `textContent` throughout; `escapeHTML()` where innerHTML is needed
+- Comprehensive XSS prevention: frontend uses `textContent` and `createElement()` throughout; no `innerHTML`
+- Strict CSP: no `unsafe-inline` in script-src or style-src; all styles in external CSS files
+- Permissions-Policy: camera, microphone, geolocation, payment all disabled
+- SHA-pinned GitHub Actions across all CI/CD workflows with minimal permissions
 - Batched state updates, concurrent render guards, and comprehensive state cleanup on room changes
 - Bounded in-memory structures (`localTimers` at 5000, `lastTTLRefresh` at 500, `emissionMetrics` hourly reset)

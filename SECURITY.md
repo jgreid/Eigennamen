@@ -33,7 +33,7 @@ We aim to acknowledge reports within 48 hours and provide an initial assessment 
 | **HTTP API** | CSRF, injection, DoS | Helmet.js headers, CORS, express-rate-limit, body size limits |
 | **Redis** | Unauthorized access, data corruption | Password authentication, Lua script atomicity, TTL expiration |
 | **Authentication** | Session hijacking, brute-force | JWT with min 32-char secret, IP consistency checks, session age limits |
-| **Client** | XSS, DOM manipulation | CSP headers, HTML escaping, NFKC normalization |
+| **Client** | XSS, DOM manipulation | Strict CSP (no `unsafe-inline`), `textContent`/`createElement()`, NFKC normalization |
 
 ### Trust Boundaries
 - **Client ↔ Server**: All client input is untrusted. Zod schemas validate at every entry point.
@@ -57,7 +57,8 @@ We aim to acknowledge reports within 48 hours and provide an initial assessment 
 - Socket auth rate limiting: per-IP failure tracking with progressive blocking
 
 ### Network Security
-- Helmet.js: CSP, HSTS (1 year, preload, includeSubDomains), X-Frame-Options DENY
+- Helmet.js: strict CSP (no `unsafe-inline` in script-src or style-src), HSTS (1 year, preload, includeSubDomains), X-Frame-Options DENY
+- Permissions-Policy: camera, microphone, geolocation, payment disabled
 - CORS: Wildcard origin blocked in production (`process.exit(1)`)
 - CSRF: X-Requested-With header required + Origin/Referer validation
 - HTTPS enforced in production (Fly.io auto-redirect)
@@ -75,10 +76,13 @@ We aim to acknowledge reports within 48 hours and provide an initial assessment 
 - No secrets in Docker image layers (multi-stage build)
 
 ### Infrastructure
-- Non-root Docker container execution
+- Non-root Docker container execution with dropped capabilities (`cap_drop: ALL`)
+- Pinned Docker base image (`node:22.14-alpine3.21`)
 - Redis password required in docker-compose
 - Graceful shutdown with client notification
 - CI/CD: npm audit, Trivy vulnerability scanning, CodeQL analysis
+- All GitHub Actions SHA-pinned to immutable commit hashes
+- Workflow permissions scoped to minimum required
 
 ## Incident Response
 
