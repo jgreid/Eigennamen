@@ -629,7 +629,7 @@ button:focus-visible,
 /* ========== GAME BOARD ========== */
 .board-container {
     width: 100%;
-    max-width: min(880px, calc((100vh - 100px) * 1.28));
+    max-width: min(1050px, calc((100vh - 100px) * 2));
     margin: auto 0;
 }
 
@@ -651,7 +651,7 @@ button:focus-visible,
 
 /* ========== CARDS - Optimized for readability ========== */
 .card {
-    aspect-ratio: 1.6;
+    aspect-ratio: 2;
     display: flex;
     align-items: center;
     justify-content: center;
