@@ -158,6 +158,11 @@ export async function updatePlayer(sessionId: string, updates: PlayerUpdateData)
             `updatePlayer-lua-${sessionId}`
         )) as string | null;
 
+        if (result === 'CORRUPTED_DATA') {
+            logger.error(`Corrupted player data detected in Redis for ${sessionId}`);
+            throw new ServerError('Corrupted player data');
+        }
+
         if (!result) {
             throw new ServerError('Player not found');
         }
@@ -336,6 +341,11 @@ export async function setSocketMapping(
                 TIMEOUTS.REDIS_OPERATION,
                 `setSocketMapping-lua-${sessionId}`
             );
+
+            if (result === 'CORRUPTED_DATA') {
+                logger.error(`Corrupted player data detected during socket mapping for ${sessionId}`);
+                return false;
+            }
 
             if (!result) {
                 logger.debug(`Skipping socket mapping for non-existent player ${sessionId}`);

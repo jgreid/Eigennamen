@@ -119,3 +119,8 @@ body {
     font-size: var(--font-size-base);
     line-height: var(--line-height-base);
 }
+
+/* Ensure [hidden] attribute always hides elements, even with flex/grid CSS */
+[hidden] {
+    display: none !important;
+}

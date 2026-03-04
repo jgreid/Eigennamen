@@ -169,7 +169,7 @@ describe('multiplayerUI module', () => {
 
             const mpBtns = document.querySelectorAll<HTMLElement>('.mp-only-btn');
             mpBtns.forEach((btn) => {
-                expect(btn.style.display).toBe('');
+                expect(btn.hidden).toBe(false);
             });
         });
 
@@ -179,7 +179,7 @@ describe('multiplayerUI module', () => {
 
             const mpBtns = document.querySelectorAll<HTMLElement>('.mp-only-btn');
             mpBtns.forEach((btn) => {
-                expect(btn.style.display).toBe('none');
+                expect(btn.hidden).toBe(true);
             });
         });
     });
@@ -266,7 +266,7 @@ describe('multiplayerUI module', () => {
             updateDuetUI({ greenFound: 3, timerTokens: 5 } as any);
 
             expect(document.querySelector('.main-content')!.classList.contains('duet-mode')).toBe(true);
-            expect(document.getElementById('duet-info-bar')!.style.display).toBe('flex');
+            expect(document.getElementById('duet-info-bar')!.hidden).toBe(false);
         });
 
         test('removes duet-mode class when not duet', () => {
@@ -295,20 +295,20 @@ describe('multiplayerUI module', () => {
         test('updates spectator count display', () => {
             document.body.innerHTML = `
                 <span id="mp-spectator-count">0</span>
-                <div id="mp-spectator-inline" style="display: none"></div>
+                <div id="mp-spectator-inline" hidden></div>
             `;
             updateSpectatorCount(5);
             expect(document.getElementById('mp-spectator-count')!.textContent).toBe('5');
-            expect(document.getElementById('mp-spectator-inline')!.style.display).toBe('flex');
+            expect(document.getElementById('mp-spectator-inline')!.hidden).toBe(false);
         });
 
         test('hides spectator section when count is 0', () => {
             document.body.innerHTML = `
                 <span id="mp-spectator-count">3</span>
-                <div id="mp-spectator-inline" style="display: flex"></div>
+                <div id="mp-spectator-inline"></div>
             `;
             updateSpectatorCount(0);
-            expect(document.getElementById('mp-spectator-inline')!.style.display).toBe('none');
+            expect(document.getElementById('mp-spectator-inline')!.hidden).toBe(true);
         });
 
         test('stores count in state', () => {
@@ -391,22 +391,22 @@ describe('multiplayerUI module', () => {
 
     describe('updateForfeitButton', () => {
         test('shows section for host during active game', () => {
-            document.body.innerHTML = '<div id="settings-forfeit-section" style="display: none"></div>';
+            document.body.innerHTML = '<div id="settings-forfeit-section" hidden></div>';
             state.isMultiplayerMode = true;
             state.gameState.gameOver = false;
 
             updateForfeitButton();
 
-            expect(document.getElementById('settings-forfeit-section')!.style.display).toBe('');
+            expect(document.getElementById('settings-forfeit-section')!.hidden).toBe(false);
         });
 
         test('hides section when game is over', () => {
-            document.body.innerHTML = '<div id="settings-forfeit-section" style="display: block"></div>';
+            document.body.innerHTML = '<div id="settings-forfeit-section"></div>';
             state.gameState.gameOver = true;
 
             updateForfeitButton();
 
-            expect(document.getElementById('settings-forfeit-section')!.style.display).toBe('none');
+            expect(document.getElementById('settings-forfeit-section')!.hidden).toBe(true);
         });
     });
 
@@ -469,47 +469,47 @@ describe('multiplayerUI module', () => {
 
     describe('showReconnectionOverlay', () => {
         test('shows overlay', () => {
-            document.body.innerHTML = '<div id="reconnection-overlay" style="display: none"></div>';
+            document.body.innerHTML = '<div id="reconnection-overlay" hidden></div>';
             showReconnectionOverlay();
-            expect(document.getElementById('reconnection-overlay')!.style.display).toBe('block');
+            expect(document.getElementById('reconnection-overlay')!.hidden).toBe(false);
         });
 
         test('sets fallback timeout to hide overlay', () => {
-            document.body.innerHTML = '<div id="reconnection-overlay" style="display: none"></div>';
+            document.body.innerHTML = '<div id="reconnection-overlay" hidden></div>';
             showReconnectionOverlay();
 
             // Advance timer past 15s timeout
             jest.advanceTimersByTime(16000);
 
-            expect(document.getElementById('reconnection-overlay')!.style.display).toBe('none');
+            expect(document.getElementById('reconnection-overlay')!.hidden).toBe(true);
         });
     });
 
     describe('hideReconnectionOverlay', () => {
         test('hides overlay', () => {
-            document.body.innerHTML = '<div id="reconnection-overlay" style="display: block"></div>';
+            document.body.innerHTML = '<div id="reconnection-overlay"></div>';
             hideReconnectionOverlay();
-            expect(document.getElementById('reconnection-overlay')!.style.display).toBe('none');
+            expect(document.getElementById('reconnection-overlay')!.hidden).toBe(true);
         });
     });
 
     describe('updateRoomSettingsNavVisibility', () => {
         test('shows game mode section for multiplayer host', () => {
-            document.body.innerHTML = '<div id="settings-game-mode-section" style="display: none"></div>';
+            document.body.innerHTML = '<div id="settings-game-mode-section" hidden></div>';
             state.isMultiplayerMode = true;
 
             updateRoomSettingsNavVisibility();
 
-            expect(document.getElementById('settings-game-mode-section')!.style.display).toBe('');
+            expect(document.getElementById('settings-game-mode-section')!.hidden).toBe(false);
         });
 
         test('hides game mode section when not in multiplayer', () => {
-            document.body.innerHTML = '<div id="settings-game-mode-section" style="display: block"></div>';
+            document.body.innerHTML = '<div id="settings-game-mode-section"></div>';
             state.isMultiplayerMode = false;
 
             updateRoomSettingsNavVisibility();
 
-            expect(document.getElementById('settings-game-mode-section')!.style.display).toBe('none');
+            expect(document.getElementById('settings-game-mode-section')!.hidden).toBe(true);
         });
     });
 });

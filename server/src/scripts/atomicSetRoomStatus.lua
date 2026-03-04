@@ -5,7 +5,7 @@
 -- ARGV[1]: New status string (e.g., 'waiting', 'playing', 'finished')
 -- ARGV[2]: Room TTL (seconds)
 --
--- Returns: 'OK' on success, nil if room not found
+-- Returns: 'OK' on success, nil if room not found, 'CORRUPTED_DATA' if stored JSON is malformed
 
 local roomKey = KEYS[1]
 local newStatus = ARGV[1]
@@ -17,7 +17,7 @@ if not roomData then
 end
 
 local ok, room = pcall(cjson.decode, roomData)
-if not ok then return nil end
+if not ok then return 'CORRUPTED_DATA' end
 room.status = newStatus
 redis.call('SET', roomKey, cjson.encode(room), 'EX', ttl)
 return 'OK'

@@ -4,6 +4,30 @@ All notable changes to Eigennamen Online are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [4.3.0] - 2026-03-04
+
+### Added
+- E2E security test suite (`e2e/security.spec.js`) — 27 Playwright tests across 8 categories: CSP, security headers, rate limiting, CORS, admin auth, input validation, Socket.io, static files
+- `server/public/css/admin.css` — extracted from inline `<style>` block in admin.html
+- CSS utility classes: `.noscript-message`, `.board-loading-placeholder`, `.full-width`
+- `[hidden] { display: none !important; }` CSS rule for reliable hidden attribute behavior
+- `CORRUPTED_DATA` error codes in 5 Lua scripts (`updatePlayer`, `atomicAddTime`, `atomicTimerStatus`, `atomicSetSocketMapping`, `atomicSetRoomStatus`)
+- Corruption detection and logging in `playerService.ts` and `timerService.ts`
+
+### Changed
+- **SECURITY**: Removed `'unsafe-inline'` from CSP `style-src` — all inline styles migrated to CSS classes and HTML `hidden` attribute
+- **SECURITY**: All GitHub Actions across 4 workflows pinned to immutable commit SHAs (was: mutable version tags)
+- **SECURITY**: Added top-level `permissions` blocks to CI and deploy workflows
+- Frontend visibility toggling migrated from `el.style.display` to `el.hidden` property (8 frontend modules, 5 test files)
+- Admin dashboard styles moved from inline `<style>` block to external `admin.css`
+- All inline `style=` attributes removed from `index.html` and `admin.html`
+
+### Fixed
+- ESLint `no-non-null-assertion` warnings in `config/jwt.ts` — replaced `!` with null-coalescing
+
+### Removed
+- `CODEBASE_REVIEW.md` — completed audit (all 37 findings resolved); summary folded into CHANGELOG
+
 ## [4.2.0] - 2026-03-01
 
 ### Added

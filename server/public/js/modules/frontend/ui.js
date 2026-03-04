@@ -91,10 +91,10 @@ export function showErrorModal(message, details = null) {
     if (detailsEl) {
         if (details) {
             detailsEl.textContent = details;
-            detailsEl.style.display = 'block';
+            detailsEl.hidden = false;
         }
         else {
-            detailsEl.style.display = 'none';
+            detailsEl.hidden = true;
         }
     }
     openModal('error-modal');

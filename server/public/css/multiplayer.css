@@ -621,6 +621,7 @@
 }
 
 .chat-unread-badge {
+    display: inline-block;
     background: var(--red-team, #e74c3c);
     color: white;
     font-size: 0.7rem;

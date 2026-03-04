@@ -75,11 +75,11 @@ export function updateMatchScoreboard(): void {
     if (!matchScoreboard) return;
 
     if (!isMatchMode()) {
-        matchScoreboard.style.display = 'none';
+        matchScoreboard.hidden = true;
         return;
     }
 
-    matchScoreboard.style.display = '';
+    matchScoreboard.hidden = false;
 
     const redMatchEl = document.getElementById('red-match-score');
     const blueMatchEl = document.getElementById('blue-match-score');

@@ -7,7 +7,9 @@
 -- ARGV[3]: Current timestamp (ms)
 -- ARGV[4]: TTL buffer (seconds, default 60)
 --
--- Returns: JSON `{endTime, duration, remainingSeconds}` on success, nil on error
+-- Returns: JSON `{endTime, duration, remainingSeconds}` on success
+--          nil if timer not found, paused, or expired
+--          'CORRUPTED_DATA' if stored JSON is malformed
 
 local timerKey = KEYS[1]
 local secondsToAdd = tonumber(ARGV[1])
@@ -20,7 +22,7 @@ end
 
 local ok, timer = pcall(cjson.decode, timerData)
 if not ok then
-    return nil
+    return 'CORRUPTED_DATA'
 end
 if timer.paused then
     return nil

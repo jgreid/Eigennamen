@@ -197,24 +197,21 @@ export async function startTimer(
             // Set up local timeout using shared expiration callback
             const timeoutId = setTimeout(createTimerExpirationCallback(roomCode, onExpire), durationSeconds * 1000);
 
-            // Evict entry with earliest endTime if map exceeds max size
+            // Evict entries with earliest endTimes if map exceeds max size
+            // Batch eviction (10%) prevents rapid growth from outpacing single-entry eviction
             if (localTimers.size >= LOCAL_TIMERS_MAX_SIZE) {
-                let earliestKey: string | undefined;
-                let earliestEnd = Infinity;
-                for (const [key, timer] of localTimers) {
-                    if (timer.endTime < earliestEnd) {
-                        earliestEnd = timer.endTime;
-                        earliestKey = key;
-                    }
+                const evictCount = Math.max(1, Math.floor(LOCAL_TIMERS_MAX_SIZE * 0.1));
+                const entries = Array.from(localTimers.entries()).sort((a, b) => a[1].endTime - b[1].endTime);
+                for (let i = 0; i < evictCount && i < entries.length; i++) {
+                    const entry = entries[i];
+                    if (!entry) continue;
+                    const [key, timer] = entry;
+                    clearTimeout(timer.timeoutId);
+                    localTimers.delete(key);
                 }
-                if (earliestKey) {
-                    const evicted = localTimers.get(earliestKey);
-                    if (evicted) clearTimeout(evicted.timeoutId);
-                    localTimers.delete(earliestKey);
-                    logger.warn(
-                        `Local timer map at capacity (${LOCAL_TIMERS_MAX_SIZE}), evicted earliest-ending entry: ${earliestKey}`
-                    );
-                }
+                logger.warn(
+                    `Local timer map at capacity (${LOCAL_TIMERS_MAX_SIZE}), evicted ${evictCount} earliest-ending entries`
+                );
             }
 
             localTimers.set(roomCode, {
@@ -278,6 +275,13 @@ export async function getTimerStatus(roomCode: string): Promise<TimerStatus | nu
     )) as string | null;
 
     if (!result) {
+        return null;
+    }
+
+    // Corrupted timer data — log and treat as missing
+    if (result === 'CORRUPTED_DATA') {
+        logger.error(`Corrupted timer data detected in Redis for room ${roomCode}`);
+        localTimers.delete(roomCode);
         return null;
     }
 
@@ -464,6 +468,11 @@ async function addTimeLocal(
     )) as string | null;
 
     if (!result) {
+        return null;
+    }
+
+    if (result === 'CORRUPTED_DATA') {
+        logger.error(`Corrupted timer data detected during addTime for room ${roomCode}`);
         return null;
     }
 

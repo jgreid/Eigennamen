@@ -65,7 +65,7 @@ export function switchSettingsPanel(panelId) {
     // Show/hide context-specific buttons (reset words visible on game panel)
     const resetWordsBtn = document.getElementById('btn-reset-words');
     if (resetWordsBtn) {
-        resetWordsBtn.style.display = panelId === 'game' ? '' : 'none';
+        resetWordsBtn.hidden = panelId !== 'game';
     }
 }
 // Guard: prevent duplicate registration of settings nav listeners

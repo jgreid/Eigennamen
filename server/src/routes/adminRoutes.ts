@@ -3,7 +3,14 @@ import type { AdminRequest } from '../types/admin';
 
 import express from 'express';
 import path from 'path';
-import crypto from 'crypto';
+import crypto, { scrypt } from 'crypto';
+import { promisify } from 'util';
+
+const scryptAsync = promisify(scrypt) as (
+    password: crypto.BinaryLike,
+    salt: crypto.BinaryLike,
+    keylen: number
+) => Promise<Buffer>;
 import rateLimit from 'express-rate-limit';
 import logger from '../utils/logger';
 import { API_RATE_LIMITS } from '../config/constants';
@@ -27,8 +34,9 @@ const cachedAdminHash: Buffer | null = process.env.ADMIN_PASSWORD
 /**
  * Basic Authentication Middleware
  * Requires ADMIN_PASSWORD environment variable to be set
+ * Uses async scrypt to avoid blocking the event loop during password hashing
  */
-function basicAuth(req: AdminRequest, res: Response, next: NextFunction): Response | void {
+async function basicAuth(req: AdminRequest, res: Response, next: NextFunction): Promise<Response | void> {
     const adminPassword = process.env.ADMIN_PASSWORD;
 
     // If no admin password is configured, deny all access
@@ -64,9 +72,9 @@ function basicAuth(req: AdminRequest, res: Response, next: NextFunction): Respon
             const username = colonIndex >= 0 ? credentials.substring(0, colonIndex) : credentials;
             const password = colonIndex >= 0 ? credentials.substring(colonIndex + 1) : '';
 
-            // Use scrypt KDF for constant-time password comparison
-            const passwordHash = crypto.scryptSync(password, ADMIN_SCRYPT_SALT, 32);
-            const adminHash = cachedAdminHash ?? crypto.scryptSync(adminPassword, ADMIN_SCRYPT_SALT, 32);
+            // Use async scrypt KDF to avoid blocking the event loop
+            const passwordHash = await scryptAsync(password, ADMIN_SCRYPT_SALT, 32);
+            const adminHash = cachedAdminHash ?? (await scryptAsync(adminPassword, ADMIN_SCRYPT_SALT, 32));
             if (crypto.timingSafeEqual(passwordHash, adminHash)) {
                 req.adminUsername = username || 'admin';
                 // Audit successful login

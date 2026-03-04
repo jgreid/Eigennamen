@@ -1,6 +1,5 @@
 import { state, ROLE_BANNER_CONFIG } from './state.js';
 import { isSpymaster, isClicker as isClickerSelector, canActAsClicker } from './store/selectors.js';
-import { escapeHTML } from './utils.js';
 import { showToast, announceToScreenReader } from './ui.js';
 import { renderBoard } from './board.js';
 import { t } from './i18n.js';
@@ -67,7 +66,6 @@ export function updateRoleBanner() {
     const banner = state.cachedElements.roleBanner || document.getElementById('role-banner');
     if (!banner)
         return;
-    const hostBadge = state.isHost ? `<span class="host-badge">${escapeHTML(t('multiplayer.host'))}</span>` : '';
     // Determine role and team for config lookup
     let role = null;
     let team = null;
@@ -85,19 +83,33 @@ export function updateRoleBanner() {
     }
     // Use config if role/team are set, otherwise fallback to host/viewer
     // Validate team is 'red' or 'blue' before accessing teamNames
+    // Uses DOM methods instead of innerHTML for defense-in-depth against XSS
+    banner.textContent = '';
     if (role && team && (team === 'red' || team === 'blue') && ROLE_BANNER_CONFIG[role]) {
         const config = ROLE_BANNER_CONFIG[role];
         banner.className = `role-banner ${config[team]}`;
-        // Use nullish coalescing in case teamNames doesn't have the team key
-        banner.innerHTML = `<strong>${escapeHTML(state.teamNames[team] || (team === 'red' ? 'Red' : 'Blue'))}</strong> ${escapeHTML(config.label)}${hostBadge}`;
+        const strong = document.createElement('strong');
+        strong.textContent = state.teamNames[team] || (team === 'red' ? 'Red' : 'Blue');
+        banner.appendChild(strong);
+        banner.appendChild(document.createTextNode(` ${config.label}`));
+        if (state.isHost) {
+            const badge = document.createElement('span');
+            badge.className = 'host-badge';
+            badge.textContent = t('multiplayer.host');
+            banner.appendChild(badge);
+        }
     }
     else if (state.isHost) {
         banner.className = 'role-banner host';
-        banner.innerHTML = `<span class="host-badge">${escapeHTML(t('multiplayer.host'))}</span> ${escapeHTML(t('roles.spectator'))}`;
+        const badge = document.createElement('span');
+        badge.className = 'host-badge';
+        badge.textContent = t('multiplayer.host');
+        banner.appendChild(badge);
+        banner.appendChild(document.createTextNode(` ${t('roles.spectator')}`));
     }
     else {
         banner.className = 'role-banner viewer';
-        banner.innerHTML = escapeHTML(t('roles.spectator'));
+        banner.textContent = t('roles.spectator');
     }
 }
 export function updateControls() {

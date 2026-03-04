@@ -270,11 +270,11 @@ export function registerRoomHandlers(): void {
         const toggleHandler = () => {
             if (!getClient()?.player?.isHost) return;
             if (timerToggle.checked) {
-                if (timerSliderContainer) timerSliderContainer.style.display = 'flex';
+                if (timerSliderContainer) timerSliderContainer.hidden = false;
                 const seconds = parseInt(timerRange?.value || '120', 10);
                 EigennamenClient.updateSettings({ turnTimer: seconds });
             } else {
-                if (timerSliderContainer) timerSliderContainer.style.display = 'none';
+                if (timerSliderContainer) timerSliderContainer.hidden = true;
                 EigennamenClient.updateSettings({ turnTimer: null });
             }
         };

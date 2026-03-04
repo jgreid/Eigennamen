@@ -43,7 +43,10 @@ function handleJwtVerification(
     }
 
     // Build expected claims for validation
-    const expectedClaims: Record<string, unknown> = {};
+    const expectedClaims: Record<string, unknown> = {
+        // Validate token type to prevent token confusion attacks
+        type: 'session',
+    };
     // Validate the JWT's sessionId matches the socket's session.
     // This prevents a stolen token from one session being used with another.
     if (validatedSessionId) {

@@ -9,7 +9,7 @@
 -- ARGV[4]: Last IP address (can be empty)
 -- ARGV[5]: Current timestamp (ms)
 --
--- Returns: 1 on success, nil if player not found
+-- Returns: 1 on success, nil if player not found, 'CORRUPTED_DATA' if stored JSON is malformed
 
 local playerKey = KEYS[1]
 local socketKey = KEYS[2]
@@ -31,7 +31,7 @@ redis.call('SET', socketKey, socketId, 'EX', socketTTL)
 -- Update player lastIP and lastSeen if IP provided
 if lastIP ~= '' then
     local pOk, player = pcall(cjson.decode, playerData)
-    if not pOk then return nil end
+    if not pOk then return 'CORRUPTED_DATA' end
     player.lastIP = lastIP
     player.lastSeen = tonumber(now)
     redis.call('SET', playerKey, cjson.encode(player), 'EX', playerTTL)

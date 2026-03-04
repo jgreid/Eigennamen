@@ -72,7 +72,7 @@
     <div
       class="reconnection-overlay"
       id="reconnection-overlay"
-      style="display: none"
+      hidden
       role="alert"
       aria-live="assertive"
     >
@@ -112,7 +112,7 @@
               <span class="count"
                 ><span id="red-remaining" data-testid="red-remaining">9</span></span
               >
-              <span class="team-count" id="team-red-count" style="display: none"></span>
+              <span class="team-count" id="team-red-count" hidden></span>
             </button>
           </div>
 
@@ -146,7 +146,7 @@
             <div
               class="match-scores-inline"
               id="match-scoreboard"
-              style="display: none"
+              hidden
               role="group"
               aria-label="Eigennamen scores"
             >
@@ -176,7 +176,7 @@
               <span class="count"
                 ><span id="blue-remaining" data-testid="blue-remaining">8</span></span
               >
-              <span class="team-count" id="team-blue-count" style="display: none"></span>
+              <span class="team-count" id="team-blue-count" hidden></span>
             </button>
           </div>
         </div>
@@ -224,7 +224,7 @@
             <div
               class="mp-spectator-inline"
               id="mp-spectator-inline"
-              style="display: none"
+              hidden
             >
               <span class="spectator-icon" aria-hidden="true">👁</span>
               <span><span id="mp-spectator-count">0</span> watching</span>
@@ -234,7 +234,7 @@
               class="mp-player-list"
               id="mp-player-list"
               data-testid="player-list"
-              style="display: none"
+              hidden
             >
               <ul id="mp-players-ul"></ul>
               <div class="nickname-edit" id="nickname-edit">
@@ -249,7 +249,7 @@
                 <div
                   class="nickname-edit-form"
                   id="nickname-edit-form"
-                  style="display: none"
+                  hidden
                 >
                   <input
                     type="text"
@@ -285,7 +285,7 @@
       <!-- Mode-specific bars (shown below status bar when active) -->
       <div class="game-mode-bars">
         <!-- Duet mode cooperative info bar (hidden by default) -->
-        <div class="duet-info-bar" id="duet-info-bar" style="display: none">
+        <div class="duet-info-bar" id="duet-info-bar" hidden>
           <span class="duet-progress"
             ><span id="duet-green-found">0</span>/<span id="duet-green-total"
               >15</span
@@ -391,7 +391,7 @@
               data-action="open-history"
               title="Game History"
               aria-label="Game History"
-              style="display: none"
+              hidden
             >
               <span class="btn-icon" aria-hidden="true">📜</span>
               <span class="btn-label" data-i18n="nav.history">History</span>
@@ -400,7 +400,7 @@
         </div>
 
         <!-- Chat panel (multiplayer only, collapsed by default) -->
-        <div class="chat-panel mp-only" id="chat-panel" style="display: none">
+        <div class="chat-panel mp-only" id="chat-panel" hidden>
           <button
             type="button"
             class="chat-toggle"
@@ -413,12 +413,12 @@
             <span
               class="chat-unread-badge"
               id="chat-unread-badge"
-              style="display: none"
+              hidden
               >0</span
             >
             <span class="expand-icon chat-expand-icon">▾</span>
           </button>
-          <div class="chat-body" id="chat-body" style="display: none">
+          <div class="chat-body" id="chat-body" hidden>
             <div
               class="chat-messages"
               id="chat-messages"
@@ -461,7 +461,7 @@
       <!-- RIGHT MAIN AREA - Game Board -->
       <main class="main-content" id="main-content">
         <noscript>
-          <div style="text-align: center; padding: 40px; color: #e0e0e0">
+          <div class="noscript-message">
             <h2>JavaScript Required</h2>
             <p>Please enable JavaScript to play Eigennamen Online.</p>
           </div>
@@ -476,13 +476,7 @@
           >
             <div
               id="board-loading"
-              style="
-                grid-column: 1/-1;
-                text-align: center;
-                padding: 40px;
-                color: #a0a0b0;
-                font-size: 1.1rem;
-              "
+              class="board-loading-placeholder"
               data-i18n="modals.loadingGame"
             >
               Loading game...
@@ -613,7 +607,7 @@
             <div
               class="settings-game-mode-section"
               id="settings-game-mode-section"
-              style="display: none"
+              hidden
             >
               <h3
                 class="settings-section-title"
@@ -665,7 +659,7 @@
                   <div
                     class="turn-timer-slider"
                     id="turn-timer-slider"
-                    style="display: none"
+                    hidden
                   >
                     <input
                       type="range"
@@ -687,7 +681,7 @@
             <div
               class="settings-forfeit-section"
               id="settings-forfeit-section"
-              style="display: none"
+              hidden
             >
               <h3 class="settings-section-title" data-i18n="game.dangerZone">
                 Danger Zone
@@ -786,7 +780,7 @@
             id="btn-reset-words"
             class="btn-reset"
             data-action="reset-words"
-            style="display: none"
+            hidden
             data-i18n="settings.resetWords"
           >
             Reset Words
@@ -1119,7 +1113,7 @@
         <div
           id="error-details"
           class="error-details"
-          style="display: none"
+          hidden
         ></div>
         <div class="modal-buttons">
           <button
@@ -1292,7 +1286,7 @@
           type="button"
           class="btn-secondary"
           data-action="play-offline"
-          style="width: 100%"
+          class="full-width"
           data-i18n="modals.playOffline"
         >
           Play Offline (URL-based)
@@ -1313,11 +1307,11 @@
           <p>Loading game history...</p>
         </div>
 
-        <div class="history-empty" id="history-empty" style="display: none">
+        <div class="history-empty" id="history-empty" hidden>
           <p>No games have been played in this room yet.</p>
         </div>
 
-        <div class="history-list" id="history-list" style="display: none">
+        <div class="history-list" id="history-list" hidden>
           <!-- Game history entries will be added here -->
         </div>
 

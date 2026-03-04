@@ -222,13 +222,13 @@ export function registerRoomHandlers() {
                 return;
             if (timerToggle.checked) {
                 if (timerSliderContainer)
-                    timerSliderContainer.style.display = 'flex';
+                    timerSliderContainer.hidden = false;
                 const seconds = parseInt(timerRange?.value || '120', 10);
                 EigennamenClient.updateSettings({ turnTimer: seconds });
             }
             else {
                 if (timerSliderContainer)
-                    timerSliderContainer.style.display = 'none';
+                    timerSliderContainer.hidden = true;
                 EigennamenClient.updateSettings({ turnTimer: null });
             }
         };

@@ -37,6 +37,13 @@ end
 
 redis.call('SADD', playersKey, sessionId)
 
+-- Refresh players set TTL to match room TTL, preventing orphaned player sets
+-- when the room key is refreshed but the players set expires independently
+local roomTTL = redis.call('TTL', roomKey)
+if roomTTL > 0 then
+    redis.call('EXPIRE', playersKey, roomTTL)
+end
+
 -- Atomically create player data (eliminates crash window)
 if playerData and playerData ~= '' then
     redis.call('SET', playerKey, playerData, 'EX', playerTTL)

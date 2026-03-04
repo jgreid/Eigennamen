@@ -184,18 +184,18 @@ describe('settings module', () => {
 
         test('shows reset words button on game panel', () => {
             document.body.innerHTML = `
-                <button id="btn-reset-words" style="display: none"></button>
+                <button id="btn-reset-words" hidden></button>
             `;
             switchSettingsPanel('game');
-            expect(document.getElementById('btn-reset-words')!.style.display).toBe('');
+            expect(document.getElementById('btn-reset-words')!.hidden).toBe(false);
         });
 
         test('hides reset words button on other panels', () => {
             document.body.innerHTML = `
-                <button id="btn-reset-words" style="display: block"></button>
+                <button id="btn-reset-words"></button>
             `;
             switchSettingsPanel('prefs');
-            expect(document.getElementById('btn-reset-words')!.style.display).toBe('none');
+            expect(document.getElementById('btn-reset-words')!.hidden).toBe(true);
         });
     });
 

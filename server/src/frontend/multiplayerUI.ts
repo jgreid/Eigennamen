@@ -38,7 +38,7 @@ export function updateMpIndicator(room: ServerRoomData | null, players: ServerPl
 
         // Show multiplayer-only buttons (history + forfeit)
         mpOnlyBtns.forEach((btn) => {
-            btn.style.display = '';
+            btn.hidden = false;
         });
 
         // Show chat panel and initialize listeners (idempotent)
@@ -51,10 +51,10 @@ export function updateMpIndicator(room: ServerRoomData | null, players: ServerPl
         }
     } else {
         if (indicator) indicator.classList.remove('active');
-        if (playerListEl) playerListEl.style.display = 'none';
+        if (playerListEl) playerListEl.hidden = true;
         // Hide multiplayer-only buttons when not in multiplayer mode
         mpOnlyBtns.forEach((btn) => {
-            btn.style.display = 'none';
+            btn.hidden = true;
         });
 
         // Hide chat panel
@@ -131,8 +131,8 @@ export function initPlayerListUI(): void {
 
     if (playerCountBtn && playerListEl) {
         playerCountBtn.addEventListener('click', () => {
-            const isExpanded = playerListEl.style.display !== 'none';
-            playerListEl.style.display = isExpanded ? 'none' : 'block';
+            const isExpanded = !playerListEl.hidden;
+            playerListEl.hidden = isExpanded;
             playerCountBtn.classList.toggle('expanded', !isExpanded);
         });
     }
@@ -158,7 +158,7 @@ export function updateRoomSettingsNavVisibility(): void {
     const gameModeSection = document.getElementById('settings-game-mode-section');
     if (gameModeSection) {
         const isHost = getClient()?.player?.isHost;
-        gameModeSection.style.display = state.isMultiplayerMode && isHost ? '' : 'none';
+        gameModeSection.hidden = !(state.isMultiplayerMode && isHost);
     }
 }
 
@@ -181,12 +181,12 @@ export function syncTurnTimerUI(turnTimer: number | null): void {
 
     if (turnTimer != null && turnTimer > 0) {
         toggle.checked = true;
-        if (sliderContainer) sliderContainer.style.display = 'flex';
+        if (sliderContainer) sliderContainer.hidden = false;
         if (range) range.value = String(turnTimer);
         if (valueDisplay) valueDisplay.textContent = `${turnTimer}s`;
     } else {
         toggle.checked = false;
-        if (sliderContainer) sliderContainer.style.display = 'none';
+        if (sliderContainer) sliderContainer.hidden = true;
     }
 }
 
@@ -199,7 +199,7 @@ export function updateDuetUI(gameData: ServerGameData | null): void {
     if (isDuet) {
         if (mainContent) mainContent.classList.add('duet-mode');
         if (duetBar) {
-            duetBar.style.display = 'flex';
+            duetBar.hidden = false;
             updateDuetInfoBar(gameData?.greenFound || 0, gameData?.timerTokens);
         }
         // Update green total display
@@ -207,7 +207,7 @@ export function updateDuetUI(gameData: ServerGameData | null): void {
         if (totalEl && gameData?.greenTotal) totalEl.textContent = String(gameData.greenTotal);
     } else {
         if (mainContent) mainContent.classList.remove('duet-mode');
-        if (duetBar) duetBar.style.display = 'none';
+        if (duetBar) duetBar.hidden = true;
     }
 }
 
@@ -229,7 +229,7 @@ export function updateSpectatorCount(count: number): void {
         mpSpectatorCount.textContent = String(count);
     }
     if (mpSpectatorInline) {
-        mpSpectatorInline.style.display = count > 0 ? 'flex' : 'none';
+        mpSpectatorInline.hidden = count <= 0;
     }
 
     // Store in state for other components
@@ -378,7 +378,7 @@ export function updateForfeitButton(): void {
 
     const shouldShow = state.isMultiplayerMode && getClient()?.player?.isHost && !state.gameState.gameOver;
 
-    forfeitSection.style.display = shouldShow ? '' : 'none';
+    forfeitSection.hidden = !shouldShow;
 }
 
 /**
@@ -394,8 +394,8 @@ export function initNicknameEditUI(): void {
         editBtn.addEventListener('click', () => {
             const form = document.getElementById('nickname-edit-form');
             if (form) {
-                form.style.display = 'flex';
-                editBtn.style.display = 'none';
+                form.hidden = false;
+                editBtn.hidden = true;
                 // Pre-fill with current nickname
                 const nickname = getClient()?.player?.nickname;
                 if (input && nickname) {
@@ -469,9 +469,9 @@ function saveNickname(): void {
 function cancelNicknameEdit(): void {
     const form = document.getElementById('nickname-edit-form');
     const editBtn = document.getElementById('btn-edit-nickname');
-    if (form) form.style.display = 'none';
+    if (form) form.hidden = true;
     if (editBtn) {
-        editBtn.style.display = '';
+        editBtn.hidden = false;
         editBtn.focus();
     }
 }
@@ -484,7 +484,7 @@ function cancelNicknameEdit(): void {
 export function showReconnectionOverlay(): void {
     const overlay = document.getElementById('reconnection-overlay');
     if (overlay) {
-        overlay.style.display = 'block';
+        overlay.hidden = false;
     }
 
     // Clear any existing timeout
@@ -496,7 +496,7 @@ export function showReconnectionOverlay(): void {
     reconnectionTimeoutId = setTimeout(() => {
         reconnectionTimeoutId = null;
         const overlayCheck = document.getElementById('reconnection-overlay');
-        if (overlayCheck && overlayCheck.style.display !== 'none') {
+        if (overlayCheck && !overlayCheck.hidden) {
             hideReconnectionOverlay();
             showToast(t('multiplayer.reconnectionFailed'), 'error', 8000);
         }
@@ -509,7 +509,7 @@ export function showReconnectionOverlay(): void {
 export function hideReconnectionOverlay(): void {
     const overlay = document.getElementById('reconnection-overlay');
     if (overlay) {
-        overlay.style.display = 'none';
+        overlay.hidden = true;
     }
 
     // Clear the fallback timeout since reconnection resolved

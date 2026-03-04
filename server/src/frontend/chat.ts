@@ -39,7 +39,7 @@ function toggleChat(): void {
     if (!body || !toggle) return;
 
     chatOpen = !chatOpen;
-    body.style.display = chatOpen ? 'block' : 'none';
+    body.hidden = !chatOpen;
     toggle.setAttribute('aria-expanded', String(chatOpen));
 
     if (chatOpen) {
@@ -147,9 +147,9 @@ function updateUnreadBadge(): void {
 
     if (unreadCount > 0) {
         badge.textContent = String(unreadCount > 99 ? '99+' : unreadCount);
-        badge.style.display = 'inline-block';
+        badge.hidden = false;
     } else {
-        badge.style.display = 'none';
+        badge.hidden = true;
     }
 }
 
@@ -163,7 +163,7 @@ export function updateChatForRole(): void {
 
     const teamOnlyLabel = document.querySelector('.chat-team-only') as HTMLElement | null;
     if (teamOnlyLabel) {
-        teamOnlyLabel.style.display = isSpectator ? 'none' : '';
+        teamOnlyLabel.hidden = isSpectator;
     }
 
     const input = document.getElementById('chat-input') as HTMLInputElement | null;
@@ -177,7 +177,7 @@ export function updateChatForRole(): void {
  */
 export function showChatPanel(): void {
     const panel = document.getElementById('chat-panel');
-    if (panel) panel.style.display = 'block';
+    if (panel) panel.hidden = false;
 }
 
 /**
@@ -185,7 +185,7 @@ export function showChatPanel(): void {
  */
 export function hideChatPanel(): void {
     const panel = document.getElementById('chat-panel');
-    if (panel) panel.style.display = 'none';
+    if (panel) panel.hidden = true;
 
     // Reset state — includes chatInitialized so listeners are re-attached
     // when the panel is shown again (DOM elements are recreated between rooms)
@@ -195,7 +195,7 @@ export function hideChatPanel(): void {
     updateUnreadBadge();
 
     const body = document.getElementById('chat-body');
-    if (body) body.style.display = 'none';
+    if (body) body.hidden = true;
 
     const toggle = document.getElementById('chat-toggle');
     if (toggle) toggle.setAttribute('aria-expanded', 'false');
