@@ -371,11 +371,12 @@ export function updateBoardIncremental(): void {
             }
 
             // Handle spymaster mode (show all card types when game is over)
+            // Always remove old spy- classes first to prevent stale classes
+            // from winning via CSS cascade (e.g. spy-neutral from null types
+            // before spymasterView event arrives with real types)
+            card.classList.remove('spy-red', 'spy-blue', 'spy-neutral', 'spy-assassin');
             if (showSpymasterView()) {
                 card.classList.add(`spy-${type}`);
-            } else {
-                // Remove all spy- classes
-                card.classList.remove('spy-red', 'spy-blue', 'spy-neutral', 'spy-assassin');
             }
 
             // Handle reveal state

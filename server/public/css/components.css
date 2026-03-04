@@ -914,8 +914,6 @@ button:focus-visible,
         inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
-/* Dots removed - using symbols for accessibility instead */
-
 .spymaster-mode .card.spy-blue:not(.revealed) {
     border-color: #2196f3;
     border-width: 4px;
@@ -926,8 +924,6 @@ button:focus-visible,
         inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
-/* Dots removed - using symbols for accessibility instead */
-
 .spymaster-mode .card.spy-neutral:not(.revealed) {
     border-color: #d4c4a8;
     border-width: 3px;
@@ -935,8 +931,6 @@ button:focus-visible,
     color: #8d7b5e;
     box-shadow: 0 3px 10px rgba(139, 115, 85, 0.2);
 }
-
-/* Dots removed - using symbols for accessibility instead */
 
 .spymaster-mode .card.spy-assassin:not(.revealed) {
     border-color: #000000;
