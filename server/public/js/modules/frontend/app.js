@@ -218,9 +218,9 @@ async function init() {
         initSettingsListeners();
         loadLocalSettings();
         await tryLoadWordlistFile();
-        loadGameFromURL();
-        // Initialize i18n (loads translations, translates page)
+        // Initialize i18n before loading game so t() calls in UI rendering work
         await initI18n();
+        loadGameFromURL();
         // Wire up language selector
         const langSelect = document.getElementById('language-select');
         if (langSelect) {
