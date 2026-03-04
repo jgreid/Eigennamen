@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { withTimeout } from './timeout';
 import { ServerError } from '../errors/GameError';
 import { RELEASE_LOCK_SCRIPT as _RELEASE_LOCK_SCRIPT, EXTEND_LOCK_SCRIPT as _EXTEND_LOCK_SCRIPT } from '../scripts';
+import { instanceId as envInstanceId } from '../config/env';
 
 export const RELEASE_LOCK_SCRIPT = _RELEASE_LOCK_SCRIPT;
 export const EXTEND_LOCK_SCRIPT = _EXTEND_LOCK_SCRIPT;
@@ -42,7 +43,7 @@ class DistributedLock {
 
     constructor(options: LockOptions = {}) {
         this.config = { ...DEFAULT_CONFIG, ...options };
-        this.instanceId = process.env.FLY_ALLOC_ID || process.env.INSTANCE_ID || 'local';
+        this.instanceId = envInstanceId;
     }
 
     async acquire(lockKey: string, options: LockOptions = {}): Promise<LockResult> {

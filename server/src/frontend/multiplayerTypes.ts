@@ -1,8 +1,8 @@
 export interface ServerPlayerData {
     sessionId: string;
     nickname: string;
-    team: string | null;
-    role: string | null;
+    team: 'red' | 'blue' | null;
+    role: 'spymaster' | 'clicker' | 'spectator' | null;
     isHost: boolean;
     connected: boolean;
 }

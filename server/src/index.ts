@@ -8,6 +8,7 @@ import http from 'http';
 import app from './app';
 import { initializeSocket, cleanupSocketModule } from './socket';
 import { connectRedis, disconnectRedis, getRedis, isUsingMemoryMode } from './config/redis';
+import { isProduction } from './config/env';
 import { validateEnv, getEnvInt } from './config/env';
 import * as timerService from './services/timerService';
 import { startMemoryMonitoring, stopMemoryMonitoring } from './middleware/timing';
@@ -132,7 +133,7 @@ async function startServer(): Promise<void> {
         process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
             logger.error('Unhandled rejection', { promise, reason });
             // In production, terminate on unhandled rejections to avoid corrupted state
-            if (process.env.NODE_ENV === 'production') {
+            if (isProduction()) {
                 shutdown('UNHANDLED_REJECTION');
             }
         });

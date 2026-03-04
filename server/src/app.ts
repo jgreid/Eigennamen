@@ -18,6 +18,7 @@ import logger from './utils/logger';
 import { setupSwagger } from './config/swagger';
 import { getAllMetrics, setGauge, METRIC_NAMES } from './utils/metrics';
 import { SOCKET } from './config/constants';
+import { isProduction, parseCorsOrigins } from './config/env';
 
 /**
  * Extended Express Application with custom properties
@@ -46,7 +47,7 @@ const app: ExtendedApp = express() as unknown as ExtendedApp;
 
 // Trust proxy when behind reverse proxy (Fly.io, nginx, etc.)
 // Required for accurate IP detection in rate limiting and logging
-if (process.env.NODE_ENV === 'production' || process.env.TRUST_PROXY === 'true') {
+if (isProduction() || process.env.TRUST_PROXY === 'true') {
     app.set('trust proxy', 1);
     logger.info('Trust proxy enabled for production deployment');
 }
@@ -102,12 +103,11 @@ function updateSocketCount(delta: number): void {
 // Export for socket module to use
 app.updateSocketCount = updateSocketCount;
 
-// CORS configuration
-const corsOrigin = process.env.CORS_ORIGIN || '*';
-const isProduction = process.env.NODE_ENV === 'production';
+// CORS configuration — uses shared parser for consistency across app/socket/csrf
+const corsOrigins = parseCorsOrigins();
 
 // Block wildcard CORS in production - this is a security risk
-if (isProduction && corsOrigin === '*') {
+if (isProduction() && corsOrigins === true) {
     logger.error('FATAL: CORS_ORIGIN cannot be wildcard (*) in production.');
     logger.error('Set CORS_ORIGIN to your domain(s), e.g., CORS_ORIGIN=https://yourdomain.com');
     process.exit(1);
@@ -133,8 +133,8 @@ app.use(
                 frameAncestors: ["'none'"], // Prevent clickjacking (defense in depth)
                 workerSrc: ["'self'", 'blob:'], // Service worker support
                 manifestSrc: ["'self'"], // PWA manifest
-                upgradeInsecureRequests: isProduction ? [] : null,
-                ...(isProduction && { reportUri: ['/api/csp-report'] }),
+                upgradeInsecureRequests: isProduction() ? [] : null,
+                ...(isProduction() && { reportUri: ['/api/csp-report'] }),
             },
         },
         crossOriginEmbedderPolicy: false, // Required for some game assets
@@ -144,7 +144,7 @@ app.use(
         dnsPrefetchControl: { allow: false },
         permittedCrossDomainPolicies: { permittedPolicies: 'none' },
         // HSTS: Enforce HTTPS in production (1 year, include subdomains)
-        strictTransportSecurity: isProduction
+        strictTransportSecurity: isProduction()
             ? {
                   maxAge: 31536000,
                   includeSubDomains: true,
@@ -162,7 +162,7 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
 
 app.use(
     cors({
-        origin: corsOrigin === '*' ? true : corsOrigin.split(',').map((s: string) => s.trim()),
+        origin: corsOrigins,
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Requested-With'],
@@ -231,7 +231,7 @@ app.get('/', (_req: Request, res: Response, next: NextFunction) => {
 // Serve static files (the game client) with caching headers
 app.use(
     express.static(path.join(__dirname, '../public'), {
-        maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0,
+        maxAge: isProduction() ? '1d' : 0,
         etag: true,
         lastModified: true,
     })
@@ -243,7 +243,7 @@ app.use('/health', healthRoutes);
 
 // OpenAPI/Swagger documentation (accessible at /api-docs)
 // In production, gate behind admin auth to prevent API reconnaissance
-if (isProduction) {
+if (isProduction()) {
     app.use('/api-docs', basicAuth);
 }
 setupSwagger(app as unknown as Express);
@@ -277,18 +277,18 @@ interface MetricsResponse {
 // Metrics endpoint with rate limit visibility and application metrics
 // Rate limited to prevent abuse (metrics can be expensive to compute)
 // Require admin auth in production to prevent reconnaissance
-const metricsMiddleware = isProduction ? [strictLimiter, basicAuth] : [strictLimiter];
+const metricsMiddleware = isProduction() ? [strictLimiter, basicAuth] : [strictLimiter];
 app.get('/metrics', ...metricsMiddleware, async (_req: Request, res: Response) => {
     const metricsData: MetricsResponse = {
         timestamp: new Date().toISOString(),
-        process: isProduction
+        process: isProduction()
             ? { uptime: process.uptime() }
             : { uptime: process.uptime(), memory: process.memoryUsage(), cpu: process.cpuUsage() },
     };
 
     // Add Fly.io instance info if available (region only in production; full details in dev)
     if (process.env.FLY_ALLOC_ID) {
-        metricsData.instance = isProduction
+        metricsData.instance = isProduction()
             ? { flyRegion: process.env.FLY_REGION }
             : { flyAllocId: process.env.FLY_ALLOC_ID, flyRegion: process.env.FLY_REGION };
     }

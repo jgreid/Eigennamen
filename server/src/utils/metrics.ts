@@ -95,8 +95,8 @@ const config: MetricsConfig = {
     reportingInterval: 60000, // 1 minute
 };
 
-// Instance ID for distributed metrics
-const instanceId: string = process.env.FLY_ALLOC_ID || process.env.INSTANCE_ID || 'local';
+// Instance ID for distributed metrics — shared constant from config/env
+import { instanceId } from '../config/env';
 
 /**
  * Calculate a percentile value from a sorted array of numbers.

@@ -6,9 +6,7 @@
 
 import logger from './logger';
 import { getCorrelationId } from './correlationId';
-
-// Instance ID for distributed deployments
-const instanceId: string = process.env.FLY_ALLOC_ID || process.env.INSTANCE_ID || 'local';
+import { instanceId } from '../config/env';
 
 /**
  * Audit event types (only events that are actually emitted)

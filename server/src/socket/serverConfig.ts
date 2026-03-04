@@ -6,18 +6,18 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import { getPubSubClients, isUsingMemoryMode } from '../config/redis';
 import logger from '../utils/logger';
 import { SOCKET } from '../config/constants';
+import { isProduction, parseCorsOrigins } from '../config/env';
 
 /**
  * Create and configure the Socket.io server instance.
  * Includes CORS validation, transport settings, and Redis adapter setup.
  */
 function createSocketServer(server: HttpServer): SocketIOServer {
-    const isProduction = process.env.NODE_ENV === 'production';
-    const corsOrigin = process.env.CORS_ORIGIN || '*';
+    const corsOrigins = parseCorsOrigins();
 
     // Block wildcard CORS in production for Socket.io
     // This matches the validation in app.ts for Express CORS
-    if (isProduction && corsOrigin === '*') {
+    if (isProduction() && corsOrigins === true) {
         logger.error('FATAL: CORS_ORIGIN cannot be wildcard (*) in production for Socket.io');
         logger.error('Set CORS_ORIGIN to your domain(s), e.g., CORS_ORIGIN=https://yourdomain.com');
         process.exit(1);
@@ -25,15 +25,15 @@ function createSocketServer(server: HttpServer): SocketIOServer {
 
     const socketServer: SocketIOServer = new Server(server, {
         cors: {
-            origin: corsOrigin === '*' ? true : corsOrigin.split(',').map((s: string) => s.trim()),
+            origin: corsOrigins,
             methods: ['GET', 'POST'],
             credentials: true,
         },
         // Use WebSocket only in production for better Fly.io compatibility
         // Polling can have issues with Fly.io's proxy and load balancing
-        transports: isProduction ? ['websocket'] : ['polling', 'websocket'],
+        transports: isProduction() ? ['websocket'] : ['polling', 'websocket'],
         // Allow upgrades in development
-        allowUpgrades: !isProduction,
+        allowUpgrades: !isProduction(),
         // Increase timeouts for better stability on Fly.io (from centralized constants)
         pingTimeout: SOCKET.PING_TIMEOUT_MS,
         pingInterval: SOCKET.PING_INTERVAL_MS,

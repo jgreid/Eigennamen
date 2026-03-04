@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import logger from '../utils/logger';
+import { isProduction as isProd } from './env';
 
 /**
  * JWT payload structure
@@ -16,9 +17,12 @@ export interface JwtPayload {
 }
 
 /**
- * Token verification result with error
+ * Token verification result with error.
+ * Uses _tag discriminant to distinguish from JwtPayload (which may contain
+ * arbitrary claims including 'error') in the verifyToken union return type.
  */
 export interface TokenVerificationError {
+    _tag: 'TokenVerificationError';
     error: string;
     message: string;
 }
@@ -59,7 +63,7 @@ const ALLOWED_EXPIRY_PATTERN = /^(\d+)(s|m|h|d)$/;
  */
 function getJwtSecret(): string | null {
     const secret = process.env.JWT_SECRET;
-    const isProduction = process.env.NODE_ENV === 'production';
+    const isProduction = isProd();
 
     if (!secret) {
         if (isProduction) {
@@ -201,7 +205,11 @@ function verifyToken(token: string, options: VerifyOptions = {}): JwtPayload | T
     const secret = getJwtSecret();
     if (!secret) {
         if (options.returnError) {
-            return { error: JWT_ERROR_CODES.JWT_NOT_CONFIGURED, message: 'JWT authentication not configured' };
+            return {
+                _tag: 'TokenVerificationError' as const,
+                error: JWT_ERROR_CODES.JWT_NOT_CONFIGURED,
+                message: 'JWT authentication not configured',
+            };
         }
         return null;
     }
@@ -243,7 +251,7 @@ function verifyToken(token: string, options: VerifyOptions = {}): JwtPayload | T
         }
 
         if (options.returnError) {
-            return { error: errorCode, message: errorMessage };
+            return { _tag: 'TokenVerificationError' as const, error: errorCode, message: errorMessage };
         }
         return null;
     }
@@ -257,9 +265,11 @@ function verifyToken(token: string, options: VerifyOptions = {}): JwtPayload | T
 function verifyTokenWithClaims(token: string, expectedClaims: Record<string, unknown> = {}): TokenVerificationResult {
     const result = verifyToken(token, { returnError: true });
 
-    // Check if verification failed
-    if (result && 'error' in result) {
-        return { valid: false, error: result.error as string, message: result.message as string };
+    // Check if verification failed — use _tag discriminant to distinguish
+    // TokenVerificationError from JwtPayload (which could have an 'error' claim)
+    if (result && '_tag' in result && result._tag === 'TokenVerificationError') {
+        const err = result as TokenVerificationError;
+        return { valid: false, error: err.error, message: err.message };
     }
 
     // Check if token decoded successfully

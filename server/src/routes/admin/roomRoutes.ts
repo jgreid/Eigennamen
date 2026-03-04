@@ -1,5 +1,5 @@
 import type { Request, Response, Router as ExpressRouter } from 'express';
-import type { RedisClient } from '../../types';
+import type { RedisClient, Room, Player } from '../../types';
 import type { AdminRequest } from '../../types/admin';
 
 import express from 'express';
@@ -14,38 +14,15 @@ import * as roomService from '../../services/roomService';
 import { incrementCounter, METRIC_NAMES } from '../../utils/metrics';
 
 /**
- * Room data from Redis — aligned with the canonical Room type in types/room.ts.
- * Uses the actual field names stored in Redis (hostSessionId, not hostId).
+ * Room data — uses the canonical Room type from types/room.ts for compile-time safety.
  */
-interface RoomData {
-    id: string;
-    code: string;
-    roomId: string;
-    hostSessionId: string;
-    status: 'waiting' | 'playing' | 'finished';
-    createdAt: number;
-    expiresAt: number;
-    settings: {
-        teamNames: { red: string; blue: string };
-        turnTimer: number | null;
-        allowSpectators: boolean;
-        wordListId?: string | null;
-        gameMode?: string;
-    };
-}
+type RoomData = Room;
 
 /**
- * Player data from Redis — aligned with the canonical Player type in types/player.ts.
+ * Player data — uses the canonical Player type from types/player.ts for compile-time safety.
+ * Picks the subset of fields used by admin route responses.
  */
-interface PlayerData {
-    sessionId: string;
-    nickname: string;
-    team: 'red' | 'blue' | null;
-    role: 'spymaster' | 'clicker' | 'spectator';
-    joinedAt: number;
-    isHost?: boolean;
-    connected?: boolean;
-}
+type PlayerData = Pick<Player, 'sessionId' | 'nickname' | 'team' | 'role' | 'joinedAt' | 'isHost' | 'connected'>;
 
 /**
  * Room summary for list view
