@@ -163,6 +163,7 @@ export interface ReconnectionData {
 export interface GameStartedData {
     game?: ServerGameData;
     gameMode?: string;
+    isNextRound?: boolean;
 }
 
 export interface TurnEndedData {

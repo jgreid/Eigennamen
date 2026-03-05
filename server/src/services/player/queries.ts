@@ -257,3 +257,64 @@ export async function resetRolesForNewGame(roomCode: string): Promise<Player[]> 
 
     return results;
 }
+
+/**
+ * Rotate roles within each team for the next round of a match.
+ * Per team: spymaster → clicker, clicker → spectator, one spectator → spymaster.
+ * Preserves teams. Players without a team are left as-is.
+ */
+export async function rotateRolesForNextRound(roomCode: string): Promise<Player[]> {
+    const players = await getPlayersInRoom(roomCode);
+
+    // Group team members by team
+    const teams = { red: [] as Player[], blue: [] as Player[] };
+    for (const p of players) {
+        if (p.team === 'red' || p.team === 'blue') {
+            teams[p.team].push(p);
+        }
+    }
+
+    // Compute new role for each player
+    const updates: { sessionId: string; role: Role }[] = [];
+
+    for (const team of ['red', 'blue'] as const) {
+        const members = teams[team];
+        if (members.length <= 1) continue; // Solo player keeps their role
+
+        const spymaster = members.find((p) => p.role === 'spymaster');
+        const clicker = members.find((p) => p.role === 'clicker');
+        const spectators = members.filter((p) => p.role === 'spectator' || !p.role);
+
+        // Pick the next spymaster: prefer a connected spectator, then any spectator,
+        // then fall back to the clicker (2-player team with no spectators).
+        const nextSpymaster = spectators.find((p) => p.connected) ?? spectators[0] ?? clicker;
+
+        // spymaster → clicker
+        if (spymaster) {
+            updates.push({ sessionId: spymaster.sessionId, role: 'clicker' });
+        }
+        // clicker → spectator (unless they're being promoted to spymaster)
+        if (clicker && clicker !== nextSpymaster) {
+            updates.push({ sessionId: clicker.sessionId, role: 'spectator' });
+        }
+        // spectator (or clicker fallback) → spymaster
+        if (nextSpymaster) {
+            updates.push({ sessionId: nextSpymaster.sessionId, role: 'spymaster' });
+        }
+    }
+
+    // Apply updates with locks
+    if (updates.length > 0) {
+        await Promise.all(
+            updates.map(({ sessionId, role }) =>
+                withLock(`player-mutation:${sessionId}`, async () => updatePlayer(sessionId, { role }), {
+                    lockTimeout: 3000,
+                    maxRetries: 5,
+                })
+            )
+        );
+    }
+
+    // Return fresh player list after updates
+    return getPlayersInRoom(roomCode);
+}

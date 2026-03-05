@@ -131,10 +131,7 @@ export function newGame(): void {
         // In match mode, if the round ended but the match continues,
         // emit nextRound to carry over cumulative match scores.
         // Otherwise start a fresh game/match.
-        const isMatchRoundOver =
-            state.gameMode === 'match' &&
-            state.gameState.gameOver &&
-            !state.gameState.matchOver;
+        const isMatchRoundOver = state.gameMode === 'match' && state.gameState.gameOver && !state.gameState.matchOver;
         if (isMatchRoundOver) {
             EigennamenClient.nextRound();
         } else {

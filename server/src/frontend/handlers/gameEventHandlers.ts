@@ -39,14 +39,18 @@ export function registerGameHandlers(): void {
             state.gameMode = data.gameMode || 'match';
             updateDuetUI(data.game);
             updateForfeitButton();
-            const modeLabels: Record<string, string> = {
-                duet: 'Duet game started!',
-                match: 'Eigennamen started!',
-                classic: 'New game started!',
-            };
-            const label = modeLabels[data.gameMode || 'match'] || 'New game started!';
-            // All roles are reset to spectator on new game — guide players to pick a role
-            showToast(`${label} Pick your team and role to play.`, 'success', 5000);
+            if (data.isNextRound) {
+                const round = data.game?.matchRound ?? 2;
+                showToast(`Round ${round} started! Roles have been rotated.`, 'success', 5000);
+            } else {
+                const modeLabels: Record<string, string> = {
+                    duet: 'Duet game started!',
+                    match: 'Eigennamen started!',
+                    classic: 'New game started!',
+                };
+                const label = modeLabels[data.gameMode || 'match'] || 'New game started!';
+                showToast(`${label} Pick your team and role to play.`, 'success', 5000);
+            }
         }
     });
 
