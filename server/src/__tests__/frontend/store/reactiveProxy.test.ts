@@ -160,4 +160,76 @@ describe('createReactiveProxy', () => {
             newValue: true,
         });
     });
+
+    test('deleteProperty emits change event with undefined newValue', () => {
+        const obj = createReactiveProxy({ x: 42, y: 'keep' } as Record<string, unknown>, 'test');
+        const cb = jest.fn();
+        subscribe('test.x', cb);
+
+        delete obj.x;
+
+        expect(cb).toHaveBeenCalledTimes(1);
+        expect(cb).toHaveBeenCalledWith({
+            path: 'test.x',
+            oldValue: 42,
+            newValue: undefined,
+        });
+        expect(obj.x).toBeUndefined();
+    });
+
+    test('deleteProperty invalidates sub-proxy cache for deleted object', () => {
+        const obj = createReactiveProxy({ nested: { val: 1 } } as Record<string, unknown>, 'test');
+        const cb = jest.fn();
+        subscribe('test.nested', cb);
+
+        // Access nested to create sub-proxy
+        void obj.nested;
+
+        delete obj.nested;
+
+        expect(cb).toHaveBeenCalledTimes(1);
+        expect(obj.nested).toBeUndefined();
+    });
+
+    test('deleteProperty does not emit if property does not exist', () => {
+        const obj = createReactiveProxy({} as Record<string, unknown>, 'test');
+        const cb = jest.fn();
+        subscribe('test.x', cb);
+
+        delete obj.x;
+
+        expect(cb).not.toHaveBeenCalled();
+    });
+
+    test('array push emits event for the new index', () => {
+        const obj = createReactiveProxy({ arr: [1, 2] }, 'test');
+        const indexCb = jest.fn();
+        subscribe('test.arr.2', indexCb);
+
+        obj.arr.push(3);
+
+        expect(indexCb).toHaveBeenCalledWith(
+            expect.objectContaining({
+                path: 'test.arr.2',
+                newValue: 3,
+            })
+        );
+        expect(obj.arr).toEqual([1, 2, 3]);
+    });
+
+    test('array splice emits events for affected indices', () => {
+        const obj = createReactiveProxy({ arr: ['a', 'b', 'c'] }, 'test');
+        const cb = jest.fn();
+        subscribe('test.arr.1', cb);
+
+        obj.arr.splice(1, 1, 'B');
+
+        expect(cb).toHaveBeenCalledWith(
+            expect.objectContaining({
+                path: 'test.arr.1',
+                oldValue: 'b',
+                newValue: 'B',
+            })
+        );
+    });
 });

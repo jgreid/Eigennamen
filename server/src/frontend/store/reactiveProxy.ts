@@ -63,5 +63,27 @@ export function createReactiveProxy<T extends object>(target: T, path: string = 
             }
             return result;
         },
+
+        deleteProperty(obj: T, prop: string | symbol): boolean {
+            const hadProp = Reflect.has(obj, prop);
+            const oldValue = hadProp ? Reflect.get(obj, prop) : undefined;
+            const result = Reflect.deleteProperty(obj, prop);
+
+            if (result && hadProp && typeof prop === 'string') {
+                const fullPath = `${path}.${prop}`;
+
+                // Invalidate sub-proxy cache if old value was an object
+                if (oldValue !== null && typeof oldValue === 'object') {
+                    subProxies.delete(oldValue as object);
+                }
+
+                enqueueOrEmit({
+                    path: fullPath,
+                    oldValue,
+                    newValue: undefined,
+                });
+            }
+            return result;
+        },
     });
 }
