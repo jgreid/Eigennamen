@@ -402,6 +402,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
             safeEmitToPlayers(io, players, SOCKET_EVENTS.GAME_STARTED, (p: Player) => ({
                 game: gameService.getGameStateForPlayer(game, p),
                 gameMode: 'match',
+                isNextRound: true,
             }));
 
             // Broadcast rotated roles so all clients update

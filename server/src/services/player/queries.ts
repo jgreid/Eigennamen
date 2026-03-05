@@ -266,10 +266,10 @@ export async function resetRolesForNewGame(roomCode: string): Promise<Player[]> 
 export async function rotateRolesForNextRound(roomCode: string): Promise<Player[]> {
     const players = await getPlayersInRoom(roomCode);
 
-    // Group connected team members by team
-    const teams: Record<string, Player[]> = { red: [], blue: [] };
+    // Group team members by team
+    const teams = { red: [] as Player[], blue: [] as Player[] };
     for (const p of players) {
-        if (p.team && teams[p.team]) {
+        if (p.team === 'red' || p.team === 'blue') {
             teams[p.team].push(p);
         }
     }
@@ -279,25 +279,25 @@ export async function rotateRolesForNextRound(roomCode: string): Promise<Player[
 
     for (const team of ['red', 'blue'] as const) {
         const members = teams[team];
-        if (members.length === 0) continue;
+        if (members.length <= 1) continue; // Solo player keeps their role
 
         const spymaster = members.find((p) => p.role === 'spymaster');
         const clicker = members.find((p) => p.role === 'clicker');
         const spectators = members.filter((p) => p.role === 'spectator' || !p.role);
 
-        // Pick the next spectator to promote to spymaster.
-        // Use the first connected spectator, or fall back to the first spectator.
-        const nextSpymaster = spectators.find((p) => p.connected) ?? spectators[0];
+        // Pick the next spymaster: prefer a connected spectator, then any spectator,
+        // then fall back to the clicker (2-player team with no spectators).
+        const nextSpymaster = spectators.find((p) => p.connected) ?? spectators[0] ?? clicker;
 
         // spymaster → clicker
         if (spymaster) {
             updates.push({ sessionId: spymaster.sessionId, role: 'clicker' });
         }
-        // clicker → spectator
-        if (clicker) {
+        // clicker → spectator (unless they're being promoted to spymaster)
+        if (clicker && clicker !== nextSpymaster) {
             updates.push({ sessionId: clicker.sessionId, role: 'spectator' });
         }
-        // spectator → spymaster
+        // spectator (or clicker fallback) → spymaster
         if (nextSpymaster) {
             updates.push({ sessionId: nextSpymaster.sessionId, role: 'spymaster' });
         }
@@ -307,11 +307,10 @@ export async function rotateRolesForNextRound(roomCode: string): Promise<Player[
     if (updates.length > 0) {
         await Promise.all(
             updates.map(({ sessionId, role }) =>
-                withLock(
-                    `player-mutation:${sessionId}`,
-                    async () => updatePlayer(sessionId, { role }),
-                    { lockTimeout: 3000, maxRetries: 5 }
-                )
+                withLock(`player-mutation:${sessionId}`, async () => updatePlayer(sessionId, { role }), {
+                    lockTimeout: 3000,
+                    maxRetries: 5,
+                })
             )
         );
     }
