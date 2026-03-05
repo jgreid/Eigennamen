@@ -453,10 +453,12 @@ import {
     getTeamMembers as _getTeamMembers,
     getPlayersInRoom as _getPlayersInRoom,
     resetRolesForNewGame as _resetRolesForNewGame,
+    rotateRolesForNextRound as _rotateRolesForNextRound,
 } from './player/queries';
 export const getTeamMembers = _getTeamMembers;
 export const getPlayersInRoom = _getPlayersInRoom;
 export const resetRolesForNewGame = _resetRolesForNewGame;
+export const rotateRolesForNextRound = _rotateRolesForNextRound;
 
 // Mutation functions (extracted to player/mutations.ts)
 import { setTeam as _setTeam, setRole as _setRole, setNickname as _setNickname } from './player/mutations';
