@@ -623,13 +623,6 @@ button:focus-visible,
     display: none;
 }
 
-/* Checkmark for active role buttons */
-.btn-spymaster.active::before,
-.btn-clicker.active::before {
-    content: '✓ ';
-    font-weight: bold;
-}
-
 /* Muted inactive role buttons */
 .btn-spymaster:not(.active),
 .btn-clicker:not(.active) {
