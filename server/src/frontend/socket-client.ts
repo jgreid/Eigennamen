@@ -182,6 +182,10 @@ import type { JoinCreateResult } from './multiplayerTypes.js';
             this._getSocket()?.emit('game:start', options);
         },
 
+        nextRound(): void {
+            this._getSocket()?.emit('game:nextRound');
+        },
+
         revealCard(index: number): void {
             this._getSocket()?.emit('game:reveal', { index });
         },

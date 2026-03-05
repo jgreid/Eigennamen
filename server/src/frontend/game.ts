@@ -127,7 +127,19 @@ export function newGame(): void {
         // because a game is already in progress).  The gameStarted
         // listener calls syncGameStateFromServer() which handles the
         // full state reset and board render.
-        EigennamenClient.startGame({});
+
+        // In match mode, if the round ended but the match continues,
+        // emit nextRound to carry over cumulative match scores.
+        // Otherwise start a fresh game/match.
+        const isMatchRoundOver =
+            state.gameMode === 'match' &&
+            state.gameState.gameOver &&
+            !state.gameState.matchOver;
+        if (isMatchRoundOver) {
+            EigennamenClient.nextRound();
+        } else {
+            EigennamenClient.startGame({});
+        }
         return;
     }
 
