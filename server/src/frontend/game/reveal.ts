@@ -186,16 +186,14 @@ export function revealCardFromServer(index: number, serverData: ServerRevealData
     state.revealingCards.delete(index);
     state.isRevealingCard = state.revealingCards.size > 0;
 
-    state.gameState.revealed[index] = true;
-    // Use server-provided type; fall back to local only if non-null (spymasters have types,
-    // non-spymasters have null for unrevealed cards — using null causes wrong scoring)
-    const type = serverData.type || state.gameState.types[index] || 'neutral';
-
-    // Bug fix: Update the types array with the revealed type from server
-    // This is critical for non-spymasters who have null for unrevealed cards
+    // Update types BEFORE revealed so any concurrent render sees the correct type
+    // (non-spymasters have null for unrevealed cards until the server sends the real type)
     if (serverData.type) {
         state.gameState.types[index] = serverData.type;
     }
+    const type = serverData.type || state.gameState.types[index] || 'neutral';
+
+    state.gameState.revealed[index] = true;
 
     // Track for animation (same as local reveal)
     state.lastRevealedIndex = index;
