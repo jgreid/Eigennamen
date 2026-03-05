@@ -128,6 +128,7 @@ export function resetMultiplayerState(): void {
     state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
     state.revealTimeouts.clear();
     state.revealingCards.clear();
+    state.revealTimestamps.clear();
     state.isRevealingCard = false;
     state.multiplayerPlayers = [];
     document.querySelectorAll('.card.revealing').forEach((c) => c.classList.remove('revealing'));

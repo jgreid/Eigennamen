@@ -222,7 +222,9 @@ function updateCardScoreBadge(card: HTMLElement, index: number): void {
     }
 }
 
-// Guard against concurrent full re-renders from overlapping socket events
+// Guard against concurrent or interleaved renders from overlapping socket events.
+// Covers both renderBoard (full) and updateBoardIncremental (partial) — if either
+// is in progress, the other is skipped to prevent stale DOM references.
 let renderingInProgress = false;
 
 export function renderBoard(): void {
@@ -289,7 +291,11 @@ export function renderBoard(): void {
 
             // Show revealed cards
             if (isRevealed) {
-                card.classList.add('revealed', state.gameState.types[index] ?? 'neutral');
+                const revealedType = state.gameState.types[index];
+                if (!revealedType) {
+                    logger.warn(`renderBoard: revealed card ${index} has null type, falling back to neutral`);
+                }
+                card.classList.add('revealed', revealedType || 'neutral');
             }
 
             // Match mode: add score badge
@@ -321,6 +327,8 @@ export function renderBoard(): void {
 export function updateBoardIncremental(): void {
     const board = state.cachedElements.board || document.getElementById('board');
     if (!board) return;
+    // Skip if a full render is in progress — our DOM references may be stale
+    if (renderingInProgress) return;
 
     try {
         // Update board class

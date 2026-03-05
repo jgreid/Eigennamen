@@ -30,6 +30,7 @@ jest.mock('../../../../frontend/state', () => ({
         isRevealingCard: false,
         revealingCards: new Set<number>(),
         revealTimeouts: new Map<number, ReturnType<typeof setTimeout>>(),
+        revealTimestamps: new Map<number, number>(),
     },
 }));
 

@@ -21,6 +21,7 @@ jest.mock('../../frontend/state', () => ({
         isRevealingCard: false,
         revealingCards: new Set<number>(),
         revealTimeouts: new Map<number, ReturnType<typeof setTimeout>>(),
+        revealTimestamps: new Map<number, number>(),
         roleChange: { phase: 'idle' as const },
         gameState: {
             words: [],
@@ -206,6 +207,7 @@ describe('Frontend Handler Registration', () => {
         state.isRevealingCard = false;
         state.revealingCards = new Set();
         state.revealTimeouts = new Map();
+        state.revealTimestamps = new Map();
         state.roleChange = { phase: 'idle' };
         state.gameState = {
             words: [],

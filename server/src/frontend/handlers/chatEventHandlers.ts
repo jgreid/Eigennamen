@@ -65,6 +65,7 @@ export function registerChatAndErrorHandlers(): void {
 
         // Clear any in-progress card reveal flags
         state.revealingCards.clear();
+        state.revealTimestamps.clear();
         state.isRevealingCard = false;
         document.querySelectorAll('.card.revealing').forEach((c) => c.classList.remove('revealing'));
 
