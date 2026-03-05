@@ -19,6 +19,7 @@ jest.mock('../../frontend/state', () => ({
         multiplayerPlayers: [],
         roleChange: { phase: 'idle' },
         revealTimeouts: new Map(),
+        revealTimestamps: new Map(),
         revealingCards: new Set(),
         isRevealingCard: false,
         playerTeam: null,
@@ -152,6 +153,7 @@ function resetMockedState(): void {
     state.multiplayerPlayers = [];
     state.roleChange = { phase: 'idle' };
     state.revealTimeouts = new Map();
+    state.revealTimestamps = new Map();
     state.revealingCards = new Set();
     state.isRevealingCard = false;
     state.playerTeam = null;

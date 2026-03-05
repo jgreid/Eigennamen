@@ -33,6 +33,7 @@ export function registerGameHandlers(): void {
             state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
             state.revealTimeouts.clear();
             state.revealingCards.clear();
+            state.revealTimestamps.clear();
             state.isRevealingCard = false;
 
             syncGameStateFromServer(data.game);
@@ -60,6 +61,7 @@ export function registerGameHandlers(): void {
         // Clear per-card reveal tracking for the revealed card
         if (data.index !== undefined) {
             state.revealingCards.delete(data.index);
+            state.revealTimestamps.delete(data.index);
             const revealTimeout = state.revealTimeouts.get(data.index);
             if (revealTimeout) {
                 clearTimeout(revealTimeout);

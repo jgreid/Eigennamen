@@ -182,6 +182,8 @@ export interface AppState {
     isRevealingCard: boolean;
     revealingCards: Set<number>;
     revealTimeouts: Map<number, ReturnType<typeof setTimeout>>;
+    /** Timestamp (Date.now()) when each card entered revealingCards — for sweep robustness */
+    revealTimestamps: Map<number, number>;
     pendingRevealRAF: number | null;
 
     // i18n

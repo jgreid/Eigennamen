@@ -655,6 +655,7 @@ button:focus-visible,
 
 .board.no-click .card:not(.revealed) {
     cursor: default;
+    pointer-events: none;
 }
 
 .board.no-click .card:not(.revealed):hover {

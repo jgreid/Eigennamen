@@ -101,6 +101,7 @@ export function syncBoardData(serverGame: { words?: string[]; types?: string[]; 
             state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
             state.revealTimeouts.clear();
             state.revealingCards.clear();
+            state.revealTimestamps.clear();
             state.isRevealingCard = false;
         }
 
@@ -192,5 +193,6 @@ export function clearRevealTracking(): void {
     state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
     state.revealTimeouts.clear();
     state.revealingCards.clear();
+    state.revealTimestamps.clear();
     state.isRevealingCard = false;
 }

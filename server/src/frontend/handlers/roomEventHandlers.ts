@@ -103,6 +103,7 @@ export function registerRoomHandlers(): void {
             state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
             state.revealTimeouts.clear();
             state.revealingCards.clear();
+            state.revealTimestamps.clear();
             state.isRevealingCard = false;
             document.querySelectorAll('.card.revealing').forEach((c) => c.classList.remove('revealing'));
 
@@ -163,6 +164,7 @@ export function registerRoomHandlers(): void {
             state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
             state.revealTimeouts.clear();
             state.revealingCards.clear();
+            state.revealTimestamps.clear();
             state.isRevealingCard = false;
             document.querySelectorAll('.card.revealing').forEach((c) => c.classList.remove('revealing'));
 
