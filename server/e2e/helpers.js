@@ -9,6 +9,24 @@
 
 /** Stable selectors using data-testid attributes */
 const sel = {
+    // Setup Screen
+    setupScreen: '[data-testid="setup-screen"]',
+    setupBoard: '[data-testid="setup-board"]',
+    setupHostBtn: '[data-testid="setup-host-btn"]',
+    setupJoinBtn: '[data-testid="setup-join-btn"]',
+    setupSoloBtn: '[data-testid="setup-solo-btn"]',
+    setupJoinForm: '[data-testid="setup-join-form"]',
+    setupHostForm: '[data-testid="setup-host-form"]',
+    setupJoinNickname: '#setup-join-nickname',
+    setupJoinRoomId: '#setup-join-room-id',
+    setupHostNickname: '#setup-host-nickname',
+    setupHostRoomId: '#setup-host-room-id',
+    setupRedName: '#setup-red-name',
+    setupBlueName: '#setup-blue-name',
+    setupBackBtn: '[data-action="setup-back"]',
+    setupJoinSubmitBtn: '#setup-join-btn',
+    setupHostSubmitBtn: '#setup-host-btn',
+
     // Board
     board: '[data-testid="game-board"]',
     boardCard: '[data-testid="board-card"]',
@@ -84,13 +102,38 @@ const sel = {
 };
 
 /**
+ * Navigate to the home page and dismiss the setup screen to reach the game.
+ * Clicks the Solo button on the setup screen to load standalone mode.
+ * @param {import('@playwright/test').Page} page
+ */
+async function goToGame(page) {
+    await page.goto('/');
+
+    // If setup screen is visible, click Solo to enter the game
+    const soloBtn = page.locator(sel.setupSoloBtn);
+    if (await soloBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await soloBtn.click();
+    }
+
+    // Wait for game board to be visible
+    await page.locator(sel.board).waitFor({ state: 'visible', timeout: 5000 });
+}
+
+/**
  * Create a multiplayer room and return the room ID.
+ * Uses the setup screen Host form when available, falls back to multiplayer modal.
  * @param {import('@playwright/test').Page} page
  * @param {string} nickname
  * @returns {Promise<string>} Room ID
  */
 async function createRoom(page, nickname) {
     await page.goto('/');
+
+    // Dismiss setup screen first, then use the multiplayer modal
+    const soloBtn = page.locator(sel.setupSoloBtn);
+    if (await soloBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await soloBtn.click();
+    }
 
     await page.locator(sel.multiplayerBtn).click();
     await page.locator(sel.modeCreateBtn).click();
@@ -116,6 +159,12 @@ async function createRoom(page, nickname) {
  */
 async function joinRoom(page, roomId, nickname) {
     await page.goto('/');
+
+    // Dismiss setup screen first, then use the multiplayer modal
+    const soloBtn = page.locator(sel.setupSoloBtn);
+    if (await soloBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await soloBtn.click();
+    }
 
     await page.locator(sel.multiplayerBtn).click();
 
@@ -160,4 +209,4 @@ async function becomeCurrentClicker(page) {
     return isRedTurn;
 }
 
-module.exports = { sel, createRoom, joinRoom, selectTeam, becomeCurrentClicker };
+module.exports = { sel, goToGame, createRoom, joinRoom, selectTeam, becomeCurrentClicker };

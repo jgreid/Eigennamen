@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { sel, createRoom } = require('./helpers');
+const { sel, goToGame, createRoom } = require('./helpers');
 
 /**
  * Multiplayer E2E Tests
@@ -13,7 +13,7 @@ const { sel, createRoom } = require('./helpers');
 
 test.describe('Multiplayer Rooms', () => {
     test('can open multiplayer modal', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
 
         await page.locator(sel.multiplayerBtn).click();
 
@@ -22,7 +22,7 @@ test.describe('Multiplayer Rooms', () => {
     });
 
     test('can create a new room', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
 
         await page.locator(sel.multiplayerBtn).click();
         await page.locator(sel.modeCreateBtn).click();
@@ -47,7 +47,7 @@ test.describe('Multiplayer Rooms', () => {
     });
 
     test('can close multiplayer modal with escape', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
 
         await page.locator(sel.multiplayerBtn).click();
 
@@ -117,7 +117,7 @@ test.describe('Two-Player Game Flow', () => {
 
         try {
             // Player 1: Create room
-            await player1.goto('/');
+            await goToGame(player1);
             await player1.locator(sel.multiplayerBtn).click();
             await player1.locator(sel.modeCreateBtn).click();
 
@@ -129,7 +129,7 @@ test.describe('Two-Player Game Flow', () => {
             await player1.waitForSelector(sel.mpIndicatorActive, { timeout: 15000 });
 
             // Player 2: Join the room
-            await player2.goto('/');
+            await goToGame(player2);
             await player2.locator(sel.multiplayerBtn).click();
             await player2.locator(sel.modeJoinBtn).click();
 
@@ -161,7 +161,7 @@ test.describe('Two-Player Game Flow', () => {
 
         try {
             // Player 1: Create room
-            await player1.goto('/');
+            await goToGame(player1);
             await player1.locator(sel.multiplayerBtn).click();
             await player1.locator(sel.modeCreateBtn).click();
 
@@ -173,7 +173,7 @@ test.describe('Two-Player Game Flow', () => {
             await player1.waitForSelector(sel.mpIndicatorActive, { timeout: 15000 });
 
             // Player 2: Join the room
-            await player2.goto('/');
+            await goToGame(player2);
             await player2.locator(sel.multiplayerBtn).click();
 
             await player2.locator(sel.joinNickname).fill('Guest');

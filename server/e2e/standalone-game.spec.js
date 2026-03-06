@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { sel, becomeCurrentClicker } = require('./helpers');
+const { sel, goToGame, becomeCurrentClicker } = require('./helpers');
 
 /**
  * Standalone Game E2E Tests
@@ -11,7 +11,7 @@ const { sel, becomeCurrentClicker } = require('./helpers');
 
 test.describe('Standalone Game Board', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
     });
 
     test('board generates 25 unique word cards', async ({ page }) => {
@@ -89,7 +89,7 @@ test.describe('Standalone Game Board', () => {
 
 test.describe('Standalone Spymaster View', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
     });
 
     test('spymaster sees all card types', async ({ page }) => {
@@ -161,7 +161,7 @@ test.describe('Standalone Spymaster View', () => {
 
 test.describe('Game Over Detection', () => {
     test('revealing assassin card ends the game', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
 
         // Become spymaster to find assassin
         await page.locator(sel.spymasterBtn).click();
@@ -198,7 +198,7 @@ test.describe('Game Over Detection', () => {
 
 test.describe('Settings Panel', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
     });
 
     test('colorblind mode can be toggled', async ({ page }) => {

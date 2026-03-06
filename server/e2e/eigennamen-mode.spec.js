@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { sel, createRoom, joinRoom, selectTeam, becomeCurrentClicker } = require('./helpers');
+const { sel, goToGame, createRoom, joinRoom, selectTeam, becomeCurrentClicker } = require('./helpers');
 
 /**
  * Eigennamen (Default) Mode — Comprehensive E2E Tests
@@ -44,7 +44,7 @@ async function getCardTypeMap(page) {
 
 test.describe('Eigennamen Win Condition', () => {
     test('revealing all cards of the starting team wins the game', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
 
         // Determine whose turn it is
         const turnText = await page.locator(sel.turnIndicator).textContent();
@@ -75,7 +75,7 @@ test.describe('Eigennamen Win Condition', () => {
     });
 
     test('board shows spymaster view after game over', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
 
         // Find the assassin card
         await page.locator(sel.spymasterBtn).click();
@@ -91,7 +91,7 @@ test.describe('Eigennamen Win Condition', () => {
     });
 
     test('cards are not clickable after game over', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
 
         // Trigger game over via assassin
         await page.locator(sel.spymasterBtn).click();
@@ -111,7 +111,7 @@ test.describe('Eigennamen Win Condition', () => {
     });
 
     test('can start a new game after game over', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
 
         // Trigger game over
         await page.locator(sel.spymasterBtn).click();
@@ -132,7 +132,7 @@ test.describe('Eigennamen Win Condition', () => {
     });
 
     test('non-starting team wins by finding all 8 of their cards', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
 
         const turnText = await page.locator(sel.turnIndicator).textContent();
         const isRedTurn = turnText?.includes('Red') || false;
@@ -172,14 +172,14 @@ test.describe('Eigennamen Win Condition', () => {
 
 test.describe('Eigennamen Turn Indicator', () => {
     test('turn indicator shows team name on active game', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
 
         const turnText = await page.locator(sel.turnIndicator).textContent();
         expect(turnText?.includes('Red') || turnText?.includes('Blue')).toBeTruthy();
     });
 
     test('turn indicator shows winner after game over', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
 
         await page.locator(sel.spymasterBtn).click();
         const typeMap = await getCardTypeMap(page);
@@ -204,7 +204,7 @@ test.describe('Eigennamen Turn Indicator', () => {
     });
 
     test('score displays update correctly through multiple reveals', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
 
         const turnText = await page.locator(sel.turnIndicator).textContent();
         const isRedTurn = turnText?.includes('Red') || false;
@@ -415,7 +415,7 @@ test.describe('Eigennamen Multiplayer Gameplay', () => {
 
 test.describe('Eigennamen Spectator Mode', () => {
     test('team buttons are visible in standalone mode', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
 
         const redBtn = page.locator(sel.teamRedBtn);
         const blueBtn = page.locator(sel.teamBlueBtn);
@@ -424,7 +424,7 @@ test.describe('Eigennamen Spectator Mode', () => {
     });
 
     test('unaffiliated player cannot reveal cards', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
 
         // Player starts unaffiliated (no team selected) — equivalent to spectator
         // Try to click a card — it should not be revealed

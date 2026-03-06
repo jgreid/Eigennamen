@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { sel, createRoom, joinRoom, selectTeam } = require('./helpers');
+const { sel, goToGame, createRoom, joinRoom, selectTeam } = require('./helpers');
 
 /**
  * Multiplayer Game Lifecycle E2E Tests
@@ -151,7 +151,7 @@ test.describe('Full Multiplayer Game Lifecycle', () => {
 
 test.describe('Multiplayer Room Join Errors', () => {
     test('joining non-existent room shows error', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
 
         await page.locator(sel.multiplayerBtn).click();
 
@@ -175,7 +175,7 @@ test.describe('Multiplayer Room Join Errors', () => {
     });
 
     test('empty nickname is rejected', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
 
         await page.locator(sel.multiplayerBtn).click();
         await page.locator(sel.modeCreateBtn).click();
@@ -254,7 +254,7 @@ test.describe('Multiplayer Connection Management', () => {
 
 test.describe('Multiplayer Mode Switching', () => {
     test('can switch between create and join modes', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
 
         await page.locator(sel.multiplayerBtn).click();
 

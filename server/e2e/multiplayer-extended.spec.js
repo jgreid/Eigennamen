@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { sel, createRoom, joinRoom } = require('./helpers');
+const { sel, goToGame, createRoom, joinRoom } = require('./helpers');
 
 /**
  * Extended Multiplayer E2E Tests
@@ -79,7 +79,7 @@ test.describe('Room Code Display', () => {
 
 test.describe('Join Room Error Handling', () => {
     test('joining non-existent room shows error', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
         await page.locator(sel.multiplayerBtn).click();
 
         await page.locator(sel.joinNickname).fill('LostPlayer');
@@ -100,7 +100,7 @@ test.describe('Join Room Error Handling', () => {
     });
 
     test('creating room with empty nickname is prevented', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
         await page.locator(sel.multiplayerBtn).click();
         await page.locator(sel.modeCreateBtn).click();
 
@@ -264,7 +264,7 @@ test.describe('Multiplayer Reconnection UI', () => {
 
 test.describe('Multiplayer Modal Navigation', () => {
     test('can switch between create and join modes', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
 
         await page.locator(sel.multiplayerBtn).click();
 
@@ -280,7 +280,7 @@ test.describe('Multiplayer Modal Navigation', () => {
     });
 
     test('multiplayer indicator shows connection status', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
 
         const indicator = page.locator(sel.mpIndicator);
         if (await indicator.isVisible().catch(() => false)) {

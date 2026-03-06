@@ -47,6 +47,7 @@
     <link rel="stylesheet" href="/css/responsive.css" />
     <link rel="stylesheet" href="/css/accessibility.css" />
     <link rel="stylesheet" href="/css/multiplayer.css" />
+    <link rel="stylesheet" href="/css/setup.css" />
     <link rel="stylesheet" href="/css/replay.css" />
   </head>
   <body>
@@ -82,7 +83,151 @@
       </div>
     </div>
 
-    <div class="app-layout">
+    <!-- Game Setup Screen (shown on initial load) -->
+    <div class="setup-screen" id="setup-screen" data-testid="setup-screen" role="main" aria-label="Game setup">
+      <div class="setup-board-container">
+        <h1 class="setup-title">Eigennamen</h1>
+        <p class="setup-subtitle">Play with friends online or offline</p>
+
+        <div class="setup-board" id="setup-board" data-testid="setup-board">
+          <!-- Row 1: blank cards -->
+          <div class="setup-card setup-card-blank"></div>
+          <div class="setup-card setup-card-blank"></div>
+          <div class="setup-card setup-card-blank"></div>
+          <div class="setup-card setup-card-blank"></div>
+          <div class="setup-card setup-card-blank"></div>
+          <!-- Row 2: blank + Host + blank + Join + blank -->
+          <div class="setup-card setup-card-blank"></div>
+          <button type="button" class="setup-card setup-card-action setup-card-host" data-action="setup-host" data-testid="setup-host-btn">
+            <span class="setup-card-icon">🏠</span>
+            <span class="setup-card-label">Host</span>
+          </button>
+          <div class="setup-card setup-card-blank"></div>
+          <button type="button" class="setup-card setup-card-action setup-card-join" data-action="setup-join" data-testid="setup-join-btn">
+            <span class="setup-card-icon">🎮</span>
+            <span class="setup-card-label">Join</span>
+          </button>
+          <div class="setup-card setup-card-blank"></div>
+          <!-- Row 3: blank cards -->
+          <div class="setup-card setup-card-blank"></div>
+          <div class="setup-card setup-card-blank"></div>
+          <div class="setup-card setup-card-blank"></div>
+          <div class="setup-card setup-card-blank"></div>
+          <div class="setup-card setup-card-blank"></div>
+          <!-- Row 4: blank + blank + Offline + blank + blank -->
+          <div class="setup-card setup-card-blank"></div>
+          <div class="setup-card setup-card-blank"></div>
+          <button type="button" class="setup-card setup-card-action setup-card-offline" data-action="setup-offline" data-testid="setup-solo-btn">
+            <span class="setup-card-icon">🎲</span>
+            <span class="setup-card-label">Solo</span>
+          </button>
+          <div class="setup-card setup-card-blank"></div>
+          <div class="setup-card setup-card-blank"></div>
+          <!-- Row 5: blank cards -->
+          <div class="setup-card setup-card-blank"></div>
+          <div class="setup-card setup-card-blank"></div>
+          <div class="setup-card setup-card-blank"></div>
+          <div class="setup-card setup-card-blank"></div>
+          <div class="setup-card setup-card-blank"></div>
+        </div>
+
+        <!-- Join Form (hidden by default) -->
+        <div class="setup-form" id="setup-join-form" data-testid="setup-join-form" hidden>
+          <h2 class="setup-form-title">Join a Game</h2>
+          <div class="setup-form-group">
+            <label for="setup-join-nickname">Your Nickname</label>
+            <input type="text" id="setup-join-nickname" placeholder="Enter your name" minlength="1" maxlength="30" autocomplete="off" />
+            <span class="error-text" id="setup-join-nickname-error"></span>
+          </div>
+          <div class="setup-form-group">
+            <label for="setup-join-room-id">Room ID</label>
+            <input type="text" id="setup-join-room-id" placeholder="e.g. my-game" minlength="3" maxlength="20" autocomplete="off" pattern="[a-zA-Z0-9\-_]+" />
+            <span class="input-hint">Enter the Room ID shared by the host</span>
+            <span class="error-text" id="setup-join-error"></span>
+          </div>
+          <div class="connection-status" id="setup-join-status"></div>
+          <div class="setup-form-buttons">
+            <button type="button" class="btn-primary" id="setup-join-btn" data-action="setup-join-submit">Join Game</button>
+            <button type="button" class="btn-secondary" data-action="setup-back">Back</button>
+          </div>
+        </div>
+
+        <!-- Host Form (hidden by default) -->
+        <div class="setup-form" id="setup-host-form" data-testid="setup-host-form" hidden>
+          <h2 class="setup-form-title">Host a Game</h2>
+          <div class="setup-form-row">
+            <div class="setup-form-group">
+              <label for="setup-host-nickname">Your Nickname</label>
+              <input type="text" id="setup-host-nickname" placeholder="Enter your name" minlength="1" maxlength="30" autocomplete="off" />
+              <span class="error-text" id="setup-host-nickname-error"></span>
+            </div>
+            <div class="setup-form-group">
+              <label for="setup-host-room-id">Room ID</label>
+              <input type="text" id="setup-host-room-id" placeholder="e.g. game-night" minlength="3" maxlength="20" autocomplete="off" pattern="[a-zA-Z0-9\-_]+" />
+              <span class="input-hint">Share this with friends to let them join</span>
+              <span class="error-text" id="setup-host-error"></span>
+            </div>
+          </div>
+
+          <div class="setup-form-row">
+            <div class="setup-form-group">
+              <label for="setup-red-name">Red Team Name</label>
+              <input type="text" id="setup-red-name" placeholder="Red" maxlength="32" />
+            </div>
+            <div class="setup-form-group">
+              <label for="setup-blue-name">Blue Team Name</label>
+              <input type="text" id="setup-blue-name" placeholder="Blue" maxlength="32" />
+            </div>
+          </div>
+
+          <div class="setup-form-group">
+            <label>Game Mode</label>
+            <div class="setup-game-mode-selector">
+              <label class="game-mode-option">
+                <input type="radio" name="setup-gameMode" value="match" checked />
+                <span class="game-mode-card match-mode-card">
+                  <strong>Eigennamen</strong>
+                  <small>Multi-round scoring</small>
+                </span>
+              </label>
+              <label class="game-mode-option">
+                <input type="radio" name="setup-gameMode" value="classic" />
+                <span class="game-mode-card">
+                  <strong>Vintage</strong>
+                  <small>Classic wordgame</small>
+                </span>
+              </label>
+              <label class="game-mode-option">
+                <input type="radio" name="setup-gameMode" value="duet" />
+                <span class="game-mode-card duet-mode-card">
+                  <strong>Duet</strong>
+                  <small>2 player co-op</small>
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <div class="setup-form-group">
+            <label class="turn-timer-toggle">
+              <input type="checkbox" id="setup-turn-timer-toggle" />
+              <span>Turn Timer</span>
+            </label>
+            <div class="turn-timer-slider" id="setup-turn-timer-slider" hidden>
+              <input type="range" id="setup-turn-timer-range" min="20" max="600" step="10" value="120" />
+              <span class="turn-timer-value" id="setup-turn-timer-value">120s</span>
+            </div>
+          </div>
+
+          <div class="connection-status" id="setup-host-status"></div>
+          <div class="setup-form-buttons">
+            <button type="button" class="btn-primary" id="setup-host-btn" data-action="setup-host-submit">Create Game</button>
+            <button type="button" class="btn-secondary" data-action="setup-back">Back</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="app-layout" id="app-layout" hidden>
       <!-- TOP STATUS BAR - Scores, Turn, Game State -->
       <header class="game-status-bar">
         <div class="status-bar-left">
