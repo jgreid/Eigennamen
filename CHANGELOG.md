@@ -4,6 +4,19 @@ All notable changes to Eigennamen Online are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [5.0.0-beta.1] - 2026-03-06
+
+### Changed
+- **Release preparation**: Version bump to v5.0.0-beta.1
+- Service worker cache version bumped to `eigennamen-v5` (forces fresh asset download for all users)
+- Updated `SECURITY.md` supported versions table (5.x active, 4.x security-only)
+- Updated `ARCHITECTURE.md` directory structure with accurate file counts (54 frontend modules, 26 Lua scripts, 129 test suites, 12 E2E specs, 9 socket handlers, 12 utils, 4 ADRs)
+- Updated `SERVER_SPEC.md` technology stack (Node.js 22+, Express 5)
+
+### Removed
+- `CODEBASE_REVIEW.md` and `CODEBASE_REVIEW_PROMPT.md` — development sprint artifacts; all findings resolved
+- Development phase annotations (`PHASE 4.7`, `PHASE 2 FIX`, `CRITICAL FIX`, `BUG FIX`) from source, CSS, tests, and admin dashboard — replaced with descriptive comments where still useful
+
 ## [4.3.0] - 2026-03-04
 
 ### Added
@@ -24,9 +37,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 - ESLint `no-non-null-assertion` warnings in `config/jwt.ts` — replaced `!` with null-coalescing
-
-### Removed
-- `CODEBASE_REVIEW.md` — completed audit (all 37 findings resolved); summary folded into CHANGELOG
 
 ## [4.2.0] - 2026-03-01
 

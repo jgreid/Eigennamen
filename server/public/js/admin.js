@@ -4,13 +4,13 @@
 // Auto-refresh interval (10 seconds)
 const REFRESH_INTERVAL = 10000;
 
-// PHASE 4.7: Health alert thresholds
+//Health alert thresholds
 const ALERT_THRESHOLDS = {
     memory: { warning: 400, critical: 480 },  // MB
     connections: { warning: 800, critical: 950 }
 };
 
-// PHASE 4.7: Metrics history for chart
+//Metrics history for chart
 const METRICS_HISTORY_SIZE = 30;
 const metricsHistory = {
     memory: [],
@@ -33,21 +33,21 @@ function isValidRoomCode(code) {
     return typeof code === 'string' && /^[A-Z0-9]{4,8}$/i.test(code);
 }
 
-// PHASE 4.7: Check if value exceeds threshold
+//Check if value exceeds threshold
 function getAlertLevel(value, thresholds) {
     if (value >= thresholds.critical) return 'critical';
     if (value >= thresholds.warning) return 'warning';
     return null;
 }
 
-// PHASE 4.7: Create alert badge HTML
+//Create alert badge HTML
 function createAlertBadge(level) {
     if (!level) return '';
     const icon = level === 'critical' ? '\u26A0' : '!';
     return `<span class="alert-badge ${level}">${icon} ${level}</span>`;
 }
 
-// PHASE 4.7: Update metrics history and chart
+//Update metrics history and chart
 function updateMetricsChart(memory, connections) {
     // Add to history
     metricsHistory.memory.push(memory);
@@ -114,19 +114,19 @@ async function fetchStats() {
 
         document.getElementById('active-rooms').textContent = data.connections.activeRooms;
 
-        // PHASE 4.7: Add alert badges for connections
+        //Add alert badges for connections
         const connAlert = getAlertLevel(connections, ALERT_THRESHOLDS.connections);
         document.getElementById('connected-players').innerHTML =
             `${connections} ${createAlertBadge(connAlert)}`;
 
-        // PHASE 4.7: Add alert badges for memory
+        //Add alert badges for memory
         const memAlert = getAlertLevel(memoryUsed, ALERT_THRESHOLDS.memory);
         document.getElementById('memory-usage').innerHTML =
             `${memoryUsed} ${createAlertBadge(memAlert)}`;
 
         document.getElementById('uptime').textContent = data.uptime.formatted;
 
-        // PHASE 4.7: Update metrics chart
+        //Update metrics chart
         updateMetricsChart(memoryUsed, connections);
 
         // Update health indicators
@@ -160,7 +160,7 @@ async function fetchStats() {
     }
 }
 
-// PHASE 4.7: Track expanded rooms
+//Track expanded rooms
 const expandedRooms = new Set();
 
 // Fetch and display rooms
@@ -230,7 +230,7 @@ async function fetchRooms() {
             </table>
         `;
 
-        // PHASE 4.7: Re-fetch details for expanded rooms
+        //Re-fetch details for expanded rooms
         for (const code of expandedRooms) {
             if (validRooms.some(r => r.code === code)) {
                 fetchRoomDetails(code);
@@ -243,7 +243,7 @@ async function fetchRooms() {
     }
 }
 
-// PHASE 4.7: Toggle room details expansion
+//Toggle room details expansion
 async function toggleRoomDetails(code) {
     if (!isValidRoomCode(code)) return;
 
@@ -267,7 +267,7 @@ async function toggleRoomDetails(code) {
     }
 }
 
-// PHASE 4.7: Fetch detailed room info with players
+//Fetch detailed room info with players
 async function fetchRoomDetails(code) {
     if (!isValidRoomCode(code)) return;
 
@@ -314,7 +314,7 @@ async function fetchRoomDetails(code) {
     }
 }
 
-// PHASE 4.7: Kick a player from a room
+//Kick a player from a room
 async function kickPlayer(roomCode, playerId) {
     if (!isValidRoomCode(roomCode)) {
         showToast('Invalid room code', 'error');
@@ -417,8 +417,7 @@ document.getElementById('broadcast-form').addEventListener('submit', async (e) =
     }
 });
 
-// CRITICAL FIX: Delegated event handler for rooms container.
-// Replaces inline onclick handlers to prevent XSS via template literals.
+// Delegated event handler for rooms container (prevents XSS via template literals)
 document.getElementById('rooms-container').addEventListener('click', function(e) {
     const target = e.target;
 

@@ -131,8 +131,18 @@ test.describe('Duet Mode', () => {
             // In Duet mode, each side has a different perspective
             // (types[] for red, duetTypes[] for blue).
             // They should NOT be identical since each side has different layout.
-            const hostTotal = hostTypeMap.red.length + hostTypeMap.blue.length + hostTypeMap.neutral.length + hostTypeMap.assassin.length + hostTypeMap.green.length;
-            const guestTotal = guestTypeMap.red.length + guestTypeMap.blue.length + guestTypeMap.neutral.length + guestTypeMap.assassin.length + guestTypeMap.green.length;
+            const hostTotal =
+                hostTypeMap.red.length +
+                hostTypeMap.blue.length +
+                hostTypeMap.neutral.length +
+                hostTypeMap.assassin.length +
+                hostTypeMap.green.length;
+            const guestTotal =
+                guestTypeMap.red.length +
+                guestTypeMap.blue.length +
+                guestTypeMap.neutral.length +
+                guestTypeMap.assassin.length +
+                guestTypeMap.green.length;
 
             // Both should have 25 cards classified
             expect(hostTotal).toBe(25);

@@ -71,8 +71,8 @@ This document describes the technical architecture of Eigennamen Online, a real-
 
 | Layer | Technology | Justification |
 |-------|------------|---------------|
-| **Runtime** | Node.js 18+ | JavaScript everywhere, excellent WebSocket support |
-| **Framework** | Express.js | Simple, well-documented, middleware ecosystem |
+| **Runtime** | Node.js 22+ | JavaScript everywhere, excellent WebSocket support |
+| **Framework** | Express 5 | Simple, well-documented, middleware ecosystem |
 | **WebSockets** | Socket.io | Automatic reconnection, rooms, fallback support |
 | **State Store** | Redis | Fast, pub/sub for scaling, session store |
 | **Validation** | Zod | Runtime type validation, TypeScript integration |

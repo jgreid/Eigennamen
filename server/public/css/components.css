@@ -792,8 +792,7 @@ button:focus-visible,
 }
 
 /* ========== COLORBLIND-FRIENDLY PATTERNS ========== */
-/* PHASE 2 FIX: Add subtle patterns to revealed cards for colorblind accessibility
-   These patterns provide additional visual cues beyond color alone */
+/* Subtle patterns on revealed cards provide additional visual cues beyond color alone */
 
 /* Diagonal stripes for red cards */
 .card.revealed.red::before {
@@ -1079,7 +1078,7 @@ button:focus-visible,
     border-radius: 10px;
 }
 
-/* ========== PHASE 4: REPLAY ENHANCEMENTS ========== */
+/* ========== REPLAY ENHANCEMENTS ========== */
 
 /* Replay speed button */
 .replay-btn.replay-speed-btn {
