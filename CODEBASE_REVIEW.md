@@ -1,6 +1,6 @@
 # Eigennamen Online - Comprehensive Codebase Review
 
-**Date**: 2026-03-05
+**Date**: 2026-03-06
 **Reviewer**: Claude Code (Opus 4.6)
 **Version Reviewed**: 4.2.0 (163 commits)
 **Scope**: Full codebase review across architecture, game logic, security, frontend, data layer, testing, and DevEx/Ops
@@ -128,9 +128,9 @@
 
 ### Issues Found
 
-- **[MEDIUM] Reactive proxy does not trap `delete` operations** — `reactiveProxy.ts` only has `get` and `set` traps. The `deleteProperty` trap is missing. If code does `delete state.someProperty`, the deletion will succeed on the underlying object but no change event will be emitted. Subscribers won't be notified. While I didn't find explicit `delete` usage in the frontend code, this is a correctness gap that could cause subtle bugs if triggered indirectly (e.g., `Object.assign` or spread patterns that delete keys).
+- **[MEDIUM] Array mutations bypass the reactive proxy** — `reactiveProxy.ts` correctly implements `get`, `set`, and `deleteProperty` traps (`reactiveProxy.ts:73-93`). However, in-place array methods like `push()`, `splice()`, `pop()`, and `shift()` mutate array contents via internal index assignments that trigger `set` traps on individual indices but NOT on the array reference itself. For example, `state.gameState.words.push('NEW')` triggers a set on the numeric index but the parent `words` property on `gameState` doesn't change reference, so subscribers watching `gameState.words` won't be notified. The codebase works around this by always assigning new arrays (e.g., `state.gameState.words = serverGame.words`), but this is a fragile convention that is not documented or enforced.
 
-- **[MEDIUM] Array mutations bypass the proxy** — `reactiveProxy.ts:48` only detects direct property sets. Array methods like `push()`, `splice()`, `pop()`, and `shift()` mutate the array in-place via internal calls that don't trigger the `set` trap on the array reference itself. For example, `state.gameState.words.push('NEW')` would modify the array without emitting a change event. The code appears to work around this by always assigning new arrays (e.g., `state.gameState.words = serverGame.words`), but this is a fragile convention.
+- **[MEDIUM] `multiplayerSync.ts` array parallel sync lacks atomicity** — `multiplayerSync.ts:208-244` assigns `words`, `types`, and `revealed` arrays sequentially within a `batch()`. If the server sends `words` but `types`/`revealed` are missing or have different lengths, fallback defaults create mismatched parallel arrays. A subscriber listening to `gameState.words` could render before `revealed` is updated, showing stale reveal state. The `validateArrayLength()` check mitigates this, but a single atomic board state object assignment would be safer.
 
 - **[LOW] No error boundary for render failures** — Without a framework, a rendering error (e.g., null reference in `renderBoard()`) could leave the UI in an inconsistent state. The `multiplayerSync.ts:353-364` UI update calls after batch completion are not wrapped in try-catch.
 
@@ -140,8 +140,8 @@
 
 ### Recommendations
 
-1. **[Medium]** Add `deleteProperty` trap to `reactiveProxy.ts` that emits a change event — Effort: S — Impact: Correctness
-2. **[Medium]** Document the "always assign new array" convention for reactive state, or add array method interception — Effort: M — Impact: Prevents silent mutation bugs
+1. **[Medium]** Document the "always assign new array" convention for reactive state, or add array method interception — Effort: M — Impact: Prevents silent mutation bugs
+2. **[Medium]** Refactor `multiplayerSync.ts` board sync to assign a single board state object atomically — Effort: M — Impact: Prevents parallel array mismatch
 3. **[Low]** Add try-catch around UI update calls in `multiplayerSync.ts` post-batch — Effort: S — Impact: Resilience
 4. **[Low]** Add a script to compare locale file keys for i18n completeness — Effort: S — Impact: Translation quality
 
@@ -205,7 +205,7 @@
 
 - **[HIGH] No E2E tests for Duet or Match modes** — Known issue #5 from `GAME_MODES_REVIEW.md`. All E2E tests exercise Classic mode exclusively. The integration between frontend UI, socket events, and mode-specific state transitions (timer tokens, card scores, round transitions, match-end conditions) has zero E2E coverage. This means mode-specific regressions could ship undetected.
 
-- **[MEDIUM] Mock Redis may not accurately simulate Lua script execution** — The mock Redis setup likely simulates basic operations but may not execute actual Lua scripts. This means the Lua logic (which is the most critical code path) is tested via `luaScriptLogic.test.ts` separately, but the integration between TypeScript code and Lua scripts may have gaps.
+- **[MEDIUM] Mock Redis `eval()` returns null — Lua scripts never execute in unit tests** — The `createMockRedis()` in `__tests__/helpers/mocks.ts` has `eval()` returning null (line ~263). This means the 26 Lua scripts — the most critical code paths for atomicity — never actually execute during unit tests. Lua logic is tested separately via source-code inspection in `luaScriptLogic.test.ts`, but the integration between TypeScript callers and Lua script behavior has gaps. For example, the `emptyObjToArray` Zod preprocessor works around a Lua cjson `[] → {}` roundtrip issue that can never be triggered in mock tests.
 
 - **[MEDIUM] No property-based tests for PRNG distribution** — The board generation uses Mulberry32 PRNG and Fisher-Yates shuffle. There are no tests verifying uniform distribution of card types, word selection, or card scores across many seeds. A biased PRNG could systematically favor one team.
 
@@ -242,7 +242,7 @@
 
 ### Issues Found
 
-- **[MEDIUM] No bundle size tracking in CI** — Frontend bundle size could grow without detection. There's no CI job that tracks bundle size changes between commits.
+- **[MEDIUM] Bundle size tracking is threshold-only, not delta-based** — `ci.yml:122-164` reports bundle sizes and fails if total gzipped JS exceeds 200KB, but does not compare against the prior commit's bundle size. A 50% increase that stays under 200KB would pass silently. Delta-based tracking (e.g., `size-limit`) would catch regressions earlier.
 
 - **[LOW] Config fragmentation** — 12 config files in `server/src/config/` (`constants.ts`, `env.ts`, `gameConfig.ts`, `memoryMode.ts`, `rateLimits.ts`, `redis.ts`, `roomConfig.ts`, `securityConfig.ts`, `socketConfig.ts`, `swagger.ts`, plus `shared/gameRules.ts`). While `constants.ts` re-exports everything, navigating the config layer requires understanding which file owns which values.
 
@@ -254,7 +254,7 @@
 
 ### Recommendations
 
-1. **[Medium]** Add bundle size tracking to CI (e.g., `size-limit` or custom esbuild metafile analysis) — Effort: S — Impact: Prevents bundle bloat
+1. **[Medium]** Add delta-based bundle size tracking to CI (e.g., `size-limit` comparing against base branch) — Effort: S — Impact: Catches incremental bundle bloat
 2. **[Low]** Add smoke load test to CI (30-second stress test with pass/fail threshold) — Effort: M — Impact: Performance regression detection
 3. **[Low]** Document config file ownership in CLAUDE.md or add inline comments — Effort: S — Impact: Developer onboarding
 
@@ -267,14 +267,14 @@
 | # | Item | Effort | Impact | Source |
 |---|------|--------|--------|--------|
 | 1 | Fix custom word list preservation in Match `game:nextRound` | S | High | GAME_MODES_REVIEW #8 |
-| 2 | Add `deleteProperty` trap to reactive proxy | S | Medium | Review finding |
+| 2 | Document + enforce "new array assignment" convention for reactive state | S | Medium | Review finding |
 | 3 | Add E2E tests for Duet and Match modes | L | High | GAME_MODES_REVIEW #5 |
 | 4 | Add rate limit config for `game:nextRound` event | S | Medium | Review finding |
 | 5 | Add property-based tests for PRNG distribution | M | Medium | Review finding |
 | 6 | Add explicit `isMatch` branching in Lua reveal script | S | Low | GAME_MODES_REVIEW #4 |
 | 7 | Clean up Duet forfeit semantics (messaging) | S | Low | GAME_MODES_REVIEW #6 |
 | 8 | Clarify `gameMode` state location (frontend) | S | Low | GAME_MODES_REVIEW #7 |
-| 9 | Add bundle size tracking to CI | S | Medium | Review finding |
+| 9 | Add delta-based bundle size tracking (vs base branch) | S | Medium | Review finding |
 | 10 | Add memory mode multi-instance warning | S | Medium | Review finding |
 
 ### 8b. Feature Enhancements (3-6 months)
@@ -313,10 +313,10 @@
 | Architecture | **Green** | `safeEmitToRoom` used for uniform data only by convention | Solid pipeline, no gaps |
 | Game Logic | **Green** | Custom word list not preserved across Match rounds | Match mode extensibility |
 | Security | **Green** | Missing rate limit for `game:nextRound` | No critical vulnerabilities |
-| Frontend | **Yellow** | Reactive proxy missing `deleteProperty` trap + array mutation blindness | Framework evaluation at 55 modules |
+| Frontend | **Yellow** | Array mutation convention fragile + parallel sync atomicity gap | Framework evaluation at 55 modules |
 | Data Layer | **Green** | Memory mode unsafe for multi-instance | Lua-first pattern is excellent |
 | Testing | **Yellow** | No E2E tests for Duet/Match modes | Property-based PRNG tests |
-| DevEx/Ops | **Green** | No bundle size tracking | CI pipeline is exemplary |
+| DevEx/Ops | **Green** | Bundle size tracking is threshold-only, not delta-based | CI pipeline is exemplary |
 
 ---
 
@@ -331,9 +331,9 @@
    Effort: L — Impact: Eliminates the largest testing gap
    Files: server/e2e/ (new specs: duet-mode.spec.js, match-mode.spec.js)
 
-3. Add deleteProperty trap to reactive proxy
+3. Document and enforce "always assign new array" convention for reactive state
    Effort: S — Impact: Prevents silent state mutation bugs
-   Files: server/src/frontend/store/reactiveProxy.ts
+   Files: server/src/frontend/store/reactiveProxy.ts (comments + lint rule)
 
 4. Add rate limit config for game:nextRound event
    Effort: S — Impact: Closes security gap for round creation abuse
@@ -343,17 +343,17 @@
    Effort: S — Impact: Prevents silent data loss in production
    Files: server/src/config/memoryMode.ts, server/src/index.ts
 
-6. Add bundle size tracking to CI
-   Effort: S — Impact: Prevents frontend bundle bloat
-   Files: .github/workflows/ci.yml, server/esbuild.config.js
+6. Add delta-based bundle size tracking to CI (vs base branch)
+   Effort: S — Impact: Catches incremental bundle bloat
+   Files: .github/workflows/ci.yml (extend existing size reporting)
 
 7. Add property-based tests for PRNG distribution
    Effort: M — Impact: Validates board generation fairness
    Files: server/src/__tests__/boardGenerator.property.test.ts (new)
 
-8. Document array mutation convention for reactive state
-   Effort: S — Impact: Prevents subtle frontend bugs
-   Files: server/src/frontend/store/reactiveProxy.ts (comments)
+8. Refactor multiplayerSync board sync to use atomic board state object
+   Effort: M — Impact: Prevents parallel array mismatch bugs
+   Files: server/src/frontend/multiplayerSync.ts:208-244
 
 9. Add explicit isMatch branching in Lua reveal script
    Effort: S — Impact: Future-proofs for Match-specific rule changes
