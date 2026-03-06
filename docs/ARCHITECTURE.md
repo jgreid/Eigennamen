@@ -75,7 +75,7 @@ This document describes the high-level architecture of Eigennamen Online, a real
 
 | Component | Technology | Purpose |
 |-----------|------------|---------|
-| Express.js | v4.18 | HTTP server, static files, REST API |
+| Express.js | v5.2 | HTTP server, static files, REST API |
 | Socket.io | v4.7 | WebSocket server, real-time events |
 | Helmet | v7+ | Security headers (CSP, etc.) |
 | Winston | v3+ | Structured logging |
