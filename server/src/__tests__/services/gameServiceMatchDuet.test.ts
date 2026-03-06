@@ -660,4 +660,42 @@ describe('startNextRound', () => {
 
         expect(nextRound.firstTeamHistory).toBeDefined();
     });
+
+    test('preserves custom word list when passed via options', async () => {
+        const customWords = Array.from({ length: 50 }, (_, i) => `CUSTOM${i}`);
+        const currentGame = createMatchGameState({
+            gameOver: true,
+            matchRound: 1,
+            words: customWords.slice(0, BOARD_SIZE),
+            firstTeamHistory: ['red'],
+        });
+
+        const nextRound = await startNextRound('MATCH7', currentGame, {
+            gameMode: 'match',
+            wordList: customWords,
+        });
+
+        // All 25 board words should come from the custom list
+        for (const word of nextRound.words) {
+            expect(customWords).toContain(word);
+        }
+    });
+
+    test('falls back to default words when no custom word list provided', async () => {
+        const currentGame = createMatchGameState({
+            gameOver: true,
+            matchRound: 1,
+            firstTeamHistory: ['red'],
+        });
+
+        const nextRound = await startNextRound('MATCH8', currentGame, {
+            gameMode: 'match',
+        });
+
+        expect(nextRound.words.length).toBe(BOARD_SIZE);
+        // Words should come from DEFAULT_WORDS
+        for (const word of nextRound.words) {
+            expect(DEFAULT_WORDS.map((w: string) => w.toLocaleUpperCase('en-US'))).toContain(word);
+        }
+    });
 });

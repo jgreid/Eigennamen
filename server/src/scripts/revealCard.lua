@@ -146,6 +146,49 @@ if isDuet then
         turnEnded = true
         endReason = 'maxGuesses'
     end
+elseif isMatch then
+    -- Match mode outcome logic (same as Classic for now, but separated for extensibility)
+    if cardType == 'assassin' then
+        game.gameOver = true
+        if previousTurn == 'red' then
+            game.winner = 'blue'
+        else
+            game.winner = 'red'
+        end
+        endReason = 'assassin'
+        turnEnded = true
+    elseif game.redScore >= game.redTotal then
+        game.gameOver = true
+        game.winner = 'red'
+        endReason = 'completed'
+        turnEnded = true
+    elseif game.blueScore >= game.blueTotal then
+        game.gameOver = true
+        game.winner = 'blue'
+        endReason = 'completed'
+        turnEnded = true
+    elseif cardType ~= previousTurn then
+        if previousTurn == 'red' then
+            game.currentTurn = 'blue'
+        else
+            game.currentTurn = 'red'
+        end
+        game.currentClue = cjson.null
+        game.guessesUsed = 0
+        game.guessesAllowed = 0
+        turnEnded = true
+    elseif game.guessesAllowed > 0 and game.guessesUsed >= game.guessesAllowed then
+        if previousTurn == 'red' then
+            game.currentTurn = 'blue'
+        else
+            game.currentTurn = 'red'
+        end
+        game.currentClue = cjson.null
+        game.guessesUsed = 0
+        game.guessesAllowed = 0
+        turnEnded = true
+        endReason = 'maxGuesses'
+    end
 else
     -- Classic mode outcome logic
     if cardType == 'assassin' then

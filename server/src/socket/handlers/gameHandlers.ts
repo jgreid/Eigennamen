@@ -393,6 +393,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
             const game: GameState = await gameService.startNextRound(ctx.roomCode, ctx.game, {
                 gameMode: 'match',
                 wordListId: room?.settings?.wordListId ?? undefined,
+                wordList: ctx.game.words,
             });
 
             // Rotate roles within each team (spymaster→clicker, clicker→spectator, spectator→spymaster)
