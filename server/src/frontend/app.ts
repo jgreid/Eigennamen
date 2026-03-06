@@ -57,6 +57,7 @@ import {
 } from './settings.js';
 import { initI18n, setLanguage } from './i18n.js';
 import { initColorBlindMode, initKeyboardShortcuts } from './accessibility.js';
+import { shouldShowSetupScreen, showSetupScreen, initSetupScreen, handleSetupAction } from './setupScreen.js';
 import { logger } from './logger.js';
 
 // Signal that the ES module loaded successfully
@@ -237,6 +238,16 @@ function setupEventListeners(): void {
             case 'close-replay':
                 closeReplay();
                 break;
+
+            // Setup screen actions
+            case 'setup-host':
+            case 'setup-join':
+            case 'setup-offline':
+            case 'setup-back':
+            case 'setup-join-submit':
+            case 'setup-host-submit':
+                handleSetupAction(action);
+                break;
         }
     });
 
@@ -281,7 +292,17 @@ async function init(): Promise<void> {
         await tryLoadWordlistFile();
         // Initialize i18n before loading game so t() calls in UI rendering work
         await initI18n();
-        loadGameFromURL();
+        // Initialize setup screen listeners
+        initSetupScreen();
+        // Show setup screen or load game directly
+        if (shouldShowSetupScreen()) {
+            showSetupScreen();
+        } else {
+            // Ensure app layout is visible when skipping setup screen
+            const appLayout = document.getElementById('app-layout');
+            if (appLayout) appLayout.hidden = false;
+            loadGameFromURL();
+        }
         // Wire up language selector
         const langSelect = document.getElementById('language-select') as HTMLSelectElement | null;
         if (langSelect) {
