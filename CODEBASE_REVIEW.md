@@ -100,14 +100,14 @@
 
 - **[LOW] CORS wildcard block only checks at startup** — `app.ts:110-114` exits if CORS is wildcard in production. But `parseCorsOrigins()` reads `CORS_ORIGIN` at import time. If the env var is changed after startup (unlikely but possible with Fly.io secrets), the check wouldn't re-run.
 
-- **[LOW] JWT secret validation strength** — The JWT implementation uses `jsonwebtoken` 9.0.2. The JWT handling is in `middleware/auth/jwtHandler.ts` (not read in detail), but the `JWT_SECRET` is required in production. There's no minimum length enforcement for the secret.
+- **[LOW] E2E browser matrix limited to Chromium** — `playwright.config.js` defines Chromium, Firefox, Safari, and mobile browsers, but `ci.yml:466` only runs Chromium. Cross-browser regressions (CSS, WebSocket behavior, service worker) could ship undetected. Firefox and Safari handle WebSocket reconnection and CSP differently.
 
 - **[LOW] Admin basic auth in `adminRoutes.ts`** — Admin password is from `ADMIN_PASSWORD` env var. Basic auth over HTTPS is adequate, but there's no brute-force protection specifically for admin endpoints beyond the general `strictLimiter` (10 req/min from `rateLimits.ts:51`).
 
 ### Recommendations
 
 1. **[High]** Add explicit rate limit config for `game:nextRound` in `rateLimits.ts` — Effort: S — Impact: Prevents abuse of next-round creation
-2. **[Medium]** Add minimum length validation for `JWT_SECRET` (e.g., >= 32 chars) with startup check — Effort: S — Impact: Prevents weak secrets in production
+2. **[Medium]** Add Firefox and Safari to CI E2E browser matrix — Effort: S — Impact: Catches cross-browser regressions
 3. **[Low]** Add brute-force protection for admin auth (exponential backoff or lockout) — Effort: S — Impact: Hardens admin panel
 
 ---
@@ -209,7 +209,7 @@
 
 - **[MEDIUM] No property-based tests for PRNG distribution** — The board generation uses Mulberry32 PRNG and Fisher-Yates shuffle. There are no tests verifying uniform distribution of card types, word selection, or card scores across many seeds. A biased PRNG could systematically favor one team.
 
-- **[LOW] Frontend reactive proxy edge cases** — The `reactiveProxy.test.ts` tests basic get/set operations, but based on the issues found in Section 4 (missing `deleteProperty` trap, array mutation bypass), these edge cases likely lack test coverage.
+- **[MEDIUM] Handler test coverage is shallow** — `gameHandlers.test.ts` only tests 4 of ~15 game events (start, reveal, endTurn, forfeit). No unit tests exist for `chat:send`, `player:setTeam`, `player:setRole`, `player:setNickname`, `room:updateSettings`, `game:clue`, `player:reconnect`, or `game:nextRound`. Edge cases in these handlers (team-full validation, role change during active game, reconnection race) are only exercised through integration tests.
 
 - **[LOW] Load tests exist but aren't in CI** — The `loadtest/` scripts (stress test, memory leak test) exist but aren't run in CI. Performance regressions could be introduced without detection.
 
