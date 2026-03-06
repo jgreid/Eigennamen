@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { sel, createRoom } = require('./helpers');
+const { sel, goToGame, createRoom } = require('./helpers');
 
 /**
  * Timer E2E Tests
@@ -10,7 +10,7 @@ const { sel, createRoom } = require('./helpers');
 
 test.describe('Timer Functionality', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
     });
 
     test('timer display is visible', async ({ page }) => {

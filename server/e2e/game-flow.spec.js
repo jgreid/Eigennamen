@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { sel, becomeCurrentClicker } = require('./helpers');
+const { sel, goToGame, becomeCurrentClicker } = require('./helpers');
 
 /**
  * Game Flow E2E Tests
@@ -10,7 +10,7 @@ const { sel, becomeCurrentClicker } = require('./helpers');
 
 test.describe('Game Flow', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
     });
 
     test('can start a new game', async ({ page }) => {
@@ -85,7 +85,7 @@ test.describe('Game Flow', () => {
 
 test.describe('Role Switching', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
     });
 
     test('switching from spymaster to clicker hides card colors', async ({ page }) => {
@@ -109,7 +109,7 @@ test.describe('Role Switching', () => {
 
 test.describe('Modal Interactions', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
     });
 
     test('can open and close settings modal', async ({ page }) => {

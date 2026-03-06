@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { sel, becomeCurrentClicker } = require('./helpers');
+const { sel, goToGame, becomeCurrentClicker } = require('./helpers');
 
 /**
  * Accessibility E2E Tests
@@ -14,7 +14,7 @@ const { sel, becomeCurrentClicker } = require('./helpers');
 
 test.describe('Keyboard Navigation', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
     });
 
     test('all interactive elements are keyboard accessible', async ({ page }) => {
@@ -63,7 +63,7 @@ test.describe('Keyboard Navigation', () => {
 
 test.describe('ARIA Labels and Roles', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
     });
 
     test('board has grid role', async ({ page }) => {
@@ -127,7 +127,7 @@ test.describe('ARIA Labels and Roles', () => {
 
 test.describe('Focus Management', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
     });
 
     test('focus is trapped in modal when open', async ({ page }) => {
@@ -172,7 +172,7 @@ test.describe('Focus Management', () => {
 
 test.describe('Screen Reader Support', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
     });
 
     test('live region exists for announcements', async ({ page }) => {
@@ -208,7 +208,7 @@ test.describe('Screen Reader Support', () => {
 
 test.describe('Color Contrast and Visual', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
     });
 
     test('cards have sufficient contrast', async ({ page }) => {

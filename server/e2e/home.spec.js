@@ -1,16 +1,17 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { sel } = require('./helpers');
+const { sel, goToGame } = require('./helpers');
 
 /**
  * Home Page E2E Tests
  *
  * Basic tests to verify the application loads correctly.
+ * Tests first dismiss the setup screen via goToGame() to reach the game board.
  */
 
 test.describe('Home Page', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
     });
 
     test('page loads successfully', async ({ page }) => {
@@ -60,7 +61,7 @@ test.describe('Home Page', () => {
 
 test.describe('Accessibility', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
     });
 
     test('cards have aria labels', async ({ page }) => {

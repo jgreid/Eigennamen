@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { sel, createRoom } = require('./helpers');
+const { sel, goToGame, createRoom } = require('./helpers');
 
 /**
  * Multiplayer E2E Tests
@@ -13,7 +13,7 @@ const { sel, createRoom } = require('./helpers');
 
 test.describe('Multiplayer Rooms', () => {
     test('can open multiplayer modal', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
 
         await page.locator(sel.multiplayerBtn).click();
 
@@ -22,7 +22,7 @@ test.describe('Multiplayer Rooms', () => {
     });
 
     test('can create a new room', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
 
         await page.locator(sel.multiplayerBtn).click();
         await page.locator(sel.modeCreateBtn).click();
@@ -47,7 +47,7 @@ test.describe('Multiplayer Rooms', () => {
     });
 
     test('can close multiplayer modal with escape', async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
 
         await page.locator(sel.multiplayerBtn).click();
 

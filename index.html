@@ -84,12 +84,12 @@
     </div>
 
     <!-- Game Setup Screen (shown on initial load) -->
-    <div class="setup-screen" id="setup-screen" role="main" aria-label="Game setup">
+    <div class="setup-screen" id="setup-screen" data-testid="setup-screen" role="main" aria-label="Game setup">
       <div class="setup-board-container">
         <h1 class="setup-title">Eigennamen</h1>
         <p class="setup-subtitle">Play with friends online or offline</p>
 
-        <div class="setup-board" id="setup-board">
+        <div class="setup-board" id="setup-board" data-testid="setup-board">
           <!-- Row 1: blank cards -->
           <div class="setup-card setup-card-blank"></div>
           <div class="setup-card setup-card-blank"></div>
@@ -98,12 +98,12 @@
           <div class="setup-card setup-card-blank"></div>
           <!-- Row 2: blank + Host + blank + Join + blank -->
           <div class="setup-card setup-card-blank"></div>
-          <button type="button" class="setup-card setup-card-action setup-card-host" data-action="setup-host">
+          <button type="button" class="setup-card setup-card-action setup-card-host" data-action="setup-host" data-testid="setup-host-btn">
             <span class="setup-card-icon">🏠</span>
             <span class="setup-card-label">Host</span>
           </button>
           <div class="setup-card setup-card-blank"></div>
-          <button type="button" class="setup-card setup-card-action setup-card-join" data-action="setup-join">
+          <button type="button" class="setup-card setup-card-action setup-card-join" data-action="setup-join" data-testid="setup-join-btn">
             <span class="setup-card-icon">🎮</span>
             <span class="setup-card-label">Join</span>
           </button>
@@ -117,7 +117,7 @@
           <!-- Row 4: blank + blank + Offline + blank + blank -->
           <div class="setup-card setup-card-blank"></div>
           <div class="setup-card setup-card-blank"></div>
-          <button type="button" class="setup-card setup-card-action setup-card-offline" data-action="setup-offline">
+          <button type="button" class="setup-card setup-card-action setup-card-offline" data-action="setup-offline" data-testid="setup-solo-btn">
             <span class="setup-card-icon">🎲</span>
             <span class="setup-card-label">Solo</span>
           </button>
@@ -132,7 +132,7 @@
         </div>
 
         <!-- Join Form (hidden by default) -->
-        <div class="setup-form" id="setup-join-form" hidden>
+        <div class="setup-form" id="setup-join-form" data-testid="setup-join-form" hidden>
           <h2 class="setup-form-title">Join a Game</h2>
           <div class="setup-form-group">
             <label for="setup-join-nickname">Your Nickname</label>
@@ -153,7 +153,7 @@
         </div>
 
         <!-- Host Form (hidden by default) -->
-        <div class="setup-form" id="setup-host-form" hidden>
+        <div class="setup-form" id="setup-host-form" data-testid="setup-host-form" hidden>
           <h2 class="setup-form-title">Host a Game</h2>
           <div class="setup-form-row">
             <div class="setup-form-group">

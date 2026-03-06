@@ -9,7 +9,6 @@
 import { state } from './state.js';
 import { validateNickname, validateRoomCode } from './constants.js';
 import { safeGetItem, safeSetItem } from './utils.js';
-import { showToast } from './ui.js';
 import { logger } from './logger.js';
 import { setupMultiplayerListeners } from './multiplayerListeners.js';
 import { onMultiplayerJoined } from './multiplayer.js';

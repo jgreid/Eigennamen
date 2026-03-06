@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { sel, becomeCurrentClicker } = require('./helpers');
+const { sel, goToGame, becomeCurrentClicker } = require('./helpers');
 
 /**
  * Game Mechanics E2E Tests
@@ -15,7 +15,7 @@ const { sel, becomeCurrentClicker } = require('./helpers');
 
 test.describe('Score Tracking', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
     });
 
     test('revealing a card changes the score', async ({ page }) => {
@@ -64,7 +64,7 @@ test.describe('Score Tracking', () => {
 
 test.describe('Turn Switching', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
     });
 
     test('revealing an opposing team card ends the turn', async ({ page }) => {
@@ -171,7 +171,7 @@ test.describe('Turn Switching', () => {
 
 test.describe('Spymaster Restrictions', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
     });
 
     test('spymaster cannot click cards to reveal them', async ({ page }) => {
@@ -197,7 +197,7 @@ test.describe('Spymaster Restrictions', () => {
 
 test.describe('Revealed Cards', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
     });
 
     test('revealed cards cannot be clicked again', async ({ page }) => {
@@ -256,7 +256,7 @@ test.describe('Revealed Cards', () => {
 
 test.describe('Board Layout', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/');
+        await goToGame(page);
     });
 
     test('board is a 5x5 grid of 25 cards', async ({ page }) => {
