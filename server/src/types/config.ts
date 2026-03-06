@@ -38,7 +38,7 @@ export interface SocketRateLimits {
     'game:reveal': RateLimitConfig;
     'game:endTurn': RateLimitConfig;
     'game:forfeit': RateLimitConfig;
-    'game:history': RateLimitConfig;
+    'game:nextRound': RateLimitConfig;
     'game:getHistory': RateLimitConfig;
     'game:getReplay': RateLimitConfig;
     // Player events
@@ -49,6 +49,9 @@ export interface SocketRateLimits {
     // Chat events
     'chat:message': RateLimitConfig;
     'chat:spectator': RateLimitConfig;
+    // Spectator events
+    'spectator:requestJoin': RateLimitConfig;
+    'spectator:approveJoin': RateLimitConfig;
     // Timer events
     'timer:status': RateLimitConfig;
     'timer:pause': RateLimitConfig;
@@ -62,7 +65,7 @@ export interface SocketRateLimits {
  */
 export interface ApiRateLimits {
     GENERAL: RateLimitConfig;
-    WORD_LIST_CREATE: RateLimitConfig;
+    ROOM_EXISTS: RateLimitConfig;
     ADMIN: RateLimitConfig;
 }
 
@@ -136,8 +139,6 @@ export interface ValidationConfig {
     CHAT_MESSAGE_MAX_LENGTH: number;
     WORD_MIN_LENGTH: number;
     WORD_MAX_LENGTH: number;
-    WORD_LIST_MIN_SIZE: number;
-    WORD_LIST_MAX_SIZE: number;
 }
 
 // Lock Configuration
