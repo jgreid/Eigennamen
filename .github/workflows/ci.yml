@@ -119,6 +119,50 @@ jobs:
       - name: Build production artifacts
         run: npm run build
 
+      - name: Report bundle sizes
+        run: |
+          echo "## Bundle Sizes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Size (raw) | Size (gzip) |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-----------|-------------|" >> $GITHUB_STEP_SUMMARY
+
+          # App bundle (ESM with code splitting)
+          APP_ENTRY=$(ls -1 public/js/modules/app-*.js 2>/dev/null | head -1)
+          if [ -n "$APP_ENTRY" ]; then
+            RAW=$(wc -c < "$APP_ENTRY" | tr -d ' ')
+            GZIP=$(gzip -c "$APP_ENTRY" | wc -c | tr -d ' ')
+            echo "| app (entry) | ${RAW} B | ${GZIP} B |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # All chunks combined
+          CHUNKS_DIR="public/js/modules/chunks"
+          if [ -d "$CHUNKS_DIR" ]; then
+            CHUNK_RAW=$(find "$CHUNKS_DIR" -name '*.js' -exec cat {} + | wc -c | tr -d ' ')
+            CHUNK_GZIP=$(find "$CHUNKS_DIR" -name '*.js' -exec cat {} + | gzip -c | wc -c | tr -d ' ')
+            CHUNK_COUNT=$(find "$CHUNKS_DIR" -name '*.js' | wc -l | tr -d ' ')
+            echo "| chunks (${CHUNK_COUNT} files) | ${CHUNK_RAW} B | ${CHUNK_GZIP} B |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Socket client (IIFE)
+          SOCKET="public/js/socket-client.js"
+          if [ -f "$SOCKET" ]; then
+            RAW=$(wc -c < "$SOCKET" | tr -d ' ')
+            GZIP=$(gzip -c "$SOCKET" | wc -c | tr -d ' ')
+            echo "| socket-client | ${RAW} B | ${GZIP} B |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Total JS
+          TOTAL_RAW=$(find public/js -name '*.js' -not -name '*.map' -exec cat {} + | wc -c | tr -d ' ')
+          TOTAL_GZIP=$(find public/js -name '*.js' -not -name '*.map' -exec cat {} + | gzip -c | wc -c | tr -d ' ')
+          echo "| **Total JS** | **${TOTAL_RAW} B** | **${TOTAL_GZIP} B** |" >> $GITHUB_STEP_SUMMARY
+
+          # Fail if total gzipped JS exceeds 200KB (safety net)
+          MAX_GZIP_KB=200
+          TOTAL_GZIP_KB=$((TOTAL_GZIP / 1024))
+          if [ "$TOTAL_GZIP_KB" -gt "$MAX_GZIP_KB" ]; then
+            echo "::warning::Total gzipped JS (${TOTAL_GZIP_KB}KB) exceeds ${MAX_GZIP_KB}KB threshold"
+          fi
+
       # Cache the build output for E2E and other jobs
       - uses: actions/cache/save@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
         with:

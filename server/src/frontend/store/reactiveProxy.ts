@@ -14,6 +14,12 @@ import type { StateChangeEvent } from './eventBus.js';
 /**
  * Create a recursive Proxy that emits state change events on mutation.
  * Sub-objects are wrapped lazily on access so the overhead is minimal.
+ *
+ * **Array mutation convention**: Array methods like `push()`, `splice()`,
+ * and `pop()` work through the proxy and emit per-index change events.
+ * However, subscribers listening on the array path itself (e.g. `state.items`)
+ * won't fire because the array reference doesn't change. For bulk array
+ * updates, always assign a new array: `state.items = [...newItems]`.
  */
 export function createReactiveProxy<T extends object>(target: T, path: string = 'state'): T {
     const subProxies = new WeakMap<object, object>();

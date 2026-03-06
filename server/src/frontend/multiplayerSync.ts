@@ -351,14 +351,18 @@ export function syncGameStateFromServer(serverGame: ServerGameData): void {
     });
 
     // Update all UI components (after batch completes, state is consistent)
-    renderBoard();
-    updateScoreboard();
-    updateTurnIndicator();
-    updateControls();
-    updateRoleBanner();
-    updateForfeitButton();
-    updateDuetUI(serverGame);
-    updateMatchScoreboard();
+    try {
+        renderBoard();
+        updateScoreboard();
+        updateTurnIndicator();
+        updateControls();
+        updateRoleBanner();
+        updateForfeitButton();
+        updateDuetUI(serverGame);
+        updateMatchScoreboard();
+    } catch (err) {
+        logger.error('UI update failed after game state sync:', err);
+    }
 
     // Update tab notification based on current turn
     setTabNotification(isPlayerTurn());
