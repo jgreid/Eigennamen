@@ -127,7 +127,7 @@ jobs:
           echo "|------|-----------|-------------|" >> $GITHUB_STEP_SUMMARY
 
           # App bundle (ESM with code splitting)
-          APP_ENTRY=$(ls -1 public/js/modules/app-*.js 2>/dev/null | head -1)
+          APP_ENTRY=$(ls -1 public/js/modules/app.js public/js/modules/app-*.js 2>/dev/null | head -1)
           if [ -n "$APP_ENTRY" ]; then
             RAW=$(wc -c < "$APP_ENTRY" | tr -d ' ')
             GZIP=$(gzip -c "$APP_ENTRY" | wc -c | tr -d ' ')
