@@ -1,7 +1,7 @@
 /**
  * Error Scenario Tests
  *
- * Phase 3.3: Tests for error handling in edge cases like Redis timeouts,
+ * Tests for error handling in edge cases like Redis timeouts,
  * corrupted data, and service failures.
  */
 

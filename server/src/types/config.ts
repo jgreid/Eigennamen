@@ -38,7 +38,7 @@ export interface SocketRateLimits {
     'game:reveal': RateLimitConfig;
     'game:endTurn': RateLimitConfig;
     'game:forfeit': RateLimitConfig;
-    'game:history': RateLimitConfig;
+    'game:nextRound': RateLimitConfig;
     'game:getHistory': RateLimitConfig;
     'game:getReplay': RateLimitConfig;
     // Player events
@@ -49,6 +49,9 @@ export interface SocketRateLimits {
     // Chat events
     'chat:message': RateLimitConfig;
     'chat:spectator': RateLimitConfig;
+    // Spectator events
+    'spectator:requestJoin': RateLimitConfig;
+    'spectator:approveJoin': RateLimitConfig;
     // Timer events
     'timer:status': RateLimitConfig;
     'timer:pause': RateLimitConfig;
@@ -62,7 +65,7 @@ export interface SocketRateLimits {
  */
 export interface ApiRateLimits {
     GENERAL: RateLimitConfig;
-    WORD_LIST_CREATE: RateLimitConfig;
+    ROOM_EXISTS: RateLimitConfig;
     ADMIN: RateLimitConfig;
 }
 
@@ -122,6 +125,12 @@ export interface SocketConfig {
     REDIS_KEEPALIVE_MS: number;
     MAX_CONNECTIONS_PER_IP: number;
     MAX_HTTP_BUFFER_SIZE: number;
+    DISCONNECT_TIMEOUT_MS: number;
+    CONNECTIONS_CLEANUP_INTERVAL_MS: number;
+    SHUTDOWN_DRAIN_MS: number;
+    AUTH_FAILURE_MAX_PER_IP: number;
+    AUTH_FAILURE_WINDOW_MS: number;
+    AUTH_FAILURE_BLOCK_MS: number;
 }
 
 // Validation Configuration
@@ -136,8 +145,6 @@ export interface ValidationConfig {
     CHAT_MESSAGE_MAX_LENGTH: number;
     WORD_MIN_LENGTH: number;
     WORD_MAX_LENGTH: number;
-    WORD_LIST_MIN_SIZE: number;
-    WORD_LIST_MAX_SIZE: number;
 }
 
 // Lock Configuration
@@ -231,6 +238,7 @@ export interface SocketEventNames {
     ROOM_KICKED: string;
     ROOM_STATS_UPDATED: string;
     ROOM_HOST_CHANGED: string;
+    ROOM_WARNING: string;
     ROOM_ERROR: string;
 
     // Game events
@@ -247,6 +255,9 @@ export interface SocketEventNames {
     GAME_HISTORY_RESULT: string;
     GAME_REPLAY_DATA: string;
     GAME_SPYMASTER_VIEW: string;
+    GAME_NEXT_ROUND: string;
+    GAME_ROUND_ENDED: string;
+    GAME_MATCH_OVER: string;
     GAME_ERROR: string;
 
     // Player events
@@ -280,6 +291,13 @@ export interface SocketEventNames {
     CHAT_ERROR: string;
     CHAT_SPECTATOR: string;
     CHAT_SPECTATOR_MESSAGE: string;
+
+    // Spectator events
+    SPECTATOR_REQUEST_JOIN: string;
+    SPECTATOR_JOIN_REQUEST: string;
+    SPECTATOR_APPROVE_JOIN: string;
+    SPECTATOR_JOIN_APPROVED: string;
+    SPECTATOR_JOIN_DENIED: string;
 }
 
 // Complete Constants Type

@@ -315,10 +315,8 @@ export async function validateSocketAuthToken(sessionId: string, token?: string)
     const isValid = crypto.timingSafeEqual(Buffer.from(storedToken, 'utf8'), Buffer.from(token, 'utf8'));
 
     if (isValid) {
-        // CRITICAL FIX: Don't consume token here - let room:reconnect consume it
-        // This fixes the race condition where socket auth validation consumed the
-        // token before room:reconnect could use it for full state recovery.
-        // Token will be consumed when room:reconnect successfully completes.
+        // Don't consume token here — let room:reconnect consume it after
+        // full state recovery succeeds, avoiding a race condition.
         logger.info('Reconnection token verified (not consumed)', { sessionId });
     } else {
         logger.warn('Invalid reconnection token', { sessionId });

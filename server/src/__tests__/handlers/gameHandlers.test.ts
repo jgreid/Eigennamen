@@ -166,7 +166,7 @@ describe('Game Handlers', () => {
                 role: 'spectator',
                 team: 'red',
             });
-            // PHASE 1 FIX: Need game to check if clicker is disconnected
+            // Need game to check if clicker is disconnected
             gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
             // Mock team with connected clicker so spectator can't reveal
             playerService.getTeamMembers.mockResolvedValue([

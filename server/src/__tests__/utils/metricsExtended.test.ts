@@ -123,7 +123,7 @@ describe('Metrics Extended Tests', () => {
         });
     });
 
-    describe('Phase 5.1 tracking functions', () => {
+    describe('tracking functions', () => {
         it('should track HTTP requests', () => {
             incrementCounter(METRIC_NAMES.HTTP_REQUESTS, 1, { method: 'GET', path: '/api/rooms', statusCode: '200' });
             incrementCounter(METRIC_NAMES.HTTP_REQUESTS, 1, { method: 'POST', path: '/api/rooms', statusCode: '201' });

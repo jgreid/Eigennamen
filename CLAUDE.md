@@ -177,8 +177,8 @@ All paths relative to `server/src/`.
 
 ## Testing
 
-- **Unit/Integration**: Jest with 127 test suites in `server/src/__tests__/`
-- **E2E**: Playwright with 11 spec files in `server/e2e/`
+- **Unit/Integration**: Jest with 129 test suites in `server/src/__tests__/`
+- **E2E**: Playwright with 12 spec files in `server/e2e/`
 - **Load testing**: Scripts in `server/loadtest/` (stress test, memory leak, room flow, WebSocket game)
 - Run `npm run test:watch` for TDD workflow
 - Run `npm run test:e2e:headed` to debug E2E tests visually

@@ -44,19 +44,31 @@ import { state, BOARD_SIZE } from '../../frontend/state';
 import { getCardFontClass } from '../../frontend/utils';
 
 const SAMPLE_WORDS: string[] = [
-    'AFRICA', 'AGENT', 'AIR', 'ALIEN', 'ALPS',
-    'AMAZON', 'AMBULANCE', 'AMERICA', 'ANGEL', 'ANTARCTICA',
-    'APPLE', 'ARM', 'ATLANTIS', 'AUSTRALIA', 'AZTEC',
-    'BACK', 'BALL', 'BAND', 'BANK', 'BAR',
-    'BARK', 'BAT', 'BATTERY', 'BEACH', 'BEAR',
-];
-
-const SAMPLE_TYPES: string[] = [
-    'red', 'red', 'red', 'red', 'red',
-    'red', 'red', 'red', 'red', 'blue',
-    'blue', 'blue', 'blue', 'blue', 'blue',
-    'blue', 'blue', 'neutral', 'neutral', 'neutral',
-    'neutral', 'neutral', 'neutral', 'neutral', 'assassin',
+    'AFRICA',
+    'AGENT',
+    'AIR',
+    'ALIEN',
+    'ALPS',
+    'AMAZON',
+    'AMBULANCE',
+    'AMERICA',
+    'ANGEL',
+    'ANTARCTICA',
+    'APPLE',
+    'ARM',
+    'ATLANTIS',
+    'AUSTRALIA',
+    'AZTEC',
+    'BACK',
+    'BALL',
+    'BAND',
+    'BANK',
+    'BAR',
+    'BARK',
+    'BAT',
+    'BATTERY',
+    'BEACH',
+    'BEAR',
 ];
 
 function resetState(): void {

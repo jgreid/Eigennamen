@@ -43,7 +43,7 @@ export interface RedisClient {
     mGet(keys: string[]): Promise<(string | null)[]>;
 
     // ── Set commands ─────────────────────────────────────────────────
-    // CRITICAL FIX: Accept variadic members to match actual usage across services
+    // Accept variadic members to match actual usage across services
     sAdd(key: string, ...members: string[]): Promise<number>;
     sRem(key: string, ...members: string[]): Promise<number>;
     sMembers(key: string): Promise<string[]>;
