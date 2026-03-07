@@ -372,8 +372,10 @@
 }
 
 /* Match mode card in game mode selector */
-.match-mode-card {
-    border-color: rgba(255, 215, 0, 0.4) !important;
+/* Match/Eigennamen mode card accent - only when selected */
+.game-mode-option input[type='radio']:checked + .match-mode-card {
+    border-color: rgba(255, 215, 0, 0.6);
+    background: rgba(255, 215, 0, 0.1);
 }
 
 .rules-match-section {
@@ -580,14 +582,28 @@ button.loading::after {
     }
 }
 
+/* Remove default focus ring on mouse click; keep :focus-visible for keyboard */
+button:focus:not(:focus-visible),
+.card:focus:not(:focus-visible),
+.language-select:focus:not(:focus-visible) {
+    outline: none;
+}
+
 button:focus-visible,
 .card:focus-visible,
-.radio-option:focus-within,
-.toggle-label:focus-within,
-.game-mode-option:focus-within,
 .language-select:focus-visible {
     outline: 2px solid #ffc107;
     outline-offset: 2px;
+}
+
+/* Keyboard-only focus for labels wrapping native inputs */
+@supports selector(:has(*)) {
+    .radio-option:has(:focus-visible),
+    .toggle-label:has(:focus-visible),
+    .game-mode-option:has(:focus-visible) {
+        outline: 2px solid #ffc107;
+        outline-offset: 2px;
+    }
 }
 
 .btn-new-game {
