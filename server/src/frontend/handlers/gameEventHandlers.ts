@@ -129,28 +129,25 @@ export function registerGameHandlers(): void {
     });
 
     EigennamenClient.on('gameOver', (data: GameOverData) => {
-        // Duet mode can have null winner (cooperative loss)
-        if (data.winner || state.gameMode === 'duet') {
-            // Sync all card types from server so non-spymasters can see the full board
-            if (data.types && Array.isArray(data.types)) {
-                state.gameState.types = data.types;
-            }
-            if (data.duetTypes && Array.isArray(data.duetTypes)) {
-                state.gameState.duetTypes = data.duetTypes;
-            }
-            state.gameState.gameOver = true;
-            state.gameState.winner = data.winner || null;
-
-            if (state.gameMode === 'duet') {
-                const duetWin = data.reason === 'completed';
-                showGameOver(duetWin ? 'red' : null, data.reason);
-            } else {
-                showGameOver(data.winner || null, data.reason);
-            }
-            setTabNotification(false);
-            playNotificationSound('gameOver');
-            updateForfeitButton();
+        // Sync all card types from server so non-spymasters can see the full board
+        if (data.types && Array.isArray(data.types)) {
+            state.gameState.types = data.types;
         }
+        if (data.duetTypes && Array.isArray(data.duetTypes)) {
+            state.gameState.duetTypes = data.duetTypes;
+        }
+        state.gameState.gameOver = true;
+        state.gameState.winner = data.winner || null;
+
+        if (state.gameMode === 'duet') {
+            const duetWin = data.reason === 'completed';
+            showGameOver(duetWin ? 'red' : null, data.reason);
+        } else {
+            showGameOver(data.winner || null, data.reason);
+        }
+        setTabNotification(false);
+        playNotificationSound('gameOver');
+        updateForfeitButton();
     });
 
     // Handle spymaster view (card types for spymasters)
