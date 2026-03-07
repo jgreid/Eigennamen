@@ -129,9 +129,11 @@ jest.mock('../../frontend/logger', () => ({
 // Mock history module for dynamic import tests
 const mockRenderGameHistory = jest.fn();
 const mockRenderReplayData = jest.fn();
+const mockOnHistoryCleared = jest.fn();
 jest.mock('../../frontend/history', () => ({
     renderGameHistory: mockRenderGameHistory,
     renderReplayData: mockRenderReplayData,
+    onHistoryCleared: mockOnHistoryCleared,
 }));
 
 // Set up global EigennamenClient mock
@@ -887,6 +889,7 @@ describe('Frontend Handler Registration', () => {
             expect(handlers['spectatorChatMessage']).toBeDefined();
             expect(handlers['historyResult']).toBeDefined();
             expect(handlers['replayData']).toBeDefined();
+            expect(handlers['historyCleared']).toBeDefined();
             expect(handlers['error']).toBeDefined();
         });
 
@@ -935,6 +938,12 @@ describe('Frontend Handler Registration', () => {
             handlers['replayData'](data);
             await new Promise((resolve) => setTimeout(resolve, 50));
             expect(mockRenderReplayData).toHaveBeenCalledWith(data);
+        });
+
+        test('historyCleared dynamically imports and calls onHistoryCleared', async () => {
+            handlers['historyCleared']({ deletedCount: 5 });
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            expect(mockOnHistoryCleared).toHaveBeenCalled();
         });
 
         test('error handler clears .revealing class from cards in DOM', () => {

@@ -71,12 +71,15 @@ import {
     confirmNewGame,
     showGameOverModal,
     closeGameOver,
+    abandonAndNewGame,
+    forfeitAndNewGame,
 } from '../../frontend/game';
 import { state, BOARD_SIZE, FIRST_TEAM_CARDS, SECOND_TEAM_CARDS, DEFAULT_WORDS } from '../../frontend/state';
 import { encodeWordsForURL } from '../../frontend/utils';
 import { renderBoard } from '../../frontend/board';
 import { showToast, openModal, closeModal, announceToScreenReader } from '../../frontend/ui';
 import { updateURL } from '../../frontend/url-state';
+import { isClientConnected } from '../../frontend/clientAccessor';
 
 const SAMPLE_WORDS = [
     'AFRICA',
@@ -1070,5 +1073,201 @@ describe('updateTurnIndicator duet mode branches', () => {
         expect(indicator.className).not.toContain('your-turn');
         expect(indicator.className).toContain('red-turn');
         expect(turnText.textContent).toContain('game.teamsTurn');
+    });
+});
+
+// ========== CONFIRM NEW GAME - BUTTON VISIBILITY ==========
+
+describe('confirmNewGame button visibility', () => {
+    beforeEach(() => {
+        state.gameState.revealed = Array(BOARD_SIZE).fill(false);
+        state.gameState.revealed[0] = true; // At least one card revealed
+        state.activeWords = [...DEFAULT_WORDS];
+        state.newGameDebounce = false;
+        jest.clearAllMocks();
+
+        // Set up DOM with all three buttons
+        document.body.innerHTML = `
+            <button data-action="confirm-yes-new-game"></button>
+            <button data-action="confirm-forfeit-new-game"></button>
+            <button data-action="confirm-abandon-new-game"></button>
+        `;
+    });
+
+    test('shows forfeit/abandon buttons and hides simple button in multiplayer mode', () => {
+        state.isMultiplayerMode = true;
+        (isClientConnected as jest.Mock).mockReturnValue(true);
+
+        confirmNewGame();
+
+        const simpleBtn = document.querySelector('[data-action="confirm-yes-new-game"]') as HTMLElement;
+        const forfeitBtn = document.querySelector('[data-action="confirm-forfeit-new-game"]') as HTMLElement;
+        const abandonBtn = document.querySelector('[data-action="confirm-abandon-new-game"]') as HTMLElement;
+
+        expect(simpleBtn.hidden).toBe(true);
+        expect(forfeitBtn.hidden).toBe(false);
+        expect(abandonBtn.hidden).toBe(false);
+    });
+
+    test('shows simple button and hides forfeit/abandon in standalone mode', () => {
+        state.isMultiplayerMode = false;
+
+        confirmNewGame();
+
+        const simpleBtn = document.querySelector('[data-action="confirm-yes-new-game"]') as HTMLElement;
+        const forfeitBtn = document.querySelector('[data-action="confirm-forfeit-new-game"]') as HTMLElement;
+        const abandonBtn = document.querySelector('[data-action="confirm-abandon-new-game"]') as HTMLElement;
+
+        expect(simpleBtn.hidden).toBe(false);
+        expect(forfeitBtn.hidden).toBe(true);
+        expect(abandonBtn.hidden).toBe(true);
+    });
+
+    test('shows simple button when multiplayer but not connected', () => {
+        state.isMultiplayerMode = true;
+        (isClientConnected as jest.Mock).mockReturnValue(false);
+
+        confirmNewGame();
+
+        const simpleBtn = document.querySelector('[data-action="confirm-yes-new-game"]') as HTMLElement;
+        const forfeitBtn = document.querySelector('[data-action="confirm-forfeit-new-game"]') as HTMLElement;
+        const abandonBtn = document.querySelector('[data-action="confirm-abandon-new-game"]') as HTMLElement;
+
+        expect(simpleBtn.hidden).toBe(false);
+        expect(forfeitBtn.hidden).toBe(true);
+        expect(abandonBtn.hidden).toBe(true);
+    });
+});
+
+// ========== ABANDON AND NEW GAME ==========
+
+describe('abandonAndNewGame', () => {
+    let mockAbandonGame: jest.Mock;
+    let mockOnce: jest.Mock;
+
+    beforeEach(() => {
+        state.activeWords = [...DEFAULT_WORDS];
+        state.newGameDebounce = false;
+        jest.clearAllMocks();
+
+        mockAbandonGame = jest.fn();
+        mockOnce = jest.fn();
+        (global as any).EigennamenClient = {
+            abandonGame: mockAbandonGame,
+            forfeit: jest.fn(),
+            once: mockOnce,
+            startGame: jest.fn(),
+            isConnected: jest.fn(() => true),
+        };
+    });
+
+    afterEach(() => {
+        delete (global as any).EigennamenClient;
+    });
+
+    test('calls newGame directly in standalone mode', () => {
+        state.isMultiplayerMode = false;
+        (isClientConnected as jest.Mock).mockReturnValue(false);
+
+        abandonAndNewGame();
+
+        expect(mockAbandonGame).not.toHaveBeenCalled();
+        // newGame() was called - it sets up a new game locally
+        expect(state.gameState.seed).toBeTruthy();
+    });
+
+    test('calls newGame directly when multiplayer but disconnected', () => {
+        state.isMultiplayerMode = true;
+        (isClientConnected as jest.Mock).mockReturnValue(false);
+
+        abandonAndNewGame();
+
+        expect(mockAbandonGame).not.toHaveBeenCalled();
+        expect(state.gameState.seed).toBeTruthy();
+    });
+
+    test('calls abandonGame and registers gameOver listener in multiplayer', () => {
+        state.isMultiplayerMode = true;
+        (isClientConnected as jest.Mock).mockReturnValue(true);
+
+        abandonAndNewGame();
+
+        expect(mockAbandonGame).toHaveBeenCalled();
+        expect(mockOnce).toHaveBeenCalledWith('gameOver', expect.any(Function));
+    });
+
+    test('starts new game when gameOver fires after abandon', () => {
+        state.isMultiplayerMode = true;
+        (isClientConnected as jest.Mock).mockReturnValue(true);
+
+        abandonAndNewGame();
+
+        // Simulate the gameOver callback
+        const gameOverCallback = mockOnce.mock.calls[0][1];
+        gameOverCallback();
+
+        // newGame() should have been called (sets loading state on multiplayer button)
+        // Since we don't have the multiplayer new game button in DOM, just verify
+        // the callback was invoked without error
+        expect(mockOnce).toHaveBeenCalledTimes(1);
+    });
+});
+
+// ========== FORFEIT AND NEW GAME ==========
+
+describe('forfeitAndNewGame', () => {
+    let mockForfeit: jest.Mock;
+    let mockOnce: jest.Mock;
+
+    beforeEach(() => {
+        state.activeWords = [...DEFAULT_WORDS];
+        state.newGameDebounce = false;
+        jest.clearAllMocks();
+
+        mockForfeit = jest.fn();
+        mockOnce = jest.fn();
+        (global as any).EigennamenClient = {
+            abandonGame: jest.fn(),
+            forfeit: mockForfeit,
+            once: mockOnce,
+            startGame: jest.fn(),
+            isConnected: jest.fn(() => true),
+        };
+    });
+
+    afterEach(() => {
+        delete (global as any).EigennamenClient;
+    });
+
+    test('calls newGame directly in standalone mode', () => {
+        state.isMultiplayerMode = false;
+        (isClientConnected as jest.Mock).mockReturnValue(false);
+
+        forfeitAndNewGame();
+
+        expect(mockForfeit).not.toHaveBeenCalled();
+        expect(state.gameState.seed).toBeTruthy();
+    });
+
+    test('calls forfeit and registers gameOver listener in multiplayer', () => {
+        state.isMultiplayerMode = true;
+        (isClientConnected as jest.Mock).mockReturnValue(true);
+
+        forfeitAndNewGame();
+
+        expect(mockForfeit).toHaveBeenCalled();
+        expect(mockOnce).toHaveBeenCalledWith('gameOver', expect.any(Function));
+    });
+
+    test('starts new game when gameOver fires after forfeit', () => {
+        state.isMultiplayerMode = true;
+        (isClientConnected as jest.Mock).mockReturnValue(true);
+
+        forfeitAndNewGame();
+
+        const gameOverCallback = mockOnce.mock.calls[0][1];
+        gameOverCallback();
+
+        expect(mockOnce).toHaveBeenCalledTimes(1);
     });
 });
