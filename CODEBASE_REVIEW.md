@@ -63,23 +63,27 @@ The following non-test source files exceed 500 lines and should be considered fo
 ## Sprint 3: Testing Improvements (Priority: High)
 
 ### 3.1 Test coverage gaps
-While the project has 130 test suites, comparing source structure to test structure reveals potential gaps:
-- **Missing or sparse test coverage for:**
+While the project has 130 test suites (51,705 lines of test code), comparing source structure to test structure reveals gaps:
+- **No dedicated tests for:**
+  - `utils/parseJSON.ts` — critical utility for Redis data deserialization
+  - `socket/gameMutationNotifier.ts` — event emitter pattern untested
+  - `errors/GameError.ts` — error class hierarchy (tested indirectly)
+- **Sparse test coverage for:**
   - `config/redis.ts` (534 lines, complex embedded Redis logic)
   - `middleware/rateLimit.ts` (443 lines)
-  - `frontend/multiplayerSync.ts` (463 lines)
-  - `frontend/roles.ts` (431 lines)
   - `utils/metrics.ts` (462 lines)
   - `socket/contextHandler.ts` (critical middleware — validation + rate limiting)
   - Several socket handlers (chat, timer handlers)
+- **No E2E tests for:** admin dashboard, audit features, error recovery scenarios
 
 ### 3.2 Test quality improvements
-- Heavy `any` usage in test mocks reduces type safety — mock type mismatches won't be caught
+- Heavy `any` usage in test mocks (100+ occurrences) reduces type safety — mock type mismatches won't be caught
 - Consider adding a shared mock factory using `jest.Mocked<T>` patterns
 - The `__tests__/helpers/mocks.ts` file is 721 lines — may benefit from splitting by domain
 
 ### 3.3 Coverage reporting
-- Coverage is configured (`npm run test:coverage`) but should be integrated into CI with minimum thresholds
+- Coverage thresholds already configured (backend 75-85%, frontend 70%) — good
+- CI enforces thresholds but no coverage trend tracking or badges
 - Add coverage badges to README for visibility
 
 ---
@@ -89,22 +93,34 @@ While the project has 130 test suites, comparing source structure to test struct
 ### 4.1 Accessibility improvements
 - Only **21 ARIA attribute usages** vs **95 DOM manipulation calls** in frontend code — ratio suggests gaps
 - A dedicated `accessibility.css` (445 lines) and `accessibility.ts` exist, showing intent
+- **Skip link CSS defined but HTML element may be missing** from `index.html`
+- Keyboard hint contrast (`rgba(255, 255, 255, 0.35)`) may fail WCAG AA contrast requirements
 - **Audit needed:** Systematic a11y review of dynamically created DOM elements for proper ARIA labels, roles, and keyboard navigation
 - Consider adding `axe-core` to E2E tests for automated a11y regression testing
 
 ### 4.2 CSS architecture
 - **5,248 lines** across 10 CSS files — well-organized with `variables.css` for design tokens
 - `components.css` at 1,128 lines is the largest — consider splitting into component-specific files
+- Only 2 responsive breakpoints (768px, 1024px) — consider adding 1200px+ for large desktops
 - Verify CSS custom properties are consistently used (avoid hardcoded values)
 
-### 4.3 Bundle optimization
+### 4.3 Bundle & PWA optimization
 - Frontend uses esbuild for bundling — verify tree-shaking effectiveness
 - Consider implementing code splitting for the history/replay feature (585 lines) since it's not needed on initial load
-- Service worker caching strategy should be reviewed for cache invalidation correctness
+- **Service worker caches only 3 files** (`/`, `/index.html`, `/manifest.json`) — CSS and JS bundles are missing, breaking offline mode
+- No service worker update notification mechanism (`skipWaiting` flow)
+- No offline fallback page — users see "Offline 503" instead of a helpful message
 
 ### 4.4 State management
 - The reactive store (`frontend/store/`) with actions pattern is solid
+- **Array mutation caveat:** `push`/`splice` on proxied arrays won't trigger reactive listeners — must reassign array reference. Easy source of subtle bugs
+- Event bus has max 50 listeners per topic with warning, but no automatic cleanup on component teardown — potential listener leak
 - Verify no memory leaks from subscriptions not being cleaned up on disconnection
+
+### 4.5 Standalone mode URL limits
+- Game state encoded in URL for serverless play — clever design
+- **URL length risk:** Custom word lists are Base64-encoded without compression; large lists may exceed browser URL limits (~2,083 chars)
+- Corrupted URLs silently show blank board instead of error message
 
 ---
 
@@ -162,7 +178,7 @@ While the project has 130 test suites, comparing source structure to test struct
 | 1. Security Hardening | Critical | Low | High | npm audit fix, innerHTML migration, admin auth |
 | 2. Code Quality | High | Medium | Medium | File decomposition, `any` cleanup, eslint fixes |
 | 3. Testing | High | Medium | High | Coverage gaps, mock quality, CI integration |
-| 4. Frontend Architecture | Medium | Medium | Medium | a11y audit, CSS split, bundle optimization |
+| 4. Frontend Architecture | Medium | Medium | Medium | a11y audit, PWA offline fix, reactive store caveats, URL limits |
 | 5. Performance | Medium | Medium | High | Redis TTLs, timer races, connection cleanup |
 | 6. DevOps | Low | Low | Low | Dep updates, CI coverage, Docker optimization |
 
