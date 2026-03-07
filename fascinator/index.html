@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <meta name="description" content="Bull Fascinator — immersive visual experience" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Bull Fascinator</title>
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="control-bar">
+        <button id="btn-play" class="ctrl-btn" title="Play / Pause">&#9654;</button>
+        <div id="preset-selector">
+            <button id="btn-preset" class="ctrl-btn" title="Presets">&#9826;</button>
+            <div id="preset-menu" class="dropdown hidden">
+                <button data-preset="drift">Drift</button>
+                <button data-preset="trance">Trance</button>
+                <button data-preset="deep">Deep</button>
+                <button data-preset="surge">Surge</button>
+                <button data-preset="flesh">Flesh</button>
+                <button data-preset="sleep">Sleep</button>
+                <button data-preset="worship">Worship</button>
+                <hr />
+                <button id="btn-save-preset">Save custom…</button>
+            </div>
+        </div>
+        <button id="btn-bath" class="ctrl-btn" title="Bath Mode">&#9832;</button>
+        <input id="slider-feedback" type="range" min="0" max="100" value="50" title="Feedback intensity" />
+        <button id="btn-fullscreen" class="ctrl-btn" title="Fullscreen">&#9974;</button>
+        <button id="btn-settings" class="ctrl-btn" title="Settings">&#9881;</button>
+    </div>
+
+    <!-- Settings modal -->
+    <div id="settings-overlay" class="modal-overlay hidden">
+        <div id="settings-panel" class="settings-panel">
+            <div class="settings-header">
+                <h2>Settings</h2>
+                <button id="btn-close-settings" class="close-btn">&times;</button>
+            </div>
+            <div class="settings-body">
+                <!-- Text section -->
+                <details class="settings-section" open>
+                    <summary>Text</summary>
+                    <div class="setting-row">
+                        <label for="toggle-text">Enable text overlay</label>
+                        <input type="checkbox" id="toggle-text" checked />
+                    </div>
+                    <div class="setting-group" id="phrase-group-toggles"></div>
+                    <div class="setting-row">
+                        <label>Custom phrases</label>
+                    </div>
+                    <div class="custom-phrases-input">
+                        <input type="text" id="input-custom-phrase" placeholder="Add a phrase…" maxlength="60" />
+                        <button id="btn-add-phrase" class="accent-btn">Add</button>
+                    </div>
+                    <div id="custom-phrases-list" class="custom-phrases-list"></div>
+                    <div class="setting-row">
+                        <label for="slider-frequency">Frequency</label>
+                        <div class="slider-labels"><span>Rare</span><span>Normal</span><span>Frequent</span></div>
+                        <input type="range" id="slider-frequency" min="0" max="2" value="1" step="1" />
+                    </div>
+                    <div class="setting-row">
+                        <label for="slider-text-size">Text size</label>
+                        <div class="slider-labels"><span>Small</span><span>Medium</span><span>Large</span></div>
+                        <input type="range" id="slider-text-size" min="0" max="2" value="1" step="1" />
+                    </div>
+                    <div class="setting-row">
+                        <label for="slider-text-opacity">Text opacity</label>
+                        <div class="slider-labels"><span>Subtle</span><span>Normal</span><span>Bold</span></div>
+                        <input type="range" id="slider-text-opacity" min="0" max="2" value="1" step="1" />
+                    </div>
+                </details>
+
+                <!-- Audio section -->
+                <details class="settings-section">
+                    <summary>Audio</summary>
+                    <div class="setting-row">
+                        <label for="slider-drone-vol">Drone volume</label>
+                        <input type="range" id="slider-drone-vol" min="0" max="100" value="30" />
+                    </div>
+                    <div class="setting-row">
+                        <label for="toggle-binaural">Binaural beats</label>
+                        <input type="checkbox" id="toggle-binaural" />
+                    </div>
+                    <div class="setting-row sub-setting hidden" id="binaural-options">
+                        <label for="select-binaural-band">Band</label>
+                        <select id="select-binaural-band">
+                            <option value="theta">Theta (4-8 Hz)</option>
+                            <option value="delta">Delta (0.5-4 Hz)</option>
+                            <option value="alpha">Alpha (8-12 Hz)</option>
+                        </select>
+                        <label for="slider-binaural-vol">Volume</label>
+                        <input type="range" id="slider-binaural-vol" min="0" max="100" value="20" />
+                    </div>
+                    <div class="setting-row">
+                        <label for="toggle-audio-reactive">Audio reactive</label>
+                        <input type="checkbox" id="toggle-audio-reactive" />
+                    </div>
+                    <div class="setting-row sub-setting hidden" id="audio-reactive-options">
+                        <label for="slider-audio-sensitivity">Sensitivity</label>
+                        <input type="range" id="slider-audio-sensitivity" min="0" max="100" value="50" />
+                    </div>
+                </details>
+
+                <!-- Visuals section -->
+                <details class="settings-section">
+                    <summary>Visuals</summary>
+                    <div class="setting-row">
+                        <label for="slider-feedback-settings">Feedback intensity</label>
+                        <input type="range" id="slider-feedback-settings" min="0" max="100" value="50" />
+                    </div>
+                    <div class="setting-row">
+                        <label for="toggle-perf">Performance mode</label>
+                        <input type="checkbox" id="toggle-perf" />
+                    </div>
+                </details>
+
+                <!-- About section -->
+                <details class="settings-section">
+                    <summary>About</summary>
+                    <p class="about-text">Bull Fascinator — immersive visual experience</p>
+                    <p class="about-version">Version 1.0.0</p>
+                </details>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save preset modal -->
+    <div id="save-preset-overlay" class="modal-overlay hidden">
+        <div class="save-preset-panel">
+            <h3>Save Preset</h3>
+            <input type="text" id="input-preset-name" placeholder="Preset name…" maxlength="30" />
+            <div class="modal-buttons">
+                <button id="btn-cancel-save" class="ctrl-btn">Cancel</button>
+                <button id="btn-confirm-save" class="accent-btn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
