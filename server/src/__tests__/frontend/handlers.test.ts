@@ -413,6 +413,16 @@ describe('Frontend Handler Registration', () => {
             expect(showGameOver).toHaveBeenCalledWith(null, 'timer_expired');
         });
 
+        test('gameOver with null winner (abandoned) still sets gameOver state', () => {
+            state.gameMode = 'classic';
+            handlers['gameOver']({ winner: null, reason: 'abandoned', types: ['red', 'blue'] });
+
+            expect(state.gameState.gameOver).toBe(true);
+            expect(state.gameState.winner).toBeNull();
+            expect(state.gameState.types).toEqual(['red', 'blue']);
+            expect(showGameOver).toHaveBeenCalledWith(null, 'abandoned');
+        });
+
         test('spymasterView renders board with types', () => {
             handlers['spymasterView']({ types: ['red', 'blue', 'neutral', 'assassin'] });
 

@@ -2,6 +2,7 @@ import { state, BOARD_SIZE, DEFAULT_WORDS } from './state.js';
 import { updateCharCounter, safeGetItem, safeSetItem, safeRemoveItem } from './utils.js';
 import { openModal, closeModal, showToast } from './ui.js';
 import { updateURL, updateScoreboard, updateTurnIndicator } from './game.js';
+import { isClientConnected } from './clientAccessor.js';
 import { t } from './i18n.js';
 import { logger } from './logger.js';
 
@@ -177,6 +178,13 @@ export function saveSettings(): void {
     const blueName = blueNameInput ? blueNameInput.value.trim() || 'Blue' : 'Blue';
     state.teamNames.red = redName;
     state.teamNames.blue = blueName;
+
+    // Send team name changes to server in multiplayer mode
+    if (state.isMultiplayerMode && isClientConnected()) {
+        EigennamenClient.updateSettings({
+            teamNames: { red: redName, blue: blueName },
+        });
+    }
 
     // Get word list mode
     const modeRadio = document.querySelector('input[name="wordlist-mode"]:checked') as HTMLInputElement | null;
