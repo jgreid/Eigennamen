@@ -372,8 +372,10 @@
 }
 
 /* Match mode card in game mode selector */
-.match-mode-card {
-    border-color: rgba(255, 215, 0, 0.4) !important;
+/* Match/Eigennamen mode card accent - only when selected */
+.game-mode-option input[type='radio']:checked + .match-mode-card {
+    border-color: rgba(255, 215, 0, 0.6);
+    background: rgba(255, 215, 0, 0.1);
 }
 
 .rules-match-section {
