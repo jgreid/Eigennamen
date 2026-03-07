@@ -162,8 +162,47 @@ export function confirmNewGame(): void {
     if (cardsRevealed === 0) {
         newGame();
     } else {
+        // Show/hide buttons based on mode
+        const forfeitBtn = document.querySelector('[data-action="confirm-forfeit-new-game"]') as HTMLElement | null;
+        const abandonBtn = document.querySelector('[data-action="confirm-abandon-new-game"]') as HTMLElement | null;
+        const simpleBtn = document.querySelector('[data-action="confirm-yes-new-game"]') as HTMLElement | null;
+        const isMultiplayer = state.isMultiplayerMode && isClientConnected();
+
+        if (forfeitBtn) forfeitBtn.hidden = !isMultiplayer;
+        if (abandonBtn) abandonBtn.hidden = !isMultiplayer;
+        if (simpleBtn) simpleBtn.hidden = isMultiplayer;
+
         openModal('confirm-modal');
     }
+}
+
+export function abandonAndNewGame(): void {
+    if (!state.isMultiplayerMode || !isClientConnected()) {
+        // Standalone mode: just start a new game (no history to worry about)
+        newGame();
+        return;
+    }
+
+    // Abandon the current game (not saved to history), then start new
+    EigennamenClient.abandonGame();
+    // The server will emit game:over with reason 'abandoned'.
+    // We listen for that and then start a new game automatically.
+    EigennamenClient.once('gameOver', () => {
+        newGame();
+    });
+}
+
+export function forfeitAndNewGame(): void {
+    if (!state.isMultiplayerMode || !isClientConnected()) {
+        newGame();
+        return;
+    }
+
+    // Forfeit the current game (saved to history), then start new
+    EigennamenClient.forfeit();
+    EigennamenClient.once('gameOver', () => {
+        newGame();
+    });
 }
 
 export function closeConfirm(): void {

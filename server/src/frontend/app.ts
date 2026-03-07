@@ -13,6 +13,8 @@ import {
     loadGameFromURL,
     closeGameOver,
     revealCard,
+    abandonAndNewGame,
+    forfeitAndNewGame,
 } from './game.js';
 import {
     updateRoleBanner,
@@ -41,6 +43,7 @@ import {
     setupHistoryEventDelegation,
     closeReplay,
     checkURLForReplayLoad,
+    clearGameHistory,
 } from './history.js';
 import { isClientConnected } from './clientAccessor.js';
 import {
@@ -170,6 +173,14 @@ function setupEventListeners(): void {
                 newGame();
                 closeConfirm();
                 break;
+            case 'confirm-forfeit-new-game':
+                forfeitAndNewGame();
+                closeConfirm();
+                break;
+            case 'confirm-abandon-new-game':
+                abandonAndNewGame();
+                closeConfirm();
+                break;
             case 'close-confirm':
                 closeConfirm();
                 break;
@@ -232,6 +243,9 @@ function setupEventListeners(): void {
                 break;
 
             // Game history modal
+            case 'clear-history':
+                clearGameHistory();
+                break;
             case 'close-history':
                 closeGameHistory();
                 break;

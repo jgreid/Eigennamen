@@ -415,6 +415,34 @@ export async function forfeitGame(roomCode: string, forfeitTeam?: Team): Promise
 }
 
 /**
+ * Abandon a game in progress without recording it in history.
+ * Sets gameOver=true but does not assign a winner or add history entries.
+ */
+export async function abandonGame(roomCode: string): Promise<void> {
+    const gameKey = `room:${roomCode}:game`;
+
+    await withLock(
+        `reveal:${roomCode}`,
+        async () => {
+            await executeGameTransaction(
+                gameKey,
+                (game: GameState) => {
+                    if (game.gameOver) {
+                        throw GameStateError.gameOver();
+                    }
+                    game.gameOver = true;
+                    game.winner = null;
+                    return {};
+                },
+                'abandonGame'
+            );
+            notifyGameMutation(roomCode);
+        },
+        { lockTimeout: LOCKS.CARD_REVEAL * 1000, maxRetries: 5 }
+    );
+}
+
+/**
  * Clean up game data for a room
  */
 export async function cleanupGame(roomCode: string): Promise<void> {

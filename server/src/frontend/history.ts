@@ -46,17 +46,21 @@ export function renderGameHistory(games: GameHistoryEntry[]): void {
     const loadingEl = document.getElementById('history-loading');
     const emptyEl = document.getElementById('history-empty');
     const listEl = document.getElementById('history-list');
+    const actionsEl = document.getElementById('history-actions');
 
     if (loadingEl) loadingEl.hidden = true;
 
     if (!games || games.length === 0) {
         if (emptyEl) emptyEl.hidden = false;
         if (listEl) listEl.hidden = true;
+        if (actionsEl) actionsEl.hidden = true;
         return;
     }
 
     if (emptyEl) emptyEl.hidden = true;
     if (listEl) listEl.hidden = false;
+    // Show clear history button only for the host
+    if (actionsEl) actionsEl.hidden = !state.isHost;
 
     if (!listEl) return;
     listEl.replaceChildren();
@@ -526,6 +530,40 @@ export function scrollToCurrentEvent(): void {
     if (currentEventEl) {
         currentEventEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
+}
+
+export function clearGameHistory(): void {
+    if (!state.isMultiplayerMode || !EigennamenClient.isConnected()) {
+        showToast(t('history.multiplayerOnly'), 'info');
+        return;
+    }
+
+    if (!EigennamenClient.isHost()) {
+        showToast(t('history.hostOnly'), 'warning');
+        return;
+    }
+
+    // Confirm before clearing
+    if (!confirm(t('history.clearConfirm'))) {
+        return;
+    }
+
+    EigennamenClient.clearHistory();
+}
+
+export function onHistoryCleared(): void {
+    const listEl = document.getElementById('history-list');
+    const emptyEl = document.getElementById('history-empty');
+    const actionsEl = document.getElementById('history-actions');
+
+    if (listEl) {
+        listEl.replaceChildren();
+        listEl.hidden = true;
+    }
+    if (emptyEl) emptyEl.hidden = false;
+    if (actionsEl) actionsEl.hidden = true;
+
+    showToast(t('history.cleared'), 'success');
 }
 
 /**

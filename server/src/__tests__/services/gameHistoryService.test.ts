@@ -1041,4 +1041,40 @@ describe('Game History Service', () => {
             expect(countCluesFromHistory(history)).toBe(3);
         });
     });
+
+    describe('clearRoomHistory', () => {
+        it('returns 0 for empty room code', async () => {
+            const result = await gameHistoryService.clearRoomHistory('');
+            expect(result).toBe(0);
+        });
+
+        it('returns 0 when no history exists', async () => {
+            mockRedis.zRange.mockResolvedValue([]);
+            const result = await gameHistoryService.clearRoomHistory('ROOM1');
+            expect(result).toBe(0);
+        });
+
+        it('deletes all game entries and the index', async () => {
+            const gameIds = ['game1', 'game2', 'game3'];
+            mockRedis.zRange.mockResolvedValue(gameIds);
+
+            const result = await gameHistoryService.clearRoomHistory('ROOM1');
+
+            expect(result).toBe(3);
+            // Should delete individual game keys
+            expect(mockRedis.del).toHaveBeenCalledWith([
+                'gameHistory:ROOM1:game1',
+                'gameHistory:ROOM1:game2',
+                'gameHistory:ROOM1:game3',
+            ]);
+            // Should delete the index
+            expect(mockRedis.del).toHaveBeenCalledWith('gameHistoryIndex:ROOM1');
+        });
+
+        it('returns 0 on error', async () => {
+            mockRedis.zRange.mockRejectedValue(new Error('Redis error'));
+            const result = await gameHistoryService.clearRoomHistory('ROOM1');
+            expect(result).toBe(0);
+        });
+    });
 });

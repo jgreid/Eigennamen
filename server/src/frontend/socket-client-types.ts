@@ -101,6 +101,7 @@ export interface ClientEventMap {
     spymasterView: SpymasterViewData;
     historyResult: HistoryResultData;
     replayData: ReplayData;
+    historyCleared: { deletedCount: number };
 
     // Timer events
     timerStarted: TimerEventData;

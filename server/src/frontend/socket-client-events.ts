@@ -215,6 +215,10 @@ export function registerAllEventListeners(register: RegisterFn, emit: EmitFn, cl
         emit('replayData', raw as ReplayData);
     });
 
+    register('game:historyCleared', (raw: unknown) => {
+        emit('historyCleared', raw as { deletedCount: number });
+    });
+
     register('game:error', (raw: unknown) => {
         const error = raw as ServerErrorData;
         emit('error', { type: 'game', ...error });

@@ -48,6 +48,16 @@ export function registerChatAndErrorHandlers(): void {
             });
     });
 
+    EigennamenClient.on('historyCleared', () => {
+        import('../history.js')
+            .then(({ onHistoryCleared }) => {
+                onHistoryCleared();
+            })
+            .catch((err: unknown) => {
+                logger.error('Failed to load history module:', err);
+            });
+    });
+
     // Error handling for game actions
     EigennamenClient.on('error', (error: ServerErrorData) => {
         // Log full error details for debugging
