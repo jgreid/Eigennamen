@@ -4,6 +4,24 @@ All notable changes to Eigennamen Online are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [5.1.0-beta.2] - 2026-03-07
+
+### Added
+- **Game Setup Screen**: New launch screen shown on initial load with quickstart cards for Host, Join, and Solo play
+  - Host a Game: create room with nickname, game mode, turn timer, and custom team names
+  - Join a Game: enter room code and nickname to join an existing room
+  - Play Solo: start an offline standalone game instantly
+- `frontend/setupScreen.ts` — setup screen module (55 frontend modules, up from 54)
+- `server/public/css/setup.css` — setup screen stylesheet (10 CSS modules, up from 9)
+- `server/e2e/setup-screen.spec.js` — E2E test suite for setup screen (13 E2E specs, up from 12)
+- `server/src/__tests__/frontend/setupScreen.test.ts` — unit tests for setup screen (131 test suites, up from 129)
+
+### Changed
+- Updated all documentation to reflect setup screen flow (QUICKSTART.md, README.md, ARCHITECTURE.md, TESTING_GUIDE.md, CLAUDE.md)
+- Updated `index.html` with setup screen HTML structure and CSS link
+- Updated E2E test helpers and all existing E2E specs to navigate through setup screen
+- Updated `frontend/app.ts` to integrate setup screen event delegation
+
 ## [5.0.0-beta.1] - 2026-03-06
 
 ### Changed

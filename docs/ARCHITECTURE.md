@@ -241,17 +241,18 @@ Eigennamen/
     ├── public/
     │   ├── js/
     │   │   ├── modules/    # Compiled frontend (built from src/frontend/)
-    │   │   │   ├── frontend/          # 54 compiled frontend modules
+    │   │   │   ├── frontend/          # 55 compiled frontend modules
     │   │   │   │   ├── handlers/      # 6 domain-specific event handler modules
     │   │   │   │   ├── multiplayer.js # Multiplayer core (barrel re-export)
     │   │   │   │   ├── multiplayerListeners.js  # Thin orchestrator (~30 lines)
     │   │   │   │   ├── multiplayerSync.js       # State synchronization
     │   │   │   │   ├── multiplayerUI.js         # Multiplayer UI components
+    │   │   │   │   ├── setupScreen.js          # Game setup / launch screen
     │   │   │   │   └── ...            # app, board, game, state, ui, etc.
     │   │   │   ├── shared/            # Shared constants (validation, game rules)
     │   │   │   └── chunks/            # Build chunks
     │   │   └── socket-client.js       # WebSocket client wrapper
-    │   ├── css/            # Modular stylesheets (9 files)
+    │   ├── css/            # Modular stylesheets (10 files)
     │   ├── locales/        # i18n translations (en, de, es, fr)
     │   ├── admin.html      # Admin dashboard UI
     │   └── manifest.json   # PWA manifest
@@ -269,7 +270,7 @@ Eigennamen/
     │   │   └── room/       # Room sub-module (membership)
     │   ├── socket/         # WebSocket setup and utilities (11 files)
     │   │   └── handlers/   # Event-specific handlers (9 files)
-    │   ├── frontend/       # Frontend TypeScript source (54 modules)
+    │   ├── frontend/       # Frontend TypeScript source (55 modules)
     │   │   ├── handlers/   # Client-side event handlers (6 files)
     │   │   ├── store/      # Reactive state store + actions
     │   │   └── game/       # Game sub-modules (reveal, scoring)
@@ -277,11 +278,11 @@ Eigennamen/
     │   ├── utils/          # Utility modules (12 files)
     │   ├── validators/     # Zod validation schemas (7 files)
     │   ├── scripts/        # Redis Lua scripts (26 atomic operations)
-    │   └── __tests__/      # Jest tests (129 suites)
+    │   └── __tests__/      # Jest tests (131 suites)
     │       ├── helpers/    # Test utilities and mocks
     │       ├── integration/ # Integration tests
     │       └── frontend/   # Frontend unit tests
-    └── e2e/                # Playwright E2E tests (12 spec files)
+    └── e2e/                # Playwright E2E tests (13 spec files)
 ```
 
 ## Technology Choices

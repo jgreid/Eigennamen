@@ -24,7 +24,8 @@ The simplest way to play - no server needed. Game state is encoded in the URL.
    ```
 
 2. **Start a game**
-   - Click **"New Game"**
+   - Click **"Play Solo"** on the setup screen to start an offline game immediately
+   - Or click **"Host a Game"** to create a room (requires a server)
    - Copy the URL from your browser's address bar
 
 3. **Share with players**
@@ -170,17 +171,32 @@ Everything runs on free tiers:
 
 Now that your server is running, here's how to play a complete game.
 
-### Step 1: Create a Room
+### The Setup Screen
+
+When you first open the game, you'll see the **Setup Screen** — a 5×5 board-like grid with three quickstart cards:
+
+| Card | What it does |
+|------|-------------|
+| **Host a Game** | Create a new room that others can join |
+| **Join a Game** | Enter a room code to join an existing game |
+| **Play Solo** | Start an offline standalone game instantly |
+
+### Step 1: Host a Game
 
 1. Open the game in your browser
-2. Enter a nickname and click **"Create Room"**
-3. You'll get a 6-character room code (e.g., `ABC123`)
+2. On the setup screen, click **"Host a Game"**
+3. Enter your **nickname** and optionally a **custom Room ID**
+4. Choose a **game mode** (Classic, Duet, or Match) and **turn timer** setting
+5. Optionally customize **team names** (Red/Blue)
+6. Click **"Create Room"**
+7. You'll be taken to the game lobby with your room code displayed
 
 ### Step 2: Invite Players
 
 Share the room code with your friends. They can:
-- Go to the same URL and click **"Join Room"**
-- Enter the room code
+- Open the game and click **"Join a Game"** on the setup screen
+- Enter the room code and a nickname
+- Click **"Join Room"**
 
 You need at least 4 players for a proper game:
 - 2 Spymasters (one per team)
@@ -203,7 +219,7 @@ Each player should:
 
 Once everyone has joined and picked roles:
 - The **Host** (room creator) clicks **"Start Game"**
-- A 5x5 grid of word cards appears
+- A 5×5 grid of word cards appears
 
 ### Step 5: Understand the Board
 
