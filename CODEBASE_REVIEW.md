@@ -126,25 +126,37 @@ While the project has 130 test suites (51,705 lines of test code), comparing sou
 
 ## Sprint 5: Performance & Scalability (Priority: Medium)
 
-### 5.1 Redis optimization
-- 26 Lua scripts provide atomic operations — good pattern
-- Review scripts for:
-  - Missing TTL assignments on temporary keys
-  - Large key scans that could block Redis
-  - Ensure all game state keys have appropriate TTLs to prevent memory leaks
+### 5.1 Timer map eviction causes CPU stalls (High)
+- `timerService.ts:202-214` -- when the local timer Map hits 5,000 entries, it creates a full array copy and sorts all entries O(n log n) to evict 10%
+- Under 100+ concurrent games, this sort triggers every 30-60 seconds causing **50-100ms event loop stalls**
+- **Fix:** Replace with a min-heap or LinkedHashMap eviction policy
 
-### 5.2 Large service files
-- `gameHistoryService.ts` (858 lines) handles game history, replays, and serialization — hot path for read operations
-- Verify replay data retrieval uses efficient Redis patterns (avoid loading full history for summary views)
+### 5.2 Player cleanup N+1 Redis queries (Medium)
+- `services/player/cleanup.ts:142-218` -- cleanup loop issues per-player Lua call + per-room `sCard` + `exists` checks
+- For 50 disconnected players: **150+ individual Redis operations** per cleanup cycle (runs every 60s)
+- Mass disconnect (server restart with 500 players) = 5,000+ Redis ops
+- **Fix:** Batch into a single Lua script or use Redis pipeline
 
-### 5.3 Timer service efficiency
-- `timerService.ts` maintains local timer state (`LocalTimerData`) alongside Redis state
-- In multi-instance deployments, verify timer reconciliation doesn't create race conditions
-- The distributed lock (`utils/distributedLock.ts`) mitigates this, but edge cases may exist
+### 5.3 Redis optimization
+- 26 Lua scripts provide atomic operations -- good pattern
+- `atomicRefreshTtl.lua:21-41` -- redundant `EXISTS` checks before `EXPIRE` (EXPIRE is idempotent, returns 0 if key missing). Adds ~10% extra Redis calls on every TTL refresh
+- Ensure all game state keys have appropriate TTLs to prevent memory leaks
 
-### 5.4 Connection management
-- `socket/connectionTracker.ts` and `socket/connectionHandler.ts` manage WebSocket lifecycle
-- Verify proper cleanup on abnormal disconnections to prevent ghost connections consuming resources
+### 5.4 Connection tracker eviction issues (Medium)
+- `connectionTracker.ts:139-169` -- cleanup resets all IP timing data to "now" every 30 seconds, defeating LRU eviction logic
+- Eviction itself does O(n log n) sort on 10,000 entries when at capacity
+- **Fix:** Track changes incrementally; use TTL-based cleanup instead of reactive eviction
+
+### 5.5 Distributed lock contention latency
+- `distributedLock.ts:59-96` -- worst case 20 retries with exponential backoff = up to **5 seconds blocking** waiting for a lock
+- Game mutations (reveal card, end turn) acquire locks -- prolonged wait makes the game feel frozen
+- Lock auto-extension (`withAutoExtend`) has no retry on extension failure -- could lose lock mid-operation
+- **Fix:** Consider adaptive timeout or lock-free algorithms for non-critical operations
+
+### 5.6 Audit log memory inefficiency
+- `auditService.ts:130` -- `unshift()` is O(n) per audit event (shifts entire array)
+- Under bot attack (1,000 failed auth/sec), this dominates CPU
+- **Fix:** Use `push()` with reverse iteration, or Redis-backed storage
 
 ---
 
@@ -179,7 +191,7 @@ While the project has 130 test suites (51,705 lines of test code), comparing sou
 | 2. Code Quality | High | Medium | Medium | File decomposition, `any` cleanup, eslint fixes |
 | 3. Testing | High | Medium | High | Coverage gaps, mock quality, CI integration |
 | 4. Frontend Architecture | Medium | Medium | Medium | a11y audit, PWA offline fix, reactive store caveats, URL limits |
-| 5. Performance | Medium | Medium | High | Redis TTLs, timer races, connection cleanup |
+| 5. Performance | Medium | Medium | High | Timer eviction stalls, cleanup N+1, lock contention, audit O(n) |
 | 6. DevOps | Low | Low | Low | Dep updates, CI coverage, Docker optimization |
 
 ---
