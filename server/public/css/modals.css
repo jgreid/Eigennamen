@@ -23,10 +23,10 @@
 .modal {
     background: linear-gradient(145deg, #1e1e2e, #1a1a2e);
     border-radius: 20px;
-    padding: 28px 32px;
-    max-width: 550px;
+    padding: 22px 28px;
+    max-width: 580px;
     width: 90%;
-    max-height: 85vh;
+    max-height: 90vh;
     overflow-y: auto;
     border: 1px solid rgba(102, 126, 234, 0.3);
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
@@ -40,8 +40,8 @@
 
 /* Wide modals for settings */
 #settings-modal .modal {
-    max-width: 600px;
-    max-height: 85vh;
+    max-width: 680px;
+    max-height: 90vh;
     width: 95%;
     padding: 0;
     overflow: hidden;
@@ -60,7 +60,7 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    padding: 12px 16px;
+    padding: 10px 16px;
     color: rgba(255, 255, 255, 0.6);
     font-size: 0.9rem;
     font-weight: 500;
@@ -88,9 +88,9 @@
 
 /* Settings content area */
 .settings-content {
-    padding: 20px 24px;
+    padding: 14px 24px;
     overflow-y: auto;
-    max-height: calc(85vh - 110px);
+    max-height: calc(90vh - 100px);
 }
 
 /* Section titles within merged Game panel */
@@ -99,8 +99,8 @@
     color: #667eea;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 10px;
-    margin-top: 18px;
+    margin-bottom: 8px;
+    margin-top: 12px;
     font-weight: 600;
 }
 
@@ -110,8 +110,8 @@
 
 /* Game mode inline section divider */
 .settings-game-mode-section {
-    margin-top: 18px;
-    padding-top: 16px;
+    margin-top: 12px;
+    padding-top: 12px;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -126,8 +126,8 @@
 #settings-modal .modal-section {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 8px;
-    margin-bottom: 14px;
+    gap: 4px;
+    margin-bottom: 10px;
 }
 
 /* Team inputs side by side */
@@ -187,13 +187,13 @@
 }
 
 .pref-group {
-    margin-bottom: 20px;
+    margin-bottom: 14px;
 }
 
 .pref-group h3 {
     font-size: 0.9rem;
     color: #667eea;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
     font-weight: 600;
 }
 
@@ -202,7 +202,7 @@
     align-items: center;
     gap: 12px;
     cursor: pointer;
-    padding: 8px 0;
+    padding: 5px 0;
     user-select: none;
 }
 
@@ -357,8 +357,8 @@
 
 /* Turn timer control */
 .turn-timer-control {
-    margin-top: 20px;
-    padding-top: 16px;
+    margin-top: 14px;
+    padding-top: 12px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -402,7 +402,7 @@
 
 /* Settings footer with buttons */
 .settings-footer {
-    padding: 12px 20px;
+    padding: 10px 20px;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
     display: flex;
     gap: 10px;
@@ -525,7 +525,7 @@
 }
 
 .modal h2 {
-    margin-bottom: 24px;
+    margin-bottom: 16px;
     text-align: center;
     font-size: 1.4rem;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -535,7 +535,7 @@
 }
 
 .modal-section {
-    margin-bottom: 24px;
+    margin-bottom: 16px;
 }
 
 .modal-section h3 {
@@ -556,11 +556,11 @@
 
 .modal-section input[type='text'] {
     width: 100%;
-    padding: 12px 14px;
+    padding: 10px 14px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     font-size: 1rem;
-    margin-bottom: 12px;
+    margin-bottom: 4px;
     background: rgba(0, 0, 0, 0.3);
     color: white;
 }
@@ -572,8 +572,8 @@
 
 .modal-section textarea {
     width: 100%;
-    height: 120px;
-    padding: 10px 12px;
+    height: 80px;
+    padding: 8px 12px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     font-size: 0.85rem;
@@ -616,8 +616,8 @@
 .wordlist-mode-options {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 12px;
+    gap: 5px;
+    margin-bottom: 8px;
 }
 
 .radio-option {
@@ -625,7 +625,7 @@
     align-items: center;
     gap: 8px;
     cursor: pointer;
-    padding: 8px 10px;
+    padding: 6px 10px;
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -670,7 +670,7 @@
     gap: 10px;
     justify-content: center;
     flex-wrap: wrap;
-    margin-top: 24px;
+    margin-top: 16px;
 }
 
 /* Uniform sizing for all modal action buttons */
