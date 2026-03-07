@@ -82,6 +82,7 @@
 
     /* Z-Index Scale */
     --z-overlay: 1100;
+    --z-reconnection: 1500;
     --z-modal: 1000;
     --z-toast: 2000;
     --z-dropdown: 100;

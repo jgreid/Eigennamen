@@ -582,11 +582,9 @@ button.loading::after {
 
 button:focus-visible,
 .card:focus-visible,
-.score:focus-visible,
 .radio-option:focus-within,
 .toggle-label:focus-within,
 .game-mode-option:focus-within,
-.setup-card-action:focus-visible,
 .language-select:focus-visible {
     outline: 2px solid #ffc107;
     outline-offset: 2px;
@@ -699,7 +697,6 @@ button:focus-visible,
     position: relative;
     overflow: hidden;
     white-space: nowrap;
-    text-overflow: ellipsis;
     contain: layout style;
 }
 
@@ -707,7 +704,6 @@ button:focus-visible,
 .card.multi-word {
     white-space: normal;
     word-spacing: 0.05em;
-    text-overflow: clip;
 }
 
 .card:hover:not(.revealed) {
