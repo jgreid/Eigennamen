@@ -581,7 +581,13 @@ button.loading::after {
 }
 
 button:focus-visible,
-.card:focus-visible {
+.card:focus-visible,
+.score:focus-visible,
+.radio-option:focus-within,
+.toggle-label:focus-within,
+.game-mode-option:focus-within,
+.setup-card-action:focus-visible,
+.language-select:focus-visible {
     outline: 2px solid #ffc107;
     outline-offset: 2px;
 }
@@ -693,6 +699,7 @@ button:focus-visible,
     position: relative;
     overflow: hidden;
     white-space: nowrap;
+    text-overflow: ellipsis;
     contain: layout style;
 }
 
@@ -700,6 +707,7 @@ button:focus-visible,
 .card.multi-word {
     white-space: normal;
     word-spacing: 0.05em;
+    text-overflow: clip;
 }
 
 .card:hover:not(.revealed) {
@@ -931,7 +939,7 @@ button:focus-visible,
     border-color: #2196f3;
     border-width: 4px;
     background: linear-gradient(145deg, #e3f2fd, #bbdefb);
-    color: #0d47a1;
+    color: #0a3470;
     box-shadow:
         0 4px 16px rgba(33, 150, 243, 0.5),
         inset 0 1px 0 rgba(255, 255, 255, 0.5);
