@@ -206,6 +206,14 @@ import type { JoinCreateResult } from './multiplayerTypes.js';
             this._getSocket()?.emit('game:getReplay', { gameId });
         },
 
+        abandonGame(): void {
+            this._getSocket()?.emit('game:abandon');
+        },
+
+        clearHistory(): void {
+            this._getSocket()?.emit('game:clearHistory');
+        },
+
         // =====================
         // Chat Actions
         // =====================

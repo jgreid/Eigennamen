@@ -20,6 +20,7 @@ jest.mock('../../frontend/ui', () => ({
 jest.mock('../../frontend/state', () => ({
     state: {
         isMultiplayerMode: true,
+        isHost: false,
         currentReplayData: null,
         currentReplayIndex: -1,
         replayPlaying: false,
@@ -72,8 +73,10 @@ jest.mock('../../frontend/clientAccessor', () => ({
 // Mock EigennamenClient global
 (global as any).EigennamenClient = {
     isConnected: jest.fn(() => true),
+    isHost: jest.fn(() => false),
     getGameHistory: jest.fn(),
     getReplay: jest.fn(),
+    clearHistory: jest.fn(),
 };
 
 import {
@@ -93,6 +96,8 @@ import {
     scrollToCurrentEvent,
     copyReplayLink,
     checkURLForReplayLoad,
+    clearGameHistory,
+    onHistoryCleared,
 } from '../../frontend/history';
 import { state } from '../../frontend/state';
 import type { GameHistoryEntry, ReplayData } from '../../frontend/multiplayerTypes';
@@ -747,6 +752,7 @@ function setupHistoryDOM(): void {
         <div id="history-loading" style="display: flex"></div>
         <div id="history-empty" style="display: none"></div>
         <div id="history-list" style="display: none"></div>
+        <div id="history-actions" hidden></div>
     `;
 }
 
@@ -802,3 +808,117 @@ function createReplayData(): ReplayData {
         totalMoves: 15,
     };
 }
+
+// ========== RENDER GAME HISTORY - HOST VISIBILITY ==========
+
+describe('renderGameHistory host visibility', () => {
+    beforeEach(() => {
+        setupHistoryDOM();
+        jest.clearAllMocks();
+    });
+
+    test('shows clear history button when user is host', () => {
+        state.isHost = true;
+        const games = [createHistoryEntry('g1', 'red', 5, 3, 10, 4)];
+        renderGameHistory(games);
+        expect(document.getElementById('history-actions')!.hidden).toBe(false);
+    });
+
+    test('hides clear history button when user is not host', () => {
+        state.isHost = false;
+        const games = [createHistoryEntry('g1', 'red', 5, 3, 10, 4)];
+        renderGameHistory(games);
+        expect(document.getElementById('history-actions')!.hidden).toBe(true);
+    });
+
+    test('hides clear history button when no games', () => {
+        state.isHost = true;
+        renderGameHistory([]);
+        expect(document.getElementById('history-actions')!.hidden).toBe(true);
+    });
+});
+
+// ========== CLEAR GAME HISTORY ==========
+
+describe('clearGameHistory', () => {
+    beforeEach(() => {
+        state.isMultiplayerMode = true;
+        jest.clearAllMocks();
+        (global as any).EigennamenClient.isConnected.mockReturnValue(true);
+        (global as any).EigennamenClient.isHost.mockReturnValue(true);
+    });
+
+    test('shows toast when not in multiplayer mode', () => {
+        state.isMultiplayerMode = false;
+        clearGameHistory();
+        expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'info');
+        expect((global as any).EigennamenClient.clearHistory).not.toHaveBeenCalled();
+    });
+
+    test('shows toast when not connected', () => {
+        (global as any).EigennamenClient.isConnected.mockReturnValue(false);
+        clearGameHistory();
+        expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'info');
+        expect((global as any).EigennamenClient.clearHistory).not.toHaveBeenCalled();
+    });
+
+    test('shows toast when not host', () => {
+        (global as any).EigennamenClient.isHost.mockReturnValue(false);
+        clearGameHistory();
+        expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'warning');
+        expect((global as any).EigennamenClient.clearHistory).not.toHaveBeenCalled();
+    });
+
+    test('does not call clearHistory when confirm is cancelled', () => {
+        window.confirm = jest.fn(() => false);
+        clearGameHistory();
+        expect(window.confirm).toHaveBeenCalled();
+        expect((global as any).EigennamenClient.clearHistory).not.toHaveBeenCalled();
+    });
+
+    test('calls clearHistory when confirmed', () => {
+        window.confirm = jest.fn(() => true);
+        clearGameHistory();
+        expect(window.confirm).toHaveBeenCalled();
+        expect((global as any).EigennamenClient.clearHistory).toHaveBeenCalled();
+    });
+});
+
+// ========== ON HISTORY CLEARED ==========
+
+describe('onHistoryCleared', () => {
+    beforeEach(() => {
+        setupHistoryDOM();
+        jest.clearAllMocks();
+    });
+
+    test('clears and hides the history list', () => {
+        const listEl = document.getElementById('history-list')!;
+        listEl.innerHTML = '<div>game1</div><div>game2</div>';
+        listEl.hidden = false;
+
+        onHistoryCleared();
+
+        expect(listEl.children.length).toBe(0);
+        expect(listEl.hidden).toBe(true);
+    });
+
+    test('shows the empty state', () => {
+        onHistoryCleared();
+        expect(document.getElementById('history-empty')!.hidden).toBe(false);
+    });
+
+    test('hides the actions section', () => {
+        const actionsEl = document.getElementById('history-actions')!;
+        actionsEl.hidden = false;
+
+        onHistoryCleared();
+
+        expect(actionsEl.hidden).toBe(true);
+    });
+
+    test('shows success toast', () => {
+        onHistoryCleared();
+        expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'success');
+    });
+});

@@ -426,6 +426,66 @@ function gameHandlers(io: Server, socket: GameSocket): void {
     );
 
     /**
+     * Abandon the current game without saving to history (host only)
+     */
+    socket.on(
+        SOCKET_EVENTS.GAME_ABANDON,
+        createHostHandler(socket, SOCKET_EVENTS.GAME_ABANDON, null, async (ctx: RoomContext) => {
+            if (!ctx.game || ctx.game.gameOver) {
+                throw GameStateError.noActiveGame();
+            }
+
+            // Stop timer
+            await getSocketFunctions().stopTurnTimer(ctx.roomCode);
+
+            // Mark game as over without saving history
+            await gameService.abandonGame(ctx.roomCode);
+
+            // Notify all players the game was abandoned
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_OVER, {
+                winner: null,
+                reason: 'abandoned',
+                types: ctx.game.types,
+            });
+
+            // Audit log
+            const clientIp = socket.clientIP || socket.handshake.address;
+            audit(AUDIT_EVENTS.GAME_ENDED, {
+                roomCode: ctx.roomCode,
+                sessionId: ctx.sessionId,
+                ip: clientIp,
+                metadata: { endReason: 'abandoned' },
+            });
+
+            logger.info(`Game abandoned in room ${ctx.roomCode}`);
+        })
+    );
+
+    /**
+     * Clear all game history for this room (host only)
+     */
+    socket.on(
+        SOCKET_EVENTS.GAME_CLEAR_HISTORY,
+        createHostHandler(socket, SOCKET_EVENTS.GAME_CLEAR_HISTORY, null, async (ctx: RoomContext) => {
+            const deletedCount = await gameHistoryService.clearRoomHistory(ctx.roomCode);
+
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_HISTORY_CLEARED, {
+                deletedCount,
+            });
+
+            const clientIp = socket.clientIP || socket.handshake.address;
+            audit(AUDIT_EVENTS.GAME_ENDED, {
+                roomCode: ctx.roomCode,
+                sessionId: ctx.sessionId,
+                ip: clientIp,
+                metadata: { action: 'clearHistory', deletedCount },
+            });
+
+            logger.info(`Game history cleared for room ${ctx.roomCode}, deleted ${deletedCount} entries`);
+        })
+    );
+
+    /**
      * Get past games history for this room (for replay)
      */
     socket.on(

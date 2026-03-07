@@ -795,6 +795,52 @@ export async function cleanupOldHistory(roomCode: string): Promise<number> {
 }
 
 /**
+ * Clear all game history for a room
+ */
+export async function clearRoomHistory(roomCode: string): Promise<number> {
+    const redis: RedisClient = getRedis();
+
+    if (!roomCode) {
+        return 0;
+    }
+
+    try {
+        const indexKey = `${GAME_HISTORY_INDEX_PREFIX}${roomCode}`;
+
+        // Get all game IDs from the sorted set
+        const gameIds = (await withTimeout(
+            redis.zRange(indexKey, 0, -1),
+            TIMEOUTS.REDIS_OPERATION,
+            `clearRoomHistory-zRange-${roomCode}`
+        )) as string[];
+
+        if (!gameIds || gameIds.length === 0) {
+            return 0;
+        }
+
+        // Delete all individual game entries
+        const gameKeys = gameIds.map((id) => `${GAME_HISTORY_KEY_PREFIX}${roomCode}:${id}`);
+        await withTimeout(redis.del(gameKeys), TIMEOUTS.REDIS_OPERATION, `clearRoomHistory-del-${roomCode}`);
+
+        // Delete the index itself
+        await withTimeout(redis.del(indexKey), TIMEOUTS.REDIS_OPERATION, `clearRoomHistory-delIndex-${roomCode}`);
+
+        logger.info('Cleared all game history for room', {
+            roomCode,
+            deletedCount: gameIds.length,
+        });
+
+        return gameIds.length;
+    } catch (error) {
+        logger.error('Failed to clear room history', {
+            roomCode,
+            error: (error as Error).message,
+        });
+        return 0;
+    }
+}
+
+/**
  * Get statistics for game history
  */
 export async function getHistoryStats(roomCode: string): Promise<HistoryStats> {

@@ -1094,7 +1094,7 @@
         <p data-i18n="modals.newGameBody">
           This will end the current game. Are you sure?
         </p>
-        <div class="modal-buttons">
+        <div class="modal-buttons modal-buttons-vertical">
           <button
             type="button"
             class="btn-new-game"
@@ -1102,6 +1102,24 @@
             data-i18n="modals.newGameConfirm"
           >
             Yes, New Game
+          </button>
+          <button
+            type="button"
+            class="btn-new-game"
+            data-action="confirm-forfeit-new-game"
+            data-i18n="modals.forfeitAndNewGame"
+            hidden
+          >
+            Forfeit &amp; New Game
+          </button>
+          <button
+            type="button"
+            class="btn-secondary"
+            data-action="confirm-abandon-new-game"
+            data-i18n="modals.abandonAndNewGame"
+            hidden
+          >
+            Abandon &amp; New Game
           </button>
           <button
             type="button"
@@ -1458,6 +1476,17 @@
 
         <div class="history-list" id="history-list" hidden>
           <!-- Game history entries will be added here -->
+        </div>
+
+        <div class="history-actions" id="history-actions" hidden>
+          <button
+            type="button"
+            class="btn-danger-subtle"
+            data-action="clear-history"
+            data-i18n="history.clearHistory"
+          >
+            Clear History
+          </button>
         </div>
 
         <div class="modal-buttons">

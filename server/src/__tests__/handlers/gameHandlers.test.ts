@@ -12,6 +12,7 @@ jest.mock('../../socket/rateLimitHandler', () => ({
 jest.mock('../../services/gameService');
 jest.mock('../../services/playerService');
 jest.mock('../../services/roomService');
+jest.mock('../../services/gameHistoryService');
 jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
@@ -440,6 +441,106 @@ describe('Game Handlers', () => {
                 'game:error',
                 expect.objectContaining({
                     message: 'An unexpected error occurred',
+                })
+            );
+        });
+    });
+
+    describe('game:abandon handler', () => {
+        test('registers handler', () => {
+            const handlers = mockSocket.on.mock.calls;
+            const abandonHandler = handlers.find((h) => h[0] === 'game:abandon');
+            expect(abandonHandler).toBeDefined();
+        });
+
+        test('validates host permission', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                isHost: false,
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const abandonHandler = handlers.find((h) => h[0] === 'game:abandon');
+            await abandonHandler[1]();
+
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({
+                    message: expect.stringContaining('host'),
+                })
+            );
+        });
+
+        test('rejects when no active game', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                isHost: true,
+            });
+            gameService.getGame.mockResolvedValue(null);
+
+            const handlers = mockSocket.on.mock.calls;
+            const abandonHandler = handlers.find((h) => h[0] === 'game:abandon');
+            await abandonHandler[1]();
+
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({
+                    code: expect.any(String),
+                })
+            );
+        });
+
+        test('abandons game without saving history', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                isHost: true,
+            });
+            gameService.getGame.mockResolvedValue({
+                gameOver: false,
+                types: ['red', 'blue', 'neutral'],
+            });
+            gameService.abandonGame.mockResolvedValue();
+
+            const handlers = mockSocket.on.mock.calls;
+            const abandonHandler = handlers.find((h) => h[0] === 'game:abandon');
+            await abandonHandler[1]();
+
+            expect(gameService.abandonGame).toHaveBeenCalledWith('TEST12');
+            expect(mockIo.emit).toHaveBeenCalledWith(
+                'game:over',
+                expect.objectContaining({
+                    winner: null,
+                    reason: 'abandoned',
+                })
+            );
+        });
+    });
+
+    describe('game:clearHistory handler', () => {
+        test('registers handler', () => {
+            const handlers = mockSocket.on.mock.calls;
+            const clearHandler = handlers.find((h) => h[0] === 'game:clearHistory');
+            expect(clearHandler).toBeDefined();
+        });
+
+        test('validates host permission', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                isHost: false,
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const clearHandler = handlers.find((h) => h[0] === 'game:clearHistory');
+            await clearHandler[1]();
+
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({
+                    message: expect.stringContaining('host'),
                 })
             );
         });
