@@ -2,6 +2,7 @@ import { state } from '../state.js';
 import { showToast } from '../ui.js';
 import { updateRoleBanner, updateControls, revertAndClearRoleChange } from '../roles.js';
 import { renderBoard } from '../board.js';
+import { updateScoreboard, updateTurnIndicator } from '../game.js';
 import { logger } from '../logger.js';
 import {
     updateMpIndicator,
@@ -238,6 +239,15 @@ export function registerRoomHandlers(): void {
             // Sync game mode radio buttons
             if (data.settings.gameMode) {
                 syncGameModeUI(data.settings.gameMode);
+            }
+
+            // Sync team names
+            const teamNames = data.settings.teamNames as { red?: string; blue?: string } | undefined;
+            if (teamNames) {
+                if (teamNames.red) state.teamNames.red = teamNames.red;
+                if (teamNames.blue) state.teamNames.blue = teamNames.blue;
+                updateScoreboard();
+                updateTurnIndicator();
             }
 
             // Sync turn timer UI
