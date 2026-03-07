@@ -202,5 +202,5 @@ export function hideChatPanel(): void {
 
     // Clear messages
     const messages = document.getElementById('chat-messages');
-    if (messages) messages.innerHTML = '';
+    if (messages) messages.replaceChildren();
 }

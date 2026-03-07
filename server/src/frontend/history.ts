@@ -59,7 +59,7 @@ export function renderGameHistory(games: GameHistoryEntry[]): void {
     if (listEl) listEl.hidden = false;
 
     if (!listEl) return;
-    listEl.innerHTML = '';
+    listEl.replaceChildren();
     for (const game of games) {
         const dateStr = formatGameTimestamp(game.timestamp || 0);
         const winner = game.winner || '';
@@ -140,8 +140,8 @@ export function openReplay(gameId: string): void {
     const replayEventLogEl = document.getElementById('replay-event-log');
     const replayProgressEl = document.getElementById('replay-progress');
     if (replayInfoEl) replayInfoEl.textContent = t('history.loadingReplay');
-    if (replayBoardEl) replayBoardEl.innerHTML = '';
-    if (replayEventLogEl) replayEventLogEl.innerHTML = '';
+    if (replayBoardEl) replayBoardEl.replaceChildren();
+    if (replayEventLogEl) replayEventLogEl.replaceChildren();
     if (replayProgressEl) replayProgressEl.textContent = t('history.loading');
 
     openModal('replay-modal');
@@ -176,7 +176,7 @@ export function renderReplayData(data: ReplayData): void {
     // Render replay info using DOM APIs to prevent XSS
     const replayInfo = document.getElementById('replay-info');
     if (replayInfo) {
-        replayInfo.innerHTML = '';
+        replayInfo.replaceChildren();
         const winnerBadge = document.createElement('span');
         const replayWinnerClass =
             data.finalState?.winner === 'red' ? 'red' : data.finalState?.winner === 'blue' ? 'blue' : '';
@@ -212,7 +212,7 @@ export function renderReplayBoard(): void {
     if (!board) return;
     const words = state.currentReplayData?.initialBoard?.words || [];
 
-    board.innerHTML = '';
+    board.replaceChildren();
     board.setAttribute('role', 'grid');
     board.setAttribute('aria-label', t('history.replayBoard'));
 
@@ -302,7 +302,7 @@ export function renderReplayEventLog(): void {
     const events = state.currentReplayData?.events || [];
 
     if (events.length === 0) {
-        logEl.innerHTML = '';
+        logEl.replaceChildren();
         const noEventsP = document.createElement('p');
         noEventsP.style.opacity = '0.5';
         noEventsP.textContent = t('history.noEvents');
@@ -310,7 +310,7 @@ export function renderReplayEventLog(): void {
         return;
     }
 
-    logEl.innerHTML = '';
+    logEl.replaceChildren();
     events.forEach((event: ReplayEvent, index: number) => {
         let actionText = '';
         let detailText = '';
@@ -371,7 +371,7 @@ export function updateReplayControls(): void {
 
     if (prevBtn) prevBtn.disabled = state.currentReplayIndex < 0;
     if (nextBtn) nextBtn.disabled = state.currentReplayIndex >= events.length - 1;
-    if (playBtn) playBtn.innerHTML = state.replayPlaying ? '&#10074;&#10074;' : '&#9654;';
+    if (playBtn) playBtn.textContent = state.replayPlaying ? '⏸' : '▶';
     if (progressEl)
         progressEl.textContent = t('history.moveProgress', {
             current: state.currentReplayIndex + 1,
