@@ -904,6 +904,19 @@ describe('confirmNewGame', () => {
 
         expect(openModal).not.toHaveBeenCalled();
     });
+
+    test('starts new game directly when game is already over (no forfeit/abandon needed)', () => {
+        state.gameState.revealed = Array(BOARD_SIZE).fill(false);
+        state.gameState.revealed[0] = true; // cards revealed
+        state.gameState.gameOver = true; // but game already ended
+
+        confirmNewGame();
+
+        // Should start new game directly, not show the confirm modal
+        expect(openModal).not.toHaveBeenCalled();
+        expect(state.gameState.seed).toBeTruthy();
+        expect(renderBoard).toHaveBeenCalled();
+    });
 });
 
 // ========== SHOW GAME OVER / CLOSE GAME OVER ==========

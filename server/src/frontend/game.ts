@@ -159,7 +159,7 @@ export function newGame(): void {
 
 export function confirmNewGame(): void {
     const cardsRevealed = state.gameState.revealed.filter((r) => r).length;
-    if (cardsRevealed === 0) {
+    if (cardsRevealed === 0 || state.gameState.gameOver) {
         newGame();
     } else {
         // Show/hide buttons based on mode
