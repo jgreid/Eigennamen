@@ -95,7 +95,7 @@
 
 /* Section titles within merged Game panel */
 .settings-section-title {
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     color: #667eea;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -106,6 +106,64 @@
 
 .settings-section-title:first-child {
     margin-top: 0;
+}
+
+/* Team label row with char counter inline */
+.team-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+.team-label-row .char-counter {
+    margin-top: 0;
+}
+
+/* Word mode horizontal pills */
+.wordlist-mode-pills {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.wordlist-pill {
+    flex: 1;
+    cursor: pointer;
+}
+
+.wordlist-pill input[type='radio'] {
+    display: none;
+}
+
+.wordlist-pill span {
+    display: block;
+    text-align: center;
+    padding: 5px 8px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
+}
+
+.wordlist-pill:hover span {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.wordlist-pill input[type='radio']:checked + span {
+    background: rgba(102, 126, 234, 0.2);
+    border-color: rgba(102, 126, 234, 0.5);
+    color: white;
+}
+
+/* Custom words section compact */
+.custom-words-section {
+    margin-bottom: 2px !important;
 }
 
 /* Game mode inline section divider */
@@ -152,11 +210,6 @@
 
 .wordlist-mode-section {
     margin-bottom: 4px !important;
-}
-
-.wordlist-mode-options .radio-option em {
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 0.8rem;
 }
 
 /* Help panel about section */
@@ -355,34 +408,37 @@
     background: rgba(50, 205, 50, 0.1);
 }
 
-/* Turn timer control */
-.turn-timer-control {
-    margin-top: 14px;
-    padding-top: 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+/* Turn timer control - inline with game mode */
+.turn-timer-inline {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 .turn-timer-toggle {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     cursor: pointer;
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     color: rgba(255, 255, 255, 0.9);
+    white-space: nowrap;
 }
 
 .turn-timer-toggle input[type='checkbox'] {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     cursor: pointer;
 }
 
 .turn-timer-slider {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-top: 12px;
-    padding: 8px 0;
+    gap: 8px;
+    flex: 1;
+    min-width: 120px;
 }
 
 .turn-timer-slider input[type='range'] {
@@ -393,10 +449,10 @@
 }
 
 .turn-timer-value {
-    min-width: 48px;
+    min-width: 40px;
     text-align: right;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     color: rgba(255, 255, 255, 0.85);
 }
 
