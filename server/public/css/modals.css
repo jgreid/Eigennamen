@@ -88,19 +88,19 @@
 
 /* Settings content area */
 .settings-content {
-    padding: 10px 24px;
+    padding: 6px 24px;
     overflow-y: auto;
     max-height: calc(90vh - 100px);
 }
 
 /* Section titles within merged Game panel */
 .settings-section-title {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: #667eea;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 6px;
-    margin-top: 10px;
+    margin-bottom: 4px;
+    margin-top: 8px;
     font-weight: 600;
 }
 
@@ -110,8 +110,8 @@
 
 /* Game mode inline section divider */
 .settings-game-mode-section {
-    margin-top: 8px;
-    padding-top: 8px;
+    margin-top: 6px;
+    padding-top: 6px;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -126,15 +126,15 @@
 #settings-modal .modal-section {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 4px;
-    margin-bottom: 6px;
+    gap: 2px;
+    margin-bottom: 4px;
 }
 
 /* Team inputs side by side */
 .team-inputs-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    gap: 12px;
 }
 
 @media (max-width: 500px) {
@@ -151,7 +151,7 @@
 }
 
 .wordlist-mode-section {
-    margin-bottom: 6px !important;
+    margin-bottom: 4px !important;
 }
 
 .wordlist-mode-options .radio-option em {
@@ -522,11 +522,12 @@
 /* Two-column layout for settings inputs */
 #settings-modal .modal-section label {
     display: inline-block;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 #settings-modal .modal-section input[type='text'] {
-    margin-bottom: 2px;
+    padding: 8px 12px;
+    margin-bottom: 0;
 }
 
 .modal h2 {
@@ -577,8 +578,8 @@
 
 .modal-section textarea {
     width: 100%;
-    height: 60px;
-    padding: 8px 12px;
+    height: 48px;
+    padding: 6px 12px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     font-size: 0.85rem;
@@ -630,7 +631,7 @@
     align-items: center;
     gap: 8px;
     cursor: pointer;
-    padding: 4px 10px;
+    padding: 3px 10px;
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.08);
