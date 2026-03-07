@@ -249,6 +249,10 @@
         width: 100%;
     }
 
+    .chat-messages {
+        height: 90px;
+    }
+
     h1 {
         font-size: 1.4rem;
     }
