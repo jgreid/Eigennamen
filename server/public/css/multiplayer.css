@@ -19,31 +19,31 @@
 /* ========== MULTIPLAYER MODAL STYLES ========== */
 .multiplayer-modal {
     text-align: center;
-    max-width: 400px;
+    max-width: 480px;
 }
 
 .multiplayer-modal h2 {
     color: #667eea;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
     font-size: 1.5rem;
 }
 
 .multiplayer-modal .subtitle {
     color: rgba(255, 255, 255, 0.6);
     font-size: 0.9rem;
-    margin-bottom: 24px;
+    margin-bottom: 14px;
 }
 
 .multiplayer-modal .mode-buttons {
     display: flex;
-    gap: 16px;
+    gap: 12px;
     justify-content: center;
-    margin-bottom: 24px;
+    margin-bottom: 14px;
 }
 
 .multiplayer-modal .mode-btn {
     flex: 1;
-    padding: 16px;
+    padding: 10px 16px;
     border: 2px solid rgba(102, 126, 234, 0.3);
     background: rgba(102, 126, 234, 0.1);
     border-radius: 12px;
@@ -63,9 +63,10 @@
 }
 
 .multiplayer-modal .mode-btn .mode-icon {
-    font-size: 2rem;
-    display: block;
-    margin-bottom: 8px;
+    font-size: 1.5rem;
+    display: inline-block;
+    margin-right: 8px;
+    vertical-align: middle;
 }
 
 .multiplayer-modal .mode-btn .mode-title {
@@ -76,17 +77,17 @@
 .multiplayer-modal .mode-btn .mode-desc {
     font-size: 0.75rem;
     color: rgba(255, 255, 255, 0.6);
-    margin-top: 4px;
+    margin-top: 2px;
 }
 
 .multiplayer-modal .form-group {
-    margin-bottom: 16px;
+    margin-bottom: 10px;
     text-align: left;
 }
 
 .multiplayer-modal .form-group label {
     display: block;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     color: rgba(255, 255, 255, 0.8);
     font-size: 0.85rem;
     font-weight: 500;
@@ -94,7 +95,7 @@
 
 .multiplayer-modal .form-group input {
     width: 100%;
-    padding: 12px 14px;
+    padding: 8px 12px;
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.3);
@@ -150,7 +151,7 @@
 }
 
 .multiplayer-modal .modal-buttons {
-    margin-top: 24px;
+    margin-top: 14px;
     display: flex;
     gap: 12px;
     justify-content: center;
@@ -159,7 +160,7 @@
 .multiplayer-modal .btn-primary {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    padding: 12px 28px;
+    padding: 10px 28px;
     border: none;
     border-radius: 8px;
     font-size: 1rem;
@@ -231,7 +232,7 @@
 .multiplayer-modal .divider {
     display: flex;
     align-items: center;
-    margin: 20px 0;
+    margin: 10px 0;
     color: rgba(255, 255, 255, 0.55);
     font-size: 0.8rem;
 }

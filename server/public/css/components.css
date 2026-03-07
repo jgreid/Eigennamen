@@ -379,14 +379,14 @@
 }
 
 .rules-match-section {
-    margin-top: 16px;
-    padding-top: 16px;
+    margin-top: 10px;
+    padding-top: 10px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .rules-match-section h3 {
     color: #ffd700;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
 }
 
 /* ========== CONTROLS ========== */
