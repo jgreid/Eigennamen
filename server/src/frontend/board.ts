@@ -252,7 +252,7 @@ export function renderBoard(): void {
         renderingInProgress = true;
 
         // Full re-render (only for new games)
-        board.innerHTML = '';
+        board.replaceChildren();
 
         // Board-level accessibility: grid role and description
         board.setAttribute('role', 'grid');
@@ -315,7 +315,7 @@ export function renderBoard(): void {
         renderingInProgress = false;
         logger.error('renderBoard failed:', err);
         // Show a minimal fallback so the board area isn't blank
-        board.innerHTML = '';
+        board.replaceChildren();
         const errorDiv = document.createElement('div');
         errorDiv.className = 'board-error';
         errorDiv.textContent = t('board.renderError');

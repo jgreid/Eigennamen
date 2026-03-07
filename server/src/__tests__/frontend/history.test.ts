@@ -387,7 +387,7 @@ describe('history module', () => {
             updateReplayControls();
 
             // Pause symbol ❚
-            expect(document.getElementById('replay-play')!.textContent).toContain('\u275A');
+            expect(document.getElementById('replay-play')!.textContent).toContain('\u23F8');
         });
     });
 

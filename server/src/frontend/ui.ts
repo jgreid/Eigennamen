@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { escapeHTML } from './utils.js';
+
 import { UI } from './constants.js';
 
 // Store timer IDs for toast auto-dismiss without extending HTMLDivElement
@@ -41,25 +41,31 @@ export function showToast(message: string, type: string = 'error', duration: num
     toast.className = `toast ${safeType}`;
 
     const icons: Record<string, string> = {
-        error: '&#10060;',
-        success: '&#10004;',
-        warning: '&#9888;',
-        info: '&#8505;',
+        error: '\u274C',
+        success: '\u2714',
+        warning: '\u26A0',
+        info: '\u2139',
     };
 
-    toast.innerHTML = `
-        <span class="toast-icon">${icons[safeType]}</span>
-        <span class="toast-message">${escapeHTML(message)}</span>
-        <button type="button" class="toast-close" data-action="dismiss-toast" aria-label="Dismiss notification">&times;</button>
-    `;
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'toast-icon';
+    iconSpan.textContent = icons[safeType]!;
+
+    const msgSpan = document.createElement('span');
+    msgSpan.className = 'toast-message';
+    msgSpan.textContent = message;
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'toast-close';
+    closeBtn.dataset.action = 'dismiss-toast';
+    closeBtn.setAttribute('aria-label', 'Dismiss notification');
+    closeBtn.textContent = '\u00D7';
+    closeBtn.addEventListener('click', () => dismissToast(toast));
+
+    toast.append(iconSpan, msgSpan, closeBtn);
 
     container.appendChild(toast);
-
-    // Add event listener for toast close button
-    const closeBtn = toast.querySelector('[data-action="dismiss-toast"]');
-    if (closeBtn) {
-        closeBtn.addEventListener('click', () => dismissToast(toast));
-    }
 
     // Auto-dismiss after duration (store ID for cleanup in dismissToast)
     const timers = {
