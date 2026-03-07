@@ -2,7 +2,7 @@
 
 A web-based implementation of the popular board game Eigennamen, optimized for remote play over video conferencing or direct online multiplayer.
 
-**Version:** v5.0.0-beta.1 | **License:** GPL v3.0
+**Version:** v5.1.0-beta.2 | **License:** GPL v3.0
 
 ## Features
 
@@ -76,9 +76,16 @@ Then open `http://localhost:3000` in your browser. All players connect to the sa
 
 ### Game Setup
 
-1. **Host** opens the game and clicks "New Game"
-2. **Host** copies the game link and shares it with all players
-3. **Everyone** opens the link in their own browser
+When you first open the game, you'll see the **Setup Screen** with three options:
+
+1. **Host a Game** — Create a new multiplayer room (enter nickname, choose game mode, click "Create Room")
+2. **Join a Game** — Enter a room code and nickname to join an existing game
+3. **Play Solo** — Start an offline standalone game immediately
+
+For multiplayer:
+1. **Host** clicks "Host a Game" and creates a room
+2. **Host** shares the room code with all players
+3. **Players** click "Join a Game", enter the code, and join
 4. **Each team** selects one Spymaster and one Clicker
 
 ### Teams and Roles
@@ -216,6 +223,7 @@ Works in all modern browsers:
 | Document | Purpose |
 |----------|---------|
 | [QUICKSTART.md](QUICKSTART.md) | Getting started guide with first game walkthrough |
+| [docs/SETUP_SCREEN_GUIDE.md](docs/SETUP_SCREEN_GUIDE.md) | Step-by-step guide for the launch screen |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contributor guidelines, code standards, PR process |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture diagrams and decisions |
 | [docs/SERVER_SPEC.md](docs/SERVER_SPEC.md) | API specification (REST + WebSocket) |

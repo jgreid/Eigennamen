@@ -42,14 +42,14 @@ Eigennamen/
 └── server/
     ├── public/
     │   ├── js/                 # Compiled frontend JS (esbuild output)
-    │   ├── css/                # Stylesheets (9 modules)
+    │   ├── css/                # Stylesheets (10 modules)
     │   ├── locales/            # i18n (en, de, es, fr) + wordlists
     │   ├── icons/              # App icons
     │   ├── manifest.json       # PWA manifest
     │   ├── service-worker.js   # Service worker
     │   └── admin.html          # Admin dashboard
     ├── loadtest/               # Load/stress testing scripts
-    ├── e2e/                    # Playwright E2E tests (11 specs)
+    ├── e2e/                    # Playwright E2E tests (13 specs)
     └── src/
         ├── index.ts            # Server entry point
         ├── app.ts              # Express 5 + Swagger setup
@@ -65,7 +65,7 @@ Eigennamen/
         │   └── room/           # Room sub-module (membership)
         ├── socket/             # WebSocket setup (11 files + handlers/)
         │   └── handlers/       # Event handlers (9 files)
-        ├── frontend/           # Frontend TypeScript source (54 modules)
+        ├── frontend/           # Frontend TypeScript source (55 modules)
         │   ├── handlers/       # Client-side event handlers (6 files)
         │   ├── store/          # Reactive state store + actions (13 files)
         │   └── game/           # Game sub-modules (reveal, scoring)
@@ -74,7 +74,7 @@ Eigennamen/
         ├── utils/              # Utilities (12 files)
         ├── validators/         # Zod schemas (7 files)
         ├── scripts/            # Redis Lua scripts (26 atomic ops)
-        └── __tests__/          # Jest tests (127 suites)
+        └── __tests__/          # Jest tests (131 suites)
 ```
 
 ## Key Services
@@ -167,6 +167,7 @@ See [docs/ADDING_A_FEATURE.md](docs/ADDING_A_FEATURE.md) for a full worked examp
 | `validators/schemas.ts` | Barrel for all Zod schemas |
 | `scripts/index.ts` | All Lua scripts (barrel export, each script has documented KEYS/ARGV/Returns header) |
 | `frontend/app.ts` | Frontend entry point |
+| `frontend/setupScreen.ts` | Game setup / launch screen (Host, Join, Solo) |
 | `frontend/state.ts` | Frontend state management |
 | `frontend/store/` | Reactive state store with actions and selectors |
 | `frontend/multiplayer.ts` | Multiplayer orchestration |
@@ -177,8 +178,8 @@ All paths relative to `server/src/`.
 
 ## Testing
 
-- **Unit/Integration**: Jest with 129 test suites in `server/src/__tests__/`
-- **E2E**: Playwright with 12 spec files in `server/e2e/`
+- **Unit/Integration**: Jest with 131 test suites in `server/src/__tests__/`
+- **E2E**: Playwright with 13 spec files in `server/e2e/`
 - **Load testing**: Scripts in `server/loadtest/` (stress test, memory leak, room flow, WebSocket game)
 - Run `npm run test:watch` for TDD workflow
 - Run `npm run test:e2e:headed` to debug E2E tests visually
@@ -214,6 +215,7 @@ Key env vars (see `server/.env.example` for full list):
 - [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) — Testing patterns and coverage
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — Production deployment
 - [docs/BACKUP_AND_DR.md](docs/BACKUP_AND_DR.md) — Backup and disaster recovery
+- [docs/SETUP_SCREEN_GUIDE.md](docs/SETUP_SCREEN_GUIDE.md) — Setup screen quick start for new users
 - [docs/GAME_MODES_REVIEW.md](docs/GAME_MODES_REVIEW.md) — Game modes documentation
 - [docs/WINDOWS_SETUP.md](docs/WINDOWS_SETUP.md) — Windows development setup
 - [docs/adr/](docs/adr/) — Architecture Decision Records (4 ADRs)
