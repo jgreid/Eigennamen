@@ -74,12 +74,6 @@
     font-size: 1rem;
 }
 
-.multiplayer-modal .mode-btn .mode-desc {
-    font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.6);
-    margin-top: 2px;
-}
-
 .multiplayer-modal .form-group {
     margin-bottom: 10px;
     text-align: left;

@@ -36,8 +36,8 @@
     ></script>
     <script
       defer
-      src="/js/socket-client.js?v=f5f0064e"
-      integrity="sha384-9fAGTkI4VRE2Ale3co1vHbpoE+wCebzAgyctg5gzjjfWYd6uyi1pdask3bMfY8bk"
+      src="/js/socket-client.js?v=87402bc4"
+      integrity="sha384-h0ArxMdW5UIdElPTsjsAFyOnxs6l8tiqYdad2iRj7OE4hVNpK6WQjJcSriZ+aOr6"
       crossorigin="anonymous"
     ></script>
     <link rel="stylesheet" href="/css/variables.css" />
@@ -663,13 +663,16 @@
           <div class="settings-panel active" id="panel-game">
             <!-- Team Names Section -->
             <h3 class="settings-section-title" data-i18n="settings.teams">
-              Team Names
+              Teams
             </h3>
             <div class="team-inputs-row">
-              <div class="modal-section">
-                <label for="red-name-input" data-i18n="teams.redTeam"
-                  >Red Team</label
-                >
+              <div class="modal-section team-name-section">
+                <div class="team-label-row">
+                  <label for="red-name-input" data-i18n="teams.redTeam"
+                    >Red Team</label
+                  >
+                  <span id="red-char-counter" class="char-counter">0/32</span>
+                </div>
                 <input
                   type="text"
                   id="red-name-input"
@@ -678,12 +681,14 @@
                   data-counter="red-char-counter"
                   data-max="32"
                 />
-                <div id="red-char-counter" class="char-counter">0/32</div>
               </div>
-              <div class="modal-section">
-                <label for="blue-name-input" data-i18n="teams.blueTeam"
-                  >Blue Team</label
-                >
+              <div class="modal-section team-name-section">
+                <div class="team-label-row">
+                  <label for="blue-name-input" data-i18n="teams.blueTeam"
+                    >Blue Team</label
+                  >
+                  <span id="blue-char-counter" class="char-counter">0/32</span>
+                </div>
                 <input
                   type="text"
                   id="blue-name-input"
@@ -692,47 +697,44 @@
                   data-counter="blue-char-counter"
                   data-max="32"
                 />
-                <div id="blue-char-counter" class="char-counter">0/32</div>
               </div>
             </div>
 
             <!-- Word List Section -->
             <h3 class="settings-section-title" data-i18n="settings.words">
-              Word List
+              Words
             </h3>
-            <div class="modal-section wordlist-mode-section">
-              <div class="wordlist-mode-options">
-                <label class="radio-option">
-                  <input
-                    type="radio"
-                    name="wordlist-mode"
-                    value="default"
-                    id="wordlist-mode-default"
-                  />
-                  <span>Default only <em>(400 classic words)</em></span>
-                </label>
-                <label class="radio-option">
-                  <input
-                    type="radio"
-                    name="wordlist-mode"
-                    value="combined"
-                    id="wordlist-mode-combined"
-                    checked
-                  />
-                  <span>Default + Custom <em>(combine both)</em></span>
-                </label>
-                <label class="radio-option">
-                  <input
-                    type="radio"
-                    name="wordlist-mode"
-                    value="custom"
-                    id="wordlist-mode-custom"
-                  />
-                  <span>Custom only <em>(min 25 words required)</em></span>
-                </label>
-              </div>
+            <div class="wordlist-mode-pills">
+              <label class="wordlist-pill">
+                <input
+                  type="radio"
+                  name="wordlist-mode"
+                  value="default"
+                  id="wordlist-mode-default"
+                />
+                <span>Default</span>
+              </label>
+              <label class="wordlist-pill">
+                <input
+                  type="radio"
+                  name="wordlist-mode"
+                  value="combined"
+                  id="wordlist-mode-combined"
+                  checked
+                />
+                <span>Default + Custom</span>
+              </label>
+              <label class="wordlist-pill">
+                <input
+                  type="radio"
+                  name="wordlist-mode"
+                  value="custom"
+                  id="wordlist-mode-custom"
+                />
+                <span>Custom only</span>
+              </label>
             </div>
-            <div class="modal-section">
+            <div class="modal-section custom-words-section">
               <label for="custom-words"
                 >Custom words
                 <span class="word-count-inline" id="word-count"
@@ -796,7 +798,7 @@
                   </label>
                 </div>
 
-                <div class="turn-timer-control">
+                <div class="turn-timer-inline">
                   <label class="turn-timer-toggle">
                     <input type="checkbox" id="turn-timer-toggle" />
                     <span data-i18n="roomSettings.turnTimer">Turn Timer</span>
@@ -1322,9 +1324,6 @@
             <span class="mode-title" data-i18n="multiplayer.joinGame"
               >Join Game</span
             >
-            <span class="mode-desc" data-i18n="multiplayer.enterRoomIdShort"
-              >Enter a Room ID</span
-            >
           </button>
           <button
             type="button"
@@ -1335,9 +1334,6 @@
             <span class="mode-icon">🏠</span>
             <span class="mode-title" data-i18n="multiplayer.hostGame"
               >Host Game</span
-            >
-            <span class="mode-desc" data-i18n="multiplayer.createRoomShort"
-              >Create a new room</span
             >
           </button>
         </div>

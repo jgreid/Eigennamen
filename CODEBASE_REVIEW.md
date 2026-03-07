@@ -1,7 +1,7 @@
 # Eigennamen Codebase Review Report
 
 **Date:** 2026-03-07
-**Codebase:** v5.1.0-beta.2 | ~84K LoC TypeScript | 291 source files | 130 test suites | 13 E2E specs
+**Codebase:** v5.1.0-beta.3 | ~84K LoC TypeScript | 291 source files | 133 test suites | 13 E2E specs
 
 ---
 

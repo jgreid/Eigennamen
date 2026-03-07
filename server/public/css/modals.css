@@ -88,19 +88,19 @@
 
 /* Settings content area */
 .settings-content {
-    padding: 10px 24px;
+    padding: 6px 24px;
     overflow-y: auto;
     max-height: calc(90vh - 100px);
 }
 
 /* Section titles within merged Game panel */
 .settings-section-title {
-    font-size: 0.85rem;
+    font-size: 0.7rem;
     color: #667eea;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 6px;
-    margin-top: 10px;
+    margin-bottom: 4px;
+    margin-top: 8px;
     font-weight: 600;
 }
 
@@ -108,10 +108,68 @@
     margin-top: 0;
 }
 
+/* Team label row with char counter inline */
+.team-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+.team-label-row .char-counter {
+    margin-top: 0;
+}
+
+/* Word mode horizontal pills */
+.wordlist-mode-pills {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.wordlist-pill {
+    flex: 1;
+    cursor: pointer;
+}
+
+.wordlist-pill input[type='radio'] {
+    display: none;
+}
+
+.wordlist-pill span {
+    display: block;
+    text-align: center;
+    padding: 5px 8px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
+}
+
+.wordlist-pill:hover span {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.wordlist-pill input[type='radio']:checked + span {
+    background: rgba(102, 126, 234, 0.2);
+    border-color: rgba(102, 126, 234, 0.5);
+    color: white;
+}
+
+/* Custom words section compact */
+.custom-words-section {
+    margin-bottom: 2px !important;
+}
+
 /* Game mode inline section divider */
 .settings-game-mode-section {
-    margin-top: 8px;
-    padding-top: 8px;
+    margin-top: 6px;
+    padding-top: 6px;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -126,15 +184,15 @@
 #settings-modal .modal-section {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 4px;
-    margin-bottom: 6px;
+    gap: 2px;
+    margin-bottom: 4px;
 }
 
 /* Team inputs side by side */
 .team-inputs-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    gap: 12px;
 }
 
 @media (max-width: 500px) {
@@ -148,15 +206,6 @@
     font-size: 0.75rem;
     color: rgba(255, 255, 255, 0.6);
     margin-left: 8px;
-}
-
-.wordlist-mode-section {
-    margin-bottom: 6px !important;
-}
-
-.wordlist-mode-options .radio-option em {
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 0.8rem;
 }
 
 /* Help panel about section */
@@ -355,34 +404,37 @@
     background: rgba(50, 205, 50, 0.1);
 }
 
-/* Turn timer control */
-.turn-timer-control {
-    margin-top: 14px;
-    padding-top: 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+/* Turn timer control - inline with game mode */
+.turn-timer-inline {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 .turn-timer-toggle {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     cursor: pointer;
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     color: rgba(255, 255, 255, 0.9);
+    white-space: nowrap;
 }
 
 .turn-timer-toggle input[type='checkbox'] {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     cursor: pointer;
 }
 
 .turn-timer-slider {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-top: 12px;
-    padding: 8px 0;
+    gap: 8px;
+    flex: 1;
+    min-width: 120px;
 }
 
 .turn-timer-slider input[type='range'] {
@@ -393,10 +445,10 @@
 }
 
 .turn-timer-value {
-    min-width: 48px;
+    min-width: 40px;
     text-align: right;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     color: rgba(255, 255, 255, 0.85);
 }
 
@@ -522,11 +574,12 @@
 /* Two-column layout for settings inputs */
 #settings-modal .modal-section label {
     display: inline-block;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 #settings-modal .modal-section input[type='text'] {
-    margin-bottom: 2px;
+    padding: 8px 12px;
+    margin-bottom: 0;
 }
 
 .modal h2 {
@@ -577,8 +630,8 @@
 
 .modal-section textarea {
     width: 100%;
-    height: 60px;
-    padding: 8px 12px;
+    height: 48px;
+    padding: 6px 12px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     font-size: 0.85rem;
@@ -615,59 +668,6 @@
     border-radius: 8px;
     margin-top: 10px;
     border: 1px solid rgba(79, 172, 254, 0.2);
-}
-
-/* Word list mode radio options */
-.wordlist-mode-options {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-bottom: 6px;
-}
-
-.radio-option {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    padding: 4px 10px;
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    transition:
-        background 0.15s ease,
-        border-color 0.15s ease;
-}
-
-.radio-option:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.12);
-}
-
-.radio-option input[type='radio'] {
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-    accent-color: #667eea;
-}
-
-.radio-option span {
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.8);
-}
-
-/* Active state for radio option - use class for broader browser support */
-.radio-option.selected {
-    background: rgba(102, 126, 234, 0.15);
-    border-color: rgba(102, 126, 234, 0.4);
-}
-
-/* Modern browsers: use :has() as enhancement */
-@supports selector(:has(*)) {
-    .radio-option:has(input:checked) {
-        background: rgba(102, 126, 234, 0.15);
-        border-color: rgba(102, 126, 234, 0.4);
-    }
 }
 
 .modal-buttons {

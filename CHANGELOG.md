@@ -4,6 +4,26 @@ All notable changes to Eigennamen Online are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [5.1.0-beta.3] - 2026-03-07
+
+### Changed
+- **UI Compactification**: Streamlined Settings > Game panel layout for reduced vertical scrolling
+  - Wordlist mode selector changed from vertical radio list to horizontal pill buttons
+  - Team name character counters moved inline with labels
+  - Turn timer control moved inline with game mode section
+  - Reduced spacing, padding, and font sizes throughout the settings panel
+- Removed subtitle descriptions from multiplayer modal Host/Join buttons (cleaner look)
+- Removed orphaned i18n keys (`enterRoomIdShort`, `createRoomShort`) from all 4 locale files
+
+### Fixed
+- **Bug**: `settings.ts` had 4 stale `.closest('.radio-option')` selectors that silently failed after HTML was updated to use `.wordlist-pill` — wordlist pill selection styling now works correctly
+- **TypeScript**: Added missing `abandonGame()`, `clearHistory()`, `isHost()`, and `once()` method declarations to `EigennamenClientAPI` type — frontend typecheck now passes cleanly
+- Removed dead CSS selectors (`.radio-option`, `.wordlist-mode-options`, `.wordlist-mode-section`, `.mode-desc`) left behind by HTML restructuring
+- Aligned turn timer HTML fallback text with i18n value
+
+### Stats
+- 133 test suites (up from 131), 55 frontend modules, 10 CSS modules, 13 E2E specs
+
 ## [5.1.0-beta.2] - 2026-03-07
 
 ### Added

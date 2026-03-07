@@ -48,6 +48,10 @@ interface EigennamenClientAPI {
     revealCard(index: number): void;
     endTurn(): void;
     forfeit(): void;
+    abandonGame(): void;
+
+    // Host queries
+    isHost(): boolean;
 
     // Player actions
     setTeam(team: string | null, ack?: (result: AckResult) => void): void;
@@ -61,6 +65,7 @@ interface EigennamenClientAPI {
     // History / Replay
     getGameHistory(limit: number): void;
     getReplay(gameId: string): void;
+    clearHistory(): void;
 
     // Chat
     sendMessage(text: string, teamOnly: boolean): void;
@@ -68,6 +73,7 @@ interface EigennamenClientAPI {
 
     // Event emitter (callback uses any[] due to event emitter pattern)
     on(event: string, callback: (...args: never[]) => void): void;
+    once(event: string, callback: (...args: never[]) => void): void;
     off(event: string): void;
 }
 

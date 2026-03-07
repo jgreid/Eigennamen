@@ -35,7 +35,7 @@ export function openSettings(): void {
         const radios = document.querySelectorAll('input[name="wordlist-mode"]');
         radios.forEach((r) => {
             (r as HTMLInputElement)
-                .closest('.radio-option')
+                .closest('.wordlist-pill')
                 ?.classList.toggle('selected', (r as HTMLInputElement).checked);
         });
     }
@@ -256,7 +256,7 @@ export function resetWords(): void {
         const radios = document.querySelectorAll('input[name="wordlist-mode"]');
         radios.forEach((r) => {
             (r as HTMLInputElement)
-                .closest('.radio-option')
+                .closest('.wordlist-pill')
                 ?.classList.toggle('selected', (r as HTMLInputElement).checked);
         });
     }
@@ -337,7 +337,9 @@ export async function tryLoadWordlistFile(): Promise<void> {
 export function initRadioOptionStyles(): void {
     const wordlistModeRadios = document.querySelectorAll('input[name="wordlist-mode"]');
     wordlistModeRadios.forEach((r) => {
-        (r as HTMLInputElement).closest('.radio-option')?.classList.toggle('selected', (r as HTMLInputElement).checked);
+        (r as HTMLInputElement)
+            .closest('.wordlist-pill')
+            ?.classList.toggle('selected', (r as HTMLInputElement).checked);
     });
 }
 
@@ -355,7 +357,7 @@ export function initSettingsListeners(): void {
             // Update selected class for older browser support
             wordlistModeRadios.forEach((r) => {
                 (r as HTMLInputElement)
-                    .closest('.radio-option')
+                    .closest('.wordlist-pill')
                     ?.classList.toggle('selected', (r as HTMLInputElement).checked);
             });
             updateWordCount();
