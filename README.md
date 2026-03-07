@@ -2,7 +2,7 @@
 
 A web-based implementation of the popular board game Eigennamen, optimized for remote play over video conferencing or direct online multiplayer.
 
-**Version:** v5.1.0-beta.2 | **License:** GPL v3.0
+**Version:** v5.1.0-beta.3 | **License:** GPL v3.0
 
 ## Features
 

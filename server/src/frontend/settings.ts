@@ -337,7 +337,9 @@ export async function tryLoadWordlistFile(): Promise<void> {
 export function initRadioOptionStyles(): void {
     const wordlistModeRadios = document.querySelectorAll('input[name="wordlist-mode"]');
     wordlistModeRadios.forEach((r) => {
-        (r as HTMLInputElement).closest('.wordlist-pill')?.classList.toggle('selected', (r as HTMLInputElement).checked);
+        (r as HTMLInputElement)
+            .closest('.wordlist-pill')
+            ?.classList.toggle('selected', (r as HTMLInputElement).checked);
     });
 }
 

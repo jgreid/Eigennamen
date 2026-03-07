@@ -74,7 +74,7 @@ Eigennamen/
         ├── utils/              # Utilities (12 files)
         ├── validators/         # Zod schemas (7 files)
         ├── scripts/            # Redis Lua scripts (26 atomic ops)
-        └── __tests__/          # Jest tests (131 suites)
+        └── __tests__/          # Jest tests (133 suites)
 ```
 
 ## Key Services
@@ -178,7 +178,7 @@ All paths relative to `server/src/`.
 
 ## Testing
 
-- **Unit/Integration**: Jest with 131 test suites in `server/src/__tests__/`
+- **Unit/Integration**: Jest with 133 test suites in `server/src/__tests__/`
 - **E2E**: Playwright with 13 spec files in `server/e2e/`
 - **Load testing**: Scripts in `server/loadtest/` (stress test, memory leak, room flow, WebSocket game)
 - Run `npm run test:watch` for TDD workflow
