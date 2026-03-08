@@ -34,6 +34,19 @@ import type {
 import { updateSpectatorCount, updateRoomStats } from '../multiplayerUI.js';
 import { getClient } from '../clientAccessor.js';
 
+/**
+ * Sync team names from room settings into local state.
+ * Used during join, resync, and reconnection to ensure all players
+ * see the host's custom team names.
+ */
+function syncTeamNamesFromRoom(room: { settings?: Record<string, unknown> } | null | undefined): void {
+    const settings = room?.settings as { teamNames?: { red?: string; blue?: string } } | undefined;
+    if (settings?.teamNames) {
+        if (settings.teamNames.red) state.teamNames.red = settings.teamNames.red;
+        if (settings.teamNames.blue) state.teamNames.blue = settings.teamNames.blue;
+    }
+}
+
 export function registerRoomHandlers(): void {
     // Handle host change (when previous host disconnects)
     EigennamenClient.on('hostChanged', (data: HostChangedData) => {
@@ -89,6 +102,10 @@ export function registerRoomHandlers(): void {
                     state.multiplayerPlayers = data.players;
                 }
             });
+
+            // Sync team names from room settings before game state sync
+            // so that updateScoreboard() in syncGameStateFromServer shows correct names
+            syncTeamNamesFromRoom(data.room);
 
             if (data.game) {
                 syncGameStateFromServer(data.game);
@@ -152,6 +169,9 @@ export function registerRoomHandlers(): void {
                     state.multiplayerPlayers = data.players;
                 }
             });
+
+            // Sync team names from room settings before game state sync
+            syncTeamNamesFromRoom(data?.room);
 
             if (data?.game) {
                 syncGameStateFromServer(data.game);
@@ -248,6 +268,7 @@ export function registerRoomHandlers(): void {
                 if (teamNames.blue) state.teamNames.blue = teamNames.blue;
                 updateScoreboard();
                 updateTurnIndicator();
+                updateRoleBanner();
             }
 
             // Sync turn timer UI

@@ -66,12 +66,16 @@ export function registerChatAndErrorHandlers(): void {
         // Revert optimistic UI then clear role change state
         revertAndClearRoleChange();
 
-        // Clear new-game button loading state so the user can retry
-        const newGameBtn = document.getElementById('btn-new-game') as HTMLButtonElement | null;
-        if (newGameBtn && newGameBtn.classList.contains('loading')) {
-            newGameBtn.disabled = false;
-            newGameBtn.classList.remove('loading');
-        }
+        // Clear new-game button loading state on all instances so the user can retry
+        const newGameBtns = document.querySelectorAll('.btn-new-game') as NodeListOf<HTMLButtonElement>;
+        newGameBtns.forEach((btn) => {
+            if (btn.classList.contains('loading')) {
+                btn.disabled = false;
+                btn.classList.remove('loading');
+            }
+        });
+        // Clear debounce so the button is immediately usable after an error
+        state.newGameDebounce = false;
 
         // Clear any in-progress card reveal flags
         state.revealingCards.clear();
