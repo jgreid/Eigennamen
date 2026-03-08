@@ -2,6 +2,7 @@ import { state, BOARD_SIZE, DEFAULT_WORDS } from './state.js';
 import { updateCharCounter, safeGetItem, safeSetItem, safeRemoveItem } from './utils.js';
 import { openModal, closeModal, showToast } from './ui.js';
 import { updateURL, updateScoreboard, updateTurnIndicator } from './game.js';
+import { isClientConnected } from './clientAccessor.js';
 import { t } from './i18n.js';
 import { logger } from './logger.js';
 export function openSettings() {
@@ -31,7 +32,7 @@ export function openSettings() {
         const radios = document.querySelectorAll('input[name="wordlist-mode"]');
         radios.forEach((r) => {
             r
-                .closest('.radio-option')
+                .closest('.wordlist-pill')
                 ?.classList.toggle('selected', r.checked);
         });
     }
@@ -168,6 +169,12 @@ export function saveSettings() {
     const blueName = blueNameInput ? blueNameInput.value.trim() || 'Blue' : 'Blue';
     state.teamNames.red = redName;
     state.teamNames.blue = blueName;
+    // Send team name changes to server in multiplayer mode
+    if (state.isMultiplayerMode && isClientConnected()) {
+        EigennamenClient.updateSettings({
+            teamNames: { red: redName, blue: blueName },
+        });
+    }
     // Get word list mode
     const modeRadio = document.querySelector('input[name="wordlist-mode"]:checked');
     const selectedMode = modeRadio ? modeRadio.value : 'combined';
@@ -239,7 +246,7 @@ export function resetWords() {
         const radios = document.querySelectorAll('input[name="wordlist-mode"]');
         radios.forEach((r) => {
             r
-                .closest('.radio-option')
+                .closest('.wordlist-pill')
                 ?.classList.toggle('selected', r.checked);
         });
     }
@@ -319,7 +326,9 @@ export async function tryLoadWordlistFile() {
 export function initRadioOptionStyles() {
     const wordlistModeRadios = document.querySelectorAll('input[name="wordlist-mode"]');
     wordlistModeRadios.forEach((r) => {
-        r.closest('.radio-option')?.classList.toggle('selected', r.checked);
+        r
+            .closest('.wordlist-pill')
+            ?.classList.toggle('selected', r.checked);
     });
 }
 // Set up event listeners for settings inputs
@@ -335,7 +344,7 @@ export function initSettingsListeners() {
             // Update selected class for older browser support
             wordlistModeRadios.forEach((r) => {
                 r
-                    .closest('.radio-option')
+                    .closest('.wordlist-pill')
                     ?.classList.toggle('selected', r.checked);
             });
             updateWordCount();

@@ -9,10 +9,8 @@ import { updateURL } from './url-state.js';
 import { isClientConnected } from './clientAccessor.js';
 import { checkGameOver, updateScoreboard, updateTurnIndicator } from './game/scoring.js';
 import { showGameOverModal } from './game/reveal.js';
-// Re-export sub-module APIs so existing consumers don't break
 export { checkGameOver, updateScoreboard, updateTurnIndicator, updateMatchScoreboard } from './game/scoring.js';
-export { revealCard, revealCardFromServer, showGameOverModal, showGameOver, closeGameOver } from './game/reveal.js';
-// Re-export URL functions so existing consumers don't break
+export { revealCard, revealCardFromServer, showGameOverModal, showGameOverModal as showGameOver, closeGameOver, } from './game/reveal.js';
 export { updateURL } from './url-state.js';
 // Helper function to set up the game board (card types, scores, etc.)
 export function setupGameBoard(numericSeed) {
@@ -84,27 +82,41 @@ export function newGame() {
     }, UI.NEW_GAME_DEBOUNCE_MS);
     // In multiplayer mode, request new game from server
     if (state.isMultiplayerMode && isClientConnected()) {
-        // Show loading state on new game button
-        const newGameBtn = document.getElementById('btn-new-game');
-        if (newGameBtn) {
-            newGameBtn.disabled = true;
-            newGameBtn.classList.add('loading');
-            // Safety timeout to re-enable button if server doesn't respond
-            setTimeout(() => {
-                if (newGameBtn.classList.contains('loading')) {
-                    newGameBtn.disabled = false;
-                    newGameBtn.classList.remove('loading');
-                    showToast(t('game.newGameTimeout'), 'warning');
+        // Show loading state on all new game buttons (sidebar + game over modal)
+        const newGameBtns = document.querySelectorAll('.btn-new-game');
+        newGameBtns.forEach((btn) => {
+            btn.disabled = true;
+            btn.classList.add('loading');
+        });
+        // Safety timeout to re-enable buttons if server doesn't respond
+        setTimeout(() => {
+            newGameBtns.forEach((btn) => {
+                if (btn.classList.contains('loading')) {
+                    btn.disabled = false;
+                    btn.classList.remove('loading');
                 }
-            }, UI.NEW_GAME_SAFETY_TIMEOUT_MS);
-        }
+            });
+            // Only show timeout toast if buttons were still loading
+            if (document.querySelector('.btn-new-game.loading')) {
+                showToast(t('game.newGameTimeout'), 'warning');
+            }
+        }, UI.NEW_GAME_SAFETY_TIMEOUT_MS);
         // Don't clear the board here — wait for the server to confirm
         // the new game via the gameStarted event.  Clearing prematurely
         // causes a blank board if the server rejects the request (e.g.
         // because a game is already in progress).  The gameStarted
         // listener calls syncGameStateFromServer() which handles the
         // full state reset and board render.
-        EigennamenClient.startGame({});
+        // In match mode, if the round ended but the match continues,
+        // emit nextRound to carry over cumulative match scores.
+        // Otherwise start a fresh game/match.
+        const isMatchRoundOver = state.gameMode === 'match' && state.gameState.gameOver && !state.gameState.matchOver;
+        if (isMatchRoundOver) {
+            EigennamenClient.nextRound();
+        }
+        else {
+            EigennamenClient.startGame({});
+        }
         return;
     }
     // Standalone mode: generate game locally
@@ -125,12 +137,48 @@ export function newGame() {
 }
 export function confirmNewGame() {
     const cardsRevealed = state.gameState.revealed.filter((r) => r).length;
-    if (cardsRevealed === 0) {
+    if (cardsRevealed === 0 || state.gameState.gameOver) {
         newGame();
     }
     else {
+        // Show/hide buttons based on mode
+        const forfeitBtn = document.querySelector('[data-action="confirm-forfeit-new-game"]');
+        const abandonBtn = document.querySelector('[data-action="confirm-abandon-new-game"]');
+        const simpleBtn = document.querySelector('[data-action="confirm-yes-new-game"]');
+        const isMultiplayer = state.isMultiplayerMode && isClientConnected();
+        if (forfeitBtn)
+            forfeitBtn.hidden = !isMultiplayer;
+        if (abandonBtn)
+            abandonBtn.hidden = !isMultiplayer;
+        if (simpleBtn)
+            simpleBtn.hidden = isMultiplayer;
         openModal('confirm-modal');
     }
+}
+export function abandonAndNewGame() {
+    if (!state.isMultiplayerMode || !isClientConnected()) {
+        // Standalone mode: just start a new game (no history to worry about)
+        newGame();
+        return;
+    }
+    // Abandon the current game (not saved to history), then start new
+    EigennamenClient.abandonGame();
+    // The server will emit game:over with reason 'abandoned'.
+    // We listen for that and then start a new game automatically.
+    EigennamenClient.once('gameOver', () => {
+        newGame();
+    });
+}
+export function forfeitAndNewGame() {
+    if (!state.isMultiplayerMode || !isClientConnected()) {
+        newGame();
+        return;
+    }
+    // Forfeit the current game (saved to history), then start new
+    EigennamenClient.forfeit();
+    EigennamenClient.once('gameOver', () => {
+        newGame();
+    });
 }
 export function closeConfirm() {
     closeModal('confirm-modal');

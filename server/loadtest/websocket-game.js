@@ -259,5 +259,5 @@ export function chatScenario() {
     });
 }
 
-// Default export for backwards compatibility
+// Default export
 export default gameFlowScenario;

@@ -1,19 +1,26 @@
 import { state } from '../state.js';
 import { showToast, announceToScreenReader } from '../ui.js';
 import { renderBoard } from '../board.js';
-import { revealCardFromServer, showGameOver, updateTurnIndicator, updateMatchScoreboard } from '../game.js';
+import { revealCardFromServer, showGameOver, closeGameOver, updateTurnIndicator, updateMatchScoreboard, } from '../game.js';
 import { updateRoleBanner, updateControls } from '../roles.js';
 import { playNotificationSound, setTabNotification, checkAndNotifyTurn } from '../notifications.js';
 import { updateDuetUI, updateDuetInfoBar, updateForfeitButton } from '../multiplayerUI.js';
 import { syncGameStateFromServer } from '../multiplayerSync.js';
 export function registerGameHandlers() {
     EigennamenClient.on('gameStarted', (data) => {
-        // Clear loading state on new game button
-        const newGameBtn = document.getElementById('btn-new-game');
-        if (newGameBtn) {
-            newGameBtn.disabled = false;
-            newGameBtn.classList.remove('loading');
-        }
+        // Close any stale game-over modal — after forfeit/abandon + new game,
+        // the gameOver event opens this modal before the new game starts.
+        // Without this, the modal covers the new game and forces the user
+        // to interact through its "New Game" button (bypassing confirmNewGame).
+        closeGameOver();
+        // Clear loading state on all new game buttons (sidebar + game over modal)
+        const newGameBtns = document.querySelectorAll('.btn-new-game');
+        newGameBtns.forEach((btn) => {
+            btn.disabled = false;
+            btn.classList.remove('loading');
+        });
+        // Clear debounce so the button is immediately usable
+        state.newGameDebounce = false;
         // Full sync game state from server for new games
         if (data.game) {
             // Clear stale reveal tracking from previous game before syncing new state.
@@ -22,19 +29,25 @@ export function registerGameHandlers() {
             state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
             state.revealTimeouts.clear();
             state.revealingCards.clear();
+            state.revealTimestamps.clear();
             state.isRevealingCard = false;
             syncGameStateFromServer(data.game);
             state.gameMode = data.gameMode || 'match';
             updateDuetUI(data.game);
             updateForfeitButton();
-            const modeLabels = {
-                duet: 'Duet game started!',
-                match: 'Eigennamen started!',
-                classic: 'New game started!',
-            };
-            const label = modeLabels[data.gameMode || 'match'] || 'New game started!';
-            // All roles are reset to spectator on new game — guide players to pick a role
-            showToast(`${label} Pick your team and role to play.`, 'success', 5000);
+            if (data.isNextRound) {
+                const round = data.game?.matchRound ?? 2;
+                showToast(`Round ${round} started! Roles have been rotated.`, 'success', 5000);
+            }
+            else {
+                const modeLabels = {
+                    duet: 'Duet game started!',
+                    match: 'Eigennamen started!',
+                    classic: 'New game started!',
+                };
+                const label = modeLabels[data.gameMode || 'match'] || 'New game started!';
+                showToast(`${label} Pick your team and role to play.`, 'success', 5000);
+            }
         }
     });
     EigennamenClient.on('cardRevealed', (data) => {
@@ -44,6 +57,7 @@ export function registerGameHandlers() {
         // Clear per-card reveal tracking for the revealed card
         if (data.index !== undefined) {
             state.revealingCards.delete(data.index);
+            state.revealTimestamps.delete(data.index);
             const revealTimeout = state.revealTimeouts.get(data.index);
             if (revealTimeout) {
                 clearTimeout(revealTimeout);
@@ -104,28 +118,25 @@ export function registerGameHandlers() {
         }
     });
     EigennamenClient.on('gameOver', (data) => {
-        // Duet mode can have null winner (cooperative loss)
-        if (data.winner || state.gameMode === 'duet') {
-            // Sync all card types from server so non-spymasters can see the full board
-            if (data.types && Array.isArray(data.types)) {
-                state.gameState.types = data.types;
-            }
-            if (data.duetTypes && Array.isArray(data.duetTypes)) {
-                state.gameState.duetTypes = data.duetTypes;
-            }
-            state.gameState.gameOver = true;
-            state.gameState.winner = data.winner || null;
-            if (state.gameMode === 'duet') {
-                const duetWin = data.reason === 'completed';
-                showGameOver(duetWin ? 'red' : null, data.reason);
-            }
-            else {
-                showGameOver(data.winner || null, data.reason);
-            }
-            setTabNotification(false);
-            playNotificationSound('gameOver');
-            updateForfeitButton();
+        // Sync all card types from server so non-spymasters can see the full board
+        if (data.types && Array.isArray(data.types)) {
+            state.gameState.types = data.types;
         }
+        if (data.duetTypes && Array.isArray(data.duetTypes)) {
+            state.gameState.duetTypes = data.duetTypes;
+        }
+        state.gameState.gameOver = true;
+        state.gameState.winner = data.winner || null;
+        if (state.gameMode === 'duet') {
+            const duetWin = data.reason === 'completed';
+            showGameOver(duetWin ? 'red' : null, data.reason);
+        }
+        else {
+            showGameOver(data.winner || null, data.reason);
+        }
+        setTabNotification(false);
+        playNotificationSound('gameOver');
+        updateForfeitButton();
     });
     // Handle spymaster view (card types for spymasters)
     EigennamenClient.on('spymasterView', (data) => {

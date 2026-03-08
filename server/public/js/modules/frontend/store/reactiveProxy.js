@@ -11,6 +11,12 @@ import { enqueueOrEmit } from './batch.js';
 /**
  * Create a recursive Proxy that emits state change events on mutation.
  * Sub-objects are wrapped lazily on access so the overhead is minimal.
+ *
+ * **Array mutation convention**: Array methods like `push()`, `splice()`,
+ * and `pop()` work through the proxy and emit per-index change events.
+ * However, subscribers listening on the array path itself (e.g. `state.items`)
+ * won't fire because the array reference doesn't change. For bulk array
+ * updates, always assign a new array: `state.items = [...newItems]`.
  */
 export function createReactiveProxy(target, path = 'state') {
     const subProxies = new WeakMap();
@@ -50,6 +56,24 @@ export function createReactiveProxy(target, path = 'state') {
                     newValue: value,
                 };
                 enqueueOrEmit(event);
+            }
+            return result;
+        },
+        deleteProperty(obj, prop) {
+            const hadProp = Reflect.has(obj, prop);
+            const oldValue = hadProp ? Reflect.get(obj, prop) : undefined;
+            const result = Reflect.deleteProperty(obj, prop);
+            if (result && hadProp && typeof prop === 'string') {
+                const fullPath = `${path}.${prop}`;
+                // Invalidate sub-proxy cache if old value was an object
+                if (oldValue !== null && typeof oldValue === 'object') {
+                    subProxies.delete(oldValue);
+                }
+                enqueueOrEmit({
+                    path: fullPath,
+                    oldValue,
+                    newValue: undefined,
+                });
             }
             return result;
         },

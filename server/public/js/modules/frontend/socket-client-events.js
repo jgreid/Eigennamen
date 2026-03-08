@@ -140,6 +140,9 @@ export function registerAllEventListeners(register, emit, client) {
     register('game:replayData', (raw) => {
         emit('replayData', raw);
     });
+    register('game:historyCleared', (raw) => {
+        emit('historyCleared', raw);
+    });
     register('game:error', (raw) => {
         const error = raw;
         emit('error', { type: 'game', ...error });

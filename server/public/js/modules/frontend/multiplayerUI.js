@@ -70,7 +70,7 @@ export async function copyRoomId() {
 export function updatePlayerList(ul, players) {
     const mySessionId = EigennamenClient.player?.sessionId;
     const amHost = EigennamenClient.player?.isHost;
-    ul.innerHTML = '';
+    ul.replaceChildren();
     for (const p of players) {
         const isMe = p.sessionId === mySessionId;
         const li = document.createElement('li');

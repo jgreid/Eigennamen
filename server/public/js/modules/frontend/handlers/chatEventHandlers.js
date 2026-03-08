@@ -36,14 +36,34 @@ export function registerChatAndErrorHandlers() {
             showToast('Could not load replay data', 'error');
         });
     });
+    EigennamenClient.on('historyCleared', () => {
+        import('../history.js')
+            .then(({ onHistoryCleared }) => {
+            onHistoryCleared();
+        })
+            .catch((err) => {
+            logger.error('Failed to load history module:', err);
+        });
+    });
     // Error handling for game actions
     EigennamenClient.on('error', (error) => {
         // Log full error details for debugging
         logger.error('Multiplayer error:', JSON.stringify(error, null, 2));
         // Revert optimistic UI then clear role change state
         revertAndClearRoleChange();
+        // Clear new-game button loading state on all instances so the user can retry
+        const newGameBtns = document.querySelectorAll('.btn-new-game');
+        newGameBtns.forEach((btn) => {
+            if (btn.classList.contains('loading')) {
+                btn.disabled = false;
+                btn.classList.remove('loading');
+            }
+        });
+        // Clear debounce so the button is immediately usable after an error
+        state.newGameDebounce = false;
         // Clear any in-progress card reveal flags
         state.revealingCards.clear();
+        state.revealTimestamps.clear();
         state.isRevealingCard = false;
         document.querySelectorAll('.card.revealing').forEach((c) => c.classList.remove('revealing'));
         // Map technical error codes to user-friendly messages

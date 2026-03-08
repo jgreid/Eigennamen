@@ -178,7 +178,8 @@ async function handleJoinGame() {
         // Use toLocaleLowerCase('en-US') to match the server-side normalization
         // (toEnglishLowerCase).  Plain .toLowerCase() can differ for non-ASCII
         // characters depending on the browser locale, causing key mismatches.
-        const normalizedRoomId = roomId.toLocaleLowerCase('en-US');
+        // roomId is guaranteed non-null here: validateRoomCode above rejects falsy values
+        const normalizedRoomId = (roomId ?? '').toLocaleLowerCase('en-US');
         const result = await EigennamenClient.joinRoom(normalizedRoomId, nickname);
         if (signal.aborted)
             return;
@@ -309,6 +310,14 @@ export function onMultiplayerJoined(result, isHostParam = false) {
     }
     // Update global isHost from parameter or player data
     state.isHost = isHostParam || EigennamenClient.player?.isHost || false;
+    // Sync team names from room settings (so non-host players see custom names)
+    const roomSettings = result.room?.settings;
+    if (roomSettings?.teamNames) {
+        if (roomSettings.teamNames.red)
+            state.teamNames.red = roomSettings.teamNames.red;
+        if (roomSettings.teamNames.blue)
+            state.teamNames.blue = roomSettings.teamNames.blue;
+    }
     // Sync game state from server if available, otherwise clear stale local state
     // (e.g., leftover board from standalone mode) to prevent card clicks when no
     // server-side game exists — which would trigger GAME_NOT_STARTED errors.

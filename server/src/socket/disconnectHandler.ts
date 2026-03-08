@@ -203,8 +203,7 @@ async function handleDisconnect(
             const reconnectionDeadline = Date.now() + SESSION_SECURITY.RECONNECTION_TOKEN_TTL_SECONDS * 1000;
 
             // Do NOT broadcast reconnection token to the room!
-            // The token was previously broadcast to all players, allowing potential session hijacking.
-            // Now the token is stored server-side only and validated during reconnection handshake.
+            // The token is stored server-side only and validated during reconnection handshake.
             // The disconnecting player should proactively request their reconnection token via
             // 'room:getReconnectionToken' event BEFORE they disconnect (e.g., on 'beforeunload').
             safeEmitToRoom(ioInstance, roomCode, SOCKET_EVENTS.PLAYER_DISCONNECTED, {
