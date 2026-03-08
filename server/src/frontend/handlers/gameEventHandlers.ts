@@ -1,7 +1,13 @@
 import { state } from '../state.js';
 import { showToast, announceToScreenReader } from '../ui.js';
 import { renderBoard } from '../board.js';
-import { revealCardFromServer, showGameOver, updateTurnIndicator, updateMatchScoreboard } from '../game.js';
+import {
+    revealCardFromServer,
+    showGameOver,
+    closeGameOver,
+    updateTurnIndicator,
+    updateMatchScoreboard,
+} from '../game.js';
 import { updateRoleBanner, updateControls } from '../roles.js';
 import { playNotificationSound, setTabNotification, checkAndNotifyTurn } from '../notifications.js';
 import { updateDuetUI, updateDuetInfoBar, updateForfeitButton } from '../multiplayerUI.js';
@@ -18,6 +24,12 @@ import type {
 
 export function registerGameHandlers(): void {
     EigennamenClient.on('gameStarted', (data: GameStartedData) => {
+        // Close any stale game-over modal — after forfeit/abandon + new game,
+        // the gameOver event opens this modal before the new game starts.
+        // Without this, the modal covers the new game and forces the user
+        // to interact through its "New Game" button (bypassing confirmNewGame).
+        closeGameOver();
+
         // Clear loading state on all new game buttons (sidebar + game over modal)
         const newGameBtns = document.querySelectorAll('.btn-new-game') as NodeListOf<HTMLButtonElement>;
         newGameBtns.forEach((btn) => {
