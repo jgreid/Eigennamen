@@ -130,6 +130,10 @@ export function resetMultiplayerState(): void {
     state.revealingCards.clear();
     state.revealTimestamps.clear();
     state.isRevealingCard = false;
+    // Clear animation tracking to prevent stale classes leaking to the next room
+    state.lastRevealedIndex = -1;
+    state.lastRevealedWasCorrect = false;
+    state.pendingUIUpdate = false;
     state.multiplayerPlayers = [];
     document.querySelectorAll('.card.revealing').forEach((c) => c.classList.remove('revealing'));
 }
@@ -223,7 +227,16 @@ export function syncGameStateFromServer(serverGame: ServerGameData): void {
                 state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
                 state.revealTimeouts.clear();
                 state.revealingCards.clear();
+                state.revealTimestamps.clear();
                 state.isRevealingCard = false;
+                // Bump game generation so any in-flight rAFs from the previous
+                // game detect staleness and skip their DOM updates.
+                state.gameGeneration = (state.gameGeneration ?? 0) + 1;
+                // Clear stale animation tracking to prevent wrong cards getting
+                // success-reveal/just-revealed classes in the new board.
+                state.lastRevealedIndex = -1;
+                state.lastRevealedWasCorrect = false;
+                state.pendingUIUpdate = false;
             }
 
             state.gameState.words = serverGame.words;

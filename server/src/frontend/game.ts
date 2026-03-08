@@ -196,9 +196,20 @@ export function abandonAndNewGame(): void {
     EigennamenClient.abandonGame();
     // The server will emit game:over with reason 'abandoned'.
     // We listen for that and then start a new game automatically.
+    // Safety timeout prevents stuck UI if the gameOver event never arrives.
+    let handled = false;
     EigennamenClient.once('gameOver', () => {
+        if (handled) return;
+        handled = true;
+        clearTimeout(fallback);
         newGame();
     });
+    const fallback = setTimeout(() => {
+        if (!handled) {
+            handled = true;
+            showToast(t('game.newGameTimeout'), 'warning');
+        }
+    }, UI.NEW_GAME_SAFETY_TIMEOUT_MS);
 }
 
 export function forfeitAndNewGame(): void {
@@ -209,9 +220,20 @@ export function forfeitAndNewGame(): void {
 
     // Forfeit the current game (saved to history), then start new
     EigennamenClient.forfeit();
+    // Safety timeout prevents stuck UI if the gameOver event never arrives.
+    let handled = false;
     EigennamenClient.once('gameOver', () => {
+        if (handled) return;
+        handled = true;
+        clearTimeout(fallback);
         newGame();
     });
+    const fallback = setTimeout(() => {
+        if (!handled) {
+            handled = true;
+            showToast(t('game.newGameTimeout'), 'warning');
+        }
+    }, UI.NEW_GAME_SAFETY_TIMEOUT_MS);
 }
 
 export function closeConfirm(): void {
