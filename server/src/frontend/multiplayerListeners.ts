@@ -6,9 +6,6 @@ import { registerRoomHandlers } from './handlers/roomEventHandlers.js';
 import { registerTimerHandlers } from './handlers/timerEventHandlers.js';
 import { registerChatAndErrorHandlers } from './handlers/chatEventHandlers.js';
 
-// Re-export for backward compatibility
-export { getErrorMessage } from './handlers/errorMessages.js';
-
 /**
  * Register all multiplayer event listeners.
  * Idempotent — returns immediately if listeners are already registered,

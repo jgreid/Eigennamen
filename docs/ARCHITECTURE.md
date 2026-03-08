@@ -236,7 +236,6 @@ Eigennamen/
 ├── fly.toml                # Fly.io deployment config
 ├── scripts/                # Shell utilities (dev-setup, health-check, etc.)
 ├── docs/                   # Documentation
-│   └── adr/               # Architecture Decision Records (4 ADRs)
 └── server/                 # Node.js backend
     ├── public/
     │   ├── js/
@@ -316,5 +315,4 @@ Eigennamen/
 
 - [Server Specification](SERVER_SPEC.md)
 - [Deployment Guide](DEPLOYMENT.md)
-- [ADR Index](adr/README.md)
 - [Testing Guide](TESTING_GUIDE.md)

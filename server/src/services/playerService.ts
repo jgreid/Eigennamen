@@ -307,8 +307,7 @@ export async function removePlayer(sessionId: string): Promise<void> {
     });
 }
 
-// Disconnection and cleanup functions extracted to player/cleanup.ts
-// Re-exported below for backward compatibility
+// Disconnection and cleanup functions (from player/cleanup.ts)
 
 /**
  * Map socket ID to session ID for reconnection and track client IP

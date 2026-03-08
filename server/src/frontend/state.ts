@@ -166,7 +166,7 @@ const _rawState: AppState = {
 // localStorage.debug === 'eigennamen' — the proxy itself is lightweight.
 export const state: AppState = createReactiveProxy(_rawState);
 
-// Wire debug logging and legacy watchers to the event bus
+// Wire debug logging and watchers to the event bus
 initDebugSubscriptions();
 attachDebugToWindow(_rawState);
 
