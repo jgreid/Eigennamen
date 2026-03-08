@@ -6,7 +6,8 @@
  * ensure users always get the latest version when online.
  */
 
-const CACHE = 'eigennamen-v5';
+// Keep in sync with version in package.json
+const CACHE = 'eigennamen-v5.4.0-beta.5';
 
 const OFFLINE_ASSETS = [
     '/',

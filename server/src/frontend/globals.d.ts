@@ -89,6 +89,11 @@ interface IoFunction {
 }
 declare const io: IoFunction;
 
+/* ---------- Build-time constants (injected by esbuild define) ---------- */
+
+/** Application version from package.json, injected at build time */
+declare const __APP_VERSION__: string;
+
 /* ---------- Window extensions ---------- */
 
 interface Window {

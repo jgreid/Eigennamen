@@ -2,11 +2,13 @@ import swaggerUi from 'swagger-ui-express';
 
 import type { Express, Request, Response } from 'express';
 
+import { APP_VERSION } from './version';
+
 const swaggerSpec = {
     openapi: '3.0.0',
     info: {
         title: 'Eigennamen Online API',
-        version: '1.0.0',
+        version: APP_VERSION,
         description: `
 REST API for Eigennamen Online multiplayer game server.
 

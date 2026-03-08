@@ -220,6 +220,10 @@ async function init() {
             loadingEl.remove();
         // Initialize cached DOM elements first
         initCachedElements();
+        // Display app version in sidebar
+        const versionEl = document.getElementById('sidebar-version');
+        if (versionEl)
+            versionEl.textContent = `v${__APP_VERSION__}`;
         // Set up centralized event listeners
         setupEventListeners();
         // Initialize settings navigation
