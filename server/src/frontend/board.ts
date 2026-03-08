@@ -406,6 +406,19 @@ export function updateBoardIncremental(): void {
                     card.classList.remove('red', 'blue', 'neutral', 'assassin');
                     card.classList.add(type);
                 }
+            } else if (card.classList.contains('revealed')) {
+                // Card was revealed in a previous game but is unrevealed in the new game.
+                // Remove stale revealed/type classes that could persist from orphaned rAFs
+                // or incremental updates that ran before the full re-render.
+                card.classList.remove(
+                    'revealed',
+                    'red',
+                    'blue',
+                    'neutral',
+                    'assassin',
+                    'just-revealed',
+                    'success-reveal'
+                );
             }
 
             // Match mode: update score badge
