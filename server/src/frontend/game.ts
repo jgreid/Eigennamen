@@ -115,14 +115,15 @@ export function newGame(): void {
         });
         // Safety timeout to re-enable buttons if server doesn't respond
         setTimeout(() => {
+            let wasStillLoading = false;
             newGameBtns.forEach((btn) => {
                 if (btn.classList.contains('loading')) {
+                    wasStillLoading = true;
                     btn.disabled = false;
                     btn.classList.remove('loading');
                 }
             });
-            // Only show timeout toast if buttons were still loading
-            if (document.querySelector('.btn-new-game.loading')) {
+            if (wasStillLoading) {
                 showToast(t('game.newGameTimeout'), 'warning');
             }
         }, UI.NEW_GAME_SAFETY_TIMEOUT_MS);
