@@ -108,6 +108,7 @@ const _rawState = {
     isRevealingCard: false,
     revealingCards: new Set(),
     revealTimeouts: new Map(),
+    revealTimestamps: new Map(),
     pendingRevealRAF: null,
     language: 'en',
     localizedDefaultWords: null,
@@ -121,7 +122,7 @@ const _rawState = {
 // Debug logging (console output, history tracking) is still gated behind
 // localStorage.debug === 'eigennamen' — the proxy itself is lightweight.
 export const state = createReactiveProxy(_rawState);
-// Wire debug logging and legacy watchers to the event bus
+// Wire debug logging and watchers to the event bus
 initDebugSubscriptions();
 attachDebugToWindow(_rawState);
 export function initCachedElements() {

@@ -2,12 +2,27 @@ import { state } from '../state.js';
 import { showToast } from '../ui.js';
 import { updateRoleBanner, updateControls, revertAndClearRoleChange } from '../roles.js';
 import { renderBoard } from '../board.js';
+import { updateScoreboard, updateTurnIndicator } from '../game.js';
 import { logger } from '../logger.js';
 import { updateMpIndicator, updateForfeitButton, updateRoomSettingsNavVisibility, showReconnectionOverlay, hideReconnectionOverlay, syncGameModeUI, syncTurnTimerUI, } from '../multiplayerUI.js';
 import { syncGameStateFromServer, syncLocalPlayerState, leaveMultiplayerMode, detectOfflineChanges, domListenerCleanup, } from '../multiplayerSync.js';
 import { batch } from '../store/batch.js';
 import { updateSpectatorCount, updateRoomStats } from '../multiplayerUI.js';
 import { getClient } from '../clientAccessor.js';
+/**
+ * Sync team names from room settings into local state.
+ * Used during join, resync, and reconnection to ensure all players
+ * see the host's custom team names.
+ */
+function syncTeamNamesFromRoom(room) {
+    const settings = room?.settings;
+    if (settings?.teamNames) {
+        if (settings.teamNames.red)
+            state.teamNames.red = settings.teamNames.red;
+        if (settings.teamNames.blue)
+            state.teamNames.blue = settings.teamNames.blue;
+    }
+}
 export function registerRoomHandlers() {
     // Handle host change (when previous host disconnects)
     EigennamenClient.on('hostChanged', (data) => {
@@ -59,6 +74,9 @@ export function registerRoomHandlers() {
                     state.multiplayerPlayers = data.players;
                 }
             });
+            // Sync team names from room settings before game state sync
+            // so that updateScoreboard() in syncGameStateFromServer shows correct names
+            syncTeamNamesFromRoom(data.room);
             if (data.game) {
                 syncGameStateFromServer(data.game);
             }
@@ -72,6 +90,7 @@ export function registerRoomHandlers() {
             state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
             state.revealTimeouts.clear();
             state.revealingCards.clear();
+            state.revealTimestamps.clear();
             state.isRevealingCard = false;
             document.querySelectorAll('.card.revealing').forEach((c) => c.classList.remove('revealing'));
             // Update all UI elements
@@ -114,6 +133,8 @@ export function registerRoomHandlers() {
                     state.multiplayerPlayers = data.players;
                 }
             });
+            // Sync team names from room settings before game state sync
+            syncTeamNamesFromRoom(data?.room);
             if (data?.game) {
                 syncGameStateFromServer(data.game);
             }
@@ -125,6 +146,7 @@ export function registerRoomHandlers() {
             state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
             state.revealTimeouts.clear();
             state.revealingCards.clear();
+            state.revealTimestamps.clear();
             state.isRevealingCard = false;
             document.querySelectorAll('.card.revealing').forEach((c) => c.classList.remove('revealing'));
             updateControls();
@@ -191,6 +213,17 @@ export function registerRoomHandlers() {
             // Sync game mode radio buttons
             if (data.settings.gameMode) {
                 syncGameModeUI(data.settings.gameMode);
+            }
+            // Sync team names
+            const teamNames = data.settings.teamNames;
+            if (teamNames) {
+                if (teamNames.red)
+                    state.teamNames.red = teamNames.red;
+                if (teamNames.blue)
+                    state.teamNames.blue = teamNames.blue;
+                updateScoreboard();
+                updateTurnIndicator();
+                updateRoleBanner();
             }
             // Sync turn timer UI
             syncTurnTimerUI(data.settings.turnTimer ?? null);

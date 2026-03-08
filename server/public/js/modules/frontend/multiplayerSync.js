@@ -107,6 +107,7 @@ export function resetMultiplayerState() {
     state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
     state.revealTimeouts.clear();
     state.revealingCards.clear();
+    state.revealTimestamps.clear();
     state.isRevealingCard = false;
     state.multiplayerPlayers = [];
     document.querySelectorAll('.card.revealing').forEach((c) => c.classList.remove('revealing'));
@@ -295,14 +296,19 @@ export function syncGameStateFromServer(serverGame) {
         }
     });
     // Update all UI components (after batch completes, state is consistent)
-    renderBoard();
-    updateScoreboard();
-    updateTurnIndicator();
-    updateControls();
-    updateRoleBanner();
-    updateForfeitButton();
-    updateDuetUI(serverGame);
-    updateMatchScoreboard();
+    try {
+        renderBoard();
+        updateScoreboard();
+        updateTurnIndicator();
+        updateControls();
+        updateRoleBanner();
+        updateForfeitButton();
+        updateDuetUI(serverGame);
+        updateMatchScoreboard();
+    }
+    catch (err) {
+        logger.error('UI update failed after game state sync:', err);
+    }
     // Update tab notification based on current turn
     setTabNotification(isPlayerTurn());
 }

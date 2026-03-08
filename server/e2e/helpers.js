@@ -86,7 +86,7 @@ const sel = {
     languageSelect: '[data-testid="language-select"]',
     colorblindToggle: '[data-testid="colorblind-toggle"]',
 
-    // Legacy selectors for elements without data-testid
+    // Selectors for elements without data-testid
     // Role buttons (standalone mode uses per-team IDs)
     spymasterRedBtn: '#btn-spymaster-red',
     spymasterBlueBtn: '#btn-spymaster-blue',

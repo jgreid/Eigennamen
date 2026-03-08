@@ -14,7 +14,7 @@ const baseRules = {
     'no-debugger': 'error',
 
     // Best practices
-    'eqeqeq': ['error', 'always', { null: 'ignore' }],
+    eqeqeq: ['error', 'always', { null: 'ignore' }],
     'no-var': 'error',
     'prefer-const': 'error',
     'no-throw-literal': 'off', // Codebase uses custom error objects with codes
@@ -28,13 +28,13 @@ const baseRules = {
     // Security
     'no-eval': 'error',
     'no-implied-eval': 'error',
-    'no-new-func': 'error'
+    'no-new-func': 'error',
 };
 
 module.exports = [
     {
         // Global ignores
-        ignores: ['node_modules/**', 'coverage/**', 'dist/**']
+        ignores: ['node_modules/**', 'coverage/**', 'dist/**'],
     },
     {
         // TypeScript files configuration (non-type-checked rules for faster linting)
@@ -44,16 +44,16 @@ module.exports = [
             sourceType: 'module',
             globals: {
                 ...globals.node,
-                ...globals.es2021
+                ...globals.es2021,
             },
             parser: require('@typescript-eslint/parser'),
             parserOptions: {
                 ecmaVersion: 'latest',
-                sourceType: 'module'
-            }
+                sourceType: 'module',
+            },
         },
         plugins: {
-            '@typescript-eslint': require('@typescript-eslint/eslint-plugin')
+            '@typescript-eslint': require('@typescript-eslint/eslint-plugin'),
         },
         rules: {
             ...baseRules,
@@ -65,14 +65,14 @@ module.exports = [
 
             // TypeScript-specific rules (non-type-checked for performance)
             '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-            '@typescript-eslint/explicit-function-return-type': 'off', // Too strict for migration
+            '@typescript-eslint/explicit-function-return-type': 'off',
             '@typescript-eslint/explicit-module-boundary-types': 'off',
             '@typescript-eslint/no-explicit-any': 'error',
             '@typescript-eslint/no-non-null-assertion': 'warn',
-            '@typescript-eslint/consistent-type-imports': ['warn', { prefer: 'type-imports' }]
+            '@typescript-eslint/consistent-type-imports': ['warn', { prefer: 'type-imports' }],
             // Note: Type-checked rules (require-await, no-floating-promises, etc.)
             // are enforced by TypeScript compiler, not ESLint, for better performance
-        }
+        },
     },
     {
         // Frontend TypeScript modules (browser environment, not Node)
@@ -85,16 +85,16 @@ module.exports = [
                 ...globals.es2021,
                 EigennamenClient: 'readonly',
                 qrcode: 'readonly',
-                io: 'readonly'
+                io: 'readonly',
             },
             parser: require('@typescript-eslint/parser'),
             parserOptions: {
                 ecmaVersion: 'latest',
-                sourceType: 'module'
-            }
+                sourceType: 'module',
+            },
         },
         plugins: {
-            '@typescript-eslint': require('@typescript-eslint/eslint-plugin')
+            '@typescript-eslint': require('@typescript-eslint/eslint-plugin'),
         },
         rules: {
             ...baseRules,
@@ -108,8 +108,8 @@ module.exports = [
             '@typescript-eslint/explicit-module-boundary-types': 'off',
             '@typescript-eslint/no-explicit-any': 'error',
             '@typescript-eslint/no-non-null-assertion': 'off',
-            '@typescript-eslint/consistent-type-imports': 'off' // Not useful for browser ES modules
-        }
+            '@typescript-eslint/consistent-type-imports': 'off', // Not useful for browser ES modules
+        },
     },
     {
         // These files legitimately use sequential await in loops for Redis ops
@@ -121,11 +121,11 @@ module.exports = [
             'src/utils/distributedLock.ts',
             'src/routes/adminRoutes.ts',
             'src/routes/admin/statsRoutes.ts',
-            'src/routes/admin/roomRoutes.ts'
+            'src/routes/admin/roomRoutes.ts',
         ],
         rules: {
-            'no-await-in-loop': 'off'
-        }
+            'no-await-in-loop': 'off',
+        },
     },
     {
         // Test files have relaxed rules (TypeScript)
@@ -135,16 +135,16 @@ module.exports = [
             sourceType: 'module',
             globals: {
                 ...globals.node,
-                ...globals.jest
+                ...globals.jest,
             },
             parser: require('@typescript-eslint/parser'),
             parserOptions: {
                 ecmaVersion: 'latest',
-                sourceType: 'module'
-            }
+                sourceType: 'module',
+            },
         },
         plugins: {
-            '@typescript-eslint': require('@typescript-eslint/eslint-plugin')
+            '@typescript-eslint': require('@typescript-eslint/eslint-plugin'),
         },
         rules: {
             'no-console': 'off',
@@ -152,10 +152,10 @@ module.exports = [
             'no-await-in-loop': 'off',
             '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
             '@typescript-eslint/no-explicit-any': 'off',
-            '@typescript-eslint/no-non-null-assertion': 'off'
-        }
+            '@typescript-eslint/no-non-null-assertion': 'off',
+        },
     },
     // Prettier: disables ESLint rules that conflict with Prettier formatting.
     // Must be last to override any formatting rules from earlier configs.
-    prettierConfig
+    prettierConfig,
 ];

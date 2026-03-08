@@ -461,7 +461,7 @@ describe('Session Validator', () => {
             expect(result.reason).toBe('SESSION_EXPIRED');
         });
 
-        test('returns valid for legacy player without createdAt (allows but logs)', () => {
+        test('returns valid for player without createdAt (allows but logs)', () => {
             const player = createMockPlayer({ createdAt: undefined });
             const result = sessionValidator.validateSessionAge(player as any);
             expect(result.valid).toBe(true);
@@ -473,7 +473,7 @@ describe('Session Validator', () => {
 
         test('does not use connectedAt as fallback for age check', () => {
             // Player with no createdAt but recent connectedAt — should still
-            // be treated as legacy (valid), not validated by connectedAt
+            // be treated as valid, not validated by connectedAt
             const player = createMockPlayer({
                 createdAt: undefined,
                 connectedAt: Date.now() - 1000,

@@ -40,6 +40,7 @@ export function renderGameHistory(games) {
     const loadingEl = document.getElementById('history-loading');
     const emptyEl = document.getElementById('history-empty');
     const listEl = document.getElementById('history-list');
+    const actionsEl = document.getElementById('history-actions');
     if (loadingEl)
         loadingEl.hidden = true;
     if (!games || games.length === 0) {
@@ -47,15 +48,20 @@ export function renderGameHistory(games) {
             emptyEl.hidden = false;
         if (listEl)
             listEl.hidden = true;
+        if (actionsEl)
+            actionsEl.hidden = true;
         return;
     }
     if (emptyEl)
         emptyEl.hidden = true;
     if (listEl)
         listEl.hidden = false;
+    // Show clear history button only for the host
+    if (actionsEl)
+        actionsEl.hidden = !state.isHost;
     if (!listEl)
         return;
-    listEl.innerHTML = '';
+    listEl.replaceChildren();
     for (const game of games) {
         const dateStr = formatGameTimestamp(game.timestamp || 0);
         const winner = game.winner || '';
@@ -129,9 +135,9 @@ export function openReplay(gameId) {
     if (replayInfoEl)
         replayInfoEl.textContent = t('history.loadingReplay');
     if (replayBoardEl)
-        replayBoardEl.innerHTML = '';
+        replayBoardEl.replaceChildren();
     if (replayEventLogEl)
-        replayEventLogEl.innerHTML = '';
+        replayEventLogEl.replaceChildren();
     if (replayProgressEl)
         replayProgressEl.textContent = t('history.loading');
     openModal('replay-modal');
@@ -162,7 +168,7 @@ export function renderReplayData(data) {
     // Render replay info using DOM APIs to prevent XSS
     const replayInfo = document.getElementById('replay-info');
     if (replayInfo) {
-        replayInfo.innerHTML = '';
+        replayInfo.replaceChildren();
         const winnerBadge = document.createElement('span');
         const replayWinnerClass = data.finalState?.winner === 'red' ? 'red' : data.finalState?.winner === 'blue' ? 'blue' : '';
         winnerBadge.className = `winner-badge ${replayWinnerClass}`;
@@ -191,7 +197,7 @@ export function renderReplayBoard() {
     if (!board)
         return;
     const words = state.currentReplayData?.initialBoard?.words || [];
-    board.innerHTML = '';
+    board.replaceChildren();
     board.setAttribute('role', 'grid');
     board.setAttribute('aria-label', t('history.replayBoard'));
     words.forEach((word, index) => {
@@ -275,14 +281,14 @@ export function renderReplayEventLog() {
         return;
     const events = state.currentReplayData?.events || [];
     if (events.length === 0) {
-        logEl.innerHTML = '';
+        logEl.replaceChildren();
         const noEventsP = document.createElement('p');
         noEventsP.style.opacity = '0.5';
         noEventsP.textContent = t('history.noEvents');
         logEl.appendChild(noEventsP);
         return;
     }
-    logEl.innerHTML = '';
+    logEl.replaceChildren();
     events.forEach((event, index) => {
         let actionText = '';
         let detailText = '';
@@ -338,7 +344,7 @@ export function updateReplayControls() {
     if (nextBtn)
         nextBtn.disabled = state.currentReplayIndex >= events.length - 1;
     if (playBtn)
-        playBtn.innerHTML = state.replayPlaying ? '&#10074;&#10074;' : '&#9654;';
+        playBtn.textContent = state.replayPlaying ? '⏸' : '▶';
     if (progressEl)
         progressEl.textContent = t('history.moveProgress', {
             current: state.currentReplayIndex + 1,
@@ -482,6 +488,35 @@ export function scrollToCurrentEvent() {
     if (currentEventEl) {
         currentEventEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
+}
+export function clearGameHistory() {
+    if (!state.isMultiplayerMode || !EigennamenClient.isConnected()) {
+        showToast(t('history.multiplayerOnly'), 'info');
+        return;
+    }
+    if (!EigennamenClient.isHost()) {
+        showToast(t('history.hostOnly'), 'warning');
+        return;
+    }
+    // Confirm before clearing
+    if (!confirm(t('history.clearConfirm'))) {
+        return;
+    }
+    EigennamenClient.clearHistory();
+}
+export function onHistoryCleared() {
+    const listEl = document.getElementById('history-list');
+    const emptyEl = document.getElementById('history-empty');
+    const actionsEl = document.getElementById('history-actions');
+    if (listEl) {
+        listEl.replaceChildren();
+        listEl.hidden = true;
+    }
+    if (emptyEl)
+        emptyEl.hidden = false;
+    if (actionsEl)
+        actionsEl.hidden = true;
+    showToast(t('history.cleared'), 'success');
 }
 /**
  * Check URL for replay parameters and auto-load the replay.

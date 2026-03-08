@@ -211,7 +211,9 @@ function updateCardScoreBadge(card, index) {
         card.appendChild(badge);
     }
 }
-// Guard against concurrent full re-renders from overlapping socket events
+// Guard against concurrent or interleaved renders from overlapping socket events.
+// Covers both renderBoard (full) and updateBoardIncremental (partial) — if either
+// is in progress, the other is skipped to prevent stale DOM references.
 let renderingInProgress = false;
 export function renderBoard() {
     const board = state.cachedElements.board || document.getElementById('board');
@@ -238,7 +240,7 @@ export function renderBoard() {
             return;
         renderingInProgress = true;
         // Full re-render (only for new games)
-        board.innerHTML = '';
+        board.replaceChildren();
         // Board-level accessibility: grid role and description
         board.setAttribute('role', 'grid');
         board.setAttribute('aria-label', t('board.boardAriaLabel'));
@@ -269,7 +271,11 @@ export function renderBoard() {
             }
             // Show revealed cards
             if (isRevealed) {
-                card.classList.add('revealed', state.gameState.types[index] ?? 'neutral');
+                const revealedType = state.gameState.types[index];
+                if (!revealedType) {
+                    logger.warn(`renderBoard: revealed card ${index} has null type, falling back to neutral`);
+                }
+                card.classList.add('revealed', revealedType || 'neutral');
             }
             // Match mode: add score badge
             updateCardScoreBadge(card, index);
@@ -286,7 +292,7 @@ export function renderBoard() {
         renderingInProgress = false;
         logger.error('renderBoard failed:', err);
         // Show a minimal fallback so the board area isn't blank
-        board.innerHTML = '';
+        board.replaceChildren();
         const errorDiv = document.createElement('div');
         errorDiv.className = 'board-error';
         errorDiv.textContent = t('board.renderError');
@@ -297,6 +303,9 @@ export function renderBoard() {
 export function updateBoardIncremental() {
     const board = state.cachedElements.board || document.getElementById('board');
     if (!board)
+        return;
+    // Skip if a full render is in progress — our DOM references may be stale
+    if (renderingInProgress)
         return;
     try {
         // Update board class
@@ -357,16 +366,24 @@ export function updateBoardIncremental() {
                 card.classList.add(`spy-${type}`);
             }
             // Handle reveal state
-            if (isRevealed && !card.classList.contains('revealed')) {
-                card.classList.add('revealed', type);
-                // Add animation class for just-revealed card
-                if (index === state.lastRevealedIndex) {
-                    if (state.lastRevealedWasCorrect) {
-                        card.classList.add('success-reveal');
+            if (isRevealed) {
+                if (!card.classList.contains('revealed')) {
+                    // First time marking as revealed — add class + animation
+                    card.classList.add('revealed', type);
+                    if (index === state.lastRevealedIndex) {
+                        if (state.lastRevealedWasCorrect) {
+                            card.classList.add('success-reveal');
+                        }
+                        else {
+                            card.classList.add('just-revealed');
+                        }
                     }
-                    else {
-                        card.classList.add('just-revealed');
-                    }
+                }
+                else if (!card.classList.contains(type)) {
+                    // Already revealed but type class is wrong/missing (e.g. was 'neutral'
+                    // fallback before server sent the real type). Fix it.
+                    card.classList.remove('red', 'blue', 'neutral', 'assassin');
+                    card.classList.add(type);
                 }
             }
             // Match mode: update score badge
@@ -390,6 +407,8 @@ export function updateSingleCard(index) {
         return;
     const card = board.children[index];
     const type = state.gameState.types[index] ?? 'neutral';
+    // Remove any stale type class before adding the correct one
+    card.classList.remove('red', 'blue', 'neutral', 'assassin');
     card.classList.add('revealed', type);
     card.setAttribute('tabindex', '-1');
     const word = state.gameState.words[index] ?? '';

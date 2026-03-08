@@ -46,15 +46,13 @@ Global thresholds are set lower because infrastructure modules (redis.ts, socket
 | Functions | 85% | 70% | 77%+ |
 | Lines | 80% | 70% | 85%+ |
 
-### Current Test Counts (as of March 2026)
+### Current Test Counts
 
 | Category | Suites | Tests |
 |----------|--------|-------|
-| Jest (backend + frontend) | 131 | 3,600+ |
+| Jest (backend + frontend) | 133 | 3,680+ |
 | E2E (Playwright) | 13 | — |
-| **Total** | **144** | — |
-
-All 131 Jest suites pass with 0 failures.
+| **Total** | **146** | — |
 
 ## Backend Testing (Jest)
 
@@ -89,7 +87,7 @@ server/src/__tests__/
 ├── routes.test.ts               # REST API tests
 ├── rateLimit.test.ts            # Rate limiting tests
 ├── socketAuth.test.ts           # Authentication tests
-├── ... and 60+ more test files
+├── ... and 70+ more test files
 ```
 
 **Note**: Test files are organized flat in `__tests__/` (not in subdirectories by domain). Extended and edge-case test files use suffixes like `Extended`, `Unit`, `Branch`, etc.

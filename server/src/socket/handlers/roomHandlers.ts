@@ -462,8 +462,6 @@ function roomHandlers(io: Server, socket: GameSocket): void {
     );
 }
 
-// Re-export sendSpymasterViewIfNeeded for backward compatibility
-export { sendSpymasterViewIfNeeded } from './roomHandlerUtils';
 export default roomHandlers;
 
 // CommonJS interop — tests use require() which needs module.exports

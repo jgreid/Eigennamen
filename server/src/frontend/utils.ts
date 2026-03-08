@@ -11,11 +11,11 @@ export async function copyToClipboard(text: string): Promise<boolean> {
             await navigator.clipboard.writeText(text);
             return true;
         } catch {
-            // Fall through to legacy approach
+            // Fall through to textarea approach
         }
     }
 
-    // Legacy fallback using a temporary textarea
+    // Fallback using a temporary textarea
     try {
         const textarea = document.createElement('textarea');
         textarea.value = text;

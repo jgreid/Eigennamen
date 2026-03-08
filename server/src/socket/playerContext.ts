@@ -47,8 +47,6 @@ export function clearGameStateCache(): void {
 }
 
 // Auto-invalidate cache when any game service mutation occurs.
-// This replaces the manual invalidateGameStateCache() calls that
-// each handler previously had to remember after every game mutation.
 onGameMutation((roomCode: string) => {
     gameStateCache.delete(roomCode);
 });

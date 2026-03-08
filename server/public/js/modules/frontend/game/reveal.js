@@ -9,6 +9,7 @@ import { updateURL } from '../url-state.js';
 import { isClientConnected } from '../clientAccessor.js';
 import { closeModal } from '../ui.js';
 import { checkGameOver, updateScoreboard, updateTurnIndicator } from './scoring.js';
+import { batch } from '../store/batch.js';
 export function revealCard(index) {
     // Bounds check: prevent out-of-bounds array access
     if (typeof index !== 'number' || index < 0 || index >= state.gameState.words.length) {
@@ -58,14 +59,17 @@ export function revealCard(index) {
             state.revealTimeouts.forEach((tid) => clearTimeout(tid));
             state.revealTimeouts.clear();
             state.revealingCards.clear();
+            state.revealTimestamps.clear();
         }
         state.revealingCards.add(index);
+        state.revealTimestamps.set(index, Date.now());
         state.isRevealingCard = state.revealingCards.size > 0;
         // Per-card safety timeout: if server doesn't respond in time,
         // clear only this card's pending state (not all cards)
         const timeoutId = setTimeout(() => {
             if (state.revealingCards.has(index)) {
                 state.revealingCards.delete(index);
+                state.revealTimestamps.delete(index);
                 state.isRevealingCard = state.revealingCards.size > 0;
                 const pendingCard = document.querySelector(`.card[data-index="${index}"]`);
                 if (pendingCard)
@@ -159,81 +163,86 @@ export function revealCardFromServer(index, serverData = {}) {
         state.revealTimeouts.delete(index);
     }
     state.revealingCards.delete(index);
+    state.revealTimestamps.delete(index);
     state.isRevealingCard = state.revealingCards.size > 0;
-    state.gameState.revealed[index] = true;
-    // Use server-provided type; fall back to local only if non-null (spymasters have types,
-    // non-spymasters have null for unrevealed cards — using null causes wrong scoring)
-    const type = serverData.type || state.gameState.types[index] || 'neutral';
-    // Bug fix: Update the types array with the revealed type from server
-    // This is critical for non-spymasters who have null for unrevealed cards
-    if (serverData.type) {
-        state.gameState.types[index] = serverData.type;
-    }
-    // Track for animation (same as local reveal)
-    state.lastRevealedIndex = index;
-    state.lastRevealedWasCorrect = type === state.gameState.currentTurn;
-    // Use server-provided scores if available, otherwise calculate locally
-    if (typeof serverData.redScore === 'number') {
-        state.gameState.redScore = serverData.redScore;
-    }
-    else if (type === 'red') {
-        state.gameState.redScore++;
-    }
-    if (typeof serverData.blueScore === 'number') {
-        state.gameState.blueScore = serverData.blueScore;
-    }
-    else if (type === 'blue') {
-        state.gameState.blueScore++;
-    }
-    // Use server game over state if provided
-    if (serverData.gameOver !== undefined) {
-        state.gameState.gameOver = serverData.gameOver;
-        state.gameState.winner = serverData.winner || null;
-    }
-    else {
-        // Check for assassin locally
-        if (type === 'assassin') {
-            state.gameState.gameOver = true;
-            state.gameState.winner = state.gameState.currentTurn === 'red' ? 'blue' : 'red';
+    // Batch all state mutations so reactive proxy subscribers see a single
+    // atomic update instead of ~15 individual events that could trigger
+    // intermediate renders with partially-updated state.
+    let type;
+    batch(() => {
+        // Update types BEFORE revealed so any concurrent render sees the correct type
+        // (non-spymasters have null for unrevealed cards until the server sends the real type)
+        if (serverData.type) {
+            state.gameState.types[index] = serverData.type;
         }
-        // Check for win by completing all words
-        checkGameOver();
-    }
-    // Use server-provided turn state (authoritative)
-    if (serverData.currentTurn) {
-        state.gameState.currentTurn = serverData.currentTurn;
-    }
-    else if (!state.gameState.gameOver && type !== state.gameState.currentTurn) {
-        // Fallback: end turn if wrong guess (and game not over)
-        state.gameState.currentTurn = state.gameState.currentTurn === 'red' ? 'blue' : 'red';
-    }
-    // Sync guess tracking from server
-    if (typeof serverData.guessesUsed === 'number') {
-        state.gameState.guessesUsed = serverData.guessesUsed;
-    }
-    if (typeof serverData.guessesAllowed === 'number') {
-        state.gameState.guessesAllowed = serverData.guessesAllowed;
-    }
-    // Clear clue state when a reveal causes the turn to end (wrong guess, max guesses)
-    // The server clears currentClue on turn change but the cardRevealed event only
-    // includes a turnEnded flag — no separate turnEnded event is emitted for this path.
-    if (serverData.turnEnded && !state.gameState.gameOver) {
-        state.gameState.currentClue = null;
-    }
-    // Match mode: update card score for this card and revealedBy tracking
-    if (typeof serverData.cardScore === 'number' && state.gameState.cardScores) {
-        state.gameState.cardScores[index] = serverData.cardScore;
-    }
-    if (state.gameState.revealedBy && serverData.currentTurn) {
-        // The revealing team is the team that was on turn before any turn switch
-        // Use previous turn (before server updated it) for attribution
-        state.gameState.revealedBy[index] =
-            type === state.gameState.currentTurn
-                ? state.gameState.currentTurn
-                : state.gameState.currentTurn === 'red'
-                    ? 'blue'
-                    : 'red';
-    }
+        type = serverData.type || state.gameState.types[index] || 'neutral';
+        state.gameState.revealed[index] = true;
+        // Track for animation (same as local reveal)
+        state.lastRevealedIndex = index;
+        state.lastRevealedWasCorrect = type === state.gameState.currentTurn;
+        // Use server-provided scores if available, otherwise calculate locally
+        if (typeof serverData.redScore === 'number') {
+            state.gameState.redScore = serverData.redScore;
+        }
+        else if (type === 'red') {
+            state.gameState.redScore++;
+        }
+        if (typeof serverData.blueScore === 'number') {
+            state.gameState.blueScore = serverData.blueScore;
+        }
+        else if (type === 'blue') {
+            state.gameState.blueScore++;
+        }
+        // Use server game over state if provided
+        if (serverData.gameOver !== undefined) {
+            state.gameState.gameOver = serverData.gameOver;
+            state.gameState.winner = serverData.winner || null;
+        }
+        else {
+            // Check for assassin locally
+            if (type === 'assassin') {
+                state.gameState.gameOver = true;
+                state.gameState.winner = state.gameState.currentTurn === 'red' ? 'blue' : 'red';
+            }
+            // Check for win by completing all words
+            checkGameOver();
+        }
+        // Use server-provided turn state (authoritative)
+        if (serverData.currentTurn) {
+            state.gameState.currentTurn = serverData.currentTurn;
+        }
+        else if (!state.gameState.gameOver && type !== state.gameState.currentTurn) {
+            // Fallback: end turn if wrong guess (and game not over)
+            state.gameState.currentTurn = state.gameState.currentTurn === 'red' ? 'blue' : 'red';
+        }
+        // Sync guess tracking from server
+        if (typeof serverData.guessesUsed === 'number') {
+            state.gameState.guessesUsed = serverData.guessesUsed;
+        }
+        if (typeof serverData.guessesAllowed === 'number') {
+            state.gameState.guessesAllowed = serverData.guessesAllowed;
+        }
+        // Clear clue state when a reveal causes the turn to end (wrong guess, max guesses)
+        // The server clears currentClue on turn change but the cardRevealed event only
+        // includes a turnEnded flag — no separate turnEnded event is emitted for this path.
+        if (serverData.turnEnded && !state.gameState.gameOver) {
+            state.gameState.currentClue = null;
+        }
+        // Match mode: update card score for this card and revealedBy tracking
+        if (typeof serverData.cardScore === 'number' && state.gameState.cardScores) {
+            state.gameState.cardScores[index] = serverData.cardScore;
+        }
+        if (state.gameState.revealedBy && serverData.currentTurn) {
+            // The revealing team is the team that was on turn before any turn switch
+            // Use previous turn (before server updated it) for attribution
+            state.gameState.revealedBy[index] =
+                type === state.gameState.currentTurn
+                    ? state.gameState.currentTurn
+                    : state.gameState.currentTurn === 'red'
+                        ? 'blue'
+                        : 'red';
+        }
+    });
     // Batch DOM updates using requestAnimationFrame for better performance.
     // Store the rAF ID so it can be cancelled on room switch to prevent
     // orphaned callbacks updating a cleared/rebuilt DOM.
@@ -252,6 +261,7 @@ export function showGameOverModal(_winner, _reason) {
     state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
     state.revealTimeouts.clear();
     state.revealingCards.clear();
+    state.revealTimestamps.clear();
     state.isRevealingCard = false;
     // Instead of showing a modal, reveal the spymaster view to all players
     // so they can see the board and discuss before the next game.
@@ -260,17 +270,27 @@ export function showGameOverModal(_winner, _reason) {
 }
 /**
  * Sweep stale entries from revealingCards.
- * Per-card timeouts handle the normal case, but if timeouts are throttled
- * (e.g., tab backgrounded), entries can linger. This periodic sweep is
- * the safety net.
+ * Uses timestamps instead of checking the timeout Map — browser timer
+ * throttling (backgrounded tabs) can delay both per-card timeouts AND
+ * the sweep interval equally, so the old timeout-based check was ineffective.
+ * Timestamps are immune to throttling since Date.now() always returns real time.
  */
 export function sweepStaleRevealingCards() {
     if (state.revealingCards.size === 0)
         return;
-    // Any card in revealingCards that no longer has a pending timeout is stale
+    const now = Date.now();
     for (const index of state.revealingCards) {
-        if (!state.revealTimeouts.has(index)) {
+        const addedAt = state.revealTimestamps.get(index);
+        // Stale if: no timestamp (shouldn't happen) or older than the timeout threshold
+        if (addedAt === undefined || now - addedAt >= UI.CARD_REVEAL_TIMEOUT_MS) {
             state.revealingCards.delete(index);
+            state.revealTimestamps.delete(index);
+            // Also clear the per-card timeout if it hasn't fired yet
+            const tid = state.revealTimeouts.get(index);
+            if (tid) {
+                clearTimeout(tid);
+                state.revealTimeouts.delete(index);
+            }
             const pendingCard = document.querySelector(`.card[data-index="${index}"]`);
             if (pendingCard)
                 pendingCard.classList.remove('revealing');
@@ -296,8 +316,6 @@ export function stopRevealSweep() {
         revealSweepInterval = null;
     }
 }
-// Alias for multiplayer listener compatibility
-export const showGameOver = showGameOverModal;
 export function closeGameOver() {
     closeModal('game-over-modal');
 }

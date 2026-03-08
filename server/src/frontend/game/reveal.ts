@@ -354,9 +354,6 @@ export function stopRevealSweep(): void {
     }
 }
 
-// Alias for multiplayer listener compatibility
-export const showGameOver = showGameOverModal;
-
 export function closeGameOver(): void {
     closeModal('game-over-modal');
 }

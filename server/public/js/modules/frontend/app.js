@@ -3,14 +3,15 @@ import { updateCharCounter } from './utils.js';
 import { showErrorModal, showToast, closeError, closeModal, registerModalCloseHandler } from './ui.js';
 import { loadNotificationPrefs, initNotificationPrefsUI } from './notifications.js';
 import { setCardClickHandler, renderBoard } from './board.js';
-import { confirmNewGame, newGame, closeConfirm, confirmEndTurn, closeEndTurnConfirm, endTurn, loadGameFromURL, closeGameOver, revealCard, } from './game.js';
+import { confirmNewGame, newGame, closeConfirm, confirmEndTurn, closeEndTurnConfirm, endTurn, loadGameFromURL, closeGameOver, revealCard, abandonAndNewGame, forfeitAndNewGame, } from './game.js';
 import { updateRoleBanner, updateControls, setTeam, setSpymaster, setClicker, setSpymasterCurrent, setClickerCurrent, } from './roles.js';
 import { openMultiplayer, closeMultiplayer, initMultiplayerModal, initPlayerListUI, initNicknameEditUI, confirmForfeit, closeForfeitConfirm, forfeitGame, closeKickConfirm, confirmKickPlayer, } from './multiplayer.js';
-import { openGameHistory, closeGameHistory, setupHistoryEventDelegation, closeReplay, checkURLForReplayLoad, } from './history.js';
+import { openGameHistory, closeGameHistory, setupHistoryEventDelegation, closeReplay, checkURLForReplayLoad, clearGameHistory, } from './history.js';
 import { isClientConnected } from './clientAccessor.js';
 import { openSettings, closeSettings, openHelp, closeHelp, saveSettings, resetWords, initSettingsNav, loadLocalSettings, tryLoadWordlistFile, initSettingsListeners, } from './settings.js';
 import { initI18n, setLanguage } from './i18n.js';
 import { initColorBlindMode, initKeyboardShortcuts } from './accessibility.js';
+import { shouldShowSetupScreen, showSetupScreen, initSetupScreen, handleSetupAction } from './setupScreen.js';
 import { logger } from './logger.js';
 // Signal that the ES module loaded successfully
 window.__appModuleLoaded = true;
@@ -117,6 +118,14 @@ function setupEventListeners() {
                 newGame();
                 closeConfirm();
                 break;
+            case 'confirm-forfeit-new-game':
+                forfeitAndNewGame();
+                closeConfirm();
+                break;
+            case 'confirm-abandon-new-game':
+                abandonAndNewGame();
+                closeConfirm();
+                break;
             case 'close-confirm':
                 closeConfirm();
                 break;
@@ -172,11 +181,23 @@ function setupEventListeners() {
                 closeMultiplayer();
                 break;
             // Game history modal
+            case 'clear-history':
+                clearGameHistory();
+                break;
             case 'close-history':
                 closeGameHistory();
                 break;
             case 'close-replay':
                 closeReplay();
+                break;
+            // Setup screen actions
+            case 'setup-host':
+            case 'setup-join':
+            case 'setup-offline':
+            case 'setup-back':
+            case 'setup-join-submit':
+            case 'setup-host-submit':
+                handleSetupAction(action);
                 break;
         }
     });
@@ -220,7 +241,19 @@ async function init() {
         await tryLoadWordlistFile();
         // Initialize i18n before loading game so t() calls in UI rendering work
         await initI18n();
-        loadGameFromURL();
+        // Initialize setup screen listeners
+        initSetupScreen();
+        // Show setup screen or load game directly
+        if (shouldShowSetupScreen()) {
+            showSetupScreen();
+        }
+        else {
+            // Ensure app layout is visible when skipping setup screen
+            const appLayout = document.getElementById('app-layout');
+            if (appLayout)
+                appLayout.hidden = false;
+            loadGameFromURL();
+        }
         // Wire up language selector
         const langSelect = document.getElementById('language-select');
         if (langSelect) {

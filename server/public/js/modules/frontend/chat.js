@@ -185,6 +185,6 @@ export function hideChatPanel() {
     // Clear messages
     const messages = document.getElementById('chat-messages');
     if (messages)
-        messages.innerHTML = '';
+        messages.replaceChildren();
 }
 //# sourceMappingURL=chat.js.map

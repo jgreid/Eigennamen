@@ -85,7 +85,7 @@ export function updateTurnIndicator() {
     if (!turnText)
         return;
     const turnTeamName = getCurrentTeamName();
-    // When winner is null (non-standard end), fall back to blue — preserves legacy behavior
+    // When winner is null (non-standard end), fall back to blue
     const winnerTeamName = getTeamName(state.gameState.winner ?? 'blue');
     if (state.gameState.gameOver) {
         indicator.className = 'turn-indicator game-over';

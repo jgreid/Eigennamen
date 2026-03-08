@@ -143,6 +143,9 @@ import { createRoom, joinRoom, requestResync } from './socket-client-rooms.js';
         startGame(options = {}) {
             this._getSocket()?.emit('game:start', options);
         },
+        nextRound() {
+            this._getSocket()?.emit('game:nextRound');
+        },
         revealCard(index) {
             this._getSocket()?.emit('game:reveal', { index });
         },
@@ -157,6 +160,12 @@ import { createRoom, joinRoom, requestResync } from './socket-client-rooms.js';
         },
         getReplay(gameId) {
             this._getSocket()?.emit('game:getReplay', { gameId });
+        },
+        abandonGame() {
+            this._getSocket()?.emit('game:abandon');
+        },
+        clearHistory() {
+            this._getSocket()?.emit('game:clearHistory');
         },
         // =====================
         // Chat Actions

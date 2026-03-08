@@ -9,7 +9,7 @@ import { REDIS_TTL, GAME_HISTORY, RETRY_CONFIG } from '../../config/constants';
 import { GameStateError, ServerError } from '../../errors/GameError';
 import { REVEAL_CARD_SCRIPT, END_TURN_SCRIPT } from '../../scripts';
 
-// Re-export Lua scripts from centralized barrel (previously loaded from disk here)
+// Re-export Lua scripts from centralized barrel
 export const OPTIMIZED_REVEAL_SCRIPT: string = REVEAL_CARD_SCRIPT;
 export const OPTIMIZED_END_TURN_SCRIPT: string = END_TURN_SCRIPT;
 

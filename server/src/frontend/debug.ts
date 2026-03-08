@@ -191,7 +191,7 @@ export function initDebugSubscriptions(): void {
         // Debug logging (gated)
         logStateChange(event.path, event.oldValue, event.newValue, 'proxy');
 
-        // Dispatch to legacy watchers
+        // Dispatch to watchers
         const watcherList = watchers.get(event.path);
         if (watcherList) {
             for (const cb of watcherList) {

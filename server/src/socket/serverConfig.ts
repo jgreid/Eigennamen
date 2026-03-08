@@ -46,7 +46,7 @@ function createSocketServer(server: HttpServer): SocketIOServer {
             // Skip middlewares on reconnection
             skipMiddlewares: false,
         },
-        // Only allow Engine.IO v4 protocol (v3 is legacy and unmaintained)
+        // Only allow Engine.IO v4 protocol
         allowEIO3: false,
         // Enable per-message deflate compression for reduced bandwidth
         perMessageDeflate: {

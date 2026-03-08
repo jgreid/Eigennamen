@@ -159,8 +159,7 @@ function validateSessionAge(player: Player): SessionAgeResult {
     // to bypass the session age limit indefinitely.
     const createdAt = player.createdAt;
     if (!createdAt) {
-        // No creation timestamp — likely a legacy session created before
-        // createdAt was tracked. Allow but log for visibility.
+        // No creation timestamp — allow but log for visibility.
         logger.debug('Session has no createdAt timestamp', { sessionId: player.sessionId });
         return { valid: true };
     }

@@ -3,9 +3,8 @@
  *
  * The game service calls `notifyGameMutation(roomCode)` after any
  * write to Redis. The player-context cache subscribes via
- * `onGameMutation()` and invalidates its entry, eliminating the
- * manual `invalidateGameStateCache()` calls that handlers previously
- * had to remember.
+ * `onGameMutation()` and invalidates its entry, so handlers don't
+ * need to manually call `invalidateGameStateCache()`.
  *
  * This module exists solely to break the circular dependency between
  * `gameService` (which writes) and `playerContext` (which caches reads).

@@ -1,5 +1,5 @@
 local playerKey = KEYS[1]
--- KEYS[2] is reserved for backwards compatibility (unused)
+-- KEYS[2] is reserved (unused)
 local newTeam = ARGV[1]
 local sessionId = ARGV[2]
 local ttl = tonumber(ARGV[3])
