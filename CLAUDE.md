@@ -110,7 +110,8 @@ Eigennamen/
         ├── index.ts            # Server entry point (HTTP + WebSocket bootstrap)
         ├── app.ts              # Express 5 app setup (middleware, routes, Swagger)
         ├── config/             # Configuration modules (12 files)
-        │   ├── constants.ts    # Barrel — re-exports gameConfig, errorCodes, roomConfig, socketConfig, securityConfig, rateLimits
+        │   ├── constants.ts    # Barrel — re-exports version, gameConfig, errorCodes, roomConfig, socketConfig, securityConfig, rateLimits
+        │   ├── version.ts     # APP_VERSION + APP_MAJOR_VERSION (reads from package.json — single source of truth)
         │   ├── socketConfig.ts # All WebSocket event name constants
         │   ├── gameConfig.ts   # Game modes, board layout, PRNG seed offsets, card distributions
         │   ├── roomConfig.ts   # Room capacity, TTLs, code generation
