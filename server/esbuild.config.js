@@ -12,6 +12,10 @@ const path = require('path');
 const isWatch = process.argv.includes('--watch');
 const isAnalyze = process.argv.includes('--analyze');
 
+// Read version from package.json (single source of truth)
+const pkg = require('./package.json');
+const define = { __APP_VERSION__: JSON.stringify(pkg.version) };
+
 /** @type {import('esbuild').BuildOptions} */
 const appConfig = {
     entryPoints: [path.join(__dirname, 'src/frontend/app.ts')],
@@ -26,6 +30,7 @@ const appConfig = {
     // Keep the same output structure so existing <script type="module"> works
     chunkNames: 'chunks/[name]-[hash]',
     logLevel: 'info',
+    define,
 };
 
 /** @type {import('esbuild').BuildOptions} */
@@ -39,6 +44,7 @@ const socketClientConfig = {
     outfile: path.join(__dirname, 'public/js/socket-client.js'),
     treeShaking: true,
     logLevel: 'info',
+    define,
 };
 
 /**

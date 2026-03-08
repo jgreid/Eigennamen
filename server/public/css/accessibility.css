@@ -58,6 +58,14 @@
     }
 }
 
+/* ========== SIDEBAR VERSION ========== */
+.sidebar-version {
+    padding: 0 var(--spacing-sm) var(--spacing-xs);
+    font-size: var(--font-size-xs);
+    color: rgba(255, 255, 255, 0.2);
+    text-align: center;
+}
+
 /* ========== TOAST NOTIFICATIONS ========== */
 .toast-container {
     position: fixed;
