@@ -281,6 +281,7 @@ describe('Frontend Handler Registration', () => {
         test('gameStarted clears new game button loading state', () => {
             const btn = document.createElement('button');
             btn.id = 'btn-new-game';
+            btn.classList.add('btn-new-game');
             btn.disabled = true;
             btn.classList.add('loading');
             document.body.appendChild(btn);

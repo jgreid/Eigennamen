@@ -107,20 +107,26 @@ export function newGame(): void {
 
     // In multiplayer mode, request new game from server
     if (state.isMultiplayerMode && isClientConnected()) {
-        // Show loading state on new game button
-        const newGameBtn = document.getElementById('btn-new-game') as HTMLButtonElement | null;
-        if (newGameBtn) {
-            newGameBtn.disabled = true;
-            newGameBtn.classList.add('loading');
-            // Safety timeout to re-enable button if server doesn't respond
-            setTimeout(() => {
-                if (newGameBtn.classList.contains('loading')) {
-                    newGameBtn.disabled = false;
-                    newGameBtn.classList.remove('loading');
-                    showToast(t('game.newGameTimeout'), 'warning');
+        // Show loading state on all new game buttons (sidebar + game over modal)
+        const newGameBtns = document.querySelectorAll('.btn-new-game') as NodeListOf<HTMLButtonElement>;
+        newGameBtns.forEach((btn) => {
+            btn.disabled = true;
+            btn.classList.add('loading');
+        });
+        // Safety timeout to re-enable buttons if server doesn't respond
+        setTimeout(() => {
+            newGameBtns.forEach((btn) => {
+                if (btn.classList.contains('loading')) {
+                    btn.disabled = false;
+                    btn.classList.remove('loading');
                 }
-            }, UI.NEW_GAME_SAFETY_TIMEOUT_MS);
-        }
+            });
+            // Only show timeout toast if buttons were still loading
+            if (document.querySelector('.btn-new-game.loading')) {
+                showToast(t('game.newGameTimeout'), 'warning');
+            }
+        }, UI.NEW_GAME_SAFETY_TIMEOUT_MS);
+
         // Don't clear the board here — wait for the server to confirm
         // the new game via the gameStarted event.  Clearing prematurely
         // causes a blank board if the server rejects the request (e.g.

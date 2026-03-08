@@ -18,12 +18,14 @@ import type {
 
 export function registerGameHandlers(): void {
     EigennamenClient.on('gameStarted', (data: GameStartedData) => {
-        // Clear loading state on new game button
-        const newGameBtn = document.getElementById('btn-new-game') as HTMLButtonElement;
-        if (newGameBtn) {
-            newGameBtn.disabled = false;
-            newGameBtn.classList.remove('loading');
-        }
+        // Clear loading state on all new game buttons (sidebar + game over modal)
+        const newGameBtns = document.querySelectorAll('.btn-new-game') as NodeListOf<HTMLButtonElement>;
+        newGameBtns.forEach((btn) => {
+            btn.disabled = false;
+            btn.classList.remove('loading');
+        });
+        // Clear debounce so the button is immediately usable
+        state.newGameDebounce = false;
 
         // Full sync game state from server for new games
         if (data.game) {
