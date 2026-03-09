@@ -185,6 +185,8 @@ export interface AppState {
     /** Timestamp (Date.now()) when each card entered revealingCards — for sweep robustness */
     revealTimestamps: Map<number, number>;
     pendingRevealRAF: number | null;
+    /** Monotonically increasing counter bumped on each new game to detect stale rAF callbacks */
+    gameGeneration: number;
 
     // i18n
     language: string;

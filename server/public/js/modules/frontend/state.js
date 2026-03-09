@@ -110,6 +110,7 @@ const _rawState = {
     revealTimeouts: new Map(),
     revealTimestamps: new Map(),
     pendingRevealRAF: null,
+    gameGeneration: 0,
     language: 'en',
     localizedDefaultWords: null,
     colorBlindMode: false,

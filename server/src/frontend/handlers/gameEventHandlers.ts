@@ -50,6 +50,23 @@ export function registerGameHandlers(): void {
             state.revealTimestamps.clear();
             state.isRevealingCard = false;
 
+            // Cancel any pending reveal rAF from the old game to prevent orphaned
+            // callbacks from adding 'revealed' classes to the new game's board.
+            if (state.pendingRevealRAF !== null) {
+                cancelAnimationFrame(state.pendingRevealRAF);
+                state.pendingRevealRAF = null;
+            }
+            // Bump the game generation so any rAFs that were already dispatched
+            // (and thus uncancellable) will detect the stale generation and skip.
+            state.gameGeneration = (state.gameGeneration ?? 0) + 1;
+
+            // Clear stale animation tracking from the previous game so that
+            // updateBoardIncremental doesn't apply success-reveal/just-revealed
+            // classes to wrong cards in the new game's board.
+            state.lastRevealedIndex = -1;
+            state.lastRevealedWasCorrect = false;
+            state.pendingUIUpdate = false;
+
             syncGameStateFromServer(data.game);
             state.gameMode = data.gameMode || 'match';
             updateDuetUI(data.game);

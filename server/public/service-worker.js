@@ -7,7 +7,7 @@
  */
 
 // Keep in sync with version in package.json
-const CACHE = 'eigennamen-v5.4.0-beta.5';
+const CACHE = 'eigennamen-v5.4.1-beta.5';
 
 const OFFLINE_ASSETS = [
     '/',

@@ -68,7 +68,9 @@ jest.mock('../../frontend/board', () => ({
 jest.mock('../../frontend/game', () => ({
     revealCardFromServer: jest.fn(),
     showGameOver: jest.fn(),
+    closeGameOver: jest.fn(),
     updateTurnIndicator: jest.fn(),
+    updateMatchScoreboard: jest.fn(),
 }));
 
 jest.mock('../../frontend/roles', () => ({

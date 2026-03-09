@@ -246,8 +246,16 @@ export function revealCardFromServer(index, serverData = {}) {
     // Batch DOM updates using requestAnimationFrame for better performance.
     // Store the rAF ID so it can be cancelled on room switch to prevent
     // orphaned callbacks updating a cleared/rebuilt DOM.
+    // Capture the current game generation so we can detect if a new game
+    // started before this rAF fires (the rAF ID in pendingRevealRAF can
+    // be overwritten by subsequent reveals, making earlier rAFs uncancellable).
+    const generation = state.gameGeneration;
     state.pendingRevealRAF = requestAnimationFrame(() => {
         state.pendingRevealRAF = null;
+        // Skip if a new game started since this rAF was queued — the board
+        // has been re-rendered and our captured index/type are stale.
+        if (state.gameGeneration !== generation)
+            return;
         updateSingleCard(index);
         updateBoardIncremental();
         updateScoreboard();
