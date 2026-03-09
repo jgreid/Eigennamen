@@ -2,14 +2,14 @@ name: CodeQL Analysis
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
     paths:
       - 'server/src/**'
       - 'server/public/js/**'
       - '*.js'
       - '*.ts'
   pull_request:
-    branches: [main, master]
+    branches: [main]
     paths:
       - 'server/src/**'
       - 'server/public/js/**'

@@ -26,7 +26,7 @@
     "test:e2e:headed": "npx playwright test --headed",
     "test:e2e:chromium": "npx playwright test --project=chromium",
     "test:e2e:install": "npx playwright install",
-    "lint": "eslint --ext .ts src/",
+    "lint": "eslint --ext .ts src/ --max-warnings 0",
     "format": "prettier --write \"src/**/*.ts\" \"e2e/**/*.js\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"e2e/**/*.js\"",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.frontend.json",
