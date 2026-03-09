@@ -24,7 +24,7 @@ COPY server/public/ ./public/
 COPY index.html ./public/index.html
 
 # Compile TypeScript backend + bundle frontend with esbuild (auto-updates SRI hash)
-RUN npm run build:prod
+RUN npm run build
 
 # Production stage
 FROM node:22.14-alpine3.21

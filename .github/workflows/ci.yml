@@ -117,7 +117,7 @@ jobs:
           key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
 
       - name: Build production artifacts
-        run: npm run build:prod
+        run: npm run build
 
       - name: Report bundle sizes
         run: |

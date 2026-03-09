@@ -845,7 +845,7 @@ RUN npm ci
 COPY server/tsconfig*.json server/esbuild.config.js ./
 COPY server/src/ ./src/
 COPY server/public/ ./public/
-RUN npm run build:prod
+RUN npm run build
 
 # Production stage
 FROM node:22-alpine
