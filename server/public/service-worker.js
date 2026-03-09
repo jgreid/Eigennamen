@@ -6,8 +6,8 @@
  * ensure users always get the latest version when online.
  */
 
-// Keep in sync with version in package.json
-const CACHE = 'eigennamen-v5.4.1-beta.5';
+// Auto-synced from package.json by esbuild.config.js during build
+const CACHE = 'eigennamen-v5.4.2';
 
 const OFFLINE_ASSETS = [
     '/',

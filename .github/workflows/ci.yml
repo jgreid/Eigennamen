@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
-    branches: [main, master]
+    branches: [main]
 
 permissions:
   contents: read
@@ -65,10 +65,10 @@ jobs:
           key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
 
       - name: Run ESLint
-        run: npx eslint --ext .ts src/ --max-warnings 0
+        run: npm run lint
 
       - name: Check Prettier formatting
-        run: npx prettier --check "src/**/*.ts" "e2e/**/*.js"
+        run: npm run format:check
 
   # ── Type check ─────────────────────────────────────────────────────────
   typecheck:
@@ -91,7 +91,7 @@ jobs:
           key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
 
       - name: Run TypeScript type checking
-        run: npx tsc --noEmit && npx tsc --noEmit -p tsconfig.frontend.json
+        run: npm run typecheck
 
   # ── Build verification ─────────────────────────────────────────────────
   build:

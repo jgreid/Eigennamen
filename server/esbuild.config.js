@@ -2,7 +2,8 @@
  * esbuild configuration for frontend bundling
  *
  * Produces minified, bundled output for production.
- * The existing tsc build (build:frontend) remains for development with source maps.
+ * Post-build hooks keep index.html (SRI hash) and service-worker.js (cache key)
+ * in sync automatically.
  */
 const esbuild = require('esbuild');
 const crypto = require('crypto');
@@ -87,6 +88,29 @@ function updateSriHash() {
     console.log(`Updated socket-client.js: version=${contentVersion}, integrity=${newIntegrity}`);
 }
 
+/**
+ * Sync the service-worker cache key with the version from package.json.
+ * Prevents stale cache names when the version is bumped.
+ */
+function updateServiceWorkerVersion() {
+    const swPath = path.join(__dirname, 'public/service-worker.js');
+    if (!fs.existsSync(swPath)) {
+        console.warn('Service worker version update skipped: file not found');
+        return;
+    }
+
+    let sw = fs.readFileSync(swPath, 'utf8');
+    const pattern = /(const CACHE = 'eigennamen-v)[^']+(')/;
+    if (!pattern.test(sw)) {
+        console.warn('Service worker version update skipped: could not find CACHE constant');
+        return;
+    }
+
+    sw = sw.replace(pattern, `$1${pkg.version}$2`);
+    fs.writeFileSync(swPath, sw, 'utf8');
+    console.log(`Updated service-worker.js: CACHE=eigennamen-v${pkg.version}`);
+}
+
 async function build() {
     if (isWatch) {
         const [appCtx, socketCtx] = await Promise.all([
@@ -101,6 +125,7 @@ async function build() {
             esbuild.build({ ...socketClientConfig, metafile: isAnalyze }),
         ]);
         updateSriHash();
+        updateServiceWorkerVersion();
         if (isAnalyze) {
             console.log('\n=== App Bundle Analysis ===');
             console.log(await esbuild.analyzeMetafile(appResult.metafile));
