@@ -73,7 +73,14 @@
         "copy": "Kopieren",
         "copiedShort": "Kopiert!",
         "revealTimeout": "Kartenaufdeckung abgelaufen – bitte erneut klicken",
-        "newGameTimeout": "Neues-Spiel-Anfrage abgelaufen – bitte erneut versuchen"
+        "newGameTimeout": "Neues-Spiel-Anfrage abgelaufen – bitte erneut versuchen",
+        "cardRevealedAnnounce": "Karte aufgedeckt: {{word}}. {{type}}-Karte.",
+        "duetStarted": "Duett-Spiel gestartet! Wähle dein Team und deine Rolle.",
+        "matchStarted": "Eigennamen gestartet! Wähle dein Team und deine Rolle.",
+        "classicStarted": "Neues Spiel gestartet! Wähle dein Team und deine Rolle.",
+        "roundStarted": "Runde {{round}} gestartet! Wählt eure Rollen.",
+        "roundComplete": "Runde {{round}} beendet! {{team}} gewinnt{{bonus}}. Stand: {{red}} {{redScore}} - {{blueScore}} {{blue}}",
+        "matchOverWinner": "Match vorbei! {{team}} gewinnt {{redScore}} - {{blueScore}}!"
     },
     "board": {
         "clickToReveal": "Klicken zum Aufdecken",
@@ -90,7 +97,9 @@
     "timer": {
         "remaining": "verbleibend",
         "expired": "Zeit abgelaufen!",
-        "paused": "Pausiert"
+        "paused": "Pausiert",
+        "secondRemaining": "1 Sekunde verbleibend",
+        "secondsRemaining": "{{count}} Sekunden verbleibend"
     },
     "multiplayer": {
         "createRoom": "Raum erstellen",
@@ -141,7 +150,9 @@
         "playerCountOne": "1 Spieler",
         "spectatorChatOnly": "Nur Zuschauer können den Zuschauer-Chat verwenden",
         "nicknameLength": "Spitzname muss {{min}}–{{max}} Zeichen lang sein",
-        "nicknameCharsOnly": "Nur Buchstaben, Zahlen, Leerzeichen, Bindestriche und Unterstriche erlaubt"
+        "nicknameCharsOnly": "Nur Buchstaben, Zahlen, Leerzeichen, Bindestriche und Unterstriche erlaubt",
+        "youAreHost": "Du bist jetzt der Gastgeber!",
+        "newHost": "{{name}} ist jetzt der Gastgeber"
     },
     "settings": {
         "title": "Einstellungen",

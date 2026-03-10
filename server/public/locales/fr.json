@@ -73,7 +73,14 @@
         "copy": "Copier",
         "copiedShort": "Copié !",
         "revealTimeout": "Révélation de carte expirée – cliquez à nouveau",
-        "newGameTimeout": "Demande de nouvelle partie expirée – veuillez réessayer"
+        "newGameTimeout": "Demande de nouvelle partie expirée – veuillez réessayer",
+        "cardRevealedAnnounce": "Carte révélée : {{word}}. Carte {{type}}.",
+        "duetStarted": "Partie en duo lancée ! Choisissez votre équipe et rôle.",
+        "matchStarted": "Eigennamen lancé ! Choisissez votre équipe et rôle.",
+        "classicStarted": "Nouvelle partie lancée ! Choisissez votre équipe et rôle.",
+        "roundStarted": "Manche {{round}} lancée ! Choisissez vos rôles.",
+        "roundComplete": "Manche {{round}} terminée ! {{team}} gagne{{bonus}}. Score : {{red}} {{redScore}} - {{blueScore}} {{blue}}",
+        "matchOverWinner": "Match terminé ! {{team}} gagne {{redScore}} - {{blueScore}} !"
     },
     "board": {
         "clickToReveal": "Cliquer pour révéler",
@@ -90,7 +97,9 @@
     "timer": {
         "remaining": "restant",
         "expired": "Temps écoulé !",
-        "paused": "En pause"
+        "paused": "En pause",
+        "secondRemaining": "1 seconde restante",
+        "secondsRemaining": "{{count}} secondes restantes"
     },
     "multiplayer": {
         "createRoom": "Créer un salon",
@@ -141,7 +150,9 @@
         "playerCountOne": "1 joueur",
         "spectatorChatOnly": "Seuls les spectateurs peuvent utiliser le chat spectateurs",
         "nicknameLength": "Le pseudonyme doit comporter {{min}}-{{max}} caractères",
-        "nicknameCharsOnly": "Seuls les lettres, chiffres, espaces, tirets et underscores sont autorisés"
+        "nicknameCharsOnly": "Seuls les lettres, chiffres, espaces, tirets et underscores sont autorisés",
+        "youAreHost": "Vous êtes maintenant l'hôte !",
+        "newHost": "{{name}} est maintenant l'hôte"
     },
     "settings": {
         "title": "Paramètres",

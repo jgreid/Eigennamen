@@ -128,6 +128,17 @@ jest.mock('../../frontend/logger', () => ({
     },
 }));
 
+jest.mock('../../frontend/i18n', () => ({
+    t: jest.fn((key: string, params?: Record<string, string>) => {
+        if (!params) return key;
+        let result = key;
+        for (const [k, v] of Object.entries(params)) {
+            result += ` ${k}=${v}`;
+        }
+        return result;
+    }),
+}));
+
 // Mock history module for dynamic import tests
 const mockRenderGameHistory = jest.fn();
 const mockRenderReplayData = jest.fn();
@@ -272,12 +283,12 @@ describe('Frontend Handler Registration', () => {
             expect(syncGameStateFromServer).toHaveBeenCalledWith(gameData);
             expect(updateDuetUI).toHaveBeenCalledWith(gameData);
             expect(updateForfeitButton).toHaveBeenCalled();
-            expect(showToast).toHaveBeenCalledWith(expect.stringContaining('New game started'), 'success', 5000);
+            expect(showToast).toHaveBeenCalledWith(expect.stringContaining('game.classicStarted'), 'success', 5000);
         });
 
         test('gameStarted handles duet mode label', () => {
             handlers['gameStarted']({ game: { words: [] }, gameMode: 'duet' });
-            expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Duet'), 'success', 5000);
+            expect(showToast).toHaveBeenCalledWith(expect.stringContaining('game.duetStarted'), 'success', 5000);
         });
 
         test('gameStarted clears new game button loading state', () => {
@@ -329,7 +340,9 @@ describe('Frontend Handler Registration', () => {
 
         test('cardRevealed announces to screen reader', () => {
             handlers['cardRevealed']({ index: 3, word: 'DOG', type: 'blue' });
-            expect(announceToScreenReader).toHaveBeenCalledWith('Card revealed: DOG. blue card.');
+            expect(announceToScreenReader).toHaveBeenCalledWith(
+                expect.stringContaining('game.cardRevealedAnnounce')
+            );
         });
 
         test('cardRevealed updates Duet info bar when duet data present', () => {
@@ -358,7 +371,9 @@ describe('Frontend Handler Registration', () => {
             expect(updateControls).toHaveBeenCalled();
             expect(renderBoard).toHaveBeenCalled();
             expect(checkAndNotifyTurn).toHaveBeenCalledWith('blue', 'red');
-            expect(announceToScreenReader).toHaveBeenCalledWith(expect.stringContaining('Blue'));
+            expect(announceToScreenReader).toHaveBeenCalledWith(
+                expect.stringContaining('game.turnEndedAnnounce')
+            );
         });
 
         test('turnEnded with no currentTurn does not modify state', () => {
@@ -681,7 +696,7 @@ describe('Frontend Handler Registration', () => {
             handlers['hostChanged']({ newHostSessionId: 'me-123', newHostNickname: 'TestPlayer' });
 
             expect(state.isHost).toBe(true);
-            expect(showToast).toHaveBeenCalledWith('You are now the host!', 'info');
+            expect(showToast).toHaveBeenCalledWith(expect.stringContaining('multiplayer.youAreHost'), 'info');
         });
 
         test('hostChanged shows notification when someone else becomes host', () => {
@@ -689,7 +704,7 @@ describe('Frontend Handler Registration', () => {
             handlers['hostChanged']({ newHostSessionId: 'other-456', newHostNickname: 'OtherPlayer' });
 
             expect(state.isHost).toBe(false);
-            expect(showToast).toHaveBeenCalledWith('OtherPlayer is now the host', 'info');
+            expect(showToast).toHaveBeenCalledWith(expect.stringContaining('multiplayer.newHost'), 'info');
         });
 
         test('roomWarning triggers auto-resync on STATS_STALE', () => {

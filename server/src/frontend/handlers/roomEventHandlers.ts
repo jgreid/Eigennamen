@@ -1,5 +1,6 @@
 import { state } from '../state.js';
 import { showToast } from '../ui.js';
+import { t } from '../i18n.js';
 import { updateRoleBanner, updateControls, revertAndClearRoleChange } from '../roles.js';
 import { renderBoard } from '../board.js';
 import { updateScoreboard, updateTurnIndicator } from '../game.js';
@@ -69,9 +70,9 @@ export function registerRoomHandlers(): void {
         updateForfeitButton();
 
         if (state.isHost && !wasHost) {
-            showToast('You are now the host!', 'info');
+            showToast(t('multiplayer.youAreHost'), 'info');
         } else if (data.newHostNickname) {
-            showToast(`${data.newHostNickname} is now the host`, 'info');
+            showToast(t('multiplayer.newHost', { name: data.newHostNickname }), 'info');
         }
     });
 

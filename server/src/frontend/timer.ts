@@ -1,6 +1,7 @@
 import { state } from './state.js';
 // Import timer constants for warning thresholds
 import { TIMER } from './constants.js';
+import { t } from './i18n.js';
 
 // Timer thresholds (in seconds) at which screen readers are notified
 const ANNOUNCE_THRESHOLDS = [30, 10, 1] as const;
@@ -17,7 +18,10 @@ function announceTimerThreshold(remaining: number): void {
             lastAnnouncedThreshold = threshold;
             const el = document.getElementById('sr-announcements');
             if (!el) return;
-            const label = threshold === 1 ? '1 second remaining' : `${threshold} seconds remaining`;
+            const label =
+                threshold === 1
+                    ? t('timer.secondRemaining')
+                    : t('timer.secondsRemaining', { count: String(threshold) });
             el.textContent = '';
             requestAnimationFrame(() => {
                 el.textContent = label;

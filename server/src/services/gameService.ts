@@ -459,7 +459,7 @@ export async function cleanupGame(roomCode: string): Promise<void> {
  */
 export function finalizeRound(game: GameState): RoundResult {
     if (game.gameMode !== 'match') {
-        throw new Error('finalizeRound called on non-match game');
+        throw GameStateError.corrupted('unknown', { operation: 'finalizeRound_wrong_mode' });
     }
 
     const cardScores = game.cardScores || [];

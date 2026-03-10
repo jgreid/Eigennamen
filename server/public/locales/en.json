@@ -73,7 +73,14 @@
         "copy": "Copy",
         "copiedShort": "Copied!",
         "revealTimeout": "Card reveal timed out - try clicking again",
-        "newGameTimeout": "New game request timed out - please try again"
+        "newGameTimeout": "New game request timed out - please try again",
+        "cardRevealedAnnounce": "Card revealed: {{word}}. {{type}} card.",
+        "duetStarted": "Duet game started! Pick your team and role to play.",
+        "matchStarted": "Eigennamen started! Pick your team and role to play.",
+        "classicStarted": "New game started! Pick your team and role to play.",
+        "roundStarted": "Round {{round}} started! Choose your roles.",
+        "roundComplete": "Round {{round}} complete! {{team}} wins{{bonus}}. Match: {{red}} {{redScore}} - {{blueScore}} {{blue}}",
+        "matchOverWinner": "Match over! {{team}} wins {{redScore}} - {{blueScore}}!"
     },
     "board": {
         "clickToReveal": "Click to reveal",
@@ -90,7 +97,9 @@
     "timer": {
         "remaining": "remaining",
         "expired": "Time's up!",
-        "paused": "Paused"
+        "paused": "Paused",
+        "secondRemaining": "1 second remaining",
+        "secondsRemaining": "{{count}} seconds remaining"
     },
     "multiplayer": {
         "createRoom": "Create Room",
@@ -141,7 +150,9 @@
         "playerCountOne": "1 player",
         "spectatorChatOnly": "Only spectators can use spectator chat",
         "nicknameLength": "Nickname must be {{min}}-{{max}} characters",
-        "nicknameCharsOnly": "Only letters, numbers, spaces, hyphens and underscores allowed"
+        "nicknameCharsOnly": "Only letters, numbers, spaces, hyphens and underscores allowed",
+        "youAreHost": "You are now the host!",
+        "newHost": "{{name}} is now the host"
     },
     "settings": {
         "title": "Settings",
