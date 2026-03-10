@@ -75,7 +75,7 @@ interface EigennamenClientAPI {
     // Event emitter (callback uses any[] due to event emitter pattern)
     on(event: string, callback: (...args: never[]) => void): void;
     once(event: string, callback: (...args: never[]) => void): void;
-    off(event: string): void;
+    off(event: string, callback?: (...args: never[]) => void): void;
 }
 
 declare const EigennamenClient: EigennamenClientAPI;

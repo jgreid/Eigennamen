@@ -174,9 +174,15 @@ export function revealCard(index: number): void {
  * @param serverData - Data from server including currentTurn, scores, etc.
  */
 export function revealCardFromServer(index: number, serverData: ServerRevealData = {}): void {
-    // Bounds check: reject invalid index to prevent array growth from malformed server data
-    if (typeof index !== 'number' || index < 0 || index >= state.gameState.words.length) {
-        logger.error(`revealCardFromServer: invalid index ${index} (board size: ${state.gameState.words.length})`);
+    // Bounds check: reject invalid index to prevent array growth from malformed server data.
+    // Validate against all board arrays, not just words, to guard against mismatched lengths.
+    const boardSize = Math.min(
+        state.gameState.words.length,
+        state.gameState.types.length,
+        state.gameState.revealed.length
+    );
+    if (typeof index !== 'number' || index < 0 || index >= boardSize) {
+        logger.error(`revealCardFromServer: invalid index ${index} (board size: ${boardSize})`);
         return;
     }
     if (state.gameState.revealed[index]) return; // Already revealed
@@ -195,6 +201,9 @@ export function revealCardFromServer(index: number, serverData: ServerRevealData
     // atomic update instead of ~15 individual events that could trigger
     // intermediate renders with partially-updated state.
     let type: string;
+    // Capture the revealing team BEFORE currentTurn is updated in the batch
+    // (the turn may switch after a wrong guess or max guesses reached)
+    const revealingTeam = state.gameState.currentTurn;
     batch(() => {
         // Update types BEFORE revealed so any concurrent render sees the correct type
         // (non-spymasters have null for unrevealed cards until the server sends the real type)
@@ -263,15 +272,10 @@ export function revealCardFromServer(index: number, serverData: ServerRevealData
         if (typeof serverData.cardScore === 'number' && state.gameState.cardScores) {
             state.gameState.cardScores[index] = serverData.cardScore;
         }
-        if (state.gameState.revealedBy && serverData.currentTurn) {
-            // The revealing team is the team that was on turn before any turn switch
-            // Use previous turn (before server updated it) for attribution
-            state.gameState.revealedBy[index] =
-                type === state.gameState.currentTurn
-                    ? state.gameState.currentTurn
-                    : state.gameState.currentTurn === 'red'
-                      ? 'blue'
-                      : 'red';
+        if (state.gameState.revealedBy && revealingTeam) {
+            // Use the team that was on turn when the reveal was initiated
+            // (captured before currentTurn is updated by the server response)
+            state.gameState.revealedBy[index] = revealingTeam;
         }
     });
 
