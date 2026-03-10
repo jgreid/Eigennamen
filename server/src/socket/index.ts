@@ -32,6 +32,7 @@ import {
 import { createTimerExpireCallback as createTimerExpireCallbackImpl } from './disconnectHandler';
 import { createSocketServer } from './serverConfig';
 import { handleConnection, ensureSocketFunctionsRegistered } from './connectionHandler';
+import { ServerError } from '../errors/GameError';
 
 import type { ExpressAppWithSockets } from './connectionHandler';
 
@@ -46,7 +47,7 @@ let timerSweepIntervalRef: ReturnType<typeof setInterval> | null = null;
  */
 function getIO(): SocketIOServer {
     if (!io) {
-        throw new Error('Socket.io not initialized');
+        throw new ServerError('Socket.io not initialized');
     }
     return io;
 }

@@ -16,6 +16,7 @@ import type { ZodSchema } from 'zod';
 
 import logger from './logger';
 import { tryParseJSON } from './parseJSON';
+import { ServerError } from '../errors/GameError';
 
 /**
  * Parsed Lua script result — a discriminated union.
@@ -122,10 +123,10 @@ export function unwrapLuaResult<T>(result: LuaResult<T>, operationName: string):
         return result.data;
     }
     if (result.kind === 'error') {
-        throw new Error(`Lua ${operationName} error: ${result.code}`);
+        throw new ServerError(`Lua ${operationName} error: ${result.code}`);
     }
     if (result.kind === 'null') {
-        throw new Error(`Lua ${operationName}: resource not found`);
+        throw new ServerError(`Lua ${operationName}: resource not found`);
     }
-    throw new Error(`Lua ${operationName}: unexpected result kind '${result.kind}'`);
+    throw new ServerError(`Lua ${operationName}: unexpected result kind '${result.kind}'`);
 }

@@ -477,7 +477,7 @@ describe('finalizeRound', () => {
 
     test('handles assassin end reason (no winner)', () => {
         const game = createMatchGameState({
-            history: [{ action: 'reveal', index: 24, timestamp: Date.now() }],
+            history: [{ action: 'reveal', index: 24, type: 'assassin', timestamp: Date.now() }],
             gameOver: true,
             winner: null,
         });
@@ -618,7 +618,7 @@ describe('startNextRound', () => {
     test('rejects when current round is still in progress', async () => {
         const currentGame = createMatchGameState({ gameOver: false });
 
-        await expect(startNextRound('MATCH3', currentGame)).rejects.toThrow('Current round is still in progress');
+        await expect(startNextRound('MATCH3', currentGame)).rejects.toThrow('A game is already in progress');
     });
 
     test('rejects when match is already over', async () => {
@@ -628,7 +628,7 @@ describe('startNextRound', () => {
             matchWinner: 'red',
         });
 
-        await expect(startNextRound('MATCH4', currentGame)).rejects.toThrow('Match is already over');
+        await expect(startNextRound('MATCH4', currentGame)).rejects.toThrow('Game is already over');
     });
 
     test('carries forward round history from previous rounds', async () => {

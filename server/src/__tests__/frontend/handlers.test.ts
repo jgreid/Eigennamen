@@ -340,9 +340,7 @@ describe('Frontend Handler Registration', () => {
 
         test('cardRevealed announces to screen reader', () => {
             handlers['cardRevealed']({ index: 3, word: 'DOG', type: 'blue' });
-            expect(announceToScreenReader).toHaveBeenCalledWith(
-                expect.stringContaining('game.cardRevealedAnnounce')
-            );
+            expect(announceToScreenReader).toHaveBeenCalledWith(expect.stringContaining('game.cardRevealedAnnounce'));
         });
 
         test('cardRevealed updates Duet info bar when duet data present', () => {
@@ -371,9 +369,7 @@ describe('Frontend Handler Registration', () => {
             expect(updateControls).toHaveBeenCalled();
             expect(renderBoard).toHaveBeenCalled();
             expect(checkAndNotifyTurn).toHaveBeenCalledWith('blue', 'red');
-            expect(announceToScreenReader).toHaveBeenCalledWith(
-                expect.stringContaining('game.turnEndedAnnounce')
-            );
+            expect(announceToScreenReader).toHaveBeenCalledWith(expect.stringContaining('game.turnEndedAnnounce'));
         });
 
         test('turnEnded with no currentTurn does not modify state', () => {
