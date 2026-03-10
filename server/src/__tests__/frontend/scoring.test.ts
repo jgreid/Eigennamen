@@ -22,6 +22,7 @@ jest.mock('../../frontend/state', () => ({
         teamNames: { red: 'Red', blue: 'Blue' },
         clickerTeam: null,
         gameMode: 'match',
+        isMultiplayerMode: false,
         cachedElements: {
             redRemaining: null,
             blueRemaining: null,
@@ -61,6 +62,7 @@ function resetState(): void {
     state.teamNames = { red: 'Red', blue: 'Blue' };
     state.clickerTeam = null;
     state.gameMode = 'match';
+    state.isMultiplayerMode = false;
     state.cachedElements.redRemaining = null;
     state.cachedElements.blueRemaining = null;
     state.cachedElements.redTeamName = null;
@@ -547,5 +549,38 @@ describe('updateTurnIndicator', () => {
         updateTurnIndicator();
 
         expect(t).toHaveBeenCalledWith('game.winner', { team: 'Blue' });
+    });
+
+    test('appends chooseRolesPrompt in multiplayer mode when game is over', () => {
+        const indicator = createIndicatorElement();
+        state.cachedElements.turnIndicator = indicator;
+        state.gameState.gameOver = true;
+        state.gameState.winner = 'red';
+        state.isMultiplayerMode = true;
+
+        // Mock t to return distinct values for result and prompt
+        (t as jest.Mock).mockImplementation((key: string) => {
+            if (key === 'game.winner') return 'Red wins!';
+            if (key === 'game.chooseRolesPrompt') return 'Choose your roles';
+            return key;
+        });
+
+        updateTurnIndicator();
+
+        const turnText = indicator.querySelector('.turn-text')!;
+        expect(turnText.textContent).toBe('Red wins! \u2014 Choose your roles');
+        expect(t).toHaveBeenCalledWith('game.chooseRolesPrompt');
+    });
+
+    test('does not append chooseRolesPrompt in standalone mode when game is over', () => {
+        const indicator = createIndicatorElement();
+        state.cachedElements.turnIndicator = indicator;
+        state.gameState.gameOver = true;
+        state.gameState.winner = 'red';
+        state.isMultiplayerMode = false;
+
+        updateTurnIndicator();
+
+        expect(t).not.toHaveBeenCalledWith('game.chooseRolesPrompt');
     });
 });

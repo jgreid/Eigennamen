@@ -865,6 +865,30 @@ describe('endTurn', () => {
         // Verify endTurn switched to blue and called announceToScreenReader
         expect(state.gameState.currentTurn).toBe('blue');
     });
+
+    test('returns early with spymaster-specific toast when spymaster tries to end turn', () => {
+        state.clickerTeam = null;
+        state.spymasterTeam = 'red';
+        state.playerTeam = 'red';
+        state.gameState.currentTurn = 'red';
+
+        endTurn();
+
+        expect(showToast).toHaveBeenCalledWith(expect.stringContaining('game.spymasterCannotEndTurn'), 'warning');
+        expect(state.gameState.currentTurn).toBe('red');
+    });
+
+    test('returns early with generic toast when player has no team and no role', () => {
+        state.clickerTeam = null;
+        state.spymasterTeam = null;
+        state.playerTeam = null;
+        state.gameState.currentTurn = 'red';
+
+        endTurn();
+
+        expect(showToast).toHaveBeenCalledWith(expect.stringContaining('game.onlyClickerCanEndTurn'), 'warning');
+        expect(state.gameState.currentTurn).toBe('red');
+    });
 });
 
 // ========== CONFIRM NEW GAME ==========

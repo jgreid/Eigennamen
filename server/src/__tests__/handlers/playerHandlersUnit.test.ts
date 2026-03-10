@@ -545,4 +545,154 @@ describe('Player Handlers', () => {
             expect(mockIo.to().emit).toHaveBeenCalledWith('room:playerLeft', expect.any(Object));
         });
     });
+
+    describe('player:setTeamRole', () => {
+        test('successfully sets team and role atomically', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                nickname: 'TestPlayer',
+                roomCode: 'TEST12',
+                team: 'red',
+                role: null,
+                isHost: false,
+            });
+            playerService.setTeam.mockResolvedValue({
+                sessionId: 'session-1',
+                team: 'blue',
+                role: null,
+            });
+            playerService.setRole.mockResolvedValue({
+                sessionId: 'session-1',
+                roomCode: 'TEST12',
+                team: 'blue',
+                role: 'spymaster',
+            });
+
+            await eventHandlers['player:setTeamRole']({ team: 'blue', role: 'spymaster' });
+
+            expect(playerService.setTeam).toHaveBeenCalledWith('session-1', 'blue', false);
+            expect(playerService.setRole).toHaveBeenCalledWith('session-1', 'spymaster');
+            expect(mockIo.to).toHaveBeenCalledWith('room:TEST12');
+            expect(mockIo.to().emit).toHaveBeenCalledWith('player:updated', {
+                sessionId: 'session-1',
+                changes: { team: 'blue', role: 'spymaster' },
+            });
+        });
+
+        test('skips setTeam when already on the target team', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                nickname: 'TestPlayer',
+                roomCode: 'TEST12',
+                team: 'red',
+                role: null,
+                isHost: false,
+            });
+            playerService.setRole.mockResolvedValue({
+                sessionId: 'session-1',
+                roomCode: 'TEST12',
+                team: 'red',
+                role: 'clicker',
+            });
+
+            await eventHandlers['player:setTeamRole']({ team: 'red', role: 'clicker' });
+
+            expect(playerService.setTeam).not.toHaveBeenCalled();
+            expect(playerService.setRole).toHaveBeenCalledWith('session-1', 'clicker');
+        });
+
+        test('emits error when not in a room', async () => {
+            mockSocket.roomCode = null;
+            playerService.getPlayer.mockResolvedValue(null);
+
+            await eventHandlers['player:setTeamRole']({ team: 'blue', role: 'spymaster' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
+                code: expect.any(String),
+                message: expect.stringContaining('must be in a room'),
+            });
+        });
+
+        test('prevents team switch during active turn for spymaster', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                roomCode: 'TEST12',
+                team: 'red',
+                role: 'spymaster',
+                nickname: 'TestPlayer',
+            });
+            gameService.getGame.mockResolvedValue({
+                gameOver: false,
+                currentTurn: 'red',
+            });
+
+            await eventHandlers['player:setTeamRole']({ team: 'blue', role: 'clicker' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
+                code: expect.any(String),
+                message: expect.stringContaining('Cannot change'),
+            });
+            expect(playerService.setTeam).not.toHaveBeenCalled();
+            expect(playerService.setRole).not.toHaveBeenCalled();
+        });
+
+        test('sends spymaster view when becoming spymaster via atomic change', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                nickname: 'TestPlayer',
+                roomCode: 'TEST12',
+                team: 'red',
+                role: null,
+                isHost: false,
+            });
+            playerService.setRole.mockResolvedValue({
+                sessionId: 'session-1',
+                roomCode: 'TEST12',
+                team: 'red',
+                role: 'spymaster',
+            });
+            gameService.getGame.mockResolvedValue({
+                gameOver: false,
+                types: ['red', 'blue', 'neutral', 'assassin'],
+            });
+
+            await eventHandlers['player:setTeamRole']({ team: 'red', role: 'spymaster' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('game:spymasterView', {
+                types: ['red', 'blue', 'neutral', 'assassin'],
+            });
+        });
+
+        test('does not send spymaster view for clicker role', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                nickname: 'TestPlayer',
+                roomCode: 'TEST12',
+                team: 'red',
+                role: null,
+                isHost: false,
+            });
+            playerService.setRole.mockResolvedValue({
+                sessionId: 'session-1',
+                roomCode: 'TEST12',
+                team: 'red',
+                role: 'clicker',
+            });
+
+            await eventHandlers['player:setTeamRole']({ team: 'red', role: 'clicker' });
+
+            expect(mockSocket.emit).not.toHaveBeenCalledWith('game:spymasterView', expect.any(Object));
+        });
+
+        test('handles service error gracefully', async () => {
+            playerService.setRole.mockRejectedValue(new Error('Role error'));
+
+            await eventHandlers['player:setTeamRole']({ team: 'red', role: 'spymaster' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
+                code: 'SERVER_ERROR',
+                message: 'An unexpected error occurred',
+            });
+        });
+    });
 });
