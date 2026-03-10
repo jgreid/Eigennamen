@@ -274,6 +274,7 @@ export function queueOrEmit(host: ConnectionHost, event: string, data: Record<st
             'chat:spectator',
             'player:setTeam',
             'player:setRole',
+            'player:setTeamRole',
             'player:setNickname',
             'game:endTurn',
         ];

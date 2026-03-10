@@ -556,30 +556,29 @@ describe('Frontend Handler Registration', () => {
             expect(renderBoard).toHaveBeenCalled();
         });
 
-        test('playerUpdated handles team_then_role phase: team confirmed, sends role', () => {
-            jest.useFakeTimers();
+        test('playerUpdated clears role change on atomic team+role confirmation', () => {
             mockEigennamenClient.player = {
                 sessionId: 'me-123',
                 nickname: 'Me',
-                team: 'red',
-                role: 'clicker',
+                team: 'blue',
+                role: 'spymaster',
                 isHost: false,
                 connected: true,
             } as any;
-            state.multiplayerPlayers = [{ sessionId: 'me-123', nickname: 'Me', team: 'red', role: 'clicker' } as any];
+            state.multiplayerPlayers = [
+                { sessionId: 'me-123', nickname: 'Me', team: 'blue', role: 'spymaster' } as any,
+            ];
             state.roleChange = {
-                phase: 'team_then_role',
+                phase: 'changing_role',
                 target: 'spymaster',
-                pendingRole: 'spymaster',
                 operationId: 'op-1',
             } as any;
 
-            handlers['playerUpdated']({ sessionId: 'me-123', changes: { team: 'blue' } });
+            handlers['playerUpdated']({ sessionId: 'me-123', changes: { team: 'blue', role: 'spymaster' } });
 
-            // Should transition to changing_role and call setRole
-            expect(mockEigennamenClient.setRole).toHaveBeenCalledWith('spymaster');
-            expect(state.roleChange.phase).toBe('changing_role');
-            jest.useRealTimers();
+            // Should clear role change since both team and role are confirmed
+            const { clearRoleChange } = require('../../frontend/roles');
+            expect(clearRoleChange).toHaveBeenCalled();
         });
 
         test('playerUpdated clears role change on confirming update', () => {

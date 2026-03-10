@@ -27,7 +27,11 @@
         "clickerOfflineCanClick": "Ermittler offline – du kannst Karten aufdecken",
         "chooseRole": "Wähle Geheimdienstchef oder Ermittler",
         "joinTeamFirst": "Bitte tritt zuerst einem Team bei, indem du auf eine Teampunktzahl klickst",
-        "changeTimeout": "Rollenwechsel abgelaufen – bitte erneut versuchen"
+        "changeTimeout": "Rollenwechsel abgelaufen – bitte erneut versuchen",
+        "clickToLeaveRole": "Klicken um diese Rolle zu verlassen",
+        "cannotChangeDuringTurn": "Rollen können während des eigenen Zuges nicht gewechselt werden",
+        "becomeSpymaster": "Geheimdienstchef werden (Kartentypen sehen, Hinweise geben)",
+        "becomeClicker": "Ermittler werden (raten und Karten aufdecken)"
     },
     "game": {
         "redTurn": "Rotes Team ist dran",
@@ -54,11 +58,13 @@
         "yourTurnGo": "{{team}} ist dran – Los!",
         "teamsTurn": "{{team}} ist dran",
         "spymasterCannotReveal": "Geheimdienstchefs können keine Karten aufdecken",
+        "spymasterCannotEndTurn": "Geheimdienstchefs können den Zug nicht beenden",
         "notYourTurn": "{{team}} ist am Zug",
         "joinTeamToClick": "Tritt einem Team bei und werde Ermittler, um Karten aufzudecken",
         "onlyClickerCanReveal": "Nur der Ermittler kann Karten aufdecken",
         "onlyClickerCanEndTurn": "Nur Ermittler können den Zug beenden",
         "gameOverStartNew": "Das Spiel ist beendet – starte ein neues Spiel, um weiterzuspielen",
+        "chooseRolesPrompt": "Wählt eure Rollen für das nächste Spiel",
         "invalidWordCount": "Ungültiges Spiel: genau {{count}} Wörter benötigt",
         "notEnoughWords": "Nicht genug Wörter! Mindestens {{count}} Wörter zum Spielen benötigt. Bitte füge mehr Wörter in den Einstellungen hinzu.",
         "turnEndedAnnounce": "Zug beendet. Jetzt ist {{team}} dran.",

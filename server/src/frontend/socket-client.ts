@@ -170,6 +170,14 @@ import type { JoinCreateResult } from './multiplayerTypes.js';
             }
         },
 
+        setTeamRole(team: string, role: string, callback?: (result: unknown) => void): void {
+            if (callback) {
+                this._getSocket()?.emit('player:setTeamRole', { team, role }, callback);
+            } else {
+                queueOrEmit(this, 'player:setTeamRole', { team, role });
+            }
+        },
+
         setNickname(nickname: string): void {
             queueOrEmit(this, 'player:setNickname', { nickname });
         },

@@ -396,21 +396,21 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 wordList: ctx.game.words,
             });
 
-            // Rotate roles within each team (spymaster→clicker, clicker→spectator, spectator→spymaster)
-            const players: Player[] = await playerService.rotateRolesForNextRound(ctx.roomCode);
+            // Reset all roles to spectator — players choose roles each round
+            const players: Player[] = await playerService.resetRolesForNewGame(ctx.roomCode);
 
-            // Send game state to each player (with their rotated role's view)
+            // Send game state to each player (all roles are now spectator)
             safeEmitToPlayers(io, players, SOCKET_EVENTS.GAME_STARTED, (p: Player) => ({
                 game: gameService.getGameStateForPlayer(game, p),
                 gameMode: 'match',
                 isNextRound: true,
             }));
 
-            // Broadcast rotated roles so all clients update
+            // Broadcast role resets so all clients clear spymaster/clicker state
             for (const p of players) {
                 safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
                     sessionId: p.sessionId,
-                    changes: { role: p.role, team: p.team },
+                    changes: { role: 'spectator', team: p.team },
                 });
             }
 

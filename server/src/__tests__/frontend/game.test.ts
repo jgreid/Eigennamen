@@ -811,6 +811,7 @@ describe('endTurn', () => {
 
     test('returns early with toast when clicker is not on current team', () => {
         state.clickerTeam = 'blue';
+        state.playerTeam = 'blue';
         state.gameState.currentTurn = 'red';
 
         endTurn();

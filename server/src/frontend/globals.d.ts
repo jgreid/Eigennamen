@@ -56,6 +56,7 @@ interface EigennamenClientAPI {
     // Player actions
     setTeam(team: string | null, ack?: (result: AckResult) => void): void;
     setRole(role: string, ack?: (result: AckResult) => void): void;
+    setTeamRole(team: string, role: string, ack?: (result: AckResult) => void): void;
     setNickname(nickname: string): void;
     kickPlayer(sessionId: string): void;
 

@@ -27,7 +27,11 @@
         "clickerOfflineCanClick": "Clicker offline - you can reveal cards",
         "chooseRole": "Choose Spymaster or Clicker",
         "joinTeamFirst": "Please join a team first by clicking on a team score",
-        "changeTimeout": "Role change timed out - please try again"
+        "changeTimeout": "Role change timed out - please try again",
+        "clickToLeaveRole": "Click to leave this role",
+        "cannotChangeDuringTurn": "Cannot change roles during your team's turn",
+        "becomeSpymaster": "Become the Spymaster (see card types, give clues)",
+        "becomeClicker": "Become the Clicker (guess and reveal cards)"
     },
     "game": {
         "redTurn": "Red Team's Turn",
@@ -54,11 +58,13 @@
         "yourTurnGo": "{{team}}'s Turn - Go!",
         "teamsTurn": "{{team}}'s Turn",
         "spymasterCannotReveal": "Spymasters cannot reveal cards",
+        "spymasterCannotEndTurn": "Spymasters cannot end the turn",
         "notYourTurn": "It's {{team}}'s turn",
         "joinTeamToClick": "Join a team and become a clicker to reveal cards",
         "onlyClickerCanReveal": "Only the clicker can reveal cards",
         "onlyClickerCanEndTurn": "Only clickers can end the turn",
         "gameOverStartNew": "Game is over - start a new game to continue",
+        "chooseRolesPrompt": "Choose your roles for the next game",
         "invalidWordCount": "Invalid game: need exactly {{count}} words",
         "notEnoughWords": "Not enough words! You need at least {{count}} words to play. Please add more words in Settings.",
         "turnEndedAnnounce": "Turn ended. Now {{team}}'s turn.",

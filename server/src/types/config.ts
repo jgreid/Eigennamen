@@ -44,6 +44,7 @@ export interface SocketRateLimits {
     // Player events
     'player:setTeam': RateLimitConfig;
     'player:setRole': RateLimitConfig;
+    'player:setTeamRole': RateLimitConfig;
     'player:setNickname': RateLimitConfig;
     'player:kick': RateLimitConfig;
     // Chat events
@@ -263,6 +264,7 @@ export interface SocketEventNames {
     // Player events
     PLAYER_SET_TEAM: string;
     PLAYER_SET_ROLE: string;
+    PLAYER_SET_TEAM_ROLE: string;
     PLAYER_SET_NICKNAME: string;
     PLAYER_KICK: string;
     PLAYER_KICKED: string;

@@ -27,7 +27,11 @@
         "clickerOfflineCanClick": "Agent de terrain hors ligne – vous pouvez révéler des cartes",
         "chooseRole": "Choisissez Maître-espion ou Agent de terrain",
         "joinTeamFirst": "Veuillez d'abord rejoindre une équipe en cliquant sur le score d'une équipe",
-        "changeTimeout": "Changement de rôle expiré – veuillez réessayer"
+        "changeTimeout": "Changement de rôle expiré – veuillez réessayer",
+        "clickToLeaveRole": "Cliquez pour quitter ce rôle",
+        "cannotChangeDuringTurn": "Impossible de changer de rôle pendant le tour de votre équipe",
+        "becomeSpymaster": "Devenir Maître-espion (voir les types de cartes, donner des indices)",
+        "becomeClicker": "Devenir Agent de terrain (deviner et révéler des cartes)"
     },
     "game": {
         "redTurn": "Tour de l'Équipe Rouge",
@@ -54,11 +58,13 @@
         "yourTurnGo": "Tour de {{team}} – C'est parti !",
         "teamsTurn": "Tour de {{team}}",
         "spymasterCannotReveal": "Les Maîtres-espions ne peuvent pas révéler de cartes",
+        "spymasterCannotEndTurn": "Les Maîtres-espions ne peuvent pas terminer le tour",
         "notYourTurn": "C'est le tour de {{team}}",
         "joinTeamToClick": "Rejoignez une équipe et devenez agent de terrain pour révéler des cartes",
         "onlyClickerCanReveal": "Seul l'agent de terrain peut révéler des cartes",
         "onlyClickerCanEndTurn": "Seuls les agents de terrain peuvent terminer le tour",
         "gameOverStartNew": "La partie est terminée – lancez une nouvelle partie pour continuer",
+        "chooseRolesPrompt": "Choisissez vos rôles pour la prochaine partie",
         "invalidWordCount": "Partie invalide : exactement {{count}} mots requis",
         "notEnoughWords": "Pas assez de mots ! Vous avez besoin d'au moins {{count}} mots pour jouer. Ajoutez-en dans les Paramètres.",
         "turnEndedAnnounce": "Tour terminé. C'est au tour de {{team}}.",

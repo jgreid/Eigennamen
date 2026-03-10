@@ -11,6 +11,7 @@ import { syncSpectatorRoomMembership } from './playerRoomSync';
 import {
     playerTeamSchema,
     playerRoleSchema,
+    playerTeamRoleSchema,
     playerNicknameSchema,
     playerKickSchema,
     spectatorJoinRequestSchema,
@@ -44,6 +45,14 @@ interface PlayerRoleInput {
  */
 interface PlayerNicknameInput {
     nickname: string;
+}
+
+/**
+ * Atomic team+role input
+ */
+interface PlayerTeamRoleInput {
+    team: Team;
+    role: 'spymaster' | 'clicker';
 }
 
 /**
@@ -205,6 +214,95 @@ function playerHandlers(io: Server, socket: GameSocket): void {
                         logger.info(`Player ${ctx.sessionId} set role to ${player.role}`);
 
                         return { player };
+                    },
+                    { lockTimeout: 5000, maxRetries: 3 }
+                );
+            }
+        )
+    );
+
+    /**
+     * Set player's team and role atomically (e.g., clicking "Spymaster" on another team)
+     */
+    socket.on(
+        SOCKET_EVENTS.PLAYER_SET_TEAM_ROLE,
+        createRoomHandler(
+            socket,
+            SOCKET_EVENTS.PLAYER_SET_TEAM_ROLE,
+            playerTeamRoleSchema,
+            async (ctx: RoomContext, validated: PlayerTeamRoleInput) => {
+                return await withLock(
+                    `player-mutation:${ctx.sessionId}`,
+                    async () => {
+                        const freshPlayer: Player | null = await playerService.getPlayer(ctx.sessionId);
+                        if (!freshPlayer) {
+                            throw PlayerError.notFound(ctx.sessionId);
+                        }
+                        const freshGame: GameState | null = ctx.roomCode
+                            ? await gameService.getGame(ctx.roomCode)
+                            : null;
+                        const freshCtx = { player: freshPlayer, game: freshGame };
+
+                        // If changing teams, validate the team change first
+                        if (freshPlayer.team !== validated.team) {
+                            const canChangeTeam: ChangePermission = canChangeTeamOrRole(freshCtx, {
+                                isTeamChange: true,
+                            });
+                            if (!canChangeTeam.allowed) {
+                                const errorCode = (canChangeTeam.code ||
+                                    ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN) as ErrorCode;
+                                throw new GameStateError(errorCode, canChangeTeam.reason ?? '');
+                            }
+                        }
+
+                        // Validate the role change
+                        const canChangeRole: ChangePermission = canChangeTeamOrRole(freshCtx, {
+                            targetRole: validated.role,
+                        });
+                        if (!canChangeRole.allowed) {
+                            throw new GameStateError(
+                                ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN,
+                                canChangeRole.reason ?? ''
+                            );
+                        }
+
+                        // Step 1: Set team if different (this resets role to spectator)
+                        if (freshPlayer.team !== validated.team) {
+                            const shouldCheckEmpty = !!(
+                                freshGame &&
+                                !freshGame.gameOver &&
+                                freshPlayer.team &&
+                                freshPlayer.team !== validated.team
+                            );
+                            await playerService.setTeam(ctx.sessionId, validated.team, shouldCheckEmpty);
+                        }
+
+                        // Step 2: Set role
+                        const player: Player | null = await playerService.setRole(
+                            ctx.sessionId,
+                            validated.role as Role
+                        );
+                        if (!player) {
+                            throw PlayerError.notFound(ctx.sessionId);
+                        }
+
+                        await syncSpectatorRoomMembership(socket, ctx.roomCode, ctx.sessionId);
+
+                        // Broadcast the combined change
+                        safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
+                            sessionId: ctx.sessionId,
+                            changes: { team: player.team, role: player.role },
+                        });
+
+                        const roomStats: RoomStats = await playerService.getRoomStats(ctx.roomCode);
+                        safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
+
+                        if (player.role === 'spymaster') {
+                            const spymasterGame: GameState | null = await gameService.getGame(ctx.roomCode);
+                            await sendSpymasterViewIfNeeded(socket, player, spymasterGame, ctx.roomCode);
+                        }
+
+                        logger.info(`Player ${ctx.sessionId} set team=${player.team} role=${player.role} (atomic)`);
                     },
                     { lockTimeout: 5000, maxRetries: 3 }
                 );
