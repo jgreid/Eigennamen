@@ -316,7 +316,7 @@ describe('addToHistory lazy trimming', () => {
 describe('finalizeRound', () => {
     test('throws on non-match mode game', () => {
         const classicGame = { gameMode: 'classic' };
-        expect(() => finalizeRound(classicGame)).toThrow('finalizeRound called on non-match game');
+        expect(() => finalizeRound(classicGame)).toThrow('Game data corrupted');
     });
 
     test('calculates card scores correctly for both teams', () => {

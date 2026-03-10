@@ -1,5 +1,6 @@
 import { state } from '../state.js';
 import { showToast, announceToScreenReader } from '../ui.js';
+import { t } from '../i18n.js';
 import { renderBoard } from '../board.js';
 import {
     revealCardFromServer,
@@ -73,15 +74,15 @@ export function registerGameHandlers(): void {
             updateForfeitButton();
             if (data.isNextRound) {
                 const round = data.game?.matchRound ?? 2;
-                showToast(`Round ${round} started! Choose your roles.`, 'success', 5000);
+                showToast(t('game.roundStarted', { round: String(round) }), 'success', 5000);
             } else {
-                const modeLabels: Record<string, string> = {
-                    duet: 'Duet game started!',
-                    match: 'Eigennamen started!',
-                    classic: 'New game started!',
+                const modeKeys: Record<string, string> = {
+                    duet: 'game.duetStarted',
+                    match: 'game.matchStarted',
+                    classic: 'game.classicStarted',
                 };
-                const label = modeLabels[data.gameMode || 'match'] || 'New game started!';
-                showToast(`${label} Pick your team and role to play.`, 'success', 5000);
+                const key = modeKeys[data.gameMode || 'match'] || 'game.classicStarted';
+                showToast(t(key), 'success', 5000);
             }
         }
     });
@@ -115,7 +116,7 @@ export function registerGameHandlers(): void {
             const word = data.word || (state.gameState.words && state.gameState.words[data.index]) || '';
             const type = data.type || '';
             if (word) {
-                announceToScreenReader(`Card revealed: ${word}. ${type} card.`);
+                announceToScreenReader(t('game.cardRevealedAnnounce', { word, type }));
             }
         }
 
@@ -155,7 +156,7 @@ export function registerGameHandlers(): void {
 
             // Announce turn change
             const newTeamName = data.currentTurn === 'red' ? state.teamNames.red : state.teamNames.blue;
-            announceToScreenReader(`Turn ended. Now ${newTeamName}'s turn.`);
+            announceToScreenReader(t('game.turnEndedAnnounce', { team: newTeamName }));
         }
     });
 
@@ -244,9 +245,15 @@ function showRoundSummary(
     const winnerName = roundWinner === 'red' ? state.teamNames.red : state.teamNames.blue;
     const bonusText = roundResult.redBonusAwarded || roundResult.blueBonusAwarded ? ' (+7 bonus)' : '';
 
-    const msg =
-        `Round ${roundResult.roundNumber} complete! ${winnerName} wins${bonusText}. ` +
-        `Match: ${state.teamNames.red} ${redMatchScore} - ${blueMatchScore} ${state.teamNames.blue}`;
+    const msg = t('game.roundComplete', {
+        round: String(roundResult.roundNumber),
+        team: winnerName,
+        bonus: bonusText,
+        red: state.teamNames.red,
+        redScore: String(redMatchScore),
+        blueScore: String(blueMatchScore),
+        blue: state.teamNames.blue,
+    });
     showToast(msg, 'info', 8000);
 }
 
@@ -255,7 +262,11 @@ function showRoundSummary(
  */
 function showMatchOverSummary(data: MatchOverData): void {
     const winnerName = data.matchWinner === 'red' ? state.teamNames.red : state.teamNames.blue;
-    const msg = `Match over! ${winnerName} wins ${data.redMatchScore} - ${data.blueMatchScore}!`;
+    const msg = t('game.matchOverWinner', {
+        team: winnerName,
+        redScore: String(data.redMatchScore),
+        blueScore: String(data.blueMatchScore),
+    });
     showToast(msg, 'success', 12000);
     announceToScreenReader(msg);
 }

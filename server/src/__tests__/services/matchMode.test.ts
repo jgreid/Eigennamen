@@ -173,7 +173,7 @@ describe('finalizeRound', () => {
 
     test('throws if called on non-match game', () => {
         const game = createMatchGame({ gameMode: 'classic' });
-        expect(() => finalizeRound(game)).toThrow('finalizeRound called on non-match game');
+        expect(() => finalizeRound(game)).toThrow('Game data corrupted');
     });
 
     test('calculates card points per team from revealedBy', () => {

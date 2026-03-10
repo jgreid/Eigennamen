@@ -107,7 +107,7 @@ export function updateTurnIndicator(): void {
                 resultText = t('game.duetVictory');
             } else {
                 const assassinIndex = state.gameState.types.indexOf('assassin');
-                if (state.gameState.revealed[assassinIndex]) {
+                if (assassinIndex >= 0 && state.gameState.revealed[assassinIndex]) {
                     resultText = t('game.duetGameOverAssassin');
                 } else {
                     resultText = t('game.duetGameOverTimeout');
@@ -115,7 +115,7 @@ export function updateTurnIndicator(): void {
             }
         } else {
             const assassinIndex = state.gameState.types.indexOf('assassin');
-            if (state.gameState.revealed[assassinIndex]) {
+            if (assassinIndex >= 0 && state.gameState.revealed[assassinIndex]) {
                 resultText = t('game.winnerAssassin', { team: winnerTeamName });
             } else {
                 resultText = t('game.winner', { team: winnerTeamName });

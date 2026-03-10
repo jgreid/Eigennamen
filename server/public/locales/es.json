@@ -73,7 +73,14 @@
         "copy": "Copiar",
         "copiedShort": "¡Copiado!",
         "revealTimeout": "Revelación de carta agotada – intenta hacer clic de nuevo",
-        "newGameTimeout": "Solicitud de nueva partida agotada – inténtalo de nuevo"
+        "newGameTimeout": "Solicitud de nueva partida agotada – inténtalo de nuevo",
+        "cardRevealedAnnounce": "Carta revelada: {{word}}. Carta {{type}}.",
+        "duetStarted": "¡Juego en dúo iniciado! Elige tu equipo y rol.",
+        "matchStarted": "¡Eigennamen iniciado! Elige tu equipo y rol.",
+        "classicStarted": "¡Nuevo juego iniciado! Elige tu equipo y rol.",
+        "roundStarted": "¡Ronda {{round}} iniciada! Elegid vuestros roles.",
+        "roundComplete": "¡Ronda {{round}} completada! {{team}} gana{{bonus}}. Marcador: {{red}} {{redScore}} - {{blueScore}} {{blue}}",
+        "matchOverWinner": "¡Partida terminada! {{team}} gana {{redScore}} - {{blueScore}}!"
     },
     "board": {
         "clickToReveal": "Clic para revelar",
@@ -90,7 +97,9 @@
     "timer": {
         "remaining": "restante",
         "expired": "¡Se acabó el tiempo!",
-        "paused": "Pausado"
+        "paused": "Pausado",
+        "secondRemaining": "1 segundo restante",
+        "secondsRemaining": "{{count}} segundos restantes"
     },
     "multiplayer": {
         "createRoom": "Crear sala",
@@ -141,7 +150,9 @@
         "playerCountOne": "1 jugador",
         "spectatorChatOnly": "Solo los espectadores pueden usar el chat de espectadores",
         "nicknameLength": "El apodo debe tener {{min}}-{{max}} caracteres",
-        "nicknameCharsOnly": "Solo se permiten letras, números, espacios, guiones y guiones bajos"
+        "nicknameCharsOnly": "Solo se permiten letras, números, espacios, guiones y guiones bajos",
+        "youAreHost": "¡Ahora eres el anfitrión!",
+        "newHost": "{{name}} es ahora el anfitrión"
     },
     "settings": {
         "title": "Ajustes",

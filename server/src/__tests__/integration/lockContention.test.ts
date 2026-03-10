@@ -6,6 +6,7 @@
  */
 
 const mockLocks = new Map<string, string>();
+const pendingTimers = new Set<ReturnType<typeof setTimeout>>();
 
 jest.mock('../../config/redis', () => ({
     getRedis: () => ({
@@ -15,9 +16,11 @@ jest.mock('../../config/redis', () => ({
                 mockLocks.set(key, value);
                 // Auto-expire
                 if (options.PX) {
-                    setTimeout(() => {
+                    const timerId = setTimeout(() => {
                         if (mockLocks.get(key) === value) mockLocks.delete(key);
+                        pendingTimers.delete(timerId);
                     }, options.PX);
+                    pendingTimers.add(timerId);
                 }
                 return 'OK';
             }
@@ -58,6 +61,14 @@ function sleep(ms: number): Promise<void> {
 describe('Distributed Lock Contention', () => {
     beforeEach(() => {
         mockLocks.clear();
+    });
+
+    afterEach(() => {
+        // Clear all pending auto-expire timers to prevent open handles
+        for (const timerId of pendingTimers) {
+            clearTimeout(timerId);
+        }
+        pendingTimers.clear();
     });
 
     describe('Lock acquisition contention', () => {

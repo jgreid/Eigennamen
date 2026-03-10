@@ -15,6 +15,7 @@ import { onMultiplayerJoined } from './multiplayer.js';
 import { getRoomCodeFromURL } from './multiplayerSync.js';
 import { loadGameFromURL } from './game.js';
 import { isClientConnected } from './clientAccessor.js';
+import { t } from './i18n.js';
 import type { JoinCreateResult } from './multiplayerTypes.js';
 
 /** Check whether the setup screen should be shown on load. */
@@ -162,7 +163,7 @@ async function handleJoinSubmit(): Promise<void> {
     }
 
     try {
-        setStatus('setup-join-status', 'Connecting...', 'connecting');
+        setStatus('setup-join-status', t('multiplayer.connecting'), 'connecting');
 
         if (!EigennamenClient.isConnected()) {
             await EigennamenClient.connect();
@@ -170,7 +171,7 @@ async function handleJoinSubmit(): Promise<void> {
 
         setupMultiplayerListeners();
 
-        setStatus('setup-join-status', 'Joining game...', 'connecting');
+        setStatus('setup-join-status', t('multiplayer.joiningGame'), 'connecting');
         const normalizedRoomId = roomId.toLocaleLowerCase('en-US');
         const result: JoinCreateResult = await EigennamenClient.joinRoom(normalizedRoomId, nickname);
 
@@ -240,7 +241,7 @@ async function handleHostSubmit(): Promise<void> {
     }
 
     try {
-        setStatus('setup-host-status', 'Creating game...', 'connecting');
+        setStatus('setup-host-status', t('multiplayer.creatingGame'), 'connecting');
 
         if (!EigennamenClient.isConnected()) {
             await EigennamenClient.connect();
