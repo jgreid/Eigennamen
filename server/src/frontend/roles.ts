@@ -196,7 +196,7 @@ export function updateControls(): void {
             spymasterBtn.title = t('roles.joinTeamFirst');
         } else if (isSpy) {
             spymasterBtn.title = t('roles.clickToLeaveRole');
-        } else if (activeGame && myTurn && isActiveRole) {
+        } else if (activeGame && myTurn) {
             spymasterBtn.title = t('roles.cannotChangeDuringTurn');
         } else {
             spymasterBtn.title = t('roles.becomeSpymaster');

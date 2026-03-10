@@ -267,7 +267,8 @@ function playerHandlers(io: Server, socket: GameSocket): void {
                         }
 
                         // Step 1: Set team if different (this resets role to spectator)
-                        if (freshPlayer.team !== validated.team) {
+                        const teamChanged = freshPlayer.team !== validated.team;
+                        if (teamChanged) {
                             const shouldCheckEmpty = !!(
                                 freshGame &&
                                 !freshGame.gameOver &&
@@ -277,11 +278,23 @@ function playerHandlers(io: Server, socket: GameSocket): void {
                             await playerService.setTeam(ctx.sessionId, validated.team, shouldCheckEmpty);
                         }
 
-                        // Step 2: Set role
-                        const player: Player | null = await playerService.setRole(
-                            ctx.sessionId,
-                            validated.role as Role
-                        );
+                        // Step 2: Set role — rollback team on failure
+                        let player: Player | null;
+                        try {
+                            player = await playerService.setRole(ctx.sessionId, validated.role as Role);
+                        } catch (roleError: unknown) {
+                            if (teamChanged && freshPlayer.team) {
+                                try {
+                                    await playerService.setTeam(ctx.sessionId, freshPlayer.team, false);
+                                } catch (rollbackError: unknown) {
+                                    logger.error(
+                                        `Failed to rollback team for ${ctx.sessionId} after setRole failure`,
+                                        rollbackError
+                                    );
+                                }
+                            }
+                            throw roleError;
+                        }
                         if (!player) {
                             throw PlayerError.notFound(ctx.sessionId);
                         }
