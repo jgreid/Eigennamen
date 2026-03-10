@@ -453,6 +453,22 @@ export async function cleanupGame(roomCode: string): Promise<void> {
 }
 
 /**
+ * Derive the end reason for a completed match round from game history.
+ * Checks the last relevant history entry to distinguish forfeit, assassin, and normal completion.
+ */
+function deriveRoundEndReason(game: GameState): string {
+    const history = game.history || [];
+    // Walk backwards to find the decisive action
+    for (let i = history.length - 1; i >= 0; i--) {
+        const entry = history[i] as { action: string; type?: string };
+        if (entry.action === 'forfeit') return 'forfeit';
+        if (entry.action === 'reveal' && entry.type === 'assassin') return 'assassin';
+        if (entry.action === 'reveal') return 'completed';
+    }
+    return 'completed';
+}
+
+/**
  * Finalize a completed round in match mode.
  * Calculates card scores earned by each team, awards round bonus,
  * updates cumulative match scores, and checks for match end.
@@ -498,15 +514,7 @@ export function finalizeRound(game: GameState): RoundResult {
         blueRoundScore: blueRoundTotal,
         redBonusAwarded: redBonus,
         blueBonusAwarded: blueBonus,
-        endReason:
-            game.history
-                ?.slice()
-                .reverse()
-                .find((h: { action: string }) => h.action === 'reveal' || h.action === 'forfeit')?.action === 'forfeit'
-                ? 'forfeit'
-                : roundWinner
-                  ? 'completed'
-                  : 'assassin',
+        endReason: deriveRoundEndReason(game),
         completedAt: Date.now(),
     };
 
@@ -598,10 +606,10 @@ export async function startNextRound(
             const redis: RedisClient = getRedis();
 
             if (!currentGame.gameOver) {
-                throw new Error('Current round is still in progress');
+                throw RoomError.gameInProgress(roomCode);
             }
             if (currentGame.matchOver) {
-                throw new Error('Match is already over');
+                throw GameStateError.gameOver();
             }
 
             const nextRound = (currentGame.matchRound ?? 1) + 1;

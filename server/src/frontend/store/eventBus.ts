@@ -54,10 +54,12 @@ export function subscribe(topic: string, callback: Callback): () => void {
  * for any parent prefix.
  */
 export function emit(event: StateChangeEvent): void {
-    // Exact listeners
+    // Exact listeners — snapshot the array so unsubscribes during
+    // iteration don't skip callbacks or cause index shifts.
     const exact = exactListeners.get(event.path);
     if (exact) {
-        for (const cb of exact) {
+        const snapshot = [...exact];
+        for (const cb of snapshot) {
             try {
                 cb(event);
             } catch {
@@ -73,7 +75,8 @@ export function emit(event: StateChangeEvent): void {
         const prefix = parts.slice(0, i).join('.');
         const wildcards = wildcardListeners.get(prefix);
         if (wildcards) {
-            for (const cb of wildcards) {
+            const snapshot = [...wildcards];
+            for (const cb of snapshot) {
                 try {
                     cb(event);
                 } catch {
