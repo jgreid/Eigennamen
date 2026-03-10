@@ -8,7 +8,13 @@ import * as playerService from '../../services/playerService';
 import * as roomService from '../../services/roomService';
 import { debouncedRefreshRoomTTL } from '../../services/roomService';
 import * as gameHistoryService from '../../services/gameHistoryService';
-import { gameRevealSchema, gameStartSchema, gameHistoryLimitSchema, gameReplaySchema } from '../../validators/schemas';
+import {
+    gameRevealSchema,
+    gameStartSchema,
+    gameHistoryLimitSchema,
+    gameReplaySchema,
+    gameForfeitSchema,
+} from '../../validators/schemas';
 import logger from '../../utils/logger';
 import { ERROR_CODES, SOCKET_EVENTS } from '../../config/constants';
 import { createHostHandler, createRoomHandler, createGameHandler } from '../contextHandler';
@@ -39,6 +45,13 @@ interface GameRevealInput {
  */
 interface GameHistoryLimitInput {
     limit?: number;
+}
+
+/**
+ * Game forfeit input
+ */
+interface GameForfeitInput {
+    team?: 'red' | 'blue';
 }
 
 /**
@@ -326,44 +339,49 @@ function gameHandlers(io: Server, socket: GameSocket): void {
      */
     socket.on(
         SOCKET_EVENTS.GAME_FORFEIT,
-        createHostHandler(socket, SOCKET_EVENTS.GAME_FORFEIT, null, async (ctx: RoomContext) => {
-            if (!ctx.game || ctx.game.gameOver) {
-                throw GameStateError.noActiveGame();
+        createHostHandler(
+            socket,
+            SOCKET_EVENTS.GAME_FORFEIT,
+            gameForfeitSchema as ZodType<GameForfeitInput>,
+            async (ctx: RoomContext, validated: GameForfeitInput) => {
+                if (!ctx.game || ctx.game.gameOver) {
+                    throw GameStateError.noActiveGame();
+                }
+
+                // Stop timer
+                await getSocketFunctions().stopTurnTimer(ctx.roomCode);
+
+                const result: ForfeitResult = await gameService.forfeitGame(ctx.roomCode, validated.team);
+
+                // Duet mode: forfeit is a cooperative abandonment, not a team action
+                const gameOverPayload: Record<string, unknown> = {
+                    winner: result.winner,
+                    reason: 'forfeit',
+                    types: result.allTypes,
+                };
+                if (result.winner !== null) {
+                    // Competitive mode: include which team forfeited
+                    gameOverPayload.forfeitingTeam = result.forfeitingTeam;
+                }
+                safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_OVER, gameOverPayload);
+
+                await saveCompletedGameHistory(ctx.roomCode);
+
+                // Match mode: atomically finalize round and emit result
+                await handleMatchRoundFinalization(io, ctx.roomCode);
+
+                // Audit log game end (forfeit)
+                const forfeitIp = socket.clientIP || socket.handshake.address;
+                audit(AUDIT_EVENTS.GAME_ENDED, {
+                    roomCode: ctx.roomCode,
+                    sessionId: ctx.sessionId,
+                    ip: forfeitIp,
+                    metadata: { winner: result.winner, endReason: 'forfeit' },
+                });
+
+                logger.info(`Game forfeited in room ${ctx.roomCode}, ${result.forfeitingTeam} forfeited`);
             }
-
-            // Stop timer
-            await getSocketFunctions().stopTurnTimer(ctx.roomCode);
-
-            const result: ForfeitResult = await gameService.forfeitGame(ctx.roomCode);
-
-            // Duet mode: forfeit is a cooperative abandonment, not a team action
-            const gameOverPayload: Record<string, unknown> = {
-                winner: result.winner,
-                reason: 'forfeit',
-                types: result.allTypes,
-            };
-            if (result.winner !== null) {
-                // Competitive mode: include which team forfeited
-                gameOverPayload.forfeitingTeam = result.forfeitingTeam;
-            }
-            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_OVER, gameOverPayload);
-
-            await saveCompletedGameHistory(ctx.roomCode);
-
-            // Match mode: atomically finalize round and emit result
-            await handleMatchRoundFinalization(io, ctx.roomCode);
-
-            // Audit log game end (forfeit)
-            const forfeitIp = socket.clientIP || socket.handshake.address;
-            audit(AUDIT_EVENTS.GAME_ENDED, {
-                roomCode: ctx.roomCode,
-                sessionId: ctx.sessionId,
-                ip: forfeitIp,
-                metadata: { winner: result.winner, endReason: 'forfeit' },
-            });
-
-            logger.info(`Game forfeited in room ${ctx.roomCode}, ${result.forfeitingTeam} forfeited`);
-        })
+        )
     );
 
     /**

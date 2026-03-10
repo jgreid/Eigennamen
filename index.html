@@ -36,8 +36,8 @@
     ></script>
     <script
       defer
-      src="/js/socket-client.js?v=87402bc4"
-      integrity="sha384-h0ArxMdW5UIdElPTsjsAFyOnxs6l8tiqYdad2iRj7OE4hVNpK6WQjJcSriZ+aOr6"
+      src="/js/socket-client.js?v=926b165f"
+      integrity="sha384-kmsWX3dFfk8si9ml7uR8Nk43sWEfmcybm0eqm8rGvwZmWraeKJwv61XD4S1/KW0T"
       crossorigin="anonymous"
     ></script>
     <link rel="stylesheet" href="/css/variables.css" />
@@ -1109,12 +1109,21 @@
           </button>
           <button
             type="button"
-            class="btn-new-game"
-            data-action="confirm-forfeit-new-game"
-            data-i18n="modals.forfeitAndNewGame"
+            class="btn-forfeit-red"
+            data-action="confirm-forfeit-red-new-game"
+            data-i18n="modals.forfeitRedAndNewGame"
             hidden
           >
-            Forfeit &amp; New Game
+            Forfeit Red &amp; New Game
+          </button>
+          <button
+            type="button"
+            class="btn-forfeit-blue"
+            data-action="confirm-forfeit-blue-new-game"
+            data-i18n="modals.forfeitBlueAndNewGame"
+            hidden
+          >
+            Forfeit Blue &amp; New Game
           </button>
           <button
             type="button"
@@ -1237,13 +1246,6 @@
           role="alert"
           aria-live="assertive"
         ></div>
-        <div class="rotation-reminder">
-          <h4 data-i18n="modals.rotateRolesTitle">Time to Rotate Roles!</h4>
-          <p data-i18n="modals.rotateRolesBody">
-            For the next game, choose different players to be spymasters and
-            clickers so everyone gets a turn!
-          </p>
-        </div>
         <div class="modal-buttons">
           <button
             type="button"

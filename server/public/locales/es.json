@@ -325,6 +325,8 @@
         "newGameBody": "Se terminará la partida actual. ¿Estás seguro?",
         "newGameConfirm": "Sí, nueva partida",
         "forfeitAndNewGame": "Rendirse y nueva partida",
+        "forfeitRedAndNewGame": "Rendirse Rojo y nueva partida",
+        "forfeitBlueAndNewGame": "Rendirse Azul y nueva partida",
         "abandonAndNewGame": "Abandonar y nueva partida",
         "endTurnTitle": "¿Terminar turno?",
         "endTurnBody": "¿Estás seguro de que quieres terminar el turno de tu equipo?",

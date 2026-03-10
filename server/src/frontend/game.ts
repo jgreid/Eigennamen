@@ -173,12 +173,18 @@ export function confirmNewGame(): void {
         newGame();
     } else {
         // Show/hide buttons based on mode
-        const forfeitBtn = document.querySelector('[data-action="confirm-forfeit-new-game"]') as HTMLElement | null;
+        const forfeitRedBtn = document.querySelector(
+            '[data-action="confirm-forfeit-red-new-game"]'
+        ) as HTMLElement | null;
+        const forfeitBlueBtn = document.querySelector(
+            '[data-action="confirm-forfeit-blue-new-game"]'
+        ) as HTMLElement | null;
         const abandonBtn = document.querySelector('[data-action="confirm-abandon-new-game"]') as HTMLElement | null;
         const simpleBtn = document.querySelector('[data-action="confirm-yes-new-game"]') as HTMLElement | null;
         const isMultiplayer = state.isMultiplayerMode && isClientConnected();
 
-        if (forfeitBtn) forfeitBtn.hidden = !isMultiplayer;
+        if (forfeitRedBtn) forfeitRedBtn.hidden = !isMultiplayer;
+        if (forfeitBlueBtn) forfeitBlueBtn.hidden = !isMultiplayer;
         if (abandonBtn) abandonBtn.hidden = !isMultiplayer;
         if (simpleBtn) simpleBtn.hidden = isMultiplayer;
 
@@ -239,14 +245,14 @@ export function abandonAndNewGame(): void {
     awaitGameOverThenNewGame();
 }
 
-export function forfeitAndNewGame(): void {
+export function forfeitAndNewGame(team?: string): void {
     if (!state.isMultiplayerMode || !isClientConnected()) {
         newGame();
         return;
     }
 
     // Forfeit the current game (saved to history), then start new
-    EigennamenClient.forfeit();
+    EigennamenClient.forfeit(team);
     awaitGameOverThenNewGame();
 }
 

@@ -296,6 +296,11 @@ export function renderBoard(): void {
                     logger.warn(`renderBoard: revealed card ${index} has null type, falling back to neutral`);
                 }
                 card.classList.add('revealed', revealedType || 'neutral');
+                // Add clicked-by class to color the text by the team that clicked
+                const clickedBy = state.gameState.revealedBy?.[index];
+                if (clickedBy) {
+                    card.classList.add(`clicked-by-${clickedBy}`);
+                }
             }
 
             // Match mode: add score badge
@@ -393,6 +398,12 @@ export function updateBoardIncremental(): void {
                     // First time marking as revealed — add class + animation
                     card.classList.add('revealed', type);
 
+                    // Add clicked-by class to color the text by the team that clicked
+                    const clickedBy = state.gameState.revealedBy?.[index];
+                    if (clickedBy) {
+                        card.classList.add(`clicked-by-${clickedBy}`);
+                    }
+
                     if (index === state.lastRevealedIndex) {
                         if (state.lastRevealedWasCorrect) {
                             card.classList.add('success-reveal');
@@ -406,6 +417,12 @@ export function updateBoardIncremental(): void {
                     card.classList.remove('red', 'blue', 'neutral', 'assassin');
                     card.classList.add(type);
                 }
+                // Ensure clicked-by class is present on already-revealed cards
+                const clickedByInc = state.gameState.revealedBy?.[index];
+                if (clickedByInc && !card.classList.contains(`clicked-by-${clickedByInc}`)) {
+                    card.classList.remove('clicked-by-red', 'clicked-by-blue');
+                    card.classList.add(`clicked-by-${clickedByInc}`);
+                }
             } else if (card.classList.contains('revealed')) {
                 // Card was revealed in a previous game but is unrevealed in the new game.
                 // Remove stale revealed/type classes that could persist from orphaned rAFs
@@ -417,7 +434,9 @@ export function updateBoardIncremental(): void {
                     'neutral',
                     'assassin',
                     'just-revealed',
-                    'success-reveal'
+                    'success-reveal',
+                    'clicked-by-red',
+                    'clicked-by-blue'
                 );
             }
 
@@ -444,13 +463,19 @@ export function updateSingleCard(index: number): void {
     const type = state.gameState.types[index] ?? 'neutral';
 
     // Remove any stale type class before adding the correct one
-    card.classList.remove('red', 'blue', 'neutral', 'assassin');
+    card.classList.remove('red', 'blue', 'neutral', 'assassin', 'clicked-by-red', 'clicked-by-blue');
     card.classList.add('revealed', type);
     card.setAttribute('tabindex', '-1');
     const word = state.gameState.words[index] ?? '';
     const row = Math.floor(index / 5) + 1;
     const col = (index % 5) + 1;
     card.setAttribute('aria-label', buildCardAriaLabel(word, true, type, row, col));
+
+    // Add clicked-by class to color the text by the team that clicked
+    const clickedBy = state.gameState.revealedBy?.[index];
+    if (clickedBy) {
+        card.classList.add(`clicked-by-${clickedBy}`);
+    }
 
     // Announce reveal to screen readers (localized)
     const typeNames: Record<string, string> = {
