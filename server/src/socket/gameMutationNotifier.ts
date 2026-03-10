@@ -14,14 +14,22 @@ type MutationListener = (roomCode: string) => void;
 
 const listeners: MutationListener[] = [];
 
-/** Register a callback to be invoked whenever a game is mutated. */
-export function onGameMutation(listener: MutationListener): void {
+/** Register a callback to be invoked whenever a game is mutated.
+ *  @returns Unsubscribe function that removes the listener.
+ */
+export function onGameMutation(listener: MutationListener): () => void {
     listeners.push(listener);
+    return () => {
+        const idx = listeners.indexOf(listener);
+        if (idx >= 0) listeners.splice(idx, 1);
+    };
 }
 
 /** Notify all listeners that game state for `roomCode` has changed. */
 export function notifyGameMutation(roomCode: string): void {
-    for (const listener of listeners) {
+    // Snapshot the array so removals during iteration don't skip callbacks.
+    const snapshot = [...listeners];
+    for (const listener of snapshot) {
         listener(roomCode);
     }
 }

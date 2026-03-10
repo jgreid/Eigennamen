@@ -2,6 +2,8 @@ import type { Server as SocketIOServer } from 'socket.io';
 import type { TimerCallback } from '../types';
 import type { TimerStatus } from '../services/timerService';
 
+import { ServerError } from '../errors/GameError';
+
 /**
  * Socket functions interface - all functions provided by the socket module
  */
@@ -49,14 +51,14 @@ const REQUIRED_FUNCTIONS: (keyof SocketFunctions)[] = [
  */
 function registerSocketFunctions(functions: SocketFunctions): void {
     if (!functions || typeof functions !== 'object') {
-        throw new Error('Socket functions must be an object');
+        throw new ServerError('Socket functions must be an object');
     }
 
     // Validate all required functions are present
     const missingFunctions = REQUIRED_FUNCTIONS.filter((name) => typeof functions[name] !== 'function');
 
     if (missingFunctions.length > 0) {
-        throw new Error(`Missing required socket functions: ${missingFunctions.join(', ')}`);
+        throw new ServerError(`Missing required socket functions: ${missingFunctions.join(', ')}`);
     }
 
     socketFunctions = Object.freeze({ ...functions }) as SocketFunctions;
@@ -79,7 +81,7 @@ function registerSocketFunctions(functions: SocketFunctions): void {
  */
 function getSocketFunctions(): SocketFunctions {
     if (!socketFunctions) {
-        throw new Error(
+        throw new ServerError(
             'Socket functions not yet registered. ' +
                 'Ensure registerSocketFunctions() is called during socket initialization ' +
                 'before any handlers are invoked.'
