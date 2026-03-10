@@ -1181,7 +1181,7 @@ describe('confirmNewGame button visibility', () => {
 
 describe('abandonAndNewGame', () => {
     let mockAbandonGame: jest.Mock;
-    let mockOnce: jest.Mock;
+    let mockOn: jest.Mock;
 
     beforeEach(() => {
         state.activeWords = [...DEFAULT_WORDS];
@@ -1189,11 +1189,13 @@ describe('abandonAndNewGame', () => {
         jest.clearAllMocks();
 
         mockAbandonGame = jest.fn();
-        mockOnce = jest.fn();
+        mockOn = jest.fn();
         (global as any).EigennamenClient = {
             abandonGame: mockAbandonGame,
             forfeit: jest.fn(),
-            once: mockOnce,
+            on: mockOn,
+            off: jest.fn(),
+            once: jest.fn(),
             startGame: jest.fn(),
             isConnected: jest.fn(() => true),
         };
@@ -1231,7 +1233,7 @@ describe('abandonAndNewGame', () => {
         abandonAndNewGame();
 
         expect(mockAbandonGame).toHaveBeenCalled();
-        expect(mockOnce).toHaveBeenCalledWith('gameOver', expect.any(Function));
+        expect(mockOn).toHaveBeenCalledWith('gameOver', expect.any(Function));
     });
 
     test('starts new game when gameOver fires after abandon', () => {
@@ -1241,13 +1243,13 @@ describe('abandonAndNewGame', () => {
         abandonAndNewGame();
 
         // Simulate the gameOver callback
-        const gameOverCallback = mockOnce.mock.calls[0][1];
+        const gameOverCallback = mockOn.mock.calls[0][1];
         gameOverCallback();
 
         // newGame() should have been called (sets loading state on multiplayer button)
         // Since we don't have the multiplayer new game button in DOM, just verify
         // the callback was invoked without error
-        expect(mockOnce).toHaveBeenCalledTimes(1);
+        expect(mockOn).toHaveBeenCalledTimes(1);
     });
 });
 
@@ -1255,7 +1257,7 @@ describe('abandonAndNewGame', () => {
 
 describe('forfeitAndNewGame', () => {
     let mockForfeit: jest.Mock;
-    let mockOnce: jest.Mock;
+    let mockOn: jest.Mock;
 
     beforeEach(() => {
         state.activeWords = [...DEFAULT_WORDS];
@@ -1263,11 +1265,13 @@ describe('forfeitAndNewGame', () => {
         jest.clearAllMocks();
 
         mockForfeit = jest.fn();
-        mockOnce = jest.fn();
+        mockOn = jest.fn();
         (global as any).EigennamenClient = {
             abandonGame: jest.fn(),
             forfeit: mockForfeit,
-            once: mockOnce,
+            on: mockOn,
+            off: jest.fn(),
+            once: jest.fn(),
             startGame: jest.fn(),
             isConnected: jest.fn(() => true),
         };
@@ -1294,7 +1298,7 @@ describe('forfeitAndNewGame', () => {
         forfeitAndNewGame();
 
         expect(mockForfeit).toHaveBeenCalled();
-        expect(mockOnce).toHaveBeenCalledWith('gameOver', expect.any(Function));
+        expect(mockOn).toHaveBeenCalledWith('gameOver', expect.any(Function));
     });
 
     test('starts new game when gameOver fires after forfeit', () => {
@@ -1303,9 +1307,9 @@ describe('forfeitAndNewGame', () => {
 
         forfeitAndNewGame();
 
-        const gameOverCallback = mockOnce.mock.calls[0][1];
+        const gameOverCallback = mockOn.mock.calls[0][1];
         gameOverCallback();
 
-        expect(mockOnce).toHaveBeenCalledTimes(1);
+        expect(mockOn).toHaveBeenCalledTimes(1);
     });
 });

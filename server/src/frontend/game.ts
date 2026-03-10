@@ -186,6 +186,47 @@ export function confirmNewGame(): void {
     }
 }
 
+// Track pending gameOver listener so rapid abandon/forfeit calls don't stack
+// multiple .once() handlers that all fire on the same event.
+let pendingGameOverCleanup: (() => void) | null = null;
+
+function awaitGameOverThenNewGame(): void {
+    // Cancel any previous pending listener+timeout from a prior call
+    if (pendingGameOverCleanup) {
+        pendingGameOverCleanup();
+        pendingGameOverCleanup = null;
+    }
+
+    let handled = false;
+    // Use .on() instead of .once() so we hold a direct reference for cleanup
+    // (.once() wraps the callback, making it impossible to remove by reference)
+    const onGameOver = (): void => {
+        if (handled) return;
+        handled = true;
+        EigennamenClient.off('gameOver', onGameOver);
+        clearTimeout(fallback);
+        pendingGameOverCleanup = null;
+        newGame();
+    };
+    EigennamenClient.on('gameOver', onGameOver);
+    const fallback = setTimeout(() => {
+        if (!handled) {
+            handled = true;
+            EigennamenClient.off('gameOver', onGameOver);
+            pendingGameOverCleanup = null;
+            showToast(t('game.newGameTimeout'), 'warning');
+        }
+    }, UI.NEW_GAME_SAFETY_TIMEOUT_MS);
+
+    pendingGameOverCleanup = () => {
+        if (!handled) {
+            handled = true;
+            clearTimeout(fallback);
+            EigennamenClient.off('gameOver', onGameOver);
+        }
+    };
+}
+
 export function abandonAndNewGame(): void {
     if (!state.isMultiplayerMode || !isClientConnected()) {
         // Standalone mode: just start a new game (no history to worry about)
@@ -195,22 +236,7 @@ export function abandonAndNewGame(): void {
 
     // Abandon the current game (not saved to history), then start new
     EigennamenClient.abandonGame();
-    // The server will emit game:over with reason 'abandoned'.
-    // We listen for that and then start a new game automatically.
-    // Safety timeout prevents stuck UI if the gameOver event never arrives.
-    let handled = false;
-    EigennamenClient.once('gameOver', () => {
-        if (handled) return;
-        handled = true;
-        clearTimeout(fallback);
-        newGame();
-    });
-    const fallback = setTimeout(() => {
-        if (!handled) {
-            handled = true;
-            showToast(t('game.newGameTimeout'), 'warning');
-        }
-    }, UI.NEW_GAME_SAFETY_TIMEOUT_MS);
+    awaitGameOverThenNewGame();
 }
 
 export function forfeitAndNewGame(): void {
@@ -221,20 +247,7 @@ export function forfeitAndNewGame(): void {
 
     // Forfeit the current game (saved to history), then start new
     EigennamenClient.forfeit();
-    // Safety timeout prevents stuck UI if the gameOver event never arrives.
-    let handled = false;
-    EigennamenClient.once('gameOver', () => {
-        if (handled) return;
-        handled = true;
-        clearTimeout(fallback);
-        newGame();
-    });
-    const fallback = setTimeout(() => {
-        if (!handled) {
-            handled = true;
-            showToast(t('game.newGameTimeout'), 'warning');
-        }
-    }, UI.NEW_GAME_SAFETY_TIMEOUT_MS);
+    awaitGameOverThenNewGame();
 }
 
 export function closeConfirm(): void {

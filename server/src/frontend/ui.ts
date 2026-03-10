@@ -155,6 +155,14 @@ export function openModal(modalId: string): void {
         const oldest = modalStack.shift();
         if (oldest) {
             oldest.modal.classList.remove('active');
+            // Restore focus for the evicted modal to prevent focus traps on detached DOM
+            if (
+                oldest.previousFocus &&
+                oldest.previousFocus instanceof HTMLElement &&
+                document.contains(oldest.previousFocus)
+            ) {
+                oldest.previousFocus.focus();
+            }
         }
     }
 
