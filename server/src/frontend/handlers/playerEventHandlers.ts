@@ -107,41 +107,14 @@ export function registerPlayerHandlers(): void {
                     const isConfirmingUpdate =
                         rc.phase !== 'idle' &&
                         ((rc.phase === 'changing_team' && data.changes.team !== undefined) ||
-                            (rc.phase === 'changing_role' && data.changes.role !== undefined) ||
-                            (rc.phase === 'team_then_role' && data.changes.team !== undefined));
+                            (rc.phase === 'changing_role' &&
+                                (data.changes.role !== undefined || data.changes.team !== undefined)));
 
                     if (rc.phase === 'idle' || isConfirmingUpdate) {
                         syncLocalPlayerState(updatedPlayer);
                     }
 
-                    // Check for pending role change after team change completed
-                    if (rc.phase === 'team_then_role' && data.changes.team) {
-                        // Team change completed, now send the queued role change
-                        const roleToSet = rc.pendingRole;
-                        const currentOpId = rc.operationId;
-
-                        // Narrow revert: team change succeeded, only revert role on failure
-                        const confirmedTeam = updatedPlayer.team;
-                        state.roleChange = {
-                            phase: 'changing_role',
-                            target: rc.target,
-                            operationId: currentOpId,
-                            revertFn: () => {
-                                state.playerTeam = confirmedTeam;
-                                state.spymasterTeam = null;
-                                state.clickerTeam = null;
-                                updateRoleBanner();
-                                updateControls();
-                                renderBoard();
-                            },
-                        };
-
-                        EigennamenClient.setRole(roleToSet);
-
-                        // The absolute timeout (ROLE_CHANGE_ABSOLUTE_TIMEOUT_MS) in roles.ts
-                        // handles recovery for all phases including this role portion.
-                        // No per-phase timeout needed.
-                    } else if (isConfirmingUpdate || rc.phase === 'idle') {
+                    if (isConfirmingUpdate || rc.phase === 'idle') {
                         clearRoleChange();
                     }
                     // If role change in progress but not confirmed by this update,

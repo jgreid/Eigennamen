@@ -29,6 +29,7 @@ export const RATE_LIMITS: Record<string, RateLimitConfig> = {
     // Player events (keys match event names for consistency)
     'player:setTeam': { window: 2000, max: 5 }, // 5 per 2 seconds
     'player:setRole': { window: 2000, max: 5 }, // 5 per 2 seconds
+    'player:setTeamRole': { window: 2000, max: 5 }, // 5 per 2 seconds (atomic team+role)
     'player:setNickname': { window: 5000, max: 3 }, // 3 per 5 seconds
     'player:kick': { window: 5000, max: 3 }, // 3 per 5 seconds (host only)
     // Chat events

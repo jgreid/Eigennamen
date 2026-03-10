@@ -67,6 +67,7 @@ export const SOCKET_EVENTS = {
     // Player events
     PLAYER_SET_TEAM: 'player:setTeam',
     PLAYER_SET_ROLE: 'player:setRole',
+    PLAYER_SET_TEAM_ROLE: 'player:setTeamRole',
     PLAYER_SET_NICKNAME: 'player:setNickname',
     PLAYER_KICK: 'player:kick',
     PLAYER_KICKED: 'player:kicked',

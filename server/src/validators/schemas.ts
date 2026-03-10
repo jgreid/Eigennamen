@@ -20,6 +20,7 @@ export {
 export {
     playerTeamSchema,
     playerRoleSchema,
+    playerTeamRoleSchema,
     playerNicknameSchema,
     playerKickSchema,
     spectatorJoinRequestSchema,
@@ -40,6 +41,7 @@ export type { RoomCreateInput, RoomJoinInput, RoomSettingsInput, RoomReconnectIn
 export type {
     PlayerTeamInput,
     PlayerRoleInput,
+    PlayerTeamRoleInput,
     PlayerNicknameInput,
     PlayerKickInput,
     SpectatorJoinRequestInput,

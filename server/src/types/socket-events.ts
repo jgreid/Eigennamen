@@ -80,6 +80,14 @@ export interface PlayerRolePayload {
 }
 
 /**
+ * Atomic team+role change payload (sets both in one operation)
+ */
+export interface PlayerTeamRolePayload {
+    team: Team;
+    role: Role;
+}
+
+/**
  * Player nickname change payload
  */
 export interface PlayerNicknamePayload {
@@ -154,6 +162,7 @@ export interface ClientToServerEvents {
     // Player events
     'player:setTeam': (data: PlayerTeamPayload) => void;
     'player:setRole': (data: PlayerRolePayload) => void;
+    'player:setTeamRole': (data: PlayerTeamRolePayload) => void;
     'player:setNickname': (data: PlayerNicknamePayload) => void;
     'player:kick': (data: PlayerKickPayload) => void;
 

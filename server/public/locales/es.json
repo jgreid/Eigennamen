@@ -27,7 +27,11 @@
         "clickerOfflineCanClick": "Agente de campo desconectado – puedes revelar cartas",
         "chooseRole": "Elige Jefe de espías o Agente de campo",
         "joinTeamFirst": "Únete primero a un equipo haciendo clic en la puntuación de un equipo",
-        "changeTimeout": "Cambio de rol agotado – inténtalo de nuevo"
+        "changeTimeout": "Cambio de rol agotado – inténtalo de nuevo",
+        "clickToLeaveRole": "Haz clic para dejar este rol",
+        "cannotChangeDuringTurn": "No puedes cambiar de rol durante el turno de tu equipo",
+        "becomeSpymaster": "Ser el Jefe de espías (ver tipos de cartas, dar pistas)",
+        "becomeClicker": "Ser el Agente de campo (adivinar y revelar cartas)"
     },
     "game": {
         "redTurn": "Turno del Equipo Rojo",
@@ -54,11 +58,13 @@
         "yourTurnGo": "Turno de {{team}} – ¡Adelante!",
         "teamsTurn": "Turno de {{team}}",
         "spymasterCannotReveal": "Los Jefes de espías no pueden revelar cartas",
+        "spymasterCannotEndTurn": "Los Jefes de espías no pueden terminar el turno",
         "notYourTurn": "Es el turno de {{team}}",
         "joinTeamToClick": "Únete a un equipo y conviértete en agente de campo para revelar cartas",
         "onlyClickerCanReveal": "Solo el agente de campo puede revelar cartas",
         "onlyClickerCanEndTurn": "Solo los agentes de campo pueden terminar el turno",
         "gameOverStartNew": "La partida ha terminado – inicia una nueva partida para continuar",
+        "chooseRolesPrompt": "Elige tus roles para la siguiente partida",
         "invalidWordCount": "Partida no válida: se necesitan exactamente {{count}} palabras",
         "notEnoughWords": "¡No hay suficientes palabras! Necesitas al menos {{count}} palabras para jugar. Añade más en Ajustes.",
         "turnEndedAnnounce": "Turno terminado. Ahora es el turno de {{team}}.",

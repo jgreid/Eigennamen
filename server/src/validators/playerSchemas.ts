@@ -12,6 +12,11 @@ const playerRoleSchema = z.object({
     role: z.enum(['spymaster', 'clicker', 'spectator']),
 });
 
+const playerTeamRoleSchema = z.object({
+    team: z.enum(['red', 'blue']),
+    role: z.enum(['spymaster', 'clicker']),
+});
+
 const playerNicknameSchema = z.object({
     nickname: createNicknameSchema(),
 });
@@ -48,6 +53,7 @@ const spectatorJoinResponseSchema = z.object({
 // Type exports for schema inference
 export type PlayerTeamInput = ZodType.infer<typeof playerTeamSchema>;
 export type PlayerRoleInput = ZodType.infer<typeof playerRoleSchema>;
+export type PlayerTeamRoleInput = ZodType.infer<typeof playerTeamRoleSchema>;
 export type PlayerNicknameInput = ZodType.infer<typeof playerNicknameSchema>;
 export type PlayerKickInput = ZodType.infer<typeof playerKickSchema>;
 export type SpectatorJoinRequestInput = ZodType.infer<typeof spectatorJoinRequestSchema>;
@@ -56,6 +62,7 @@ export type SpectatorJoinResponseInput = ZodType.infer<typeof spectatorJoinRespo
 export {
     playerTeamSchema,
     playerRoleSchema,
+    playerTeamRoleSchema,
     playerNicknameSchema,
     playerKickSchema,
     spectatorJoinRequestSchema,

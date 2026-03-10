@@ -536,14 +536,13 @@ describe('updateControls (multiplayer scenarios)', () => {
         expect(spy.classList.contains('loading')).toBe(true);
     });
 
-    test('shows loading on clicker button when pending role is clicker', () => {
+    test('shows loading on clicker button when changing to clicker', () => {
         state.playerTeam = 'red';
         state.roleChange = {
-            phase: 'team_then_role',
+            phase: 'changing_role',
             target: 'clicker',
             operationId: '1',
             revertFn: () => {},
-            pendingRole: 'clicker',
         };
         updateControls();
 

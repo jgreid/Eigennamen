@@ -15,6 +15,7 @@ import { UI } from './constants.js';
 import { t } from './i18n.js';
 import { updateURL } from './url-state.js';
 import { isClientConnected } from './clientAccessor.js';
+import { canActAsClicker } from './store/selectors.js';
 import { checkGameOver, updateScoreboard, updateTurnIndicator } from './game/scoring.js';
 import { showGameOverModal } from './game/reveal.js';
 
@@ -353,13 +354,15 @@ export function endTurn(): void {
         showToast(t('game.gameOverStartNew'), 'warning');
         return;
     }
-    if (!state.clickerTeam) {
-        showToast(t('game.onlyClickerCanEndTurn'), 'warning');
-        return;
-    }
-    if (state.clickerTeam !== state.gameState.currentTurn) {
-        const currentTeamName = state.gameState.currentTurn === 'red' ? state.teamNames.red : state.teamNames.blue;
-        showToast(t('game.notYourTurn', { team: currentTeamName }), 'warning');
+    if (!canActAsClicker()) {
+        if (state.spymasterTeam) {
+            showToast(t('game.spymasterCannotEndTurn'), 'warning');
+        } else if (state.playerTeam && state.playerTeam !== state.gameState.currentTurn) {
+            const currentTeamName = state.gameState.currentTurn === 'red' ? state.teamNames.red : state.teamNames.blue;
+            showToast(t('game.notYourTurn', { team: currentTeamName }), 'warning');
+        } else {
+            showToast(t('game.onlyClickerCanEndTurn'), 'warning');
+        }
         return;
     }
 

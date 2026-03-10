@@ -73,7 +73,7 @@ export function registerGameHandlers(): void {
             updateForfeitButton();
             if (data.isNextRound) {
                 const round = data.game?.matchRound ?? 2;
-                showToast(`Round ${round} started! Roles have been rotated.`, 'success', 5000);
+                showToast(`Round ${round} started! Choose your roles.`, 'success', 5000);
             } else {
                 const modeLabels: Record<string, string> = {
                     duet: 'Duet game started!',

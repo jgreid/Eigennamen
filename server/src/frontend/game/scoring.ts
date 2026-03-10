@@ -101,24 +101,31 @@ export function updateTurnIndicator(): void {
 
     if (state.gameState.gameOver) {
         indicator.className = 'turn-indicator game-over';
+        let resultText = '';
         if (isDuetMode()) {
             if (state.gameState.winner) {
-                turnText.textContent = t('game.duetVictory');
+                resultText = t('game.duetVictory');
             } else {
                 const assassinIndex = state.gameState.types.indexOf('assassin');
                 if (state.gameState.revealed[assassinIndex]) {
-                    turnText.textContent = t('game.duetGameOverAssassin');
+                    resultText = t('game.duetGameOverAssassin');
                 } else {
-                    turnText.textContent = t('game.duetGameOverTimeout');
+                    resultText = t('game.duetGameOverTimeout');
                 }
             }
         } else {
             const assassinIndex = state.gameState.types.indexOf('assassin');
             if (state.gameState.revealed[assassinIndex]) {
-                turnText.textContent = t('game.winnerAssassin', { team: winnerTeamName });
+                resultText = t('game.winnerAssassin', { team: winnerTeamName });
             } else {
-                turnText.textContent = t('game.winner', { team: winnerTeamName });
+                resultText = t('game.winner', { team: winnerTeamName });
             }
+        }
+        // In multiplayer, add a prompt to choose roles for the next game
+        if (state.isMultiplayerMode) {
+            turnText.textContent = resultText + ' \u2014 ' + t('game.chooseRolesPrompt');
+        } else {
+            turnText.textContent = resultText;
         }
     } else {
         const yourTurn = isPlayerTurn();

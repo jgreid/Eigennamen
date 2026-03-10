@@ -1,5 +1,11 @@
 import { state, ROLE_BANNER_CONFIG } from './state.js';
-import { isSpymaster, isClicker as isClickerSelector, canActAsClicker } from './store/selectors.js';
+import {
+    isSpymaster,
+    isClicker as isClickerSelector,
+    canActAsClicker,
+    gameInProgress,
+    isTeamOnTurn,
+} from './store/selectors.js';
 import { showToast, announceToScreenReader } from './ui.js';
 import { renderBoard } from './board.js';
 import { t } from './i18n.js';
@@ -166,6 +172,11 @@ export function updateControls(): void {
     const isSpy = isSpymaster();
     const isClickerRole = isClickerSelector();
 
+    // Determine if role changes are blocked (for tooltips)
+    const activeGame = gameInProgress();
+    const myTurn = isTeamOnTurn();
+    const isActiveRole = isSpy || isClickerRole;
+
     if (spymasterBtn) {
         // Enable only if on a team and not currently changing role
         spymasterBtn.disabled = !state.playerTeam || isChangingRole();
@@ -179,6 +190,17 @@ export function updateControls(): void {
             spymasterBtn.classList.add(state.playerTeam + '-team');
         }
         spymasterBtn.setAttribute('aria-pressed', isSpy.toString());
+
+        // Tooltip explaining why button is disabled or what it does
+        if (!state.playerTeam) {
+            spymasterBtn.title = t('roles.joinTeamFirst');
+        } else if (isSpy) {
+            spymasterBtn.title = t('roles.clickToLeaveRole');
+        } else if (activeGame && myTurn) {
+            spymasterBtn.title = t('roles.cannotChangeDuringTurn');
+        } else {
+            spymasterBtn.title = t('roles.becomeSpymaster');
+        }
     }
     if (clickerBtn) {
         // Enable only if on a team and not currently changing role
@@ -193,6 +215,17 @@ export function updateControls(): void {
             clickerBtn.classList.add(state.playerTeam + '-team');
         }
         clickerBtn.setAttribute('aria-pressed', isClickerRole.toString());
+
+        // Tooltip explaining why button is disabled or what it does
+        if (!state.playerTeam) {
+            clickerBtn.title = t('roles.joinTeamFirst');
+        } else if (isClickerRole) {
+            clickerBtn.title = t('roles.clickToLeaveRole');
+        } else if (activeGame && myTurn && isActiveRole) {
+            clickerBtn.title = t('roles.cannotChangeDuringTurn');
+        } else {
+            clickerBtn.title = t('roles.becomeClicker');
+        }
     }
 
     // Role hint removed — players are oriented via quickstart guide
@@ -351,15 +384,9 @@ function setRoleForTeam(
             state.roleChange = { phase: 'changing_role', target: roleName, operationId, revertFn: revertOptimistic };
             EigennamenClient.setRole('spectator', ackHandler);
         } else if (prevTeam !== team) {
-            // Need team change first, then role
-            state.roleChange = {
-                phase: 'team_then_role',
-                target: roleName,
-                operationId,
-                revertFn: revertOptimistic,
-                pendingRole: roleName,
-            };
-            EigennamenClient.setTeam(team, ackHandler);
+            // Different team: use atomic setTeamRole (single server round-trip)
+            state.roleChange = { phase: 'changing_role', target: roleName, operationId, revertFn: revertOptimistic };
+            EigennamenClient.setTeamRole(team, roleName, ackHandler);
         } else {
             // Already on correct team, just change role
             state.roleChange = { phase: 'changing_role', target: roleName, operationId, revertFn: revertOptimistic };
@@ -367,8 +394,7 @@ function setRoleForTeam(
         }
         refreshRoleUI();
 
-        // The absolute timeout (ROLE_CHANGE_ABSOLUTE_TIMEOUT_MS) handles lost-ack recovery
-        // for all phases including compound team_then_role operations.
+        // The absolute timeout (ROLE_CHANGE_ABSOLUTE_TIMEOUT_MS) handles lost-ack recovery.
         // No per-operation timeout needed — a single mechanism prevents state-machine stalls.
         return;
     }
