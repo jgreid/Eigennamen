@@ -1135,6 +1135,7 @@ describe('confirmNewGame button visibility', () => {
 
     test('shows forfeit/abandon buttons and hides simple button in multiplayer mode', () => {
         state.isMultiplayerMode = true;
+        state.gameState.words = Array(BOARD_SIZE).fill('word');
         (isClientConnected as jest.Mock).mockReturnValue(true);
 
         confirmNewGame();

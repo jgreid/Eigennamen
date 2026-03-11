@@ -168,10 +168,13 @@ export function newGame(): void {
 }
 
 export function confirmNewGame(): void {
+    const isMultiplayer = state.isMultiplayerMode && isClientConnected();
+    const hasActiveGame = state.gameState.words.length > 0 && !state.gameState.gameOver;
     const cardsRevealed = state.gameState.revealed.filter((r) => r).length;
-    if (cardsRevealed === 0 || state.gameState.gameOver) {
-        newGame();
-    } else {
+
+    // Show dialog if there's an active game in multiplayer, or if cards have been
+    // revealed in standalone mode. Otherwise, launch new game immediately.
+    if (isMultiplayer ? hasActiveGame : cardsRevealed > 0 && !state.gameState.gameOver) {
         // Show/hide buttons based on mode
         const forfeitRedBtn = document.querySelector(
             '[data-action="confirm-forfeit-red-new-game"]'
@@ -181,7 +184,6 @@ export function confirmNewGame(): void {
         ) as HTMLElement | null;
         const abandonBtn = document.querySelector('[data-action="confirm-abandon-new-game"]') as HTMLElement | null;
         const simpleBtn = document.querySelector('[data-action="confirm-yes-new-game"]') as HTMLElement | null;
-        const isMultiplayer = state.isMultiplayerMode && isClientConnected();
 
         if (forfeitRedBtn) forfeitRedBtn.hidden = !isMultiplayer;
         if (forfeitBlueBtn) forfeitBlueBtn.hidden = !isMultiplayer;
@@ -189,6 +191,8 @@ export function confirmNewGame(): void {
         if (simpleBtn) simpleBtn.hidden = isMultiplayer;
 
         openModal('confirm-modal');
+    } else {
+        newGame();
     }
 }
 
