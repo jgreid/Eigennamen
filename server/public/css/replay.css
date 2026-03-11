@@ -396,14 +396,6 @@
         touch-action: manipulation;
     }
 
-    /* Improve scrolling on touch devices */
-    .history-list,
-    .replay-event-log,
-    .settings-content {
-        -webkit-overflow-scrolling: touch;
-        overscroll-behavior: contain;
-    }
-
     /* Game title responsive sizing */
     .game-title {
         font-size: 1.3rem;
