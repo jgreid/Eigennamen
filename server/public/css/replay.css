@@ -52,6 +52,8 @@
 .history-list {
     max-height: 400px;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -288,6 +290,8 @@
 .replay-event-log {
     max-height: 150px;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     background: rgba(0, 0, 0, 0.2);
     border-radius: 8px;
     padding: 12px;

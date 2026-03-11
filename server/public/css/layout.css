@@ -84,6 +84,7 @@
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
 }
 
 /* Right Main Area — constrained to viewport so board + chat fit without scrollbar */
@@ -95,6 +96,7 @@
     align-items: center;
     min-height: 0;
     overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
 /* ========== HEADER / TITLE ========== */

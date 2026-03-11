@@ -446,8 +446,8 @@
     }
 
     .sidebar .action-buttons-row button {
-        min-height: 28px;
-        padding: 2px 10px;
+        min-height: 36px;
+        padding: 4px 10px;
         font-size: 0.7rem;
     }
 
@@ -459,9 +459,9 @@
 
     .sidebar .btn-secondary-action {
         aspect-ratio: auto;
-        padding: 2px 6px;
-        min-height: 28px;
-        min-width: 28px;
+        padding: 4px 6px;
+        min-height: 36px;
+        min-width: 36px;
     }
 
     .sidebar .btn-secondary-action .btn-label {
