@@ -202,8 +202,12 @@ function setupEventListeners(): void {
             case 'confirm-forfeit':
                 confirmForfeit();
                 break;
-            case 'confirm-yes-forfeit':
-                forfeitGame();
+            case 'confirm-forfeit-red':
+                forfeitGame('red');
+                closeForfeitConfirm();
+                break;
+            case 'confirm-forfeit-blue':
+                forfeitGame('blue');
                 closeForfeitConfirm();
                 break;
             case 'close-forfeit-confirm':

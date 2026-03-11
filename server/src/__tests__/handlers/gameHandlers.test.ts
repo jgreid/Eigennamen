@@ -411,6 +411,47 @@ describe('Game Handlers', () => {
                 })
             );
         });
+
+        test('forfeits specific team when team parameter is provided', async () => {
+            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'TEST12', isHost: true });
+            gameService.getGame.mockResolvedValue({ gameOver: false, currentTurn: 'red' });
+            gameService.forfeitGame.mockResolvedValue({
+                winner: 'red',
+                forfeitingTeam: 'blue',
+                allTypes: ['red', 'blue', 'neutral', 'assassin'],
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const forfeitHandler = handlers.find((h) => h[0] === 'game:forfeit');
+            await forfeitHandler[1]({ team: 'blue' });
+
+            expect(gameService.forfeitGame).toHaveBeenCalledWith('TEST12', 'blue');
+            expect(mockIo.emit).toHaveBeenCalledWith(
+                'game:over',
+                expect.objectContaining({
+                    winner: 'red',
+                    forfeitingTeam: 'blue',
+                    reason: 'forfeit',
+                })
+            );
+        });
+
+        test('rejects when game is already over', async () => {
+            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'TEST12', isHost: true });
+            gameService.getGame.mockResolvedValue({ gameOver: true, currentTurn: 'red' });
+
+            const handlers = mockSocket.on.mock.calls;
+            const forfeitHandler = handlers.find((h) => h[0] === 'game:forfeit');
+            await forfeitHandler[1]();
+
+            expect(gameService.forfeitGame).not.toHaveBeenCalled();
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({
+                    message: expect.any(String),
+                })
+            );
+        });
     });
 
     describe('Error handling', () => {

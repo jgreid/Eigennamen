@@ -334,6 +334,8 @@
         "forfeitTitle": "Spiel aufgeben?",
         "forfeitBody": "Das Spiel wird beendet und der Sieg dem gegnerischen Team zugesprochen. Bist du sicher?",
         "forfeitConfirm": "Ja, aufgeben",
+        "forfeitRed": "Rot aufgeben",
+        "forfeitBlue": "Blau aufgeben",
         "kickTitle": "Spieler entfernen?",
         "kickBody": "Bist du sicher, dass du diesen Spieler aus dem Raum entfernen möchtest?",
         "kickConfirm": "Ja, entfernen",

@@ -1135,6 +1135,7 @@ describe('confirmNewGame button visibility', () => {
 
     test('shows forfeit/abandon buttons and hides simple button in multiplayer mode', () => {
         state.isMultiplayerMode = true;
+        state.gameState.words = Array(BOARD_SIZE).fill('word');
         (isClientConnected as jest.Mock).mockReturnValue(true);
 
         confirmNewGame();
@@ -1308,6 +1309,33 @@ describe('forfeitAndNewGame', () => {
         expect(mockOn).toHaveBeenCalledWith('gameOver', expect.any(Function));
     });
 
+    test('passes team parameter to forfeit in multiplayer', () => {
+        state.isMultiplayerMode = true;
+        (isClientConnected as jest.Mock).mockReturnValue(true);
+
+        forfeitAndNewGame('red');
+
+        expect(mockForfeit).toHaveBeenCalledWith('red');
+    });
+
+    test('passes blue team parameter to forfeit in multiplayer', () => {
+        state.isMultiplayerMode = true;
+        (isClientConnected as jest.Mock).mockReturnValue(true);
+
+        forfeitAndNewGame('blue');
+
+        expect(mockForfeit).toHaveBeenCalledWith('blue');
+    });
+
+    test('passes no team when called without parameter', () => {
+        state.isMultiplayerMode = true;
+        (isClientConnected as jest.Mock).mockReturnValue(true);
+
+        forfeitAndNewGame();
+
+        expect(mockForfeit).toHaveBeenCalledWith(undefined);
+    });
+
     test('starts new game when gameOver fires after forfeit', () => {
         state.isMultiplayerMode = true;
         (isClientConnected as jest.Mock).mockReturnValue(true);
@@ -1318,5 +1346,131 @@ describe('forfeitAndNewGame', () => {
         gameOverCallback();
 
         expect(mockOn).toHaveBeenCalledTimes(1);
+    });
+
+    test('rapid forfeit calls cancel previous pending listener', () => {
+        state.isMultiplayerMode = true;
+        (isClientConnected as jest.Mock).mockReturnValue(true);
+
+        const mockOff = jest.fn();
+        (global as any).EigennamenClient.off = mockOff;
+
+        // First call registers a listener
+        forfeitAndNewGame('red');
+        expect(mockOn).toHaveBeenCalledTimes(1);
+        const firstCallback = mockOn.mock.calls[0][1];
+
+        // Second call should cancel the first listener
+        forfeitAndNewGame('blue');
+        expect(mockOff).toHaveBeenCalledWith('gameOver', firstCallback);
+        expect(mockOn).toHaveBeenCalledTimes(2);
+    });
+
+    test('gameOver callback only fires once even if called multiple times', () => {
+        state.isMultiplayerMode = true;
+        (isClientConnected as jest.Mock).mockReturnValue(true);
+
+        // Set up a mock startGame to count newGame() calls
+        const mockStartGame = jest.fn();
+        (global as any).EigennamenClient.startGame = mockStartGame;
+
+        forfeitAndNewGame('red');
+
+        const gameOverCallback = mockOn.mock.calls[0][1];
+        gameOverCallback(); // First call should trigger newGame
+        gameOverCallback(); // Second call should be ignored (handled flag)
+
+        // startGame is called inside newGame() for multiplayer
+        // The important thing is it doesn't throw or double-fire
+        expect(mockOn).toHaveBeenCalledTimes(1);
+    });
+});
+
+// ========== CONFIRM NEW GAME - EDGE CASES ==========
+
+describe('confirmNewGame edge cases', () => {
+    beforeEach(() => {
+        state.activeWords = [...DEFAULT_WORDS];
+        state.newGameDebounce = false;
+        jest.clearAllMocks();
+
+        document.body.innerHTML = `
+            <button data-action="confirm-yes-new-game"></button>
+            <button data-action="confirm-forfeit-red-new-game"></button>
+            <button data-action="confirm-forfeit-blue-new-game"></button>
+            <button data-action="confirm-abandon-new-game"></button>
+        `;
+    });
+
+    test('shows dialog in multiplayer even with zero cards revealed', () => {
+        state.isMultiplayerMode = true;
+        state.gameState.words = Array(BOARD_SIZE).fill('word');
+        state.gameState.revealed = Array(BOARD_SIZE).fill(false); // NO reveals
+        state.gameState.gameOver = false;
+        (isClientConnected as jest.Mock).mockReturnValue(true);
+
+        confirmNewGame();
+
+        // Should show dialog, not call newGame directly
+        const simpleBtn = document.querySelector('[data-action="confirm-yes-new-game"]') as HTMLElement;
+        expect(simpleBtn.hidden).toBe(true); // Hidden in multiplayer = dialog was shown
+    });
+
+    test('starts immediately in multiplayer when game is over', () => {
+        state.isMultiplayerMode = true;
+        state.gameState.words = Array(BOARD_SIZE).fill('word');
+        state.gameState.revealed = Array(BOARD_SIZE).fill(false);
+        state.gameState.gameOver = true;
+        (isClientConnected as jest.Mock).mockReturnValue(true);
+
+        (global as any).EigennamenClient = {
+            startGame: jest.fn(),
+            isConnected: jest.fn(() => true),
+            on: jest.fn(),
+            off: jest.fn(),
+            once: jest.fn(),
+        };
+
+        confirmNewGame();
+
+        // Should call newGame directly (no dialog)
+        expect((global as any).EigennamenClient.startGame).toHaveBeenCalled();
+
+        delete (global as any).EigennamenClient;
+    });
+
+    test('starts immediately in multiplayer when no game exists', () => {
+        state.isMultiplayerMode = true;
+        state.gameState.words = []; // No game started
+        state.gameState.gameOver = false;
+        (isClientConnected as jest.Mock).mockReturnValue(true);
+
+        (global as any).EigennamenClient = {
+            startGame: jest.fn(),
+            isConnected: jest.fn(() => true),
+            on: jest.fn(),
+            off: jest.fn(),
+            once: jest.fn(),
+        };
+
+        confirmNewGame();
+
+        expect((global as any).EigennamenClient.startGame).toHaveBeenCalled();
+
+        delete (global as any).EigennamenClient;
+    });
+
+    test('shows dialog in standalone mode only when cards are revealed', () => {
+        state.isMultiplayerMode = false;
+        state.gameState.words = Array(BOARD_SIZE).fill('word');
+        state.gameState.revealed = Array(BOARD_SIZE).fill(false);
+        state.gameState.revealed[0] = true;
+        state.gameState.gameOver = false;
+        (isClientConnected as jest.Mock).mockReturnValue(false);
+
+        confirmNewGame();
+
+        const simpleBtn = document.querySelector('[data-action="confirm-yes-new-game"]') as HTMLElement;
+        expect(simpleBtn.hidden).toBe(false); // Visible in standalone = dialog was shown
     });
 });

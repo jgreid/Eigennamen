@@ -334,6 +334,8 @@
         "forfeitTitle": "¿Abandonar partida?",
         "forfeitBody": "Se terminará la partida y la victoria se otorgará al equipo contrario. ¿Estás seguro?",
         "forfeitConfirm": "Sí, abandonar",
+        "forfeitRed": "Rendirse Rojo",
+        "forfeitBlue": "Rendirse Azul",
         "kickTitle": "¿Expulsar jugador?",
         "kickBody": "¿Estás seguro de que quieres eliminar a este jugador de la sala?",
         "kickConfirm": "Sí, expulsar",
