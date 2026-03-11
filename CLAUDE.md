@@ -95,10 +95,10 @@ Eigennamen/
     │   ├── css/                # Modular stylesheets (10 files)
     │   │   ├── variables.css   # Design tokens (colors, spacing, breakpoints)
     │   │   ├── components.css  # UI components
-    │   │   ├── board.css       # Game board
+    │   │   ├── layout.css      # Game board + page layout
     │   │   ├── setup.css       # Setup screen
-    │   │   ├── accessibility.css # a11y styles (445 lines)
-    │   │   └── ...             # chat, history, multiplayer, responsive, admin
+    │   │   ├── accessibility.css # a11y styles (453 lines)
+    │   │   └── ...             # modals, multiplayer, replay, responsive, admin
     │   ├── locales/            # i18n translations (en, de, es, fr) + wordlists
     │   ├── icons/              # App icons
     │   ├── manifest.json       # PWA manifest
@@ -109,9 +109,10 @@ Eigennamen/
     └── src/
         ├── index.ts            # Server entry point (HTTP + WebSocket bootstrap)
         ├── app.ts              # Express 5 app setup (middleware, routes, Swagger)
-        ├── config/             # Configuration modules (12 files)
+        ├── config/             # Configuration modules (13 files)
         │   ├── constants.ts    # Barrel — re-exports version, gameConfig, errorCodes, roomConfig, socketConfig, securityConfig, rateLimits
         │   ├── version.ts     # APP_VERSION + APP_MAJOR_VERSION (reads from package.json — single source of truth)
+        │   ├── env.ts          # Environment variable loading + validation
         │   ├── socketConfig.ts # All WebSocket event name constants
         │   ├── gameConfig.ts   # Game modes, board layout, PRNG seed offsets, card distributions
         │   ├── roomConfig.ts   # Room capacity, TTLs, code generation
@@ -121,18 +122,20 @@ Eigennamen/
         │   ├── redis.ts        # Redis client setup + embedded Redis management
         │   ├── memoryMode.ts   # Memory-mode detection and configuration
         │   ├── jwt.ts          # JWT signing/verification config
-        │   ├── swagger.ts      # OpenAPI/Swagger spec
-        │   └── timeouts.ts     # Timeout constants for all async operations
+        │   └── swagger.ts      # OpenAPI/Swagger spec
         ├── errors/             # Error class hierarchy
         │   └── GameError.ts    # GameError base + RoomError, PlayerError, GameStateError, ValidationError, RateLimitError, ServerError
         ├── middleware/          # Express + socket middleware
         │   ├── errorHandler.ts # Express error handler (detail allowlist, Zod scrubbing)
         │   ├── rateLimit.ts    # HTTP rate limiting (express-rate-limit)
         │   ├── socketAuth.ts   # Socket.io auth orchestrator
+        │   ├── csrf.ts         # CSRF protection middleware
+        │   ├── timing.ts       # Request timing middleware
+        │   ├── validation.ts   # Request validation middleware
         │   └── auth/           # Auth sub-modules
-        │       ├── jwtAuth.ts  # JWT token generation + validation
-        │       ├── clientIp.ts # Client IP extraction (proxy-aware)
-        │       ├── originCheck.ts # Origin/referer validation
+        │       ├── jwtHandler.ts # JWT token generation + validation
+        │       ├── clientIP.ts # Client IP extraction (proxy-aware)
+        │       ├── originValidator.ts # Origin/referer validation
         │       └── sessionValidator.ts # Session age + integrity checks
         ├── routes/             # REST API routes
         │   ├── index.ts        # Route registration barrel
@@ -164,26 +167,30 @@ Eigennamen/
         ├── socket/             # WebSocket setup + utilities
         │   ├── index.ts        # Socket.io server setup + handler registration
         │   ├── contextHandler.ts # Handler factory: validation → rate limit → context → execute
-        │   ├── connectionHandler.ts # Connection lifecycle (connect/disconnect)
+        │   ├── connectionHandler.ts # Connection lifecycle (connect)
+        │   ├── disconnectHandler.ts # Disconnection handling
         │   ├── connectionTracker.ts # Per-IP connection tracking + limits
         │   ├── playerContext.ts # Session state resolution
         │   ├── safeEmit.ts     # Wrapped Socket.io emissions with error handling + metrics
         │   ├── gameMutationNotifier.ts # Event emitter for game state changes
+        │   ├── rateLimitHandler.ts # Socket-level rate limiting
         │   ├── serverConfig.ts # Socket.io server configuration
+        │   ├── socketFunctionProvider.ts # Socket function dependency injection
         │   └── handlers/       # Event-specific handlers (9 files)
         │       ├── gameHandlers.ts    # game:start, game:reveal, game:endTurn, game:forfeit, etc.
+        │       ├── gameHandlerUtils.ts # Shared game handler utilities
         │       ├── roomHandlers.ts    # room:create, room:join, room:leave, room:settings, etc.
         │       ├── roomHandlerUtils.ts # Shared room handler utilities
         │       ├── playerHandlers.ts  # player:setTeam, player:setRole, player:kick, etc.
+        │       ├── playerRoomSync.ts  # Room sync after player state changes
         │       ├── timerHandlers.ts   # timer:start, timer:pause, timer:resume, timer:addTime
         │       ├── chatHandlers.ts    # chat:message, chat:spectator
-        │       ├── spectatorHandlers.ts # spectator:requestJoin, spectator:approveJoin
-        │       ├── historyHandlers.ts # game:getHistory, game:getReplay, game:clearHistory
-        │       └── reconnectionHandlers.ts # room:reconnect, room:getReconnectionToken
+        │       └── types.ts           # Handler type definitions
         ├── frontend/           # Frontend TypeScript source (55 modules, compiled via esbuild)
         │   ├── app.ts          # Frontend entry point + event delegation
         │   ├── setupScreen.ts  # Setup screen (Host/Join/Solo quickstart cards)
         │   ├── state.ts        # Reactive state proxy (wraps _rawState with Proxy)
+        │   ├── stateTypes.ts   # State type definitions
         │   ├── board.ts        # Board rendering + card interaction
         │   ├── game.ts         # Game logic barrel (re-exports from game/ sub-modules)
         │   ├── roles.ts        # Role selection UI (spymaster, clicker, team)
@@ -191,19 +198,28 @@ Eigennamen/
         │   ├── settings.ts     # Settings panel logic
         │   ├── history.ts      # Game history + replay UI
         │   ├── chat.ts         # Chat UI
+        │   ├── timer.ts        # Turn timer UI
         │   ├── i18n.ts         # Internationalization
         │   ├── notifications.ts # Audio + tab notifications
         │   ├── url-state.ts    # URL encoding/decoding for standalone mode
         │   ├── utils.ts        # Clipboard, escapeHTML, DOM utilities
         │   ├── constants.ts    # Frontend constants (UI timing, selectors)
         │   ├── debug.ts        # Debug logging + state watchers
+        │   ├── logger.ts       # Frontend logging utility
         │   ├── accessibility.ts # Keyboard navigation, ARIA, skip links
         │   ├── multiplayer.ts  # Multiplayer orchestration barrel
         │   ├── multiplayerListeners.ts # Event listener registration
         │   ├── multiplayerSync.ts # Server state synchronization
         │   ├── multiplayerUI.ts # Multiplayer-specific UI components
+        │   ├── multiplayerTypes.ts # Multiplayer type definitions
         │   ├── clientAccessor.ts # Socket client accessor
         │   ├── stateMutations.ts # Type-safe state mutation helpers
+        │   ├── socket-client.ts # WebSocket client wrapper
+        │   ├── socket-client-connection.ts # Socket connection management
+        │   ├── socket-client-events.ts # Socket event handling
+        │   ├── socket-client-rooms.ts # Socket room operations
+        │   ├── socket-client-storage.ts # Socket state persistence
+        │   ├── socket-client-types.ts # Socket client type definitions
         │   ├── handlers/       # Client-side event handlers
         │   │   ├── gameEventHandlers.ts   # Server game event responses
         │   │   ├── playerEventHandlers.ts # Server player event responses
@@ -222,7 +238,9 @@ Eigennamen/
         │       ├── reveal.ts   # Card reveal logic + game over modal
         │       └── scoring.ts  # Score calculation + turn indicator
         ├── shared/             # Shared between frontend and backend
-        │   └── gameRules.ts    # Game mode rules, board sizes, card counts
+        │   ├── index.ts        # Barrel export
+        │   ├── gameRules.ts    # Game mode rules, board sizes, card counts
+        │   └── validation.ts   # Shared validation utilities
         ├── types/              # TypeScript type definitions (11 files)
         │   ├── index.ts        # Barrel export
         │   ├── player.ts       # Player, Team, Role types
@@ -237,7 +255,7 @@ Eigennamen/
         │   └── vendor.d.ts     # Third-party declarations (qrcode, Socket.io globals)
         ├── utils/              # Utility modules (12 files)
         │   ├── distributedLock.ts # Redis-based distributed locking (NX + EX pattern)
-        │   ├── logger.ts       # Structured logging (pino-style)
+        │   ├── logger.ts       # Structured logging (Winston)
         │   ├── metrics.ts      # Application metrics collection
         │   ├── parseJSON.ts    # Safe JSON parsing for Redis data
         │   ├── retryAsync.ts   # Async retry with exponential backoff
