@@ -74,6 +74,7 @@
         "copiedShort": "¡Copiado!",
         "revealTimeout": "Revelación de carta agotada – intenta hacer clic de nuevo",
         "newGameTimeout": "Solicitud de nueva partida agotada – inténtalo de nuevo",
+        "newGameHostOnly": "Solo el anfitrión puede iniciar una nueva partida",
         "cardRevealedAnnounce": "Carta revelada: {{word}}. Carta {{type}}.",
         "duetStarted": "¡Juego en dúo iniciado! Elige tu equipo y rol.",
         "matchStarted": "¡Eigennamen iniciado! Elige tu equipo y rol.",

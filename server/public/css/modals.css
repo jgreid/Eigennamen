@@ -28,6 +28,8 @@
     width: 90%;
     max-height: 90vh;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     border: 1px solid rgba(102, 126, 234, 0.3);
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     transform: scale(0.95);
