@@ -1,5 +1,6 @@
 /* ========== CSS CUSTOM PROPERTIES (Design Tokens) ========== */
 :root {
+    color-scheme: dark;
     /* Color Palette */
     --color-bg-dark: #0f0f1a;
     --color-bg-medium: #1a1a2e;
@@ -115,10 +116,28 @@ body {
         var(--color-bg-light) 100%
     );
     min-height: 100vh;
+    min-height: 100dvh;
     padding: 0;
     color: var(--color-text-primary);
     font-size: var(--font-size-base);
     line-height: var(--line-height-base);
+    overscroll-behavior: none;
+}
+
+html {
+    overflow: hidden;
+    overscroll-behavior: none;
+}
+
+/* Prevent iOS Safari auto-zoom on input focus (requires font-size >= 16px) */
+input[type='text'],
+input[type='number'],
+input[type='search'],
+input[type='email'],
+input[type='password'],
+textarea,
+select {
+    font-size: max(16px, 1em);
 }
 
 /* Ensure [hidden] attribute always hides elements, even with flex/grid CSS */
