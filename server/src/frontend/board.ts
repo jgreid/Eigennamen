@@ -296,7 +296,7 @@ export function renderBoard(): void {
                     logger.warn(`renderBoard: revealed card ${index} has null type, falling back to neutral`);
                 }
                 card.classList.add('revealed', revealedType || 'neutral');
-                // Add clicked-by class to color the text by the team that clicked
+                // Add clicked-by class to mark the score badge with the team that clicked
                 const clickedBy = state.gameState.revealedBy?.[index];
                 if (clickedBy) {
                     card.classList.add(`clicked-by-${clickedBy}`);
@@ -398,7 +398,7 @@ export function updateBoardIncremental(): void {
                     // First time marking as revealed — add class + animation
                     card.classList.add('revealed', type);
 
-                    // Add clicked-by class to color the text by the team that clicked
+                    // Add clicked-by class to mark the score badge with the team that clicked
                     const clickedBy = state.gameState.revealedBy?.[index];
                     if (clickedBy) {
                         card.classList.add(`clicked-by-${clickedBy}`);
@@ -471,7 +471,7 @@ export function updateSingleCard(index: number): void {
     const col = (index % 5) + 1;
     card.setAttribute('aria-label', buildCardAriaLabel(word, true, type, row, col));
 
-    // Add clicked-by class to color the text by the team that clicked
+    // Add clicked-by class to mark the score badge with the team that clicked
     const clickedBy = state.gameState.revealedBy?.[index];
     if (clickedBy) {
         card.classList.add(`clicked-by-${clickedBy}`);

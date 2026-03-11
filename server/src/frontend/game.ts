@@ -172,6 +172,13 @@ export function confirmNewGame(): void {
     const hasActiveGame = state.gameState.words.length > 0 && !state.gameState.gameOver;
     const cardsRevealed = state.gameState.revealed.filter((r) => r).length;
 
+    // Non-host players in multiplayer can't start new games — show toast instead
+    // of the forfeit menu they can't use.
+    if (isMultiplayer && !EigennamenClient.player?.isHost) {
+        showToast(t('game.newGameHostOnly'), 'warning');
+        return;
+    }
+
     // Show dialog if there's an active game in multiplayer, or if cards have been
     // revealed in standalone mode. Otherwise, launch new game immediately.
     if (isMultiplayer ? hasActiveGame : cardsRevealed > 0 && !state.gameState.gameOver) {

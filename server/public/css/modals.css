@@ -28,6 +28,8 @@
     width: 90%;
     max-height: 90vh;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     border: 1px solid rgba(102, 126, 234, 0.3);
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     transform: scale(0.95);
@@ -823,23 +825,4 @@
     background: rgba(52, 152, 219, 0.2);
     border: 2px solid rgba(52, 152, 219, 0.5);
     color: #74b9ff;
-}
-
-.game-over-content .rotation-reminder {
-    background: rgba(255, 193, 7, 0.1);
-    border: 1px solid rgba(255, 193, 7, 0.3);
-    padding: 12px;
-    border-radius: 12px;
-    margin: 12px 0;
-}
-
-.game-over-content .rotation-reminder h4 {
-    color: #ffc107;
-    margin-bottom: 6px;
-    font-size: 0.95rem;
-}
-
-.game-over-content .rotation-reminder p {
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 0.9rem;
 }

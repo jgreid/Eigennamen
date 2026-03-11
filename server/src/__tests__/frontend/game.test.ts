@@ -1131,6 +1131,13 @@ describe('confirmNewGame button visibility', () => {
             <button data-action="confirm-forfeit-blue-new-game"></button>
             <button data-action="confirm-abandon-new-game"></button>
         `;
+
+        // Provide EigennamenClient global for multiplayer host checks
+        (global as any).EigennamenClient = { player: { isHost: true } };
+    });
+
+    afterEach(() => {
+        delete (global as any).EigennamenClient;
     });
 
     test('shows forfeit/abandon buttons and hides simple button in multiplayer mode', () => {
@@ -1409,11 +1416,33 @@ describe('confirmNewGame edge cases', () => {
         state.gameState.gameOver = false;
         (isClientConnected as jest.Mock).mockReturnValue(true);
 
+        (global as any).EigennamenClient = { player: { isHost: true } };
+
         confirmNewGame();
 
         // Should show dialog, not call newGame directly
         const simpleBtn = document.querySelector('[data-action="confirm-yes-new-game"]') as HTMLElement;
         expect(simpleBtn.hidden).toBe(true); // Hidden in multiplayer = dialog was shown
+
+        delete (global as any).EigennamenClient;
+    });
+
+    test('shows toast for non-host in multiplayer instead of dialog', () => {
+        state.isMultiplayerMode = true;
+        state.gameState.words = Array(BOARD_SIZE).fill('word');
+        state.gameState.revealed = Array(BOARD_SIZE).fill(false);
+        state.gameState.gameOver = false;
+        (isClientConnected as jest.Mock).mockReturnValue(true);
+
+        (global as any).EigennamenClient = { player: { isHost: false } };
+
+        confirmNewGame();
+
+        // Should NOT show dialog — non-host gets a toast instead
+        const simpleBtn = document.querySelector('[data-action="confirm-yes-new-game"]') as HTMLElement;
+        expect(simpleBtn.hidden).toBe(false); // Not modified = dialog was not shown
+
+        delete (global as any).EigennamenClient;
     });
 
     test('starts immediately in multiplayer when game is over', () => {
@@ -1424,6 +1453,7 @@ describe('confirmNewGame edge cases', () => {
         (isClientConnected as jest.Mock).mockReturnValue(true);
 
         (global as any).EigennamenClient = {
+            player: { isHost: true },
             startGame: jest.fn(),
             isConnected: jest.fn(() => true),
             on: jest.fn(),
@@ -1446,6 +1476,7 @@ describe('confirmNewGame edge cases', () => {
         (isClientConnected as jest.Mock).mockReturnValue(true);
 
         (global as any).EigennamenClient = {
+            player: { isHost: true },
             startGame: jest.fn(),
             isConnected: jest.fn(() => true),
             on: jest.fn(),

@@ -74,6 +74,7 @@
         "copiedShort": "Copied!",
         "revealTimeout": "Card reveal timed out - try clicking again",
         "newGameTimeout": "New game request timed out - please try again",
+        "newGameHostOnly": "Only the host can start a new game",
         "cardRevealedAnnounce": "Card revealed: {{word}}. {{type}} card.",
         "duetStarted": "Duet game started! Pick your team and role to play.",
         "matchStarted": "Eigennamen started! Pick your team and role to play.",

@@ -464,6 +464,16 @@
     button:hover:not(:disabled) {
         transform: none;
     }
+
+    .score.red:hover {
+        background: linear-gradient(135deg, rgba(220, 53, 69, 0.15) 0%, rgba(180, 40, 55, 0.08) 100%);
+        border-color: rgba(220, 53, 69, 0.35);
+    }
+
+    .score.blue:hover {
+        background: linear-gradient(135deg, rgba(0, 123, 255, 0.15) 0%, rgba(0, 90, 200, 0.08) 100%);
+        border-color: rgba(0, 123, 255, 0.35);
+    }
 }
 
 /* ========== REDUCED MOTION ========== */

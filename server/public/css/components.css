@@ -111,6 +111,9 @@
     text-align: center;
     cursor: pointer;
     touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
     transition: all var(--transition-normal);
     min-width: 80px;
 }
@@ -535,6 +538,9 @@ button {
     cursor: pointer;
     font-weight: 600;
     touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
     transition:
         transform var(--transition-fast),
         box-shadow var(--transition-fast),
@@ -555,6 +561,14 @@ button:disabled {
     opacity: 0.35;
     cursor: not-allowed;
     transform: none;
+}
+
+/* Prevent iOS long-press menu and text selection on interactive elements */
+[data-action] {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 /* Loading state for buttons */
@@ -600,7 +614,6 @@ button:focus-visible,
 
 /* Keyboard-only focus for labels wrapping native inputs */
 @supports selector(:has(*)) {
-    .radio-option:has(:focus-visible),
     .toggle-label:has(:focus-visible),
     .game-mode-option:has(:focus-visible) {
         outline: 2px solid #ffc107;
@@ -695,6 +708,10 @@ button:focus-visible,
     border-radius: var(--radius-md);
     cursor: pointer;
     touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
     transition:
         transform var(--transition-normal),
         box-shadow var(--transition-normal),
@@ -814,20 +831,17 @@ button:focus-visible,
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
-/* ========== CLICKED-BY TEAM TEXT COLORS ========== */
-/* Color card text by the team that clicked the card */
-.card.revealed.clicked-by-red {
-    color: #fbb;
+/* ========== CLICKED-BY TEAM SCORE BADGE COLORS ========== */
+/* Color the score badge by the team that clicked the card, so you can see
+   what each team scored on a given round (and compare to their total). */
+.card.revealed.clicked-by-red .card-score-badge {
+    border: 2px solid var(--red-primary, #e74c3c);
+    box-shadow: 0 0 4px rgba(231, 76, 60, 0.4);
 }
 
-.card.revealed.clicked-by-blue {
-    color: #bbdfff;
-}
-
-/* When card type matches the clicking team, keep white for legibility */
-.card.revealed.red.clicked-by-red,
-.card.revealed.blue.clicked-by-blue {
-    color: white;
+.card.revealed.clicked-by-blue .card-score-badge {
+    border: 2px solid var(--blue-primary, #3498db);
+    box-shadow: 0 0 4px rgba(52, 152, 219, 0.4);
 }
 
 /* ========== COLORBLIND-FRIENDLY PATTERNS ========== */

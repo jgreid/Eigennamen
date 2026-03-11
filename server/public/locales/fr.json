@@ -74,6 +74,7 @@
         "copiedShort": "Copié !",
         "revealTimeout": "Révélation de carte expirée – cliquez à nouveau",
         "newGameTimeout": "Demande de nouvelle partie expirée – veuillez réessayer",
+        "newGameHostOnly": "Seul l'hôte peut démarrer une nouvelle partie",
         "cardRevealedAnnounce": "Carte révélée : {{word}}. Carte {{type}}.",
         "duetStarted": "Partie en duo lancée ! Choisissez votre équipe et rôle.",
         "matchStarted": "Eigennamen lancé ! Choisissez votre équipe et rôle.",

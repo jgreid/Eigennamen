@@ -74,6 +74,7 @@
         "copiedShort": "Kopiert!",
         "revealTimeout": "Kartenaufdeckung abgelaufen – bitte erneut klicken",
         "newGameTimeout": "Neues-Spiel-Anfrage abgelaufen – bitte erneut versuchen",
+        "newGameHostOnly": "Nur der Host kann ein neues Spiel starten",
         "cardRevealedAnnounce": "Karte aufgedeckt: {{word}}. {{type}}-Karte.",
         "duetStarted": "Duett-Spiel gestartet! Wähle dein Team und deine Rolle.",
         "matchStarted": "Eigennamen gestartet! Wähle dein Team und deine Rolle.",
