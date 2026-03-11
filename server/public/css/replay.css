@@ -3,6 +3,7 @@
     max-width: 600px;
     width: 95%;
     max-height: 80vh;
+    max-height: 80dvh;
 }
 
 .history-modal h2 {
@@ -147,6 +148,7 @@
     max-width: 700px;
     width: 95%;
     max-height: 90vh;
+    max-height: 90dvh;
 }
 
 .replay-modal h2 {
@@ -354,10 +356,12 @@
     .history-modal {
         max-width: 100%;
         max-height: 90vh;
+        max-height: 90dvh;
     }
 
     .history-list {
         max-height: 55vh;
+        max-height: 55dvh;
     }
 
     .history-item {
@@ -425,17 +429,12 @@
 
     .modal {
         max-height: 95vh;
+        max-height: 95dvh;
     }
 
     .settings-content {
         max-height: 60vh;
-    }
-}
-
-/* Dark mode color scheme for system preference */
-@media (prefers-color-scheme: dark) {
-    :root {
-        color-scheme: dark;
+        max-height: 60dvh;
     }
 }
 

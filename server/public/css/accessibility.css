@@ -69,8 +69,8 @@
 /* ========== TOAST NOTIFICATIONS ========== */
 .toast-container {
     position: fixed;
-    top: 20px;
-    right: 20px;
+    top: max(20px, env(safe-area-inset-top, 0px));
+    right: max(20px, env(safe-area-inset-right, 0px));
     z-index: var(--z-toast);
     display: flex;
     flex-direction: column;
@@ -383,6 +383,7 @@ body.colorblind-mode .spymaster-mode .card.spy-red:not(.revealed)::after {
     align-items: center;
     justify-content: center;
     z-index: var(--z-toast);
+    -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
 }
 

@@ -7,9 +7,9 @@
     max-width: var(--max-content-width);
     margin: 0 auto;
     /* Safe area for notch/Dynamic Island devices */
-    padding-top: env(safe-area-inset-top);
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
 }
 
 /* ========== TOP STATUS BAR ========== */
@@ -83,6 +83,7 @@
     max-height: calc(100dvh - 48px);
     overflow-y: auto;
     overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
 }
 
 /* Right Main Area — constrained to viewport so board + chat fit without scrollbar */
