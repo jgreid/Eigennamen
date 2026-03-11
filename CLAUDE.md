@@ -25,7 +25,7 @@ npm run dev                    # Start dev server (uses REDIS_URL env, defaults 
 docker compose up -d --build   # Start with Docker (Redis + app)
 
 # Quality gates (all four must pass before submitting a PR)
-npm test                       # All tests (backend + frontend, 133 suites)
+npm test                       # All tests (backend + frontend, 132 suites)
 npm run lint                   # ESLint
 npm run format:check           # Prettier check
 npm run typecheck              # TypeScript check
@@ -253,7 +253,7 @@ Eigennamen/
         │   ├── config.ts       # Configuration types
         │   ├── errors.ts       # ErrorCode + SafeErrorCode types
         │   └── vendor.d.ts     # Third-party declarations (qrcode, Socket.io globals)
-        ├── utils/              # Utility modules (12 files)
+        ├── utils/              # Utility modules (11 files)
         │   ├── distributedLock.ts # Redis-based distributed locking (NX + EX pattern)
         │   ├── logger.ts       # Structured logging (Winston)
         │   ├── metrics.ts      # Application metrics collection
@@ -270,7 +270,7 @@ Eigennamen/
         │   └── timerSchemas.ts # timerAddTimeSchema (10-300 seconds)
         ├── scripts/            # Redis Lua scripts (26 atomic operations)
         │   └── index.ts        # Barrel export with documented KEYS/ARGV/Returns headers
-        └── __tests__/          # Jest tests (133 suites)
+        └── __tests__/          # Jest tests (132 suites)
             ├── helpers/        # Test utilities + mock factories (mocks.ts ~721 lines)
             ├── integration/    # Integration tests
             └── frontend/       # Frontend unit tests
@@ -544,7 +544,7 @@ See [docs/ADDING_A_FEATURE.md](docs/ADDING_A_FEATURE.md) for a full worked examp
 
 ### Structure
 
-- **Backend unit/integration**: Jest, 133 suites in `server/src/__tests__/`
+- **Backend unit/integration**: Jest, 132 suites in `server/src/__tests__/`
 - **Frontend unit**: Jest with jsdom, in `server/src/__tests__/frontend/`
 - **E2E**: Playwright, 13 specs in `server/e2e/`
 - **Load testing**: Custom scripts in `server/loadtest/`

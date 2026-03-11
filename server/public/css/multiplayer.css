@@ -1,15 +1,3 @@
-/* ========== IMPROVED BUTTON STATES ========== */
-.btn-end-turn.disabled-visible {
-    display: flex !important;
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
-.btn-end-turn.disabled-visible:hover {
-    box-shadow: none;
-    filter: none;
-}
-
 /* Primary button emphasis */
 .btn-save {
     padding: 12px 24px;
@@ -111,12 +99,6 @@
     font-size: 0.75rem;
     color: rgba(255, 255, 255, 0.6);
     margin-top: 4px;
-}
-
-.multiplayer-modal .form-group label .optional-label {
-    font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.55);
-    font-weight: normal;
 }
 
 .multiplayer-modal .form-group.error input {
@@ -405,14 +387,6 @@
     color: rgba(255, 255, 255, 0.6);
 }
 
-.mp-player-list .player-team-red {
-    color: #ff6b6b;
-}
-
-.mp-player-list .player-team-blue {
-    color: #74b9ff;
-}
-
 .mp-player-list .player-disconnected {
     opacity: 0.5;
 }
@@ -662,13 +636,6 @@
     border-left: 2px solid rgba(255, 255, 255, 0.2);
 }
 
-.chat-message.system-message {
-    color: rgba(255, 255, 255, 0.6);
-    font-style: italic;
-    font-size: 0.75rem;
-    text-align: center;
-}
-
 .chat-sender {
     font-weight: 600;
     margin-right: 4px;
@@ -696,12 +663,6 @@
     font-size: 0.7rem;
     margin-right: 4px;
     opacity: 0.7;
-}
-
-.chat-timestamp {
-    font-size: 0.65rem;
-    color: rgba(255, 255, 255, 0.5);
-    margin-left: 4px;
 }
 
 .chat-input-row {

@@ -614,7 +614,6 @@ button:focus-visible,
 
 /* Keyboard-only focus for labels wrapping native inputs */
 @supports selector(:has(*)) {
-    .radio-option:has(:focus-visible),
     .toggle-label:has(:focus-visible),
     .game-mode-option:has(:focus-visible) {
         outline: 2px solid #ffc107;
