@@ -357,14 +357,17 @@ export function confirmKickPlayer(): void {
 }
 
 /**
- * Execute the forfeit action
+ * Execute the forfeit action for a specific team
  */
-export function forfeitGame(): void {
+export function forfeitGame(team: string): void {
     if (!state.isMultiplayerMode || !isClientConnected()) return;
-    if (!EigennamenClient.player?.isHost) return;
+    if (!EigennamenClient.player?.isHost) {
+        showToast(t('forfeit.hostOnly'), 'warning');
+        return;
+    }
     if (state.gameState.gameOver) return;
 
-    EigennamenClient.forfeit();
+    EigennamenClient.forfeit(team);
 }
 
 /**

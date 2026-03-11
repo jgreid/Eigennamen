@@ -1,5 +1,5 @@
 import { state } from '../state.js';
-import { showToast, announceToScreenReader } from '../ui.js';
+import { showToast, announceToScreenReader, closeModal } from '../ui.js';
 import { t } from '../i18n.js';
 import { renderBoard } from '../board.js';
 import {
@@ -161,6 +161,11 @@ export function registerGameHandlers(): void {
     });
 
     EigennamenClient.on('gameOver', (data: GameOverData) => {
+        // Close any open confirm/forfeit dialogs — the game has ended
+        // (prevents stale dialogs when game ends naturally while dialog is open)
+        closeModal('confirm-modal');
+        closeModal('confirm-forfeit-modal');
+
         // Sync all card types from server so non-spymasters can see the full board
         if (data.types && Array.isArray(data.types)) {
             state.gameState.types = data.types;

@@ -59,6 +59,7 @@ jest.mock('../../frontend/state', () => ({
 jest.mock('../../frontend/ui', () => ({
     showToast: jest.fn(),
     announceToScreenReader: jest.fn(),
+    closeModal: jest.fn(),
 }));
 
 jest.mock('../../frontend/board', () => ({

@@ -334,6 +334,8 @@
         "forfeitTitle": "Forfeit Game?",
         "forfeitBody": "This will end the game and award the win to the opposing team. Are you sure?",
         "forfeitConfirm": "Yes, Forfeit",
+        "forfeitRed": "Forfeit Red",
+        "forfeitBlue": "Forfeit Blue",
         "kickTitle": "Kick Player?",
         "kickBody": "Are you sure you want to remove this player from the room?",
         "kickConfirm": "Yes, Kick",
