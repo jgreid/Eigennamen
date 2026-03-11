@@ -202,8 +202,12 @@ import type { JoinCreateResult } from './multiplayerTypes.js';
             queueOrEmit(this, 'game:endTurn', {});
         },
 
-        forfeit(): void {
-            this._getSocket()?.emit('game:forfeit');
+        forfeit(team?: string): void {
+            if (team) {
+                this._getSocket()?.emit('game:forfeit', { team });
+            } else {
+                this._getSocket()?.emit('game:forfeit');
+            }
         },
 
         getGameHistory(limit: number = 10): void {

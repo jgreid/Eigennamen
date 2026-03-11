@@ -47,7 +47,7 @@ interface EigennamenClientAPI {
     nextRound(): void;
     revealCard(index: number): void;
     endTurn(): void;
-    forfeit(): void;
+    forfeit(team?: string): void;
     abandonGame(): void;
 
     // Host queries

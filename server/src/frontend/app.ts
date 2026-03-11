@@ -173,8 +173,12 @@ function setupEventListeners(): void {
                 newGame();
                 closeConfirm();
                 break;
-            case 'confirm-forfeit-new-game':
-                forfeitAndNewGame();
+            case 'confirm-forfeit-red-new-game':
+                forfeitAndNewGame('red');
+                closeConfirm();
+                break;
+            case 'confirm-forfeit-blue-new-game':
+                forfeitAndNewGame('blue');
                 closeConfirm();
                 break;
             case 'confirm-abandon-new-game':

@@ -53,10 +53,19 @@ const gameReplaySchema = z.object({
         .refine((val: string) => val.length >= 1, 'Game ID is required'),
 });
 
+// Forfeit schema - optional team to forfeit on behalf of
+const gameForfeitSchema = z
+    .object({
+        team: z.enum(['red', 'blue']).optional(),
+    })
+    .optional()
+    .default({});
+
 // Type exports for schema inference
 export type GameStartInput = ZodType.infer<typeof gameStartSchema>;
 export type GameRevealInput = ZodType.infer<typeof gameRevealSchema>;
 export type GameHistoryLimitInput = ZodType.infer<typeof gameHistoryLimitSchema>;
 export type GameReplayInput = ZodType.infer<typeof gameReplaySchema>;
+export type GameForfeitInput = ZodType.infer<typeof gameForfeitSchema>;
 
-export { gameStartSchema, gameRevealSchema, gameHistoryLimitSchema, gameReplaySchema };
+export { gameStartSchema, gameRevealSchema, gameHistoryLimitSchema, gameReplaySchema, gameForfeitSchema };

@@ -28,7 +28,13 @@ export {
 } from './playerSchemas';
 
 // Re-export game schemas
-export { gameStartSchema, gameRevealSchema, gameHistoryLimitSchema, gameReplaySchema } from './gameSchemas';
+export {
+    gameStartSchema,
+    gameRevealSchema,
+    gameHistoryLimitSchema,
+    gameReplaySchema,
+    gameForfeitSchema,
+} from './gameSchemas';
 
 // Re-export chat schemas
 export { chatMessageSchema, spectatorChatSchema } from './chatSchemas';
@@ -47,6 +53,12 @@ export type {
     SpectatorJoinRequestInput,
     SpectatorJoinResponseInput,
 } from './playerSchemas';
-export type { GameStartInput, GameRevealInput, GameHistoryLimitInput, GameReplayInput } from './gameSchemas';
+export type {
+    GameStartInput,
+    GameRevealInput,
+    GameHistoryLimitInput,
+    GameReplayInput,
+    GameForfeitInput,
+} from './gameSchemas';
 export type { ChatMessageInput, SpectatorChatInput } from './chatSchemas';
 export type { TimerAddTimeInput } from './timerSchemas';

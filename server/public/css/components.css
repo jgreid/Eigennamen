@@ -814,6 +814,22 @@ button:focus-visible,
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
+/* ========== CLICKED-BY TEAM TEXT COLORS ========== */
+/* Color card text by the team that clicked the card */
+.card.revealed.clicked-by-red {
+    color: #fbb;
+}
+
+.card.revealed.clicked-by-blue {
+    color: #bbdfff;
+}
+
+/* When card type matches the clicking team, keep white for legibility */
+.card.revealed.red.clicked-by-red,
+.card.revealed.blue.clicked-by-blue {
+    color: white;
+}
+
 /* ========== COLORBLIND-FRIENDLY PATTERNS ========== */
 /* Subtle patterns on revealed cards provide additional visual cues beyond color alone */
 

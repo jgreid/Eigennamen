@@ -735,6 +735,19 @@
     color: rgba(255, 255, 255, 0.8);
 }
 
+/* Forfeit team buttons in confirm dialog */
+.btn-forfeit-red {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: white;
+    letter-spacing: 0.3px;
+}
+
+.btn-forfeit-blue {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    letter-spacing: 0.3px;
+}
+
 /* Game over modal */
 .game-over-content {
     text-align: center;

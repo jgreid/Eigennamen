@@ -1124,10 +1124,11 @@ describe('confirmNewGame button visibility', () => {
         state.newGameDebounce = false;
         jest.clearAllMocks();
 
-        // Set up DOM with all three buttons
+        // Set up DOM with all four buttons
         document.body.innerHTML = `
             <button data-action="confirm-yes-new-game"></button>
-            <button data-action="confirm-forfeit-new-game"></button>
+            <button data-action="confirm-forfeit-red-new-game"></button>
+            <button data-action="confirm-forfeit-blue-new-game"></button>
             <button data-action="confirm-abandon-new-game"></button>
         `;
     });
@@ -1139,11 +1140,13 @@ describe('confirmNewGame button visibility', () => {
         confirmNewGame();
 
         const simpleBtn = document.querySelector('[data-action="confirm-yes-new-game"]') as HTMLElement;
-        const forfeitBtn = document.querySelector('[data-action="confirm-forfeit-new-game"]') as HTMLElement;
+        const forfeitRedBtn = document.querySelector('[data-action="confirm-forfeit-red-new-game"]') as HTMLElement;
+        const forfeitBlueBtn = document.querySelector('[data-action="confirm-forfeit-blue-new-game"]') as HTMLElement;
         const abandonBtn = document.querySelector('[data-action="confirm-abandon-new-game"]') as HTMLElement;
 
         expect(simpleBtn.hidden).toBe(true);
-        expect(forfeitBtn.hidden).toBe(false);
+        expect(forfeitRedBtn.hidden).toBe(false);
+        expect(forfeitBlueBtn.hidden).toBe(false);
         expect(abandonBtn.hidden).toBe(false);
     });
 
@@ -1153,11 +1156,13 @@ describe('confirmNewGame button visibility', () => {
         confirmNewGame();
 
         const simpleBtn = document.querySelector('[data-action="confirm-yes-new-game"]') as HTMLElement;
-        const forfeitBtn = document.querySelector('[data-action="confirm-forfeit-new-game"]') as HTMLElement;
+        const forfeitRedBtn = document.querySelector('[data-action="confirm-forfeit-red-new-game"]') as HTMLElement;
+        const forfeitBlueBtn = document.querySelector('[data-action="confirm-forfeit-blue-new-game"]') as HTMLElement;
         const abandonBtn = document.querySelector('[data-action="confirm-abandon-new-game"]') as HTMLElement;
 
         expect(simpleBtn.hidden).toBe(false);
-        expect(forfeitBtn.hidden).toBe(true);
+        expect(forfeitRedBtn.hidden).toBe(true);
+        expect(forfeitBlueBtn.hidden).toBe(true);
         expect(abandonBtn.hidden).toBe(true);
     });
 
@@ -1168,11 +1173,13 @@ describe('confirmNewGame button visibility', () => {
         confirmNewGame();
 
         const simpleBtn = document.querySelector('[data-action="confirm-yes-new-game"]') as HTMLElement;
-        const forfeitBtn = document.querySelector('[data-action="confirm-forfeit-new-game"]') as HTMLElement;
+        const forfeitRedBtn = document.querySelector('[data-action="confirm-forfeit-red-new-game"]') as HTMLElement;
+        const forfeitBlueBtn = document.querySelector('[data-action="confirm-forfeit-blue-new-game"]') as HTMLElement;
         const abandonBtn = document.querySelector('[data-action="confirm-abandon-new-game"]') as HTMLElement;
 
         expect(simpleBtn.hidden).toBe(false);
-        expect(forfeitBtn.hidden).toBe(true);
+        expect(forfeitRedBtn.hidden).toBe(true);
+        expect(forfeitBlueBtn.hidden).toBe(true);
         expect(abandonBtn.hidden).toBe(true);
     });
 });

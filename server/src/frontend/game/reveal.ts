@@ -106,6 +106,11 @@ export function revealCard(index: number): void {
     state.gameState.revealed[index] = true;
     const type = state.gameState.types[index];
 
+    // Track which team clicked this card
+    if (state.gameState.revealedBy) {
+        state.gameState.revealedBy[index] = state.gameState.currentTurn;
+    }
+
     // Track for animation
     state.lastRevealedIndex = index;
     state.lastRevealedWasCorrect = type === state.gameState.currentTurn;

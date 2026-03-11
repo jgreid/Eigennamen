@@ -325,6 +325,8 @@
         "newGameBody": "This will end the current game. Are you sure?",
         "newGameConfirm": "Yes, New Game",
         "forfeitAndNewGame": "Forfeit & New Game",
+        "forfeitRedAndNewGame": "Forfeit Red & New Game",
+        "forfeitBlueAndNewGame": "Forfeit Blue & New Game",
         "abandonAndNewGame": "Abandon & New Game",
         "endTurnTitle": "End Turn?",
         "endTurnBody": "Are you sure you want to end your team's turn?",

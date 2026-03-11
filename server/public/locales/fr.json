@@ -325,6 +325,8 @@
         "newGameBody": "La partie en cours sera terminée. Êtes-vous sûr ?",
         "newGameConfirm": "Oui, nouvelle partie",
         "forfeitAndNewGame": "Abandonner et nouvelle partie",
+        "forfeitRedAndNewGame": "Forfait Rouge et nouvelle partie",
+        "forfeitBlueAndNewGame": "Forfait Bleu et nouvelle partie",
         "abandonAndNewGame": "Annuler et nouvelle partie",
         "endTurnTitle": "Fin du tour ?",
         "endTurnBody": "Êtes-vous sûr de vouloir terminer le tour de votre équipe ?",

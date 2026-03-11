@@ -401,7 +401,7 @@ describe('Game Handlers', () => {
             const forfeitHandler = handlers.find((h) => h[0] === 'game:forfeit');
             await forfeitHandler[1]();
 
-            expect(gameService.forfeitGame).toHaveBeenCalledWith('TEST12');
+            expect(gameService.forfeitGame).toHaveBeenCalledWith('TEST12', undefined);
             expect(mockIo.emit).toHaveBeenCalledWith(
                 'game:over',
                 expect.objectContaining({
