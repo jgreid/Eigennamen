@@ -85,7 +85,7 @@ This document describes the high-level architecture of Eigennamen Online, a real
 - `roomService.ts` - Room lifecycle, settings
 - `playerService.ts` - Player management, team assignment, reconnection
 - `timerService.ts` - Turn timers with Redis backing
-- `gameHistoryService.ts` - Game history storage, replay data
+- `gameHistoryService.ts` - Game history barrel (delegates to `gameHistory/` sub-modules: types, validation, storage, replayEngine)
 - `auditService.ts` - Security audit logging with severity levels
 
 ### Data Layer
@@ -265,6 +265,7 @@ Eigennamen/
     │   ├── routes/         # REST API routes (8 files)
     │   ├── services/       # Business logic (16 service files)
     │   │   ├── game/       # Game sub-modules (board, reveal, lua)
+    │   │   ├── gameHistory/ # Game history sub-modules (types, validation, storage, replayEngine)
     │   │   ├── player/     # Player sub-modules (cleanup, mutations, queries, reconnection, schemas, stats)
     │   │   └── room/       # Room sub-module (membership)
     │   ├── socket/         # WebSocket setup and utilities (11 files)
@@ -276,7 +277,7 @@ Eigennamen/
     │   ├── types/          # TypeScript type definitions (11 files)
     │   ├── utils/          # Utility modules (12 files)
     │   ├── validators/     # Zod validation schemas (7 files)
-    │   ├── scripts/        # Redis Lua scripts (26 atomic operations)
+    │   ├── scripts/        # Redis Lua scripts (27 atomic operations)
     │   └── __tests__/      # Jest tests (133 suites)
     │       ├── helpers/    # Test utilities and mocks
     │       ├── integration/ # Integration tests

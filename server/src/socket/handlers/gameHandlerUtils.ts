@@ -1,5 +1,5 @@
 import type { Server } from 'socket.io';
-import type { GameState, Room } from '../../types';
+import type { GameState, GameHistoryEntry as GameStateHistoryEntry, Room } from '../../types';
 import type { GameDataInput, HistoryEntry } from '../../services/gameHistoryService';
 
 import * as gameService from '../../services/gameService';
@@ -8,6 +8,51 @@ import * as gameHistoryService from '../../services/gameHistoryService';
 import logger from '../../utils/logger';
 import { SOCKET_EVENTS } from '../../config/constants';
 import { safeEmitToRoom } from '../safeEmit';
+
+/**
+ * Map a GameState history entry (discriminated union with `winner: Team | null`)
+ * to the flat HistoryEntry interface used by gameHistoryService (`winner?: Team`).
+ */
+function toHistoryEntry(entry: GameStateHistoryEntry): HistoryEntry {
+    switch (entry.action) {
+        case 'reveal':
+            return {
+                action: entry.action,
+                index: entry.index,
+                word: entry.word,
+                type: entry.type,
+                team: entry.team,
+                player: entry.player,
+                guessNumber: entry.guessNumber,
+                timestamp: entry.timestamp,
+            };
+        case 'clue':
+            return {
+                action: entry.action,
+                team: entry.team,
+                word: entry.word,
+                number: entry.number,
+                guessesAllowed: entry.guessesAllowed,
+                spymaster: entry.spymaster,
+                timestamp: entry.timestamp,
+            };
+        case 'endTurn':
+            return {
+                action: entry.action,
+                fromTeam: entry.fromTeam,
+                toTeam: entry.toTeam,
+                player: entry.player,
+                timestamp: entry.timestamp,
+            };
+        case 'forfeit':
+            return {
+                action: entry.action,
+                forfeitingTeam: entry.forfeitingTeam,
+                winner: entry.winner ?? undefined,
+                timestamp: entry.timestamp,
+            };
+    }
+}
 
 /**
  * Save completed game to history (non-critical — errors are logged but don't break game flow)
@@ -34,8 +79,7 @@ export async function saveCompletedGameHistory(roomCode: string): Promise<void> 
                 gameOver: completedGame.gameOver,
                 createdAt: completedGame.createdAt,
                 clues: completedGame.clues,
-                // Map GameHistoryEntry[] to HistoryEntry[] (winner: Team|null → Team|undefined)
-                history: completedGame.history as unknown as HistoryEntry[],
+                history: completedGame.history.map(toHistoryEntry),
                 teamNames: roomForHistory?.settings?.teamNames || { red: 'Red', blue: 'Blue' },
                 wordListId: completedGame.wordListId,
                 stateVersion: completedGame.stateVersion,

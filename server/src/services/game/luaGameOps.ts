@@ -23,17 +23,17 @@ const emptyObjToArray = (val: unknown) =>
 const gameStateSchema = z
     .object({
         id: z.string(),
-        seed: z.string().optional(),
-        words: z.array(z.string()).optional(),
-        types: z.array(z.string()).optional(),
-        revealed: z.array(z.boolean()).optional(),
-        currentTurn: z.string().optional(),
-        redScore: z.number().optional(),
-        blueScore: z.number().optional(),
-        redTotal: z.number().optional(),
-        blueTotal: z.number().optional(),
-        gameOver: z.boolean().optional(),
-        winner: z.string().nullable().optional(),
+        seed: z.string(),
+        words: z.array(z.string()),
+        types: z.array(z.string()),
+        revealed: z.array(z.boolean()),
+        currentTurn: z.enum(['red', 'blue']),
+        redScore: z.number(),
+        blueScore: z.number(),
+        redTotal: z.number(),
+        blueTotal: z.number(),
+        gameOver: z.boolean(),
+        winner: z.enum(['red', 'blue']).nullable().optional(),
         currentClue: z.unknown().optional(),
         guessesUsed: z.number().optional(),
         guessesAllowed: z.number().optional(),
@@ -221,6 +221,25 @@ export async function executeLuaScript<T>(
 /**
  * Execute a Redis transaction with optimistic locking and retries.
  * Used by operations that don't have a Lua script (e.g., forfeitGame).
+ *
+ * Uses WATCH/MULTI/EXEC to detect concurrent modifications. If another
+ * client modifies the game key between WATCH and EXEC, the transaction
+ * is aborted and retried with exponential backoff (up to
+ * MAX_TRANSACTION_RETRIES attempts, currently 3).
+ *
+ * **Idempotency**: The `operation` callback may be invoked multiple times
+ * on retry. It MUST be safe to re-execute — avoid side effects like
+ * emitting events or writing to external systems inside the callback.
+ * Perform those after this function returns successfully.
+ *
+ * @param gameKey - Redis key for the game state (e.g., "room:ABCDEF:game")
+ * @param operation - Callback that mutates the game state in-place and returns a result.
+ *   The game object passed in is already parsed and validated. The caller
+ *   should NOT call incrementVersion() — that's handled automatically.
+ * @param _operationName - Label for timeout tracking and logging
+ * @returns The value returned by `operation` on the successful attempt
+ * @throws {GameStateError} If no game exists or state is corrupted
+ * @throws {ServerError} If all retry attempts are exhausted (concurrent modification)
  */
 export async function executeGameTransaction<T>(
     gameKey: string,

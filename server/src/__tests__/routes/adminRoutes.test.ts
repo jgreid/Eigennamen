@@ -655,22 +655,18 @@ describe('Admin Routes', () => {
 });
 
 describe('Uptime formatting', () => {
+    const TEST_PASSWORD = 'test-admin-password';
+
+    afterEach(() => {
+        delete process.env.ADMIN_PASSWORD;
+    });
+
     it('should format uptime correctly', async () => {
-        process.env.ADMIN_PASSWORD = 'test-password';
-        const app = express();
-        app.use(express.json());
-        const mockIO = {
-            fetchSockets: jest.fn(async () => [{ id: '1' }, { id: '2' }]),
-            emit: jest.fn(),
-            to: jest.fn(() => ({ emit: jest.fn() })),
-        };
-        app.set('io', mockIO);
-        app.use('/admin', adminRoutes);
-        app.use(errorHandler);
+        const app = createTestApp(TEST_PASSWORD);
 
         const response = await request(app)
             .get('/admin/api/stats')
-            .set('Authorization', createAuthHeader('admin', 'test-password'))
+            .set('Authorization', createAuthHeader('admin', TEST_PASSWORD))
             .expect(200);
 
         // Uptime should be a readable format like "1h 2m 3s", "1m", "0s", etc.

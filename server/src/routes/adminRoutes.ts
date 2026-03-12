@@ -24,12 +24,26 @@ const router: ExpressRouter = express.Router();
 
 // Derive salt from JWT_SECRET if available, otherwise use a static fallback.
 // This ensures identical passwords across deployments produce different hashes.
-const ADMIN_SCRYPT_SALT = process.env.JWT_SECRET
-    ? `eigennamen-admin-${crypto.createHash('sha256').update(process.env.JWT_SECRET).digest('hex').slice(0, 16)}`
-    : 'eigennamen-admin-auth';
-const cachedAdminHash: Buffer | null = process.env.ADMIN_PASSWORD
-    ? crypto.scryptSync(process.env.ADMIN_PASSWORD, ADMIN_SCRYPT_SALT, 32)
-    : null;
+function getAdminScryptSalt(): string {
+    return process.env.JWT_SECRET
+        ? `eigennamen-admin-${crypto.createHash('sha256').update(process.env.JWT_SECRET).digest('hex').slice(0, 16)}`
+        : 'eigennamen-admin-auth';
+}
+
+// Lazy-initialized admin hash — computed asynchronously on first auth request
+// instead of at module load time.  Caches a Promise so concurrent requests
+// share the same derivation rather than each spawning their own.
+let cachedAdminHashPromise: Promise<Buffer> | null = null;
+let cachedAdminPassword: string | undefined;
+
+function getAdminHashAsync(adminPassword: string): Promise<Buffer> {
+    // Recompute if password changed (edge case: env var updated at runtime)
+    if (!cachedAdminHashPromise || cachedAdminPassword !== adminPassword) {
+        cachedAdminPassword = adminPassword;
+        cachedAdminHashPromise = scryptAsync(adminPassword, getAdminScryptSalt(), 32);
+    }
+    return cachedAdminHashPromise;
+}
 
 /**
  * Basic Authentication Middleware
@@ -73,8 +87,10 @@ async function basicAuth(req: AdminRequest, res: Response, next: NextFunction): 
             const password = colonIndex >= 0 ? credentials.substring(colonIndex + 1) : '';
 
             // Use async scrypt KDF to avoid blocking the event loop
-            const passwordHash = await scryptAsync(password, ADMIN_SCRYPT_SALT, 32);
-            const adminHash = cachedAdminHash ?? (await scryptAsync(adminPassword, ADMIN_SCRYPT_SALT, 32));
+            const [passwordHash, adminHash] = await Promise.all([
+                scryptAsync(password, getAdminScryptSalt(), 32),
+                getAdminHashAsync(adminPassword),
+            ]);
             if (crypto.timingSafeEqual(passwordHash, adminHash)) {
                 req.adminUsername = username || 'admin';
                 // Audit successful login

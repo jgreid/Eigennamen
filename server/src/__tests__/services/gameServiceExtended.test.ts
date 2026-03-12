@@ -604,9 +604,16 @@ describe('getGame', () => {
     test('returns game when it exists', async () => {
         const gameData = {
             id: 'test-id',
+            seed: 'test-seed',
             words: ['WORD1', 'WORD2'],
             types: ['red', 'blue'],
             revealed: [false, false],
+            currentTurn: 'red',
+            redScore: 0,
+            blueScore: 0,
+            redTotal: 1,
+            blueTotal: 1,
+            gameOver: false,
         };
         mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
 
@@ -970,12 +977,15 @@ describe('forfeitGame', () => {
 
     const createMockGameData = (overrides = {}) => ({
         id: 'game-1',
+        seed: 'test-seed',
         words: DEFAULT_WORDS.slice(0, 25),
         types: [...Array(9).fill('red'), ...Array(8).fill('blue'), ...Array(7).fill('neutral'), 'assassin'],
         revealed: Array(25).fill(false),
         currentTurn: 'red',
         redScore: 3,
         blueScore: 2,
+        redTotal: 9,
+        blueTotal: 8,
         gameOver: false,
         winner: null,
         currentClue: null,

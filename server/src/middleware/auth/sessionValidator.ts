@@ -5,6 +5,7 @@ import logger from '../../utils/logger';
 import * as playerService from '../../services/playerService';
 import { getRedis } from '../../config/redis';
 import { SESSION_SECURITY, REDIS_TTL, ERROR_CODES } from '../../config/constants';
+import { ATOMIC_RATE_LIMIT_SCRIPT } from '../../scripts';
 
 /**
  * Rate limit check result
@@ -118,15 +119,6 @@ async function checkValidationRateLimit(clientIP: string): Promise<RateLimitResu
         // Atomic incr + expire using Lua to prevent race condition where
         // the key is incremented but never gets an expiry set (if Redis
         // crashes between incr and expire, or concurrent requests interleave)
-        const ATOMIC_RATE_LIMIT_SCRIPT = `
-            local key = KEYS[1]
-            local ttl = tonumber(ARGV[1])
-            local count = redis.call('INCR', key)
-            if count == 1 then
-                redis.call('EXPIRE', key, ttl)
-            end
-            return count
-        `;
         const attempts = (await redis.eval(ATOMIC_RATE_LIMIT_SCRIPT, {
             keys: [key],
             arguments: [REDIS_TTL.SESSION_VALIDATION_WINDOW.toString()],
