@@ -89,6 +89,38 @@ function updateSriHash() {
 }
 
 /**
+ * Update the cache-bust version on app.js in index.html.
+ * Without this, browsers with maxAge caching serve stale app.js for up to
+ * 1 day after a deploy, causing the setup screen buttons to be completely
+ * non-functional (JS never loads, event handlers never attach).
+ */
+function updateAppJsVersion() {
+    const appJsPath = path.join(appConfig.outdir, 'app.js');
+    const candidates = [path.join(__dirname, '../index.html'), path.join(__dirname, 'public/index.html')];
+    const indexPath = candidates.find((p) => fs.existsSync(p));
+
+    if (!fs.existsSync(appJsPath) || !indexPath) {
+        console.warn('app.js version update skipped: missing app.js or index.html');
+        return;
+    }
+
+    const fileContents = fs.readFileSync(appJsPath);
+    const contentVersion = crypto.createHash('sha256').update(fileContents).digest('hex').slice(0, 8);
+
+    let html = fs.readFileSync(indexPath, 'utf8');
+    // Match app.js with or without an existing ?v= parameter
+    const pattern = /(\/js\/modules\/app\.js)(\?v=[A-Za-z0-9]+)?(")/;
+    if (!pattern.test(html)) {
+        console.warn('app.js version update skipped: could not find app.js script tag in index.html');
+        return;
+    }
+
+    html = html.replace(pattern, `$1?v=${contentVersion}$3`);
+    fs.writeFileSync(indexPath, html, 'utf8');
+    console.log(`Updated app.js: version=${contentVersion}`);
+}
+
+/**
  * Sync the service-worker cache key with the version from package.json.
  * Prevents stale cache names when the version is bumped.
  */
@@ -125,6 +157,7 @@ async function build() {
             esbuild.build({ ...socketClientConfig, metafile: isAnalyze }),
         ]);
         updateSriHash();
+        updateAppJsVersion();
         updateServiceWorkerVersion();
         if (isAnalyze) {
             console.log('\n=== App Bundle Analysis ===');

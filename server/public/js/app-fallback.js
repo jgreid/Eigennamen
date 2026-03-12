@@ -12,7 +12,8 @@ setTimeout(function () {
 
     // First attempt: clear all service worker caches and reload once.
     // A stale cache is the most common cause of module load failure on mobile
-    // (SW serves old index.html whose SRI hash doesn't match the new JS bundle).
+    // (SW serves old index.html whose SRI hash doesn't match the new JS bundle,
+    // or browser maxAge cache serves old app.js that references non-existent chunks).
     var reloaded = false;
     try {
         reloaded = sessionStorage.getItem('eigennamen-cache-bust-reload') === '1';
@@ -50,23 +51,43 @@ setTimeout(function () {
         // ignore
     }
 
-    // Second attempt failed — show error UI
+    // Second attempt also failed — show error UI.
+    // The error must be shown on whichever screen is currently visible:
+    // the setup screen (initial load) or the game board (mid-game reload).
+    var setupScreen = document.getElementById('setup-screen');
     var board = document.getElementById('board');
-    var loading = document.getElementById('board-loading');
-    if (board && !board.querySelector('.card')) {
+    var setupVisible = setupScreen && !setupScreen.hidden;
+
+    var errorHtml = '<p><strong>Game failed to load.</strong></p>' +
+        '<p style="color:#a0a0b0;margin-top:8px;">This usually means a cached version of the game is outdated.<br>' +
+        'Try clearing your browser cache or opening in a private/incognito window.</p>' +
+        '<p style="margin-top:12px;">' +
+        '<button id="reload-btn" style="padding:10px 24px;cursor:pointer;border-radius:6px;border:1px solid #555;background:#2a2a3e;color:#e0e0e0;font-size:1rem;touch-action:manipulation;">Reload Page</button>' +
+        '</p>';
+
+    if (setupVisible) {
+        // Setup screen is showing — insert error below the subtitle
+        var container = document.querySelector('.setup-board-container');
+        var setupBoard = document.getElementById('setup-board');
+        if (container && setupBoard) {
+            setupBoard.hidden = true;
+            var msg = document.createElement('div');
+            msg.style.cssText = 'text-align:center;padding:30px 20px;color:#ff6b6b;font-size:1rem;';
+            msg.innerHTML = errorHtml;
+            container.appendChild(msg);
+        }
+    } else if (board && !board.querySelector('.card')) {
+        // Game board visible but empty — show error there
+        var loading = document.getElementById('board-loading');
         var msg = loading || document.createElement('div');
         msg.style.cssText = 'grid-column:1/-1;text-align:center;padding:40px;color:#ff6b6b;font-size:1rem;';
-        msg.innerHTML = '<p><strong>Game failed to load.</strong></p>' +
-            '<p style="color:#a0a0b0;margin-top:8px;">This usually means JavaScript modules could not be loaded.<br>' +
-            'Try clearing your browser cache or opening in a private/incognito window.</p>' +
-            '<p style="margin-top:12px;">' +
-            '<button id="reload-btn" style="padding:8px 20px;cursor:pointer;border-radius:6px;border:1px solid #555;background:#2a2a3e;color:#e0e0e0;">Reload Page</button>' +
-            '</p>';
+        msg.innerHTML = errorHtml;
         if (!loading) board.appendChild(msg);
-        var reloadBtn = document.getElementById('reload-btn');
-        if (reloadBtn) {
-            reloadBtn.addEventListener('click', function () { location.reload(); });
-        }
+    }
+
+    var reloadBtn = document.getElementById('reload-btn');
+    if (reloadBtn) {
+        reloadBtn.addEventListener('click', function () { location.reload(); });
     }
 }, 3000);
 
