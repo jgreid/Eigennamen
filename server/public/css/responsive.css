@@ -305,9 +305,25 @@
     .btn-kick,
     .btn-secondary,
     .btn-secondary-action,
-    .btn-primary {
+    .btn-primary,
+    .btn-spymaster,
+    .btn-clicker {
         min-height: 44px;
         min-width: 44px;
+    }
+
+    .chat-send-btn {
+        min-height: 36px;
+        padding: 6px 12px;
+    }
+
+    .chat-team-only {
+        min-height: 36px;
+        padding: 4px 0;
+    }
+
+    .wordlist-pill span {
+        padding: 8px 10px;
     }
 
     /* Improve modal scroll behavior on small screens */
