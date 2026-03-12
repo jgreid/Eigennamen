@@ -222,7 +222,6 @@
 
 .turn-indicator.your-turn {
     animation: pulse-glow 2s ease-in-out infinite;
-    will-change: opacity;
 }
 
 /* ========== TIMER DISPLAY (inline in turn indicator) ========== */
@@ -647,7 +646,6 @@ button:focus-visible,
 
 .btn-end-turn.can-act {
     animation: pulse-glow 2s ease-in-out infinite;
-    will-change: opacity;
 }
 
 .btn-end-turn:disabled {
