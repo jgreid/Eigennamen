@@ -7,7 +7,7 @@
  */
 
 // Auto-synced from package.json by esbuild.config.js during build
-const CACHE = 'eigennamen-v5.5.5';
+const CACHE = 'eigennamen-v5.5.6';
 
 const OFFLINE_ASSETS = [
     '/',
