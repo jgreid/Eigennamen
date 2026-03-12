@@ -2,6 +2,62 @@
 // Extracted from inline scripts in index.html for CSP compliance
 
 window.__appModuleLoaded = false;
+window.__appEventListenersReady = false;
+
+// --- Fallback event delegation ---
+// In iOS standalone/PWA mode (apple-mobile-web-app-capable), the ES module
+// script can fail to load or execute.  This non-module script always runs,
+// so we attach basic click handling for the setup screen here.  Once the
+// module's own event listeners are registered it sets __appEventListenersReady
+// and this handler defers to them.
+document.addEventListener('click', function (e) {
+    // Once the module's handlers are active, let them handle everything
+    if (window.__appEventListenersReady) return;
+
+    var target = e.target;
+    // Walk up to find [data-action] (manual closest() for max compat)
+    while (target && target !== document.body) {
+        if (target.dataset && target.dataset.action) break;
+        target = target.parentElement;
+    }
+    if (!target || !target.dataset || !target.dataset.action) return;
+
+    var action = target.dataset.action;
+
+    var setupBoard = document.getElementById('setup-board');
+    var joinForm = document.getElementById('setup-join-form');
+    var hostForm = document.getElementById('setup-host-form');
+    var setupScreen = document.getElementById('setup-screen');
+    var appLayout = document.getElementById('app-layout');
+
+    switch (action) {
+        case 'setup-host':
+            if (setupBoard) setupBoard.hidden = true;
+            if (joinForm) joinForm.hidden = true;
+            if (hostForm) hostForm.hidden = false;
+            break;
+        case 'setup-join':
+            if (setupBoard) setupBoard.hidden = true;
+            if (joinForm) joinForm.hidden = false;
+            if (hostForm) hostForm.hidden = true;
+            break;
+        case 'setup-offline':
+            if (setupScreen) setupScreen.hidden = true;
+            if (appLayout) appLayout.hidden = false;
+            break;
+        case 'setup-back':
+            if (setupBoard) setupBoard.hidden = false;
+            if (joinForm) joinForm.hidden = true;
+            if (hostForm) hostForm.hidden = true;
+            break;
+    }
+}, false);
+
+// iOS Safari (including standalone mode) needs a touchstart listener on
+// the document for :active CSS states to fire on touch.  Without this,
+// buttons get zero visual feedback.  This must be in the non-module script
+// because the module may not load in standalone mode.
+document.addEventListener('touchstart', function () {}, { passive: true });
 
 // --- Module load failure detection ---
 // If the ES module hasn't set __appModuleLoaded after 3 seconds, show an
