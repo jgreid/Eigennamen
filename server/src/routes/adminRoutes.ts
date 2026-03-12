@@ -30,21 +30,19 @@ function getAdminScryptSalt(): string {
         : 'eigennamen-admin-auth';
 }
 
-// Lazy-initialized admin hash — computed on first auth request instead of
-// at module load time. This avoids blocking the event loop with synchronous
-// scrypt during server startup and allows env vars set after import to take effect.
-let cachedAdminHash: Buffer | null = null;
-let cachedAdminHashComputed = false;
+// Lazy-initialized admin hash — computed asynchronously on first auth request
+// instead of at module load time.  Caches a Promise so concurrent requests
+// share the same derivation rather than each spawning their own.
+let cachedAdminHashPromise: Promise<Buffer> | null = null;
+let cachedAdminPassword: string | undefined;
 
-function getAdminHash(): Buffer | null {
-    if (!cachedAdminHashComputed) {
-        cachedAdminHashComputed = true;
-        const adminPassword = process.env.ADMIN_PASSWORD;
-        if (adminPassword) {
-            cachedAdminHash = crypto.scryptSync(adminPassword, getAdminScryptSalt(), 32);
-        }
+function getAdminHashAsync(adminPassword: string): Promise<Buffer> {
+    // Recompute if password changed (edge case: env var updated at runtime)
+    if (!cachedAdminHashPromise || cachedAdminPassword !== adminPassword) {
+        cachedAdminPassword = adminPassword;
+        cachedAdminHashPromise = scryptAsync(adminPassword, getAdminScryptSalt(), 32);
     }
-    return cachedAdminHash;
+    return cachedAdminHashPromise;
 }
 
 /**
@@ -89,9 +87,10 @@ async function basicAuth(req: AdminRequest, res: Response, next: NextFunction): 
             const password = colonIndex >= 0 ? credentials.substring(colonIndex + 1) : '';
 
             // Use async scrypt KDF to avoid blocking the event loop
-            const salt = getAdminScryptSalt();
-            const passwordHash = await scryptAsync(password, salt, 32);
-            const adminHash = getAdminHash() ?? (await scryptAsync(adminPassword, salt, 32));
+            const [passwordHash, adminHash] = await Promise.all([
+                scryptAsync(password, getAdminScryptSalt(), 32),
+                getAdminHashAsync(adminPassword),
+            ]);
             if (crypto.timingSafeEqual(passwordHash, adminHash)) {
                 req.adminUsername = username || 'admin';
                 // Audit successful login

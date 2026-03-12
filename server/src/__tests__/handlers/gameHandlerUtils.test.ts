@@ -25,12 +25,17 @@ jest.mock('../../utils/logger', () => ({
     warn: jest.fn(),
     debug: jest.fn(),
 }));
+jest.mock('../../socket/safeEmit', () => ({
+    safeEmitToRoom: jest.fn(),
+    safeEmitToPlayer: jest.fn(),
+}));
 
 const gameService = require('../../services/gameService');
 const roomService = require('../../services/roomService');
 const gameHistoryService = require('../../services/gameHistoryService');
+const { safeEmitToRoom } = require('../../socket/safeEmit');
 
-const { saveCompletedGameHistory } = require('../../socket/handlers/gameHandlerUtils');
+const { saveCompletedGameHistory, handleMatchRoundFinalization } = require('../../socket/handlers/gameHandlerUtils');
 
 describe('gameHandlerUtils', () => {
     beforeEach(() => {
@@ -325,6 +330,62 @@ describe('gameHandlerUtils', () => {
             gameService.getGame.mockRejectedValue(new Error('Redis down'));
 
             await expect(saveCompletedGameHistory('ABCDEF')).resolves.toBeUndefined();
+        });
+    });
+
+    describe('handleMatchRoundFinalization', () => {
+        const mockIo = {};
+
+        beforeEach(() => {
+            jest.clearAllMocks();
+        });
+
+        it('no-ops when finalizeMatchRound returns null (non-match game)', async () => {
+            gameService.finalizeMatchRound.mockResolvedValue(null);
+
+            await handleMatchRoundFinalization(mockIo, 'ROOM01');
+
+            expect(safeEmitToRoom).not.toHaveBeenCalled();
+        });
+
+        it('emits game:matchOver when match is complete', async () => {
+            gameService.finalizeMatchRound.mockResolvedValue({
+                matchOver: true,
+                matchWinner: 'red',
+                redMatchScore: 3,
+                blueMatchScore: 1,
+                roundHistory: [{ winner: 'red' }, { winner: 'blue' }, { winner: 'red' }],
+                roundResult: { winner: 'red', redScore: 5, blueScore: 3 },
+            });
+
+            await handleMatchRoundFinalization(mockIo, 'ROOM01');
+
+            expect(safeEmitToRoom).toHaveBeenCalledWith(mockIo, 'ROOM01', 'game:matchOver', {
+                matchWinner: 'red',
+                redMatchScore: 3,
+                blueMatchScore: 1,
+                roundHistory: [{ winner: 'red' }, { winner: 'blue' }, { winner: 'red' }],
+                roundResult: { winner: 'red', redScore: 5, blueScore: 3 },
+            });
+        });
+
+        it('emits game:roundEnded when match continues', async () => {
+            gameService.finalizeMatchRound.mockResolvedValue({
+                matchOver: false,
+                redMatchScore: 1,
+                blueMatchScore: 1,
+                matchRound: 3,
+                roundResult: { winner: 'blue', redScore: 4, blueScore: 6 },
+            });
+
+            await handleMatchRoundFinalization(mockIo, 'ROOM01');
+
+            expect(safeEmitToRoom).toHaveBeenCalledWith(mockIo, 'ROOM01', 'game:roundEnded', {
+                roundResult: { winner: 'blue', redScore: 4, blueScore: 6 },
+                redMatchScore: 1,
+                blueMatchScore: 1,
+                matchRound: 3,
+            });
         });
     });
 });

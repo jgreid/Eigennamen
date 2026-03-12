@@ -263,7 +263,7 @@ server/
 ├── src/
 │   ├── index.ts          # Entry point
 │   ├── app.ts            # Express configuration
-│   ├── config/           # Configuration (12 modules, constants.ts re-exports all)
+│   ├── config/           # Configuration (13 modules, constants.ts re-exports all)
 │   ├── errors/           # GameError hierarchy
 │   ├── middleware/        # Express & Socket middleware
 │   ├── routes/           # REST API routes
@@ -281,7 +281,7 @@ server/
 │   ├── validators/       # Zod validation schemas
 │   ├── scripts/          # Redis Lua scripts (27 atomic operations)
 │   └── __tests__/        # Jest tests (133 suites)
-├── e2e/                  # Playwright E2E tests (12 specs)
+├── e2e/                  # Playwright E2E tests (13 specs)
 ├── Dockerfile
 └── package.json
 ```
