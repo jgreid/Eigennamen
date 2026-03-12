@@ -245,12 +245,15 @@ describe('forfeitGame - duet mode', () => {
     test('duet forfeit sets winner to null', async () => {
         const duetGame = {
             id: 'duet-game-1',
+            seed: 'duet-seed',
             words: DEFAULT_WORDS.slice(0, BOARD_SIZE),
             types: Array(BOARD_SIZE).fill('green'),
             revealed: Array(BOARD_SIZE).fill(false),
             currentTurn: 'red',
             redScore: 0,
             blueScore: 0,
+            redTotal: 0,
+            blueTotal: 0,
             gameOver: false,
             winner: null,
             gameMode: 'duet',
@@ -285,12 +288,15 @@ describe('addToHistory lazy trimming', () => {
 
         const game = {
             id: 'history-game',
+            seed: 'history-seed',
             words: DEFAULT_WORDS.slice(0, BOARD_SIZE),
             types: [...Array(9).fill('red'), ...Array(8).fill('blue'), ...Array(7).fill('neutral'), 'assassin'],
             revealed: Array(BOARD_SIZE).fill(false),
             currentTurn: 'red',
             redScore: 0,
             blueScore: 0,
+            redTotal: 9,
+            blueTotal: 8,
             gameOver: false,
             winner: null,
             gameMode: 'classic',
@@ -526,9 +532,15 @@ describe('finalizeMatchRound', () => {
     test('returns null for non-match games', async () => {
         const classicGame = {
             id: 'classic-1',
+            seed: 'classic-seed',
             words: DEFAULT_WORDS.slice(0, BOARD_SIZE),
             types: Array(BOARD_SIZE).fill('red'),
             revealed: Array(BOARD_SIZE).fill(false),
+            currentTurn: 'red',
+            redScore: 0,
+            blueScore: 0,
+            redTotal: BOARD_SIZE,
+            blueTotal: 0,
             gameOver: true,
             stateVersion: 1,
         };
