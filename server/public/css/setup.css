@@ -3,10 +3,11 @@
 
 .setup-screen {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100vh;
-    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
     padding: var(--spacing-lg);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
@@ -280,6 +281,7 @@
     font-size: var(--font-size-xs);
     opacity: 0.5;
     text-align: center;
+    margin-top: auto;
     padding: var(--spacing-sm) 0;
 }
 
