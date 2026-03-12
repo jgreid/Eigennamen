@@ -149,12 +149,18 @@ Eigennamen/
         │   ├── roomService.ts  # Room create/join/leave/settings lifecycle
         │   ├── playerService.ts # Player CRUD barrel — re-exports from player/ sub-modules
         │   ├── timerService.ts # Turn timers (Redis-backed, pause/resume/add-time)
-        │   ├── gameHistoryService.ts # Game history storage + replay data
+        │   ├── gameHistoryService.ts # Game history barrel — re-exports from gameHistory/
         │   ├── auditService.ts # Security audit logging (ring buffer)
         │   ├── game/           # Game sub-modules
         │   │   ├── boardGenerator.ts # Board generation + card distribution
         │   │   ├── revealEngine.ts   # Card reveal logic + win detection
         │   │   └── luaGameOps.ts     # Lua script wrappers for atomic game ops
+        │   ├── gameHistory/    # Game history sub-modules
+        │   │   ├── types.ts        # All type/interface definitions
+        │   │   ├── validation.ts   # Data validation and clue counting
+        │   │   ├── storage.ts      # Redis CRUD operations (save, get, cleanup)
+        │   │   ├── replayEngine.ts # Replay event construction
+        │   │   └── index.ts        # Barrel export
         │   ├── player/         # Player sub-modules
         │   │   ├── cleanup.ts  # Disconnection handling + scheduled cleanup
         │   │   ├── mutations.ts # setTeam, setRole, setNickname
@@ -178,7 +184,7 @@ Eigennamen/
         │   ├── socketFunctionProvider.ts # Socket function dependency injection
         │   └── handlers/       # Event-specific handlers (9 files)
         │       ├── gameHandlers.ts    # game:start, game:reveal, game:endTurn, game:forfeit, etc.
-        │       ├── gameHandlerUtils.ts # Shared game handler utilities
+        │       ├── gameHandlerUtils.ts # Shared game handler utilities (toHistoryEntry mapper, match finalization)
         │       ├── roomHandlers.ts    # room:create, room:join, room:leave, room:settings, etc.
         │       ├── roomHandlerUtils.ts # Shared room handler utilities
         │       ├── playerHandlers.ts  # player:setTeam, player:setRole, player:kick, etc.
@@ -268,9 +274,10 @@ Eigennamen/
         │   ├── gameSchemas.ts  # gameStartSchema, gameRevealSchema (index 0-24), gameHistoryLimitSchema
         │   ├── chatSchemas.ts  # chatMessageSchema (1-500 chars), spectatorChatSchema
         │   └── timerSchemas.ts # timerAddTimeSchema (10-300 seconds)
-        ├── scripts/            # Redis Lua scripts (26 atomic operations)
-        │   └── index.ts        # Barrel export with documented KEYS/ARGV/Returns headers
-        └── __tests__/          # Jest tests (132 suites)
+        ├── scripts/            # Redis Lua scripts (27 atomic operations)
+        │   ├── index.ts        # Barrel export with documented KEYS/ARGV/Returns headers
+        │   └── atomicRateLimit.lua # Extracted rate-limit Lua script
+        └── __tests__/          # Jest tests (133 suites)
             ├── helpers/        # Test utilities + mock factories (mocks.ts ~721 lines)
             ├── integration/    # Integration tests
             └── frontend/       # Frontend unit tests
@@ -328,7 +335,7 @@ GameError (base) — code, details, timestamp
 - **External Redis** — Full features, multi-instance scaling via pub/sub, data persistence
 - **Memory mode** (`REDIS_URL=memory`) — Spawns embedded redis-server, single instance, data lost on restart
 
-**26 Lua scripts** for atomic operations (all in `scripts/`):
+**27 Lua scripts** for atomic operations (all in `scripts/`):
 
 | Category | Scripts |
 |----------|---------|
@@ -339,6 +346,7 @@ GameError (base) — code, details, timestamp
 | Player lifecycle | `ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT`, `ATOMIC_SET_SOCKET_MAPPING_SCRIPT`, `ATOMIC_VALIDATE_RECONNECT_TOKEN_SCRIPT`, `ATOMIC_GENERATE_RECONNECT_TOKEN_SCRIPT`, `INVALIDATE_TOKEN_SCRIPT`, `CLEANUP_ORPHANED_TOKEN_SCRIPT` |
 | Timer | `ATOMIC_ADD_TIME_SCRIPT`, `ATOMIC_TIMER_STATUS_SCRIPT`, `ATOMIC_PAUSE_TIMER_SCRIPT`, `ATOMIC_RESUME_TIMER_SCRIPT` |
 | History | `ATOMIC_SAVE_GAME_HISTORY_SCRIPT` |
+| Rate Limiting | `ATOMIC_RATE_LIMIT_SCRIPT` |
 | Locking | `RELEASE_LOCK_SCRIPT`, `EXTEND_LOCK_SCRIPT` |
 
 Each script has a documented `KEYS[]`, `ARGV[]`, and `Returns` header in the source.
@@ -500,7 +508,7 @@ Run `npm run format` to auto-format, `npm run format:check` to verify.
 | `roomService` | `services/roomService.ts` | Room create/join/leave/settings lifecycle |
 | `playerService` | `services/playerService.ts` | Player CRUD barrel (delegates to `player/` sub-modules) |
 | `timerService` | `services/timerService.ts` | Turn timers — Redis-backed with pause/resume/add-time |
-| `gameHistoryService` | `services/gameHistoryService.ts` | Game history storage + replay data retrieval |
+| `gameHistoryService` | `services/gameHistoryService.ts` | Game history barrel — delegates to `gameHistory/` sub-modules (types, validation, storage, replayEngine) |
 | `auditService` | `services/auditService.ts` | Security audit logging (in-memory ring buffer, MAX_LOGS_PER_CATEGORY=10000) |
 
 All paths relative to `server/src/`.

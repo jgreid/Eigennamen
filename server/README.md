@@ -202,10 +202,10 @@ Once the server is running:
 
 To verify everything is working correctly:
 ```bash
-npm test              # Run all tests (129 suites, 0 failures)
+npm test              # Run all tests (133 suites, 0 failures)
 npm run test:coverage # Run tests with coverage report
 npm run test:frontend # Run frontend unit tests (Jest + jsdom)
-npm run test:e2e      # Run E2E tests (12 Playwright specs)
+npm run test:e2e      # Run E2E tests (13 Playwright specs)
 ```
 
 ## Configuration
@@ -268,15 +268,19 @@ server/
 │   ├── middleware/        # Express & Socket middleware
 │   ├── routes/           # REST API routes
 │   ├── services/         # Business logic (6 services + sub-modules)
+│   │   ├── game/         # Game sub-modules (board, reveal, lua)
+│   │   ├── gameHistory/  # Game history sub-modules (types, validation, storage, replayEngine)
+│   │   ├── player/       # Player sub-modules (cleanup, mutations, queries, reconnection)
+│   │   └── room/         # Room sub-module (membership)
 │   ├── socket/           # Socket.io setup
-│   │   └── handlers/     # Event-specific handlers (8 files)
-│   ├── frontend/         # Frontend TypeScript source (52 modules)
+│   │   └── handlers/     # Event-specific handlers (9 files)
+│   ├── frontend/         # Frontend TypeScript source (55 modules)
 │   ├── shared/           # Shared code between frontend and backend
 │   ├── types/            # TypeScript type definitions
 │   ├── utils/            # Utilities (metrics, logging, locks, etc.)
 │   ├── validators/       # Zod validation schemas
-│   ├── scripts/          # Redis Lua scripts for atomic operations
-│   └── __tests__/        # Jest tests (129 suites)
+│   ├── scripts/          # Redis Lua scripts (27 atomic operations)
+│   └── __tests__/        # Jest tests (133 suites)
 ├── e2e/                  # Playwright E2E tests (12 specs)
 ├── Dockerfile
 └── package.json
