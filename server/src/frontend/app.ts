@@ -81,6 +81,34 @@ window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => 
     showToast(message, 'error');
 });
 
+// Mobile background/foreground detection — when a mobile browser puts the
+// page in the background (tab switch, home button, lock screen), WebSocket
+// heartbeats stop and the server may consider the client dead.  On returning
+// to foreground we check connectivity and request a full resync so the UI
+// reflects changes that happened while backgrounded.
+let lastVisibleTimestamp = Date.now();
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        lastVisibleTimestamp = Date.now();
+        return;
+    }
+    // Returned to foreground
+    const elapsed = Date.now() - lastVisibleTimestamp;
+
+    // Only act if we were away for >2 seconds (avoids spurious triggers)
+    if (elapsed < 2000) return;
+
+    if (!state.isMultiplayerMode || !isClientConnected()) return;
+
+    // Request a full resync from the server to catch missed events
+    try {
+        EigennamenClient.requestResync();
+    } catch {
+        // Non-critical — Socket.io will reconnect automatically if needed
+        logger.debug('Foreground resync request failed (socket may be reconnecting)');
+    }
+});
+
 // Wire up the card click handler (board -> game callback injection)
 setCardClickHandler(revealCard);
 
