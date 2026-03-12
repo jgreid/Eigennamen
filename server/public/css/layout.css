@@ -6,6 +6,7 @@
     height: 100dvh;
     max-width: var(--max-content-width);
     margin: 0 auto;
+    overflow: hidden;
     /* Safe area for notch/Dynamic Island devices */
     padding-top: env(safe-area-inset-top, 0px);
     padding-left: env(safe-area-inset-left, 0px);
