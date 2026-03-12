@@ -10,7 +10,6 @@
     min-height: 100dvh;
     padding: var(--spacing-lg);
     overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
     overscroll-behavior: none;
     touch-action: manipulation;
 }

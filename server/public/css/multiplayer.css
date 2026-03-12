@@ -609,7 +609,6 @@
 .chat-messages {
     height: 130px;
     overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     padding: 6px 8px;
     font-size: 0.75rem;

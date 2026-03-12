@@ -66,6 +66,13 @@ import { logger } from './logger.js';
 // Signal that the ES module loaded successfully
 (window as Window & { __appModuleLoaded?: boolean }).__appModuleLoaded = true;
 
+// iOS Safari requires a touchstart listener on the document (or an ancestor of
+// interactive elements) for :active CSS states to fire on touch.  Without this,
+// buttons receive no visual feedback and — in scroll containers with
+// -webkit-overflow-scrolling — taps can be swallowed entirely by the gesture
+// recogniser.  The listener is passive so it never blocks scrolling.
+document.addEventListener('touchstart', function () {}, { passive: true });
+
 // Global error handlers — surface uncaught errors to the user instead of
 // silently losing them in the console (C1 from audit)
 window.addEventListener('error', (event: ErrorEvent) => {
