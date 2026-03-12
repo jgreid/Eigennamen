@@ -77,6 +77,9 @@ export const ATOMIC_VALIDATE_RECONNECT_TOKEN_SCRIPT: string = loadLua('atomicVal
 /** Atomic reconnection token generation (returns existing if race) */
 export const ATOMIC_GENERATE_RECONNECT_TOKEN_SCRIPT: string = loadLua('atomicGenerateReconnectToken.lua');
 
+/** Atomic rate limit increment with TTL (INCR + EXPIRE on first set). Returns: current count */
+export const ATOMIC_RATE_LIMIT_SCRIPT: string = loadLua('atomicRateLimit.lua');
+
 /** Safe lock release (only release if we own the lock) */
 export const RELEASE_LOCK_SCRIPT: string = loadLua('releaseLock.lua');
 
