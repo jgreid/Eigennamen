@@ -47,6 +47,10 @@
 }
 
 /* ========== SETUP BOARD GRID ========== */
+.setup-board[hidden] {
+    display: none !important;
+}
+
 .setup-board {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
@@ -93,7 +97,8 @@
     transform: translateY(-4px);
 }
 
-.setup-card-action:active {
+.setup-card-action:active,
+.setup-card-action.active-touch {
     transform: translateY(-1px) scale(0.98);
 }
 
@@ -159,6 +164,13 @@
 }
 
 /* ========== SETUP FORMS ========== */
+/* Forms start hidden (HTML hidden attribute) and are shown via JS.
+   Redundant display:none ensures they stay hidden even if [hidden]
+   rule from variables.css fails to load (e.g. stale SW cache). */
+.setup-form[hidden] {
+    display: none !important;
+}
+
 .setup-form {
     width: 100%;
     max-width: 500px;
