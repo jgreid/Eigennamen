@@ -3,14 +3,16 @@
 
 .setup-screen {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100vh;
-    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
     padding: var(--spacing-lg);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: none;
+    touch-action: manipulation;
 }
 
 .setup-board-container {
@@ -45,6 +47,10 @@
 }
 
 /* ========== SETUP BOARD GRID ========== */
+.setup-board[hidden] {
+    display: none !important;
+}
+
 .setup-board {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
@@ -91,7 +97,8 @@
     transform: translateY(-4px);
 }
 
-.setup-card-action:active {
+.setup-card-action:active,
+.setup-card-action.active-touch {
     transform: translateY(-1px) scale(0.98);
 }
 
@@ -157,6 +164,13 @@
 }
 
 /* ========== SETUP FORMS ========== */
+/* Forms start hidden (HTML hidden attribute) and are shown via JS.
+   Redundant display:none ensures they stay hidden even if [hidden]
+   rule from variables.css fails to load (e.g. stale SW cache). */
+.setup-form[hidden] {
+    display: none !important;
+}
+
 .setup-form {
     width: 100%;
     max-width: 500px;
@@ -228,6 +242,8 @@
     border: none;
     border-radius: var(--radius-xs);
     cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .setup-form-buttons .btn-secondary {
@@ -238,6 +254,8 @@
     border-radius: var(--radius-xs);
     cursor: pointer;
     font-weight: 600;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
 
 /* Game mode selector within setup form */
@@ -280,6 +298,7 @@
     font-size: var(--font-size-xs);
     opacity: 0.5;
     text-align: center;
+    margin-top: auto;
     padding: var(--spacing-sm) 0;
 }
 
