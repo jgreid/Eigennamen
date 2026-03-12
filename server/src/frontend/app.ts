@@ -321,9 +321,12 @@ async function init(): Promise<void> {
 
         // Initialize cached DOM elements first
         initCachedElements();
-        // Display app version in sidebar
+        // Display app version in sidebar and setup screen
+        const versionStr = `v${__APP_VERSION__}`;
         const versionEl = document.getElementById('sidebar-version');
-        if (versionEl) versionEl.textContent = `v${__APP_VERSION__}`;
+        if (versionEl) versionEl.textContent = versionStr;
+        const setupVersionEl = document.getElementById('setup-version');
+        if (setupVersionEl) setupVersionEl.textContent = versionStr;
         // Set up centralized event listeners
         setupEventListeners();
         // Initialize settings navigation

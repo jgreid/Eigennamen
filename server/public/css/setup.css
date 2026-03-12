@@ -274,6 +274,15 @@
     font-size: var(--font-size-xs);
 }
 
+/* ========== VERSION DISPLAY ========== */
+.setup-version {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    opacity: 0.5;
+    text-align: center;
+    padding: var(--spacing-sm) 0;
+}
+
 /* ========== RESPONSIVE - SETUP SCREEN ========== */
 @media (max-width: 768px) {
     .setup-screen {
