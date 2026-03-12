@@ -145,12 +145,12 @@
           <h2 class="setup-form-title">Join a Game</h2>
           <div class="setup-form-group">
             <label for="setup-join-nickname">Your Nickname</label>
-            <input type="text" id="setup-join-nickname" placeholder="Enter your name" minlength="1" maxlength="30" autocomplete="off" />
+            <input type="text" id="setup-join-nickname" placeholder="Enter your name" minlength="1" maxlength="30" autocomplete="off" autocorrect="off" spellcheck="false" />
             <span class="error-text" id="setup-join-nickname-error"></span>
           </div>
           <div class="setup-form-group">
             <label for="setup-join-room-id">Room ID</label>
-            <input type="text" id="setup-join-room-id" placeholder="e.g. my-game" minlength="3" maxlength="20" autocomplete="off" pattern="[a-zA-Z0-9\-_]+" />
+            <input type="text" id="setup-join-room-id" placeholder="e.g. my-game" minlength="3" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
             <span class="input-hint">Enter the Room ID shared by the host</span>
             <span class="error-text" id="setup-join-error"></span>
           </div>
@@ -167,12 +167,12 @@
           <div class="setup-form-row">
             <div class="setup-form-group">
               <label for="setup-host-nickname">Your Nickname</label>
-              <input type="text" id="setup-host-nickname" placeholder="Enter your name" minlength="1" maxlength="30" autocomplete="off" />
+              <input type="text" id="setup-host-nickname" placeholder="Enter your name" minlength="1" maxlength="30" autocomplete="off" autocorrect="off" spellcheck="false" />
               <span class="error-text" id="setup-host-nickname-error"></span>
             </div>
             <div class="setup-form-group">
               <label for="setup-host-room-id">Room ID</label>
-              <input type="text" id="setup-host-room-id" placeholder="e.g. game-night" minlength="3" maxlength="20" autocomplete="off" pattern="[a-zA-Z0-9\-_]+" />
+              <input type="text" id="setup-host-room-id" placeholder="e.g. game-night" minlength="3" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
               <span class="input-hint">Share this with friends to let them join</span>
               <span class="error-text" id="setup-host-error"></span>
             </div>
@@ -413,6 +413,8 @@
                     minlength="1"
                     maxlength="30"
                     autocomplete="off"
+                    autocorrect="off"
+                    spellcheck="false"
                   />
                   <button
                     type="button"
@@ -1374,6 +1376,8 @@
               minlength="1"
               maxlength="30"
               autocomplete="off"
+              autocorrect="off"
+              spellcheck="false"
             />
             <span class="error-text" id="join-nickname-error"></span>
           </div>
@@ -1389,6 +1393,9 @@
               minlength="3"
               maxlength="20"
               autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
               pattern="[a-zA-Z0-9\-_]+"
               title="Letters, numbers, hyphens and underscores only"
             />
@@ -1411,6 +1418,8 @@
               minlength="1"
               maxlength="30"
               autocomplete="off"
+              autocorrect="off"
+              spellcheck="false"
             />
             <span class="error-text" id="create-nickname-error"></span>
           </div>
@@ -1426,6 +1435,9 @@
               minlength="3"
               maxlength="20"
               autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
               pattern="[a-zA-Z0-9\-_]+"
               title="Letters, numbers, hyphens and underscores only"
             />
@@ -1598,7 +1610,7 @@
       </div>
     </div>
 
-    <script type="module" src="/js/modules/app.js?v=0d7682eb"></script>
+    <script type="module" src="/js/modules/app.js?v=c43de199"></script>
     <!-- Fallback: detect if the ES module failed to load + service worker registration -->
     <script src="/js/app-fallback.js"></script>
   </body>
