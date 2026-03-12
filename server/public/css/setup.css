@@ -12,6 +12,7 @@
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: none;
+    touch-action: manipulation;
 }
 
 .setup-board-container {
@@ -229,6 +230,8 @@
     border: none;
     border-radius: var(--radius-xs);
     cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .setup-form-buttons .btn-secondary {
@@ -239,6 +242,8 @@
     border-radius: var(--radius-xs);
     cursor: pointer;
     font-weight: 600;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
 
 /* Game mode selector within setup form */
