@@ -329,6 +329,9 @@ async function init(): Promise<void> {
         if (setupVersionEl) setupVersionEl.textContent = versionStr;
         // Set up centralized event listeners
         setupEventListeners();
+        // Signal that the module's event listeners are active so the
+        // fallback handler in app-fallback.js defers to us.
+        (window as Window & { __appEventListenersReady?: boolean }).__appEventListenersReady = true;
         // Initialize settings navigation
         initSettingsNav();
         // Initialize multiplayer modal

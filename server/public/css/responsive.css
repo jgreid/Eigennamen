@@ -225,8 +225,7 @@
         width: 95%;
         max-height: 85dvh;
         overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-    }
+        }
 
     /* Settings modal optimizations for mobile */
     .settings-content {
@@ -330,8 +329,7 @@
     .modal {
         max-height: 90dvh;
         overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-    }
+        }
 
     .settings-content {
         max-height: 60dvh;

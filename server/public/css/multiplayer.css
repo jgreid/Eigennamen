@@ -524,7 +524,7 @@
 /* Must sit above modals (z-modal: 1000) so users see reconnection status */
 .reconnection-overlay {
     position: fixed;
-    top: 0;
+    top: env(safe-area-inset-top, 0px);
     left: 0;
     right: 0;
     z-index: var(--z-reconnection);
@@ -609,7 +609,6 @@
 .chat-messages {
     height: 130px;
     overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     padding: 6px 8px;
     font-size: 0.75rem;

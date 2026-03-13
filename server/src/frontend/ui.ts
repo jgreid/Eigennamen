@@ -182,6 +182,11 @@ export function openModal(modalId: string): void {
     state.activeModal = modal;
     modal.classList.add('active');
 
+    // Prevent background scroll on mobile when modal is open
+    if (modalStack.length === 1) {
+        document.body.style.overflow = 'hidden';
+    }
+
     // Add event listeners only when first modal is open (performance optimization)
     if (!state.modalListenersActive) {
         document.addEventListener('keydown', handleModalKeydown);
@@ -219,6 +224,9 @@ export function closeModal(modalId: string): void {
         state.activeModal = modalStack[modalStack.length - 1]!.modal;
     } else {
         state.activeModal = null;
+
+        // Re-enable background scroll when last modal closes
+        document.body.style.overflow = '';
 
         // Remove event listeners when no modal is open (performance optimization)
         if (state.modalListenersActive) {

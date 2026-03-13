@@ -30,7 +30,6 @@
     max-height: 90vh;
     max-height: 90dvh;
     overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     border: 1px solid rgba(102, 126, 234, 0.3);
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
@@ -95,7 +94,6 @@
 .settings-content {
     padding: 6px 24px;
     overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     max-height: calc(90vh - 100px);
     max-height: calc(90dvh - 100px);
