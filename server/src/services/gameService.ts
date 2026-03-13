@@ -125,9 +125,7 @@ const matchCarryOverSchema = z.object({
  * Logs warnings for inconsistencies rather than rejecting, since carry-over
  * only comes from server-internal startNextRound (not client input).
  */
-function validateCarryOverConsistency(
-    carry: z.infer<typeof matchCarryOverSchema>
-): void {
+function validateCarryOverConsistency(carry: z.infer<typeof matchCarryOverSchema>): void {
     if (carry.roundHistory.length > 0) {
         const expectedRed = carry.roundHistory.reduce((sum, r) => sum + r.redRoundScore, 0);
         const expectedBlue = carry.roundHistory.reduce((sum, r) => sum + r.blueRoundScore, 0);
