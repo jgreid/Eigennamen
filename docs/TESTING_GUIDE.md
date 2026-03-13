@@ -50,9 +50,9 @@ Global thresholds are set lower because infrastructure modules (redis.ts, socket
 
 | Category | Suites | Tests |
 |----------|--------|-------|
-| Jest (backend + frontend) | 133 | 3,700+ |
+| Jest (backend + frontend) | 136 | 3,693 |
 | E2E (Playwright) | 13 | — |
-| **Total** | **146** | — |
+| **Total** | **149** | — |
 
 ## Backend Testing (Jest)
 
