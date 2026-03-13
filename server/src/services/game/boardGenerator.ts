@@ -68,7 +68,9 @@ export function generateSeed(): string {
     try {
         return crypto.randomBytes(6).toString('hex');
     } catch {
-        return Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 6);
+        // Fallback: use crypto.randomUUID() which is available in Node 19+.
+        // This avoids Math.random() which is not cryptographically secure.
+        return crypto.randomUUID().replace(/-/g, '').substring(0, 12);
     }
 }
 

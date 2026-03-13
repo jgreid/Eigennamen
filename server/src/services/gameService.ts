@@ -67,7 +67,7 @@ export { getGameStateForPlayer };
  * Add entry to game history with cap to prevent unbounded growth
  */
 function addToHistory(game: GameState, entry: ForfeitHistoryEntry): void {
-    if (!game.history) game.history = [];
+    game.history ??= [];
     game.history.push(entry);
 
     const lazyThreshold = Math.floor(MAX_HISTORY_ENTRIES * GAME_INTERNALS.LAZY_HISTORY_MULTIPLIER);

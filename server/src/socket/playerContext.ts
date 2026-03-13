@@ -308,6 +308,12 @@ function syncSocketRooms(socket: GameSocket, currentPlayer: Player | null, previ
         return;
     }
 
+    // Guard against operating on disconnected sockets — socket.join()/leave()
+    // would succeed silently but leave stale room memberships in Socket.io.
+    if (!socket.connected) {
+        return;
+    }
+
     const roomCode = currentPlayer.roomCode;
 
     const isSpectator = isPlayerSpectator(currentPlayer);

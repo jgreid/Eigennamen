@@ -35,6 +35,7 @@ describe('playerContext', () => {
             id: 'socket-1',
             sessionId: 'session-1',
             roomCode: 'ROOM01',
+            connected: true,
             emit: jest.fn(),
             join: jest.fn(),
             leave: jest.fn(),
@@ -392,6 +393,16 @@ describe('playerContext', () => {
             const current = { team: null, role: 'clicker', roomCode: 'ROOM01' };
             syncSocketRooms(mockSocket, current, previous);
             expect(mockSocket.join).toHaveBeenCalledWith('spectators:ROOM01');
+        });
+
+        it('does nothing when socket is disconnected', () => {
+            // A disconnected socket should not have its room memberships modified
+            mockSocket.connected = false;
+            const previous = { team: 'red', role: 'clicker', roomCode: 'ROOM01' };
+            const current = { team: null, role: 'spectator', roomCode: 'ROOM01' };
+            syncSocketRooms(mockSocket, current, previous);
+            expect(mockSocket.join).not.toHaveBeenCalled();
+            expect(mockSocket.leave).not.toHaveBeenCalled();
         });
     });
 });

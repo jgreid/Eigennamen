@@ -52,6 +52,17 @@ class DistributedLock {
         if (config.lockTimeout < MIN_LOCK_TIMEOUT) {
             config.lockTimeout = MIN_LOCK_TIMEOUT;
         }
+        // Warn if lock timeout is shorter than the maximum total retry wait time.
+        // This means the lock could expire before all retries complete, which is
+        // usually a misconfiguration.
+        const maxRetryWait = config.retryDelay * (Math.pow(2, config.maxRetries) - 1);
+        if (config.lockTimeout < maxRetryWait && config.maxRetries > 3) {
+            logger.warn('Lock timeout shorter than max retry duration', {
+                lockKey,
+                lockTimeout: config.lockTimeout,
+                maxRetryWait,
+            });
+        }
         const redis = getRedis();
         const key = `lock:${lockKey}`;
         const ownerId = `${this.instanceId}:${uuidv4()}`;
