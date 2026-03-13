@@ -1,8 +1,8 @@
 /**
  * Chat Module Extended Tests
  *
- * Tests sendChatMessage routing (spectator vs team), updateChatForRole,
- * and keyboard handling.
+ * Tests updateChatForRole role-based UI switching.
+ * Core handleChatMessage rendering tests are in chat.test.ts.
  */
 
 const mockSendMessage = jest.fn();
@@ -37,7 +37,7 @@ jest.mock('../../frontend/state', () => ({
     },
 }));
 
-import { updateChatForRole, handleChatMessage } from '../../frontend/chat';
+import { updateChatForRole } from '../../frontend/chat';
 import { isClientConnected } from '../../frontend/clientAccessor';
 
 function setupChatDOM(): void {
@@ -104,91 +104,5 @@ describe('updateChatForRole', () => {
 
         const input = document.getElementById('chat-input') as HTMLInputElement;
         expect(input.placeholder).toBe('chat.placeholder');
-    });
-});
-
-describe('handleChatMessage', () => {
-    test('renders incoming message with sender name and text', () => {
-        handleChatMessage({
-            from: { nickname: 'Alice', team: 'red', sessionId: 'a1' },
-            text: 'Hello!',
-            teamOnly: false,
-        });
-
-        const messages = document.getElementById('chat-messages')!;
-        expect(messages.children.length).toBe(1);
-        expect(messages.textContent).toContain('Alice');
-        expect(messages.textContent).toContain('Hello!');
-    });
-
-    test('adds team-only class when message is team only', () => {
-        handleChatMessage({
-            from: { nickname: 'Bob', team: 'blue', sessionId: 'b1' },
-            text: 'Team secret',
-            teamOnly: true,
-        });
-
-        const msg = document.getElementById('chat-messages')!.firstElementChild!;
-        expect(msg.classList.contains('team-only')).toBe(true);
-    });
-
-    test('adds team color class to sender name', () => {
-        handleChatMessage({
-            from: { nickname: 'Alice', team: 'red', sessionId: 'a1' },
-            text: 'Hi',
-            teamOnly: false,
-        });
-
-        const sender = document.querySelector('.chat-sender') as HTMLElement;
-        expect(sender.classList.contains('red')).toBe(true);
-    });
-
-    test('ignores message with no sender', () => {
-        handleChatMessage({
-            from: null as unknown as { nickname: string; team: string; sessionId: string },
-            text: 'x',
-            teamOnly: false,
-        });
-
-        expect(document.getElementById('chat-messages')!.children.length).toBe(0);
-    });
-
-    test('ignores message with no text', () => {
-        handleChatMessage({
-            from: { nickname: 'Bob', team: 'blue', sessionId: 'b1' },
-            text: '',
-            teamOnly: false,
-        });
-
-        expect(document.getElementById('chat-messages')!.children.length).toBe(0);
-    });
-
-    test('uses "Unknown" for sender without nickname', () => {
-        handleChatMessage({
-            from: { nickname: '', team: 'red', sessionId: 'a1' },
-            text: 'No name',
-            teamOnly: false,
-        });
-
-        const sender = document.querySelector('.chat-sender') as HTMLElement;
-        expect(sender.textContent).toBe('Unknown');
-    });
-
-    test('appends multiple messages in order', () => {
-        handleChatMessage({
-            from: { nickname: 'Alice', team: 'red', sessionId: 'a1' },
-            text: 'First',
-            teamOnly: false,
-        });
-        handleChatMessage({
-            from: { nickname: 'Bob', team: 'blue', sessionId: 'b1' },
-            text: 'Second',
-            teamOnly: false,
-        });
-
-        const messages = document.getElementById('chat-messages')!;
-        expect(messages.children.length).toBe(2);
-        expect(messages.children[0].textContent).toContain('First');
-        expect(messages.children[1].textContent).toContain('Second');
     });
 });

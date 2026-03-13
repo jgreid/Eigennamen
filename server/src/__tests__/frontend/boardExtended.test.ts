@@ -1,8 +1,8 @@
 /**
  * Board Module Extended Tests
  *
- * Tests resize listener management, screen reader announcements,
- * and match mode score badges.
+ * Tests resize listener management and match mode score badges.
+ * Core renderBoard tests (card count, types, spymaster mode, ARIA) are in board.test.ts.
  */
 
 jest.mock('../../frontend/i18n', () => ({
@@ -123,66 +123,6 @@ describe('attachResizeListener / detachResizeListener', () => {
     });
 });
 
-// ========== RENDER BOARD ==========
-
-describe('renderBoard', () => {
-    test('renders 25 cards for a standard game', () => {
-        renderBoard();
-
-        const board = document.getElementById('board')!;
-        expect(board.children.length).toBe(25);
-    });
-
-    test('each card has the word text', () => {
-        renderBoard();
-
-        const board = document.getElementById('board')!;
-        const firstCard = board.children[0] as HTMLElement;
-        expect(firstCard.textContent).toContain('word0');
-    });
-
-    test('revealed cards show type class', () => {
-        setupGameState({
-            types: ['red', ...Array(24).fill('neutral')],
-            revealed: [true, ...Array(24).fill(false)],
-        });
-
-        renderBoard();
-
-        const board = document.getElementById('board')!;
-        const firstCard = board.children[0] as HTMLElement;
-        expect(firstCard.classList.contains('revealed')).toBe(true);
-        expect(firstCard.classList.contains('red')).toBe(true);
-    });
-
-    test('adds spymaster-mode class when spymaster', () => {
-        state.spymasterTeam = 'red';
-        state.playerTeam = 'red';
-
-        renderBoard();
-
-        const board = document.getElementById('board')!;
-        expect(board.classList.contains('spymaster-mode')).toBe(true);
-    });
-
-    test('board has no-click class when game is over', () => {
-        state.gameState.gameOver = true;
-
-        renderBoard();
-
-        const board = document.getElementById('board')!;
-        expect(board.classList.contains('no-click')).toBe(true);
-    });
-
-    test('does nothing when board element is missing', () => {
-        document.getElementById('board')!.remove();
-        state.cachedElements.board = null;
-
-        // Should not throw
-        expect(() => renderBoard()).not.toThrow();
-    });
-});
-
 // ========== MATCH MODE SCORE BADGES ==========
 
 describe('renderBoard with match mode score badges', () => {
@@ -252,34 +192,5 @@ describe('renderBoard with match mode score badges', () => {
         expect(badge).not.toBeNull();
         expect(badge!.classList.contains('card-score-trap')).toBe(true);
         expect(badge!.textContent).toBe('-2');
-    });
-});
-
-// ========== CARD ARIA LABELS ==========
-
-describe('card ARIA labels', () => {
-    test('unrevealed cards have appropriate aria-label', () => {
-        renderBoard();
-
-        const board = document.getElementById('board')!;
-        const card = board.children[0] as HTMLElement;
-        const label = card.getAttribute('aria-label') || '';
-        expect(label).toContain('word0');
-        expect(label).toContain('row 1');
-        expect(label).toContain('col 1');
-    });
-
-    test('revealed cards include type in aria-label', () => {
-        setupGameState({
-            types: ['red', ...Array(24).fill('neutral')],
-            revealed: [true, ...Array(24).fill(false)],
-        });
-
-        renderBoard();
-
-        const board = document.getElementById('board')!;
-        const card = board.children[0] as HTMLElement;
-        const label = card.getAttribute('aria-label') || '';
-        expect(label).toContain('red team');
     });
 });
