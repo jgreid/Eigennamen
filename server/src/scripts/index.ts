@@ -80,6 +80,9 @@ export const ATOMIC_GENERATE_RECONNECT_TOKEN_SCRIPT: string = loadLua('atomicGen
 /** Atomic rate limit increment with TTL (INCR + EXPIRE on first set). Returns: current count */
 export const ATOMIC_RATE_LIMIT_SCRIPT: string = loadLua('atomicRateLimit.lua');
 
+/** Safe orphan cleanup: re-verifies player key is nil before removing from sets (prevents TOCTOU race with reconnection) */
+export const SAFE_CLEANUP_ORPHANS_SCRIPT: string = loadLua('safeCleanupOrphans.lua');
+
 /** Safe lock release (only release if we own the lock) */
 export const RELEASE_LOCK_SCRIPT: string = loadLua('releaseLock.lua');
 

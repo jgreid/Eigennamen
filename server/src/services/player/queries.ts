@@ -7,6 +7,7 @@ import { tryParseJSON } from '../../utils/parseJSON';
 import { playerSchema } from './schemas';
 import { updatePlayer } from '../playerService';
 import { withLock } from '../../utils/distributedLock';
+import { SAFE_CLEANUP_ORPHANS_SCRIPT } from '../../scripts';
 
 /**
  * Get all players on a specific team - O(1) lookup using team sets
@@ -172,44 +173,25 @@ export async function getPlayersInRoom(roomCode: string): Promise<Player[]> {
         }
     }
 
-    // Clean up all orphaned data atomically
+    // Clean up orphaned data atomically via Lua script.
+    // The script re-verifies each player key is still nil before removing,
+    // preventing a TOCTOU race where a reconnecting player's data could be
+    // destroyed by a concurrent cleanup that checked before reconnection completed.
     if (orphanedSessionIds.length > 0) {
         try {
-            // Remove from players set
-            await withTimeout(
-                redis.sRem(`room:${roomCode}:players`, ...orphanedSessionIds),
+            const cleaned = (await withTimeout(
+                redis.eval(SAFE_CLEANUP_ORPHANS_SCRIPT, {
+                    keys: [`room:${roomCode}:players`, `room:${roomCode}:team:red`, `room:${roomCode}:team:blue`],
+                    arguments: [orphanedSessionIds.length.toString(), ...orphanedSessionIds],
+                }),
                 TIMEOUTS.REDIS_OPERATION,
-                `getPlayersInRoom-sRem-players-${roomCode}`
-            );
-
-            // Also remove from team sets (both teams since we don't know which team they were on)
-            // Performance fix: Batch DEL operations into single Redis calls
-            const playerKeysToDelete = orphanedSessionIds.map((id) => `player:${id}`);
-            const socketKeysToDelete = orphanedSessionIds.map((id) => `session:${id}:socket`);
-
-            await Promise.all([
-                withTimeout(
-                    redis.sRem(`room:${roomCode}:team:red`, ...orphanedSessionIds),
-                    TIMEOUTS.REDIS_OPERATION,
-                    `getPlayersInRoom-sRem-red-${roomCode}`
-                ),
-                withTimeout(
-                    redis.sRem(`room:${roomCode}:team:blue`, ...orphanedSessionIds),
-                    TIMEOUTS.REDIS_OPERATION,
-                    `getPlayersInRoom-sRem-blue-${roomCode}`
-                ),
-                withTimeout(
-                    redis.del(playerKeysToDelete),
-                    TIMEOUTS.REDIS_OPERATION,
-                    `getPlayersInRoom-del-players-${roomCode}`
-                ),
-                withTimeout(
-                    redis.del(socketKeysToDelete),
-                    TIMEOUTS.REDIS_OPERATION,
-                    `getPlayersInRoom-del-sockets-${roomCode}`
-                ),
-            ]);
-            logger.info(`Cleaned up ${orphanedSessionIds.length} orphaned session IDs from room ${roomCode}`);
+                `getPlayersInRoom-cleanupOrphans-${roomCode}`
+            )) as number;
+            if (cleaned > 0) {
+                logger.info(
+                    `Cleaned up ${cleaned}/${orphanedSessionIds.length} orphaned session IDs from room ${roomCode}`
+                );
+            }
         } catch (cleanupError) {
             logger.warn(
                 `Failed to clean up orphaned session IDs from room ${roomCode}:`,

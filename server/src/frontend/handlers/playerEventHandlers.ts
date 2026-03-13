@@ -16,6 +16,7 @@ import type {
 
 export function registerPlayerHandlers(): void {
     EigennamenClient.on('playerJoined', (data: PlayerJoinedData) => {
+        if (state.resyncInProgress) return;
         if (data.players) {
             state.multiplayerPlayers = data.players;
         } else if (data.player) {
@@ -33,6 +34,7 @@ export function registerPlayerHandlers(): void {
     });
 
     EigennamenClient.on('playerLeft', (data: PlayerLeftData) => {
+        if (state.resyncInProgress) return;
         if (data.players) {
             state.multiplayerPlayers = data.players;
         } else if (data.sessionId) {
@@ -134,6 +136,7 @@ export function registerPlayerHandlers(): void {
 
     // Handle player disconnection (network issues)
     EigennamenClient.on('playerDisconnected', (data: PlayerDisconnectedData) => {
+        if (state.resyncInProgress) return;
         // Mark player as disconnected in local list
         if (data.sessionId) {
             state.multiplayerPlayers = state.multiplayerPlayers.map((p: ServerPlayerData) =>
@@ -149,6 +152,7 @@ export function registerPlayerHandlers(): void {
 
     // Handle player reconnection
     EigennamenClient.on('playerReconnected', (data: PlayerDisconnectedData) => {
+        if (state.resyncInProgress) return;
         // Mark player as connected in local list
         if (data.sessionId) {
             state.multiplayerPlayers = state.multiplayerPlayers.map((p: ServerPlayerData) =>

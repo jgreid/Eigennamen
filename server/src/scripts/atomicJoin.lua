@@ -29,10 +29,18 @@ if redis.call('SISMEMBER', playersKey, sessionId) == 1 then
     return -1
 end
 
--- Check capacity and add atomically
+-- Check capacity
 local currentCount = redis.call('SCARD', playersKey)
 if currentCount >= maxPlayers then
     return 0
+end
+
+-- Write player data BEFORE adding to the players set.
+-- If Redis crashes after SET but before SADD, we get harmless orphan data
+-- (expires via TTL). The reverse order (SADD first) would leave a phantom
+-- set member with no backing data, causing null-player bugs.
+if playerData and playerData ~= '' then
+    redis.call('SET', playerKey, playerData, 'EX', playerTTL)
 end
 
 redis.call('SADD', playersKey, sessionId)
@@ -42,11 +50,6 @@ redis.call('SADD', playersKey, sessionId)
 local roomTTL = redis.call('TTL', roomKey)
 if roomTTL > 0 then
     redis.call('EXPIRE', playersKey, roomTTL)
-end
-
--- Atomically create player data (eliminates crash window)
-if playerData and playerData ~= '' then
-    redis.call('SET', playerKey, playerData, 'EX', playerTTL)
 end
 
 return 1

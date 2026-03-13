@@ -51,6 +51,7 @@ function syncTeamNamesFromRoom(room: { settings?: Record<string, unknown> } | nu
 export function registerRoomHandlers(): void {
     // Handle host change (when previous host disconnects)
     EigennamenClient.on('hostChanged', (data: HostChangedData) => {
+        if (state.resyncInProgress) return;
         // Update global isHost based on whether we became the new host
         const wasHost = state.isHost;
         state.isHost = data.newHostSessionId === EigennamenClient.player?.sessionId;
@@ -239,6 +240,7 @@ export function registerRoomHandlers(): void {
 
     // Handle another player being kicked
     EigennamenClient.on('playerKicked', (data: PlayerKickedData) => {
+        if (state.resyncInProgress) return;
         // Update player list
         state.multiplayerPlayers = state.multiplayerPlayers.filter(
             (p: ServerPlayerData) => p.sessionId !== data.sessionId

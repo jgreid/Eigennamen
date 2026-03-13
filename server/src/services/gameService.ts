@@ -121,6 +121,35 @@ const matchCarryOverSchema = z.object({
 });
 
 /**
+ * Validate carry-over data consistency (scores match round history).
+ * Logs warnings for inconsistencies rather than rejecting, since carry-over
+ * only comes from server-internal startNextRound (not client input).
+ */
+function validateCarryOverConsistency(
+    carry: z.infer<typeof matchCarryOverSchema>
+): void {
+    if (carry.roundHistory.length > 0) {
+        const expectedRed = carry.roundHistory.reduce((sum, r) => sum + r.redRoundScore, 0);
+        const expectedBlue = carry.roundHistory.reduce((sum, r) => sum + r.blueRoundScore, 0);
+        if (carry.redMatchScore !== expectedRed || carry.blueMatchScore !== expectedBlue) {
+            logger.warn('Match carry-over score inconsistency detected', {
+                redMatchScore: carry.redMatchScore,
+                expectedRed,
+                blueMatchScore: carry.blueMatchScore,
+                expectedBlue,
+                roundCount: carry.roundHistory.length,
+            });
+        }
+    }
+    if (carry.matchRound !== carry.roundHistory.length + 1) {
+        logger.warn('Match carry-over round number inconsistency', {
+            matchRound: carry.matchRound,
+            roundHistoryLength: carry.roundHistory.length,
+        });
+    }
+}
+
+/**
  * Build a GameState object from resolved words and layout.
  */
 function buildGameState(
@@ -175,6 +204,7 @@ function buildGameState(
         if (options.matchCarryOver) {
             // Validate carry-over data to prevent score manipulation
             const carry = matchCarryOverSchema.parse(options.matchCarryOver);
+            validateCarryOverConsistency(carry);
             base.matchRound = carry.matchRound;
             base.redMatchScore = carry.redMatchScore;
             base.blueMatchScore = carry.blueMatchScore;
