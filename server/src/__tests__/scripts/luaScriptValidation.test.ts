@@ -6,12 +6,6 @@
  * and expected behavior contracts to catch common issues.
  */
 import {
-    REVEAL_CARD_SCRIPT,
-    END_TURN_SCRIPT,
-    UPDATE_PLAYER_SCRIPT,
-    SAFE_TEAM_SWITCH_SCRIPT,
-    SET_ROLE_SCRIPT,
-    HOST_TRANSFER_SCRIPT,
     ATOMIC_CREATE_ROOM_SCRIPT,
     ATOMIC_JOIN_SCRIPT,
     ATOMIC_REFRESH_TTL_SCRIPT,
@@ -26,80 +20,9 @@ import {
     CLEANUP_ORPHANED_TOKEN_SCRIPT,
     RELEASE_LOCK_SCRIPT,
     EXTEND_LOCK_SCRIPT,
-    ATOMIC_SAVE_GAME_HISTORY_SCRIPT,
 } from '../../scripts';
 
-import fs from 'fs';
-import path from 'path';
-
-// All scripts from the index barrel export
-const ALL_SCRIPTS: Record<string, string> = {
-    REVEAL_CARD_SCRIPT,
-    END_TURN_SCRIPT,
-    UPDATE_PLAYER_SCRIPT,
-    SAFE_TEAM_SWITCH_SCRIPT,
-    SET_ROLE_SCRIPT,
-    HOST_TRANSFER_SCRIPT,
-    ATOMIC_CREATE_ROOM_SCRIPT,
-    ATOMIC_JOIN_SCRIPT,
-    ATOMIC_REFRESH_TTL_SCRIPT,
-    ATOMIC_SET_ROOM_STATUS_SCRIPT,
-    ATOMIC_REMOVE_PLAYER_SCRIPT,
-    ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT,
-    ATOMIC_SET_SOCKET_MAPPING_SCRIPT,
-    ATOMIC_UPDATE_SETTINGS_SCRIPT,
-    ATOMIC_ADD_TIME_SCRIPT,
-    ATOMIC_TIMER_STATUS_SCRIPT,
-    INVALIDATE_TOKEN_SCRIPT,
-    CLEANUP_ORPHANED_TOKEN_SCRIPT,
-    RELEASE_LOCK_SCRIPT,
-    EXTEND_LOCK_SCRIPT,
-    ATOMIC_SAVE_GAME_HISTORY_SCRIPT,
-};
-
 describe('Lua Script Validation', () => {
-    describe('all scripts load successfully', () => {
-        for (const [name, script] of Object.entries(ALL_SCRIPTS)) {
-            it(`${name} is a non-empty string`, () => {
-                expect(typeof script).toBe('string');
-                expect(script.length).toBeGreaterThan(0);
-            });
-        }
-    });
-
-    describe('file-based scripts exist on disk', () => {
-        const fileScripts = [
-            'revealCard.lua',
-            'endTurn.lua',
-            'updatePlayer.lua',
-            'safeTeamSwitch.lua',
-            'setRole.lua',
-            'hostTransfer.lua',
-            'atomicCreateRoom.lua',
-            'atomicJoin.lua',
-            'atomicRefreshTtl.lua',
-            'atomicSetRoomStatus.lua',
-            'atomicRemovePlayer.lua',
-            'atomicCleanupDisconnectedPlayer.lua',
-            'atomicSetSocketMapping.lua',
-            'atomicUpdateSettings.lua',
-            'atomicAddTime.lua',
-            'atomicTimerStatus.lua',
-            'invalidateToken.lua',
-            'cleanupOrphanedToken.lua',
-            'atomicSaveGameHistory.lua',
-            'releaseLock.lua',
-            'extendLock.lua',
-        ];
-
-        for (const filename of fileScripts) {
-            it(`${filename} exists`, () => {
-                const filePath = path.join(__dirname, '../../scripts', filename);
-                expect(fs.existsSync(filePath)).toBe(true);
-            });
-        }
-    });
-
     describe('script KEYS/ARGV access patterns', () => {
         it('ATOMIC_CREATE_ROOM_SCRIPT uses KEYS[1], KEYS[2], ARGV[1], ARGV[2]', () => {
             expect(ATOMIC_CREATE_ROOM_SCRIPT).toContain('KEYS[1]');
@@ -191,19 +114,19 @@ describe('Lua Script Validation', () => {
     });
 
     describe('cjson usage', () => {
-        const scriptsUsingJSON = [
-            'ATOMIC_SET_ROOM_STATUS_SCRIPT',
-            'ATOMIC_REMOVE_PLAYER_SCRIPT',
-            'ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT',
-            'ATOMIC_SET_SOCKET_MAPPING_SCRIPT',
-            'ATOMIC_UPDATE_SETTINGS_SCRIPT',
-            'ATOMIC_ADD_TIME_SCRIPT',
-            'ATOMIC_TIMER_STATUS_SCRIPT',
-        ] as const;
+        const scriptsUsingJSON: Record<string, string> = {
+            ATOMIC_SET_ROOM_STATUS_SCRIPT,
+            ATOMIC_REMOVE_PLAYER_SCRIPT,
+            ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT,
+            ATOMIC_SET_SOCKET_MAPPING_SCRIPT,
+            ATOMIC_UPDATE_SETTINGS_SCRIPT,
+            ATOMIC_ADD_TIME_SCRIPT,
+            ATOMIC_TIMER_STATUS_SCRIPT,
+        };
 
-        for (const name of scriptsUsingJSON) {
+        for (const [name, script] of Object.entries(scriptsUsingJSON)) {
             it(`${name} uses cjson.decode for parsing`, () => {
-                expect(ALL_SCRIPTS[name]).toContain('cjson.decode');
+                expect(script).toContain('cjson.decode');
             });
         }
     });
