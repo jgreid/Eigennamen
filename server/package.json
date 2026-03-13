@@ -1,6 +1,6 @@
 {
   "name": "eigennamen-server",
-  "version": "5.7.0",
+  "version": "5.7.1",
   "description": "Real-time multiplayer server for Eigennamen",
   "author": "Jeffrey Reid (https://github.com/jgreid)",
   "main": "dist/index.js",
