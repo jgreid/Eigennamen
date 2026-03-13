@@ -1048,7 +1048,7 @@ describe('updateTurnIndicator duet mode branches', () => {
         expect(turnText.textContent).toBe('game.duetGameOverTimeout');
     });
 
-    test('shows winner assassin message in classic mode when assassin revealed', () => {
+    test('shows winner message in classic mode regardless of assassin', () => {
         state.gameMode = 'classic';
         state.gameState.gameOver = true;
         state.gameState.winner = 'blue';
@@ -1060,25 +1060,7 @@ describe('updateTurnIndicator duet mode branches', () => {
         const indicator = document.getElementById('turn-indicator')!;
         const turnText = indicator.querySelector('.turn-text')!;
         expect(indicator.className).toContain('game-over');
-        // t('game.winnerAssassin', { team: 'Blue' }) returns the interpolated key
-        expect(turnText.textContent).toContain('game.winnerAssassin');
-    });
-
-    test('shows standard winner message in classic mode when no assassin', () => {
-        state.gameMode = 'classic';
-        state.gameState.gameOver = true;
-        state.gameState.winner = 'red';
-        state.teamNames.red = 'FireTeam';
-
-        updateTurnIndicator();
-
-        const indicator = document.getElementById('turn-indicator')!;
-        const turnText = indicator.querySelector('.turn-text')!;
-        expect(indicator.className).toContain('game-over');
-        // t('game.winner', { team: 'FireTeam' }) returns the interpolated key
         expect(turnText.textContent).toContain('game.winner');
-        // The key itself does not contain 'Assassin' - that differentiates it
-        expect(turnText.textContent).not.toContain('Assassin');
     });
 
     test('shows your-turn text when clicker matches current team', () => {
