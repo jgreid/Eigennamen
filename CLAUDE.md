@@ -25,7 +25,7 @@ npm run dev                    # Start dev server (uses REDIS_URL env, defaults 
 docker compose up -d --build   # Start with Docker (Redis + app)
 
 # Quality gates (all four must pass before submitting a PR)
-npm test                       # All tests (backend + frontend, 133 suites)
+npm test                       # All tests (backend + frontend, 136 suites)
 npm run lint                   # ESLint
 npm run format:check           # Prettier check
 npm run typecheck              # TypeScript check
@@ -277,7 +277,7 @@ Eigennamen/
         ├── scripts/            # Redis Lua scripts (27 atomic operations)
         │   ├── index.ts        # Barrel export with documented KEYS/ARGV/Returns headers
         │   └── atomicRateLimit.lua # Extracted rate-limit Lua script
-        └── __tests__/          # Jest tests (133 suites)
+        └── __tests__/          # Jest tests (136 suites)
             ├── helpers/        # Test utilities + mock factories (mocks.ts ~721 lines)
             ├── integration/    # Integration tests
             └── frontend/       # Frontend unit tests
@@ -552,7 +552,7 @@ See [docs/ADDING_A_FEATURE.md](docs/ADDING_A_FEATURE.md) for a full worked examp
 
 ### Structure
 
-- **Backend unit/integration**: Jest, 133 suites in `server/src/__tests__/`
+- **Backend unit/integration**: Jest, 136 suites in `server/src/__tests__/`
 - **Frontend unit**: Jest with jsdom, in `server/src/__tests__/frontend/`
 - **E2E**: Playwright, 13 specs in `server/e2e/`
 - **Load testing**: Custom scripts in `server/loadtest/`

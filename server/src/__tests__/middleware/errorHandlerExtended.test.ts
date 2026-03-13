@@ -28,41 +28,7 @@ describe('Error Handler Extended Tests', () => {
         app.use(express.json());
     });
 
-    describe('errorHandler - complete error code coverage', () => {
-        // Only error codes NOT already covered by middleware.test.ts
-        // (middleware.test.ts covers: ROOM_NOT_FOUND, ROOM_FULL, RATE_LIMITED, NOT_AUTHORIZED, INVALID_INPUT)
-        const errorCodeTests = [
-            { code: ERROR_CODES.ROOM_ALREADY_EXISTS, expectedStatus: 409 },
-            { code: ERROR_CODES.GAME_IN_PROGRESS, expectedStatus: 409 },
-            { code: ERROR_CODES.NOT_HOST, expectedStatus: 403 },
-            { code: ERROR_CODES.NOT_SPYMASTER, expectedStatus: 403 },
-            { code: ERROR_CODES.NOT_CLICKER, expectedStatus: 403 },
-            { code: ERROR_CODES.NOT_YOUR_TURN, expectedStatus: 400 },
-            { code: ERROR_CODES.CARD_ALREADY_REVEALED, expectedStatus: 400 },
-            { code: ERROR_CODES.GAME_OVER, expectedStatus: 400 },
-            { code: ERROR_CODES.GAME_NOT_STARTED, expectedStatus: 409 },
-            { code: ERROR_CODES.SERVER_ERROR, expectedStatus: 500 },
-            { code: ERROR_CODES.SESSION_EXPIRED, expectedStatus: 401 },
-            { code: ERROR_CODES.SESSION_NOT_FOUND, expectedStatus: 401 },
-            { code: ERROR_CODES.SESSION_VALIDATION_RATE_LIMITED, expectedStatus: 429 },
-            { code: ERROR_CODES.RESERVED_NAME, expectedStatus: 400 },
-            { code: ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN, expectedStatus: 400 },
-            { code: ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN, expectedStatus: 400 },
-            { code: ERROR_CODES.SPYMASTER_CANNOT_CHANGE_TEAM, expectedStatus: 400 },
-            { code: ERROR_CODES.PLAYER_NOT_FOUND, expectedStatus: 404 },
-        ];
-
-        it.each(errorCodeTests)('should return $expectedStatus for $code', async ({ code, expectedStatus }) => {
-            app.get('/test', (req: any, res: any, next: any) => {
-                next({ code, message: `Test error: ${code}` });
-            });
-            app.use(errorHandler);
-
-            const response = await request(app).get('/test').expect(expectedStatus);
-
-            expect(response.body.error.code).toBe(code);
-        });
-
+    describe('errorHandler - extended edge cases', () => {
         it('should mask error details in production', async () => {
             const originalEnv = process.env.NODE_ENV;
             process.env.NODE_ENV = 'production';

@@ -278,7 +278,7 @@ Eigennamen/
     │   ├── utils/          # Utility modules (12 files)
     │   ├── validators/     # Zod validation schemas (7 files)
     │   ├── scripts/        # Redis Lua scripts (27 atomic operations)
-    │   └── __tests__/      # Jest tests (133 suites)
+    │   └── __tests__/      # Jest tests (136 suites)
     │       ├── helpers/    # Test utilities and mocks
     │       ├── integration/ # Integration tests
     │       └── frontend/   # Frontend unit tests
