@@ -84,10 +84,19 @@ function checkMemoryRateLimit(clientIP: string): RateLimitResult {
     const entry = memoryRateLimits.get(key);
 
     if (!entry || entry.expiresAt <= now) {
-        // Evict oldest entries if map exceeds max size (LRU-style protection)
+        // Evict entries with the earliest expiration if map exceeds max size.
+        // This is true LRU-by-expiry rather than FIFO (which could evict
+        // a recently-active entry if it was inserted first).
         if (memoryRateLimits.size >= MEMORY_RATE_LIMIT_MAX_ENTRIES) {
-            const firstKey = memoryRateLimits.keys().next().value;
-            if (firstKey) memoryRateLimits.delete(firstKey);
+            let oldestKey: string | null = null;
+            let oldestExpiry = Infinity;
+            for (const [k, v] of memoryRateLimits) {
+                if (v.expiresAt < oldestExpiry) {
+                    oldestExpiry = v.expiresAt;
+                    oldestKey = k;
+                }
+            }
+            if (oldestKey) memoryRateLimits.delete(oldestKey);
         }
         memoryRateLimits.set(key, { count: 1, expiresAt: now + windowMs });
         return { allowed: true, attempts: 1 };

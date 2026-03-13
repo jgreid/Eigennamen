@@ -7,17 +7,29 @@ import logger from '../utils/logger';
 import { RoomError, PlayerError } from '../errors/GameError';
 import { ERROR_CODES } from '../config/constants';
 import { onGameMutation } from './gameMutationNotifier';
+import { instanceId } from '../config/env';
 
 /**
  * Short-lived LRU cache for game state lookups.
  * Prevents redundant Redis round-trips when multiple socket events
  * fire in quick succession for the same room.
+ *
+ * IMPORTANT: Disabled in multi-instance deployments (Fly.io with >1 machine,
+ * or custom INSTANCE_ID). In-memory caches are per-process, so instance A's
+ * game mutation won't invalidate instance B's cache, leading to stale reads.
+ * The onGameMutation listener only fires for mutations on the local instance.
  */
 const GAME_STATE_CACHE_TTL_MS = 500;
 const GAME_STATE_CACHE_MAX_SIZE = 100;
 const gameStateCache = new Map<string, { state: GameState | null; timestamp: number }>();
 
+// Cache is only safe when we're the sole instance. FLY_ALLOC_ID or custom
+// INSTANCE_ID indicates a multi-instance deployment where cross-instance
+// invalidation is not possible with an in-memory Map.
+const cacheEnabled = instanceId === 'local';
+
 function getCachedGameState(roomCode: string): GameState | null | undefined {
+    if (!cacheEnabled) return undefined;
     const entry = gameStateCache.get(roomCode);
     if (!entry) return undefined;
     if (Date.now() - entry.timestamp > GAME_STATE_CACHE_TTL_MS) {
@@ -28,6 +40,7 @@ function getCachedGameState(roomCode: string): GameState | null | undefined {
 }
 
 function setCachedGameState(roomCode: string, state: GameState | null): void {
+    if (!cacheEnabled) return;
     // Evict oldest entry if at capacity
     if (gameStateCache.size >= GAME_STATE_CACHE_MAX_SIZE && !gameStateCache.has(roomCode)) {
         const oldestKey = gameStateCache.keys().next().value;
@@ -305,6 +318,12 @@ function isPlayerSpectator(player: { team?: Team | null; role?: Role | string | 
  */
 function syncSocketRooms(socket: GameSocket, currentPlayer: Player | null, previousPlayer: Player | null): void {
     if (!currentPlayer || !currentPlayer.roomCode) {
+        return;
+    }
+
+    // Guard against operating on disconnected sockets — socket.join()/leave()
+    // would succeed silently but leave stale room memberships in Socket.io.
+    if (!socket.connected) {
         return;
     }
 

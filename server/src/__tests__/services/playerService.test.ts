@@ -557,15 +557,22 @@ describe('Player Service', () => {
             expect(players[1].nickname).toBe('Later');
         });
 
-        test('cleans up orphaned session IDs', async () => {
+        test('cleans up orphaned session IDs via atomic Lua script', async () => {
             const player1 = mockPlayer({ sessionId: 's1', connectedAt: 1000 });
             mockRedis.sMembers.mockResolvedValue(['s1', 's2']);
             mockRedis.mGet.mockResolvedValue([JSON.stringify(player1), null]);
-            mockRedis.sRem.mockResolvedValue(1);
+            mockRedis.eval.mockResolvedValue(1);
 
             await playerService.getPlayersInRoom('ABC123');
 
-            expect(mockRedis.sRem).toHaveBeenCalledWith('room:ABC123:players', 's2');
+            // Cleanup now uses an atomic Lua script instead of separate sRem/del calls
+            expect(mockRedis.eval).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.objectContaining({
+                    keys: ['room:ABC123:players', 'room:ABC123:team:red', 'room:ABC123:team:blue'],
+                    arguments: ['1', 's2'],
+                })
+            );
             expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('orphaned'));
         });
 

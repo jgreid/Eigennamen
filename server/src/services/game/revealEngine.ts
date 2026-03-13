@@ -2,6 +2,7 @@ import type { Team, CardType, GameState, RevealResult, Player, PlayerGameState }
 
 import { BOARD_SIZE, DUET_BOARD_CONFIG } from '../../config/constants';
 import { GameStateError, ValidationError } from '../../errors/GameError';
+import logger from '../../utils/logger';
 
 /**
  * Reveal outcome determination (internal)
@@ -297,6 +298,17 @@ export function getGameStateForPlayer(game: GameState | null, player: Player | n
 
     const isSpymaster = player && player.role === 'spymaster';
     const playerTeam = player?.team;
+
+    // Defence-in-depth: verify array lengths match before mapping.
+    // A mismatch between types/revealed arrays would produce truncated
+    // or out-of-bounds results sent to clients.
+    if (game.types.length !== game.revealed.length) {
+        logger.error('Game state array length mismatch', {
+            typesLen: game.types.length,
+            revealedLen: game.revealed.length,
+            gameId: game.id,
+        });
+    }
 
     if (isDuet) {
         if (game.gameOver) {

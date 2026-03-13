@@ -67,7 +67,7 @@ export { getGameStateForPlayer };
  * Add entry to game history with cap to prevent unbounded growth
  */
 function addToHistory(game: GameState, entry: ForfeitHistoryEntry): void {
-    if (!game.history) game.history = [];
+    game.history ??= [];
     game.history.push(entry);
 
     const lazyThreshold = Math.floor(MAX_HISTORY_ENTRIES * GAME_INTERNALS.LAZY_HISTORY_MULTIPLIER);
@@ -119,6 +119,33 @@ const matchCarryOverSchema = z.object({
     roundHistory: z.array(roundResultSchema),
     firstTeamHistory: z.array(z.enum(['red', 'blue'])),
 });
+
+/**
+ * Validate carry-over data consistency (scores match round history).
+ * Logs warnings for inconsistencies rather than rejecting, since carry-over
+ * only comes from server-internal startNextRound (not client input).
+ */
+function validateCarryOverConsistency(carry: z.infer<typeof matchCarryOverSchema>): void {
+    if (carry.roundHistory.length > 0) {
+        const expectedRed = carry.roundHistory.reduce((sum, r) => sum + r.redRoundScore, 0);
+        const expectedBlue = carry.roundHistory.reduce((sum, r) => sum + r.blueRoundScore, 0);
+        if (carry.redMatchScore !== expectedRed || carry.blueMatchScore !== expectedBlue) {
+            logger.warn('Match carry-over score inconsistency detected', {
+                redMatchScore: carry.redMatchScore,
+                expectedRed,
+                blueMatchScore: carry.blueMatchScore,
+                expectedBlue,
+                roundCount: carry.roundHistory.length,
+            });
+        }
+    }
+    if (carry.matchRound !== carry.roundHistory.length + 1) {
+        logger.warn('Match carry-over round number inconsistency', {
+            matchRound: carry.matchRound,
+            roundHistoryLength: carry.roundHistory.length,
+        });
+    }
+}
 
 /**
  * Build a GameState object from resolved words and layout.
@@ -175,6 +202,7 @@ function buildGameState(
         if (options.matchCarryOver) {
             // Validate carry-over data to prevent score manipulation
             const carry = matchCarryOverSchema.parse(options.matchCarryOver);
+            validateCarryOverConsistency(carry);
             base.matchRound = carry.matchRound;
             base.redMatchScore = carry.redMatchScore;
             base.blueMatchScore = carry.blueMatchScore;

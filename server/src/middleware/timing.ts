@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { GameSocket } from '../socket/handlers/types';
 
+import crypto from 'crypto';
 import logger from '../utils/logger';
 
 interface TimedRequest extends Request {
@@ -122,7 +123,7 @@ function stopMemoryMonitoring(): void {
 }
 
 function generateRequestId(): string {
-    return `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
+    return `${Date.now().toString(36)}-${crypto.randomBytes(4).toString('hex')}`;
 }
 
 export { requestTiming, socketEventTiming, startMemoryMonitoring, stopMemoryMonitoring };
