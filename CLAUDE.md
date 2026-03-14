@@ -88,9 +88,8 @@ Eigennamen/
     ├── public/                 # Static assets served by Express
     │   ├── js/                 # Compiled frontend JS (esbuild output)
     │   │   ├── modules/        # ES module bundles
-    │   │   │   ├── frontend/   # 55 compiled frontend modules
-    │   │   │   ├── shared/     # Shared constants (validation, game rules)
-    │   │   │   └── chunks/     # Build chunks
+    │   │   │   ├── app.js      # Main bundle (all frontend + shared code)
+    │   │   │   └── chunks/     # Code-split chunks
     │   │   └── socket-client.js # WebSocket client wrapper
     │   ├── css/                # Modular stylesheets (10 files)
     │   │   ├── variables.css   # Design tokens (colors, spacing, breakpoints)
@@ -265,7 +264,7 @@ Eigennamen/
         │   ├── metrics.ts      # Application metrics collection
         │   ├── parseJSON.ts    # Safe JSON parsing for Redis data
         │   ├── retryAsync.ts   # Async retry with exponential backoff
-        │   └── ...             # escapeHTML, sanitization, etc.
+        │   └── ...             # sanitize, timeout, correlationId, etc.
         ├── validators/         # Zod validation schemas (7 files)
         │   ├── schemas.ts      # Barrel export
         │   ├── schemaHelpers.ts # Base schemas, sanitization (removeControlChars)
@@ -274,7 +273,7 @@ Eigennamen/
         │   ├── gameSchemas.ts  # gameStartSchema, gameRevealSchema (index 0-24), gameHistoryLimitSchema
         │   ├── chatSchemas.ts  # chatMessageSchema (1-500 chars), spectatorChatSchema
         │   └── timerSchemas.ts # timerAddTimeSchema (10-300 seconds)
-        ├── scripts/            # Redis Lua scripts (27 atomic operations)
+        ├── scripts/            # Redis Lua scripts (28 atomic operations)
         │   ├── index.ts        # Barrel export with documented KEYS/ARGV/Returns headers
         │   └── atomicRateLimit.lua # Extracted rate-limit Lua script
         └── __tests__/          # Jest tests (136 suites)
@@ -419,8 +418,10 @@ All event names defined in `config/socketConfig.ts`. Format: `domain:action` (cl
 |-----------------|-----------------|
 | `player:setTeam` | `player:updated` |
 | `player:setRole` | `player:kicked` |
-| `player:setNickname` | `player:disconnected` |
-| `player:kick` | `player:error` |
+| `player:setTeamRole` | `player:disconnected` |
+| `player:setNickname` | `player:error` |
+| `player:kick` | |
+
 
 ### Timer Events
 | Client → Server | Server → Client |

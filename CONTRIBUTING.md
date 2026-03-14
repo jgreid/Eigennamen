@@ -254,6 +254,7 @@ git commit -m "refactor(services): extract timer logic to separate module"
    npm test
    npm run lint
    npm run format:check
+   npm run typecheck
    ```
 
 2. **Check coverage**
