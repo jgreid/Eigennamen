@@ -2,7 +2,7 @@
  * Game Setup Screen — "Quickstart" landing page.
  *
  * Shown on initial load. Displays a 5×5 board-like grid with
- * action cards for Host, Join, and Solo. Clicking an action card
+ * action cards for Host, Join, and Local. Clicking an action card
  * reveals a form to configure and start the game.
  */
 

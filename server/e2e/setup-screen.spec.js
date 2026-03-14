@@ -62,9 +62,9 @@ test.describe('Setup Board Grid', () => {
         await expect(joinBtn).toBeVisible();
     });
 
-    test('Solo action card is visible', async ({ page }) => {
-        const soloBtn = page.locator(sel.setupSoloBtn);
-        await expect(soloBtn).toBeVisible();
+    test('Local action card is visible', async ({ page }) => {
+        const localBtn = page.locator(sel.setupLocalBtn);
+        await expect(localBtn).toBeVisible();
     });
 });
 
@@ -116,11 +116,11 @@ test.describe('Setup Screen Navigation', () => {
     });
 });
 
-test.describe('Solo Mode Entry', () => {
-    test('clicking Solo dismisses setup screen and loads game', async ({ page }) => {
+test.describe('Local Mode Entry', () => {
+    test('clicking Local dismisses setup screen and loads game', async ({ page }) => {
         await page.goto('/');
 
-        await page.locator(sel.setupSoloBtn).click();
+        await page.locator(sel.setupLocalBtn).click();
 
         // Setup screen should be hidden
         await expect(page.locator(sel.setupScreen)).toBeHidden();
