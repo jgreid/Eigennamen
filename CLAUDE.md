@@ -194,7 +194,7 @@ Eigennamen/
         │       └── types.ts           # Handler type definitions
         ├── frontend/           # Frontend TypeScript source (55 modules, compiled via esbuild)
         │   ├── app.ts          # Frontend entry point + event delegation
-        │   ├── setupScreen.ts  # Setup screen (Host/Join/Solo quickstart cards)
+        │   ├── setupScreen.ts  # Setup screen (Host/Join/Local quickstart cards)
         │   ├── state.ts        # Reactive state proxy (wraps _rawState with Proxy)
         │   ├── stateTypes.ts   # State type definitions
         │   ├── board.ts        # Board rendering + card interaction

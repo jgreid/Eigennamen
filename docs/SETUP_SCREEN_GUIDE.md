@@ -13,7 +13,7 @@ When you first open Eigennamen Online, you'll land on the **Setup Screen** — a
 │           Eigennamen Online             │
 │                                         │
 │   ┌───────┐  ┌───────┐  ┌───────┐     │
-│   │ HOST  │  │ JOIN  │  │ SOLO  │     │
+│   │ HOST  │  │ JOIN  │  │ LOCAL  │     │
 │   │a Game │  │a Game │  │  ▶    │     │
 │   └───────┘  └───────┘  └───────┘     │
 │                                         │
@@ -24,7 +24,7 @@ When you first open Eigennamen Online, you'll land on the **Setup Screen** — a
 |------|-------------|
 | **Host a Game** | Create a new multiplayer room |
 | **Join a Game** | Enter a room code to join someone else's game |
-| **Play Solo** | Start an offline standalone game instantly |
+| **Play Local** | Start an offline standalone game instantly |
 
 ---
 
@@ -82,19 +82,19 @@ Use this when someone has shared a room code with you.
 
 ---
 
-## Path 3: Play Solo
+## Path 3: Play Local
 
 Use this for a quick offline game — no server or room code needed.
 
 ### Steps
 
-1. Click the **"Play Solo"** card
+1. Click the **"Play Local"** card
 2. A standalone game starts immediately with a random board
 3. All game state is encoded in the URL — share it with others to play on the same board
 
 ### Tips
 
-- Solo mode works entirely offline (no internet required)
+- Local mode works entirely offline (no internet required)
 - Share the URL to let others see the same board
 - Great for practice or single-screen play
 
@@ -129,7 +129,7 @@ The setup screen is fully keyboard-accessible:
 | "Room not found" when joining | Double-check the room code. Rooms expire after 24 hours. |
 | "Nickname is required" error | Enter a nickname between 2 and 30 characters. |
 | Can't see the setup screen | Clear your browser cache or open in a private/incognito window. |
-| Solo mode doesn't start | Make sure JavaScript is enabled in your browser. |
+| Local mode doesn't start | Make sure JavaScript is enabled in your browser. |
 
 ---
 

@@ -24,7 +24,7 @@ The simplest way to play - no server needed. Game state is encoded in the URL.
    ```
 
 2. **Start a game**
-   - Click **"Play Solo"** on the setup screen to start an offline game immediately
+   - Click **"Play Local"** on the setup screen to start an offline game immediately
    - Or click **"Host a Game"** to create a room (requires a server)
    - Copy the URL from your browser's address bar
 
@@ -179,7 +179,7 @@ When you first open the game, you'll see the **Setup Screen** — a 5×5 board-l
 |------|-------------|
 | **Host a Game** | Create a new room that others can join |
 | **Join a Game** | Enter a room code to join an existing game |
-| **Play Solo** | Start an offline standalone game instantly |
+| **Play Local** | Start an offline standalone game instantly |
 
 ### Step 1: Host a Game
 
