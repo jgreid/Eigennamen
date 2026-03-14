@@ -206,7 +206,7 @@ describe('handleSetupAction("setup-join-submit")', () => {
         await new Promise((r) => setTimeout(r, 10));
 
         const status = document.getElementById('setup-join-status')!;
-        expect(status.textContent).toContain('not found');
+        expect(status.textContent).toContain('multiplayer.roomNotFoundDetail');
         expect(status.classList.contains('error')).toBe(true);
     });
 
@@ -218,7 +218,7 @@ describe('handleSetupAction("setup-join-submit")', () => {
         await new Promise((r) => setTimeout(r, 10));
 
         const status = document.getElementById('setup-join-status')!;
-        expect(status.textContent).toContain('full');
+        expect(status.textContent).toContain('errors.roomFull');
     });
 
     test('shows connection error', async () => {
@@ -361,7 +361,7 @@ describe('handleSetupAction("setup-host-submit")', () => {
         await new Promise((r) => setTimeout(r, 10));
 
         const status = document.getElementById('setup-host-status')!;
-        expect(status.textContent).toContain('already exists');
+        expect(status.textContent).toContain('multiplayer.roomAlreadyExists');
     });
 
     test('shows connection error for host', async () => {

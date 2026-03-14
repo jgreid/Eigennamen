@@ -50,6 +50,8 @@
         "youAreClicker": "You are a Clicker",
         "youAreSpectator": "You are a Spectator",
         "guessesRemaining": "{{count}} guesses remaining",
+        "duetAgentsFound": "agents found",
+        "duetTokensLeft": "tokens left",
         "duetVictory": "YOU WIN! All agents found!",
         "duetGameOverAssassin": "GAME OVER - Assassin revealed!",
         "duetGameOverTimeout": "GAME OVER - Out of time!",
@@ -173,7 +175,10 @@
         "colorBlindMode": "Color blind friendly mode (orange/blue with labels)",
         "teamsDesc": "Customize team names for this game. Names are encoded in the shareable link.",
         "wordsDesc": "Choose which words appear on the board. Custom words are encoded in the shareable link.",
-        "storageFailed": "Settings applied but could not be saved. They will be lost on reload."
+        "storageFailed": "Settings applied but could not be saved. They will be lost on reload.",
+        "game": "Game",
+        "dangerZone": "Danger Zone",
+        "forfeitGame": "Forfeit Current Game"
     },
     "roomSettings": {
         "gameMode": "Game Mode",
@@ -256,8 +261,6 @@
         "linkCopied": "Link copied!",
         "failedToCopy": "Failed to copy - please copy manually",
         "failedToCopyShort": "Failed to copy",
-        "roomCodeCopied": "Room code copied!",
-        "roomCodeCopiedClipboard": "Room code copied to clipboard",
         "roomIdCopied": "Room ID copied!",
         "replayLinkCopied": "Replay link copied to clipboard!",
         "couldNotCopyLink": "Could not copy link",

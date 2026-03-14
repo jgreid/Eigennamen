@@ -50,6 +50,8 @@
         "youAreClicker": "Du bist ein Ermittler",
         "youAreSpectator": "Du bist Zuschauer",
         "guessesRemaining": "{{count}} Versuche übrig",
+        "duetAgentsFound": "Agenten gefunden",
+        "duetTokensLeft": "Token übrig",
         "duetVictory": "GEWONNEN! Alle Agenten gefunden!",
         "duetGameOverAssassin": "GAME OVER – Attentäter aufgedeckt!",
         "duetGameOverTimeout": "GAME OVER – Zeit abgelaufen!",
@@ -173,7 +175,10 @@
         "colorBlindMode": "Farbenblind-Modus (Orange/Blau mit Beschriftung)",
         "teamsDesc": "Passe die Teamnamen für dieses Spiel an. Namen werden im teilbaren Link gespeichert.",
         "wordsDesc": "Wähle, welche Wörter auf dem Spielfeld erscheinen. Eigene Wörter werden im teilbaren Link gespeichert.",
-        "storageFailed": "Einstellungen wurden angewendet, konnten aber nicht gespeichert werden. Sie gehen beim Neuladen verloren."
+        "storageFailed": "Einstellungen wurden angewendet, konnten aber nicht gespeichert werden. Sie gehen beim Neuladen verloren.",
+        "game": "Spiel",
+        "dangerZone": "Gefahrenzone",
+        "forfeitGame": "Aktuelles Spiel aufgeben"
     },
     "roomSettings": {
         "gameMode": "Spielmodus",
@@ -256,8 +261,6 @@
         "linkCopied": "Link kopiert!",
         "failedToCopy": "Kopieren fehlgeschlagen – bitte manuell kopieren",
         "failedToCopyShort": "Kopieren fehlgeschlagen",
-        "roomCodeCopied": "Raumcode kopiert!",
-        "roomCodeCopiedClipboard": "Raumcode in die Zwischenablage kopiert",
         "roomIdCopied": "Raum-ID kopiert!",
         "replayLinkCopied": "Replay-Link in die Zwischenablage kopiert!",
         "couldNotCopyLink": "Link konnte nicht kopiert werden",

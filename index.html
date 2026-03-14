@@ -195,22 +195,22 @@
               <label class="game-mode-option">
                 <input type="radio" name="setup-gameMode" value="match" checked />
                 <span class="game-mode-card match-mode-card">
-                  <strong>Eigennamen</strong>
-                  <small>Multi-round scoring</small>
+                  <strong data-i18n="roomSettings.match">Eigennamen</strong>
+                  <small data-i18n="roomSettings.matchDesc">Multi-round scoring</small>
                 </span>
               </label>
               <label class="game-mode-option">
                 <input type="radio" name="setup-gameMode" value="classic" />
                 <span class="game-mode-card">
-                  <strong>Vintage</strong>
-                  <small>Classic wordgame</small>
+                  <strong data-i18n="roomSettings.classic">Vintage</strong>
+                  <small data-i18n="roomSettings.classicDesc">Classic wordgame</small>
                 </span>
               </label>
               <label class="game-mode-option">
                 <input type="radio" name="setup-gameMode" value="duet" />
                 <span class="game-mode-card duet-mode-card">
-                  <strong>Duet</strong>
-                  <small>2 player co-op</small>
+                  <strong data-i18n="roomSettings.duet">Duet</strong>
+                  <small data-i18n="roomSettings.duetDesc">2 player co-op</small>
                 </span>
               </label>
             </div>
@@ -253,7 +253,7 @@
         </div>
         <div class="status-bar-center">
           <!-- Scoreboard with clickable team names for team selection -->
-          <div class="scoreboard" role="group" aria-label="Team scores">
+          <div class="scoreboard" role="group" aria-label="Red team score">
             <button
               type="button"
               class="score red"
@@ -317,7 +317,7 @@
             </div>
           </div>
 
-          <div class="scoreboard" role="group" aria-label="Team scores">
+          <div class="scoreboard" role="group" aria-label="Blue team score">
             <button
               type="button"
               class="score blue"
@@ -447,10 +447,10 @@
             ><span id="duet-green-found">0</span>/<span id="duet-green-total"
               >15</span
             >
-            agents found</span
+            <span data-i18n="game.duetAgentsFound">agents found</span></span
           >
           <span class="duet-tokens"
-            ><span id="duet-timer-tokens">9</span> tokens left</span
+            ><span id="duet-timer-tokens">9</span> <span data-i18n="game.duetTokensLeft">tokens left</span></span
           >
         </div>
       </div>
@@ -1610,7 +1610,7 @@
       </div>
     </div>
 
-    <script type="module" src="/js/modules/app.js?v=9ca5948a"></script>
+    <script type="module" src="/js/modules/app.js?v=737e0f66"></script>
     <!-- Fallback: detect if the ES module failed to load + service worker registration -->
     <script src="/js/app-fallback.js"></script>
   </body>

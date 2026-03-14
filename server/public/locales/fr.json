@@ -50,6 +50,8 @@
         "youAreClicker": "Vous êtes un Agent de terrain",
         "youAreSpectator": "Vous êtes Spectateur",
         "guessesRemaining": "{{count}} essais restants",
+        "duetAgentsFound": "agents trouvés",
+        "duetTokensLeft": "jetons restants",
         "duetVictory": "VICTOIRE ! Tous les agents trouvés !",
         "duetGameOverAssassin": "PARTIE TERMINÉE – Assassin révélé !",
         "duetGameOverTimeout": "PARTIE TERMINÉE – Temps écoulé !",
@@ -173,7 +175,10 @@
         "colorBlindMode": "Mode daltonien (orange/bleu avec étiquettes)",
         "teamsDesc": "Personnalisez les noms d'équipe pour cette partie. Les noms sont inclus dans le lien partagé.",
         "wordsDesc": "Choisissez les mots qui apparaissent sur le plateau. Les mots personnalisés sont inclus dans le lien partagé.",
-        "storageFailed": "Les paramètres ont été appliqués mais n'ont pas pu être sauvegardés. Ils seront perdus au rechargement."
+        "storageFailed": "Les paramètres ont été appliqués mais n'ont pas pu être sauvegardés. Ils seront perdus au rechargement.",
+        "game": "Jeu",
+        "dangerZone": "Zone dangereuse",
+        "forfeitGame": "Abandonner la partie en cours"
     },
     "roomSettings": {
         "gameMode": "Mode de jeu",
@@ -256,8 +261,6 @@
         "linkCopied": "Lien copié !",
         "failedToCopy": "Échec de la copie – veuillez copier manuellement",
         "failedToCopyShort": "Échec de la copie",
-        "roomCodeCopied": "Code du salon copié !",
-        "roomCodeCopiedClipboard": "Code du salon copié dans le presse-papiers",
         "roomIdCopied": "ID du salon copié !",
         "replayLinkCopied": "Lien du replay copié dans le presse-papiers !",
         "couldNotCopyLink": "Impossible de copier le lien",
