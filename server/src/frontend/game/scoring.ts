@@ -114,19 +114,9 @@ export function updateTurnIndicator(): void {
                 }
             }
         } else {
-            const assassinIndex = state.gameState.types.indexOf('assassin');
-            if (assassinIndex >= 0 && state.gameState.revealed[assassinIndex]) {
-                resultText = t('game.winnerAssassin', { team: winnerTeamName });
-            } else {
-                resultText = t('game.winner', { team: winnerTeamName });
-            }
+            resultText = t('game.winner', { team: winnerTeamName });
         }
-        // In multiplayer, add a prompt to choose roles for the next game
-        if (state.isMultiplayerMode) {
-            turnText.textContent = resultText + ' \u2014 ' + t('game.chooseRolesPrompt');
-        } else {
-            turnText.textContent = resultText;
-        }
+        turnText.textContent = resultText;
     } else {
         const yourTurn = isPlayerTurn();
         // Detect team switch: animate only when the active team color changes

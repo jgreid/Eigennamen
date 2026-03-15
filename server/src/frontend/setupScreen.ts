@@ -2,7 +2,7 @@
  * Game Setup Screen — "Quickstart" landing page.
  *
  * Shown on initial load. Displays a 5×5 board-like grid with
- * action cards for Host, Join, and Solo. Clicking an action card
+ * action cards for Host, Join, and Local. Clicking an action card
  * reveals a form to configure and start the game.
  */
 
@@ -184,13 +184,13 @@ async function handleJoinSubmit(): Promise<void> {
         logger.error('Setup join failed:', error);
 
         if (err.code === 'ROOM_NOT_FOUND') {
-            setStatus('setup-join-status', `Room "${roomId}" not found. Try hosting a new game instead.`, 'error');
+            setStatus('setup-join-status', t('multiplayer.roomNotFoundDetail', { roomId }), 'error');
         } else if (err.code === 'ROOM_FULL') {
-            setStatus('setup-join-status', 'Room is full.', 'error');
+            setStatus('setup-join-status', t('errors.roomFull'), 'error');
         } else if (err.message?.includes('connect')) {
-            setStatus('setup-join-status', 'Could not connect to server. Please try again.', 'error');
+            setStatus('setup-join-status', t('multiplayer.connectionFailedDetail'), 'error');
         } else {
-            setStatus('setup-join-status', err.message || 'Failed to join game.', 'error');
+            setStatus('setup-join-status', err.message || t('multiplayer.joinFailed'), 'error');
         }
     } finally {
         if (btn) {
@@ -278,11 +278,11 @@ async function handleHostSubmit(): Promise<void> {
         logger.error('Setup create failed:', error);
 
         if (err.code === 'ROOM_ALREADY_EXISTS') {
-            setStatus('setup-host-status', 'A room with that ID already exists. Try a different ID.', 'error');
+            setStatus('setup-host-status', t('multiplayer.roomAlreadyExists'), 'error');
         } else if (err.message?.includes('connect')) {
-            setStatus('setup-host-status', 'Could not connect to server. Please try again.', 'error');
+            setStatus('setup-host-status', t('multiplayer.connectionFailedDetail'), 'error');
         } else {
-            setStatus('setup-host-status', err.message || 'Failed to create game.', 'error');
+            setStatus('setup-host-status', err.message || t('multiplayer.createFailed'), 'error');
         }
     } finally {
         if (btn) {

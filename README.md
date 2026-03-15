@@ -80,7 +80,7 @@ When you first open the game, you'll see the **Setup Screen** with three options
 
 1. **Host a Game** — Create a new multiplayer room (enter nickname, choose game mode, click "Create Room")
 2. **Join a Game** — Enter a room code and nickname to join an existing game
-3. **Play Solo** — Start an offline standalone game immediately
+3. **Play Local** — Start an offline standalone game immediately
 
 For multiplayer:
 1. **Host** clicks "Host a Game" and creates a room

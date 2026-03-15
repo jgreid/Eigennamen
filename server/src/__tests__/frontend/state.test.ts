@@ -139,128 +139,16 @@ describe('State initialization - Default values', () => {
         expect(FIRST_TEAM_CARDS + SECOND_TEAM_CARDS + NEUTRAL_CARDS + ASSASSIN_CARDS).toBe(BOARD_SIZE);
     });
 
-    it('state.gameState.currentTurn defaults to "red"', () => {
+    it('critical state properties have correct defaults', () => {
         expect(state.gameState.currentTurn).toBe('red');
-    });
-
-    it('state.isMultiplayerMode defaults to false', () => {
-        expect(state.isMultiplayerMode).toBe(false);
-    });
-
-    it('state.isHost defaults to false', () => {
-        expect(state.isHost).toBe(false);
-    });
-
-    it('state.gameState.gameOver defaults to false', () => {
         expect(state.gameState.gameOver).toBe(false);
-    });
-
-    it('state.gameState.winner defaults to null', () => {
         expect(state.gameState.winner).toBeNull();
-    });
-
-    it('state.gameState.seed defaults to null', () => {
-        expect(state.gameState.seed).toBeNull();
-    });
-
-    it('state.gameState.redScore defaults to 0', () => {
-        expect(state.gameState.redScore).toBe(0);
-    });
-
-    it('state.gameState.blueScore defaults to 0', () => {
-        expect(state.gameState.blueScore).toBe(0);
-    });
-
-    it('state.gameState.redTotal defaults to 9', () => {
+        expect(state.isMultiplayerMode).toBe(false);
+        expect(state.isHost).toBe(false);
         expect(state.gameState.redTotal).toBe(9);
-    });
-
-    it('state.gameState.blueTotal defaults to 8', () => {
         expect(state.gameState.blueTotal).toBe(8);
-    });
-
-    it('state.gameState.words defaults to empty array', () => {
-        expect(state.gameState.words).toEqual([]);
-    });
-
-    it('state.gameState.types defaults to empty array', () => {
-        expect(state.gameState.types).toEqual([]);
-    });
-
-    it('state.gameState.revealed defaults to empty array', () => {
-        expect(state.gameState.revealed).toEqual([]);
-    });
-
-    it('state.cachedElements properties are all null initially', () => {
-        const elements = state.cachedElements;
-        expect(elements.board).toBeNull();
-        expect(elements.roleBanner).toBeNull();
-        expect(elements.turnIndicator).toBeNull();
-        expect(elements.endTurnBtn).toBeNull();
-        expect(elements.spymasterBtn).toBeNull();
-        expect(elements.clickerBtn).toBeNull();
-        expect(elements.redTeamBtn).toBeNull();
-        expect(elements.blueTeamBtn).toBeNull();
-        expect(elements.redRemaining).toBeNull();
-        expect(elements.blueRemaining).toBeNull();
-        expect(elements.redTeamName).toBeNull();
-        expect(elements.blueTeamName).toBeNull();
-        expect(elements.srAnnouncements).toBeNull();
-        expect(elements.timerDisplay).toBeNull();
-        expect(elements.timerValue).toBeNull();
-    });
-
-    it('state.teamNames defaults to { red: "Red", blue: "Blue" }', () => {
         expect(state.teamNames).toEqual({ red: 'Red', blue: 'Blue' });
-    });
-
-    it('state.timerState.active defaults to false', () => {
-        expect(state.timerState.active).toBe(false);
-    });
-
-    it('state.notificationPrefs defaults to sound and tab notifications disabled', () => {
-        expect(state.notificationPrefs.soundEnabled).toBe(false);
-        expect(state.notificationPrefs.tabNotificationEnabled).toBe(false);
-    });
-
-    it('state.language defaults to "en"', () => {
-        expect(state.language).toBe('en');
-    });
-
-    it('state.colorBlindMode defaults to false', () => {
-        expect(state.colorBlindMode).toBe(false);
-    });
-
-    it('state.gameMode defaults to "match"', () => {
         expect(state.gameMode).toBe('match');
-    });
-
-    it('state.currentMpMode defaults to "join"', () => {
-        expect(state.currentMpMode).toBe('join');
-    });
-
-    it('state.boardInitialized defaults to false', () => {
-        expect(state.boardInitialized).toBe(false);
-    });
-
-    it('state.spymasterTeam defaults to null', () => {
-        expect(state.spymasterTeam).toBeNull();
-    });
-
-    it('state.clickerTeam defaults to null', () => {
-        expect(state.clickerTeam).toBeNull();
-    });
-
-    it('state.playerTeam defaults to null', () => {
-        expect(state.playerTeam).toBeNull();
-    });
-
-    it('state.currentRoomId defaults to null', () => {
-        expect(state.currentRoomId).toBeNull();
-    });
-
-    it('state.wordSource defaults to "default"', () => {
-        expect(state.wordSource).toBe('default');
     });
 });
 

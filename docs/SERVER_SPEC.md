@@ -7,7 +7,7 @@ This document describes the technical architecture of Eigennamen Online, a real-
 ### 1.1 Goals
 
 - Real-time synchronization across all players (implemented)
-- Secure spymaster view — card types hidden from guessers (implemented)
+- Secure spymaster view — card types hidden from clickers (implemented)
 - Room-based multiplayer with join codes (implemented)
 - Optional user accounts and game history (implemented)
 - Scalable architecture with horizontal scaling support (implemented)
@@ -265,7 +265,7 @@ socket.emit('player:setTeam', {
 
 // Set role
 socket.emit('player:setRole', {
-    role: "spymaster" // or "guesser" or "spectator"
+    role: "spymaster" // or "clicker" or "spectator"
 });
 
 // Update nickname
@@ -295,12 +295,6 @@ socket.emit('game:start', {
 // Reveal a card (host only)
 socket.emit('game:reveal', {
     index: 5 // 0-24
-});
-
-// Give a clue (spymaster only)
-socket.emit('game:clue', {
-    word: "ANIMALS",
-    number: 3 // or 0 for unlimited
 });
 
 // End turn (host only)
@@ -333,14 +327,6 @@ socket.on('game:cardRevealed', {
     currentTurn: "red", // May change if wrong guess
     gameOver: false,
     winner: null
-});
-
-// Clue given
-socket.on('game:clueGiven', {
-    team: "red",
-    word: "ANIMALS",
-    number: 3,
-    spymaster: "Alice" // Nickname
 });
 
 // Turn ended
@@ -697,7 +683,7 @@ const apiLimiter = rateLimit({
 const socketRateLimits = {
     'game:reveal': { window: 1000, max: 5 },   // 5 reveals per second
     'chat:message': { window: 5000, max: 10 }, // 10 messages per 5 seconds
-    'game:clue': { window: 5000, max: 2 }      // 2 clues per 5 seconds
+    'game:endTurn': { window: 5000, max: 2 }    // 2 end-turns per 5 seconds
 };
 ```
 

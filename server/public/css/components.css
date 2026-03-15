@@ -382,13 +382,19 @@
 }
 
 .rules-match-section {
-    margin-top: 10px;
-    padding-top: 10px;
+    margin-top: 6px;
+    padding-top: 6px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .rules-match-section h3 {
     color: #ffd700;
+    margin-bottom: 2px;
+    font-size: 0.9rem;
+}
+
+.rules-match-section > p {
+    font-size: 0.78rem;
     margin-bottom: 4px;
 }
 

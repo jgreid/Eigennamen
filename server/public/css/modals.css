@@ -216,24 +216,24 @@
 
 /* Help panel about section */
 .help-about-section {
-    margin-top: 10px;
-    padding-top: 10px;
+    margin-top: 6px;
+    padding-top: 6px;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .help-about-section .about-intro {
-    font-size: 0.85rem;
+    font-size: 0.78rem;
     color: rgba(255, 255, 255, 0.6);
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .help-about-section .credits {
-    font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.5);
 }
 
 .help-about-section .credits p {
-    margin: 3px 0;
+    margin: 2px 0;
 }
 
 /* Preferences panel */
@@ -491,45 +491,54 @@
 /* Help modal — wider to fit rules without scrolling */
 #help-modal .modal {
     max-width: 680px;
+    padding: 14px 22px;
+}
+
+#help-modal .modal h2 {
+    margin-bottom: 6px;
+}
+
+#help-modal .modal-buttons {
+    margin-top: 8px;
 }
 
 .rules-content {
     margin-top: 0;
     color: rgba(255, 255, 255, 0.8);
     font-size: 0.85rem;
-    line-height: 1.4;
+    line-height: 1.35;
 }
 
 .rules-content.compact .rules-intro {
-    margin-bottom: 8px;
-    font-size: 0.9rem;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
 }
 
 .rules-content.compact .rules-note {
-    margin-top: 8px;
-    padding-top: 8px;
+    margin-top: 6px;
+    padding-top: 6px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     color: rgba(255, 255, 255, 0.6);
 }
 
 .rules-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    gap: 6px;
 }
 
 .rules-card {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 8px;
-    padding: 8px 10px;
+    padding: 6px 10px;
 }
 
 .rules-card h4 {
     color: #667eea;
-    font-size: 0.75rem;
-    margin-bottom: 6px;
+    font-size: 0.72rem;
+    margin-bottom: 4px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -537,12 +546,12 @@
 .card-types {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 4px;
 }
 
 .card-type {
-    font-size: 0.75rem;
-    padding: 3px 8px;
+    font-size: 0.72rem;
+    padding: 2px 6px;
     border-radius: 4px;
     background: rgba(0, 0, 0, 0.3);
 }
@@ -563,12 +572,12 @@
 .turn-flow {
     margin: 0;
     padding-left: 16px;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: rgba(255, 255, 255, 0.7);
 }
 
 .turn-flow li {
-    margin-bottom: 2px;
+    margin-bottom: 1px;
 }
 
 @media (max-width: 500px) {

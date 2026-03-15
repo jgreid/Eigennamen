@@ -160,6 +160,18 @@ describe('showToast', () => {
         showToast('Done', 'success');
         expect(state.cachedElements.srAnnouncements!.textContent).toBe('Done');
     });
+
+    test('caps at MAX_TOASTS (5) by dismissing oldest', () => {
+        const toasts = [];
+        for (let i = 0; i < 6; i++) {
+            toasts.push(showToast(`Toast ${i}`, 'info', 60000)!);
+        }
+        const container = document.getElementById('toast-container')!;
+        // The 6th toast should have triggered dismissal of the 1st
+        const nonHiding = container.querySelectorAll('.toast:not(.hiding)');
+        expect(nonHiding.length).toBe(5);
+        expect(toasts[0]!.classList.contains('hiding')).toBe(true);
+    });
 });
 
 describe('dismissToast', () => {
@@ -287,6 +299,32 @@ describe('handleModalKeydown', () => {
         state.activeModal = null;
         const event = new KeyboardEvent('keydown', { key: 'Escape' });
         expect(() => handleModalKeydown(event)).not.toThrow();
+    });
+
+    test('traps focus on Tab from last to first element', () => {
+        openModal('test-modal');
+        const lastBtn = document.getElementById('test-btn-2')!;
+        lastBtn.focus();
+
+        const event = new KeyboardEvent('keydown', { key: 'Tab' });
+        Object.defineProperty(event, 'preventDefault', { value: jest.fn() });
+        handleModalKeydown(event);
+
+        expect(event.preventDefault).toHaveBeenCalled();
+        expect(document.activeElement).toBe(document.getElementById('test-btn-1'));
+    });
+
+    test('traps focus on Shift+Tab from first to last element', () => {
+        openModal('test-modal');
+        const firstBtn = document.getElementById('test-btn-1')!;
+        firstBtn.focus();
+
+        const event = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true });
+        Object.defineProperty(event, 'preventDefault', { value: jest.fn() });
+        handleModalKeydown(event);
+
+        expect(event.preventDefault).toHaveBeenCalled();
+        expect(document.activeElement).toBe(document.getElementById('test-btn-2'));
     });
 });
 

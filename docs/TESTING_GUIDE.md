@@ -50,7 +50,7 @@ Global thresholds are set lower because infrastructure modules (redis.ts, socket
 
 | Category | Suites | Tests |
 |----------|--------|-------|
-| Jest (backend + frontend) | 136 | 3,693 |
+| Jest (backend + frontend) | 136 | 3,604 |
 | E2E (Playwright) | 13 | — |
 | **Total** | **149** | — |
 
@@ -72,7 +72,8 @@ server/src/__tests__/
 │   ├── board.test.ts            # Board UI tests
 │   ├── state.test.ts            # State management tests
 │   ├── utils.test.ts            # Frontend utility tests
-│   └── rendering.test.ts        # Rendering tests
+│   ├── multiplayerListeners.test.ts # Multiplayer listener setup tests
+│   └── socketClientStorage.test.ts  # Safe browser storage tests
 ├── gameService.test.ts          # Game logic tests
 ├── playerService.test.ts        # Player management tests
 ├── timerService.test.ts         # Timer functionality tests

@@ -240,16 +240,8 @@ Eigennamen/
     ├── public/
     │   ├── js/
     │   │   ├── modules/    # Compiled frontend (built from src/frontend/)
-    │   │   │   ├── frontend/          # 55 compiled frontend modules
-    │   │   │   │   ├── handlers/      # 6 domain-specific event handler modules
-    │   │   │   │   ├── multiplayer.js # Multiplayer core (barrel re-export)
-    │   │   │   │   ├── multiplayerListeners.js  # Thin orchestrator (~30 lines)
-    │   │   │   │   ├── multiplayerSync.js       # State synchronization
-    │   │   │   │   ├── multiplayerUI.js         # Multiplayer UI components
-    │   │   │   │   ├── setupScreen.js          # Game setup / launch screen
-    │   │   │   │   └── ...            # app, board, game, state, ui, etc.
-    │   │   │   ├── shared/            # Shared constants (validation, game rules)
-    │   │   │   └── chunks/            # Build chunks
+    │   │   │   ├── app.js             # Main bundle (all frontend + shared code)
+    │   │   │   └── chunks/            # Code-split chunks
     │   │   └── socket-client.js       # WebSocket client wrapper
     │   ├── css/            # Modular stylesheets (10 files)
     │   ├── locales/        # i18n translations (en, de, es, fr)
@@ -258,26 +250,26 @@ Eigennamen/
     ├── src/
     │   ├── index.ts        # Server entry point
     │   ├── app.ts          # Express configuration + Swagger
-    │   ├── config/         # Configuration modules (12 files)
+    │   ├── config/         # Configuration modules (13 files)
     │   ├── errors/         # Custom error classes (GameError hierarchy)
     │   ├── middleware/      # Express middleware (10 files)
     │   │   └── auth/       # Socket auth sub-modules (4 files)
     │   ├── routes/         # REST API routes (8 files)
-    │   ├── services/       # Business logic (16 service files)
+    │   ├── services/       # Business logic (21 service files)
     │   │   ├── game/       # Game sub-modules (board, reveal, lua)
     │   │   ├── gameHistory/ # Game history sub-modules (types, validation, storage, replayEngine)
     │   │   ├── player/     # Player sub-modules (cleanup, mutations, queries, reconnection, schemas, stats)
     │   │   └── room/       # Room sub-module (membership)
     │   ├── socket/         # WebSocket setup and utilities (11 files)
     │   │   └── handlers/   # Event-specific handlers (9 files)
-    │   ├── frontend/       # Frontend TypeScript source (55 modules)
+    │   ├── frontend/       # Frontend TypeScript source
     │   │   ├── handlers/   # Client-side event handlers (6 files)
     │   │   ├── store/      # Reactive state store + actions
     │   │   └── game/       # Game sub-modules (reveal, scoring)
     │   ├── types/          # TypeScript type definitions (11 files)
-    │   ├── utils/          # Utility modules (12 files)
+    │   ├── utils/          # Utility modules (11 files)
     │   ├── validators/     # Zod validation schemas (7 files)
-    │   ├── scripts/        # Redis Lua scripts (27 atomic operations)
+    │   ├── scripts/        # Redis Lua scripts (28 atomic operations)
     │   └── __tests__/      # Jest tests (136 suites)
     │       ├── helpers/    # Test utilities and mocks
     │       ├── integration/ # Integration tests
