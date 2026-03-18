@@ -246,7 +246,7 @@ See the project README for WebSocket event documentation.
                 },
             },
         },
-        '/metrics': {
+        '/health/metrics': {
             get: {
                 tags: ['Health'],
                 summary: 'Server metrics',

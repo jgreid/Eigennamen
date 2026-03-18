@@ -9,6 +9,7 @@
 import type { ZodSchema, ZodError } from 'zod';
 
 import logger from './logger';
+import { ServerError } from '../errors/GameError';
 
 /**
  * Parse a JSON string and validate against a Zod schema.
@@ -18,7 +19,7 @@ import logger from './logger';
  * @param schema - Zod schema to validate against
  * @param context - Description for error logging (e.g., "timer state for room ABC")
  * @returns Validated and typed result
- * @throws Error if JSON is malformed or validation fails
+ * @throws ServerError if JSON is malformed or validation fails
  */
 export function parseJSON<T>(data: string, schema: ZodSchema<T>, context?: string): T {
     let parsed: unknown;
@@ -27,7 +28,7 @@ export function parseJSON<T>(data: string, schema: ZodSchema<T>, context?: strin
     } catch (e) {
         const msg = `Failed to parse JSON${context ? ` (${context})` : ''}: ${(e as Error).message}`;
         logger.warn(msg);
-        throw new Error(msg);
+        throw new ServerError(msg);
     }
 
     const result = schema.safeParse(parsed);
@@ -35,7 +36,7 @@ export function parseJSON<T>(data: string, schema: ZodSchema<T>, context?: strin
         const issues = (result.error as ZodError).issues.map((i) => `${i.path.join('.')}: ${i.message}`).join(', ');
         const msg = `JSON validation failed${context ? ` (${context})` : ''}: ${issues}`;
         logger.warn(msg);
-        throw new Error(msg);
+        throw new ServerError(msg);
     }
 
     return result.data;

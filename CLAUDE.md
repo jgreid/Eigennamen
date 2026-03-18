@@ -104,7 +104,7 @@ Eigennamen/
     │   ├── service-worker.js   # Service worker (network-first with offline fallback)
     │   └── admin.html          # Admin dashboard UI
     ├── loadtest/               # Load/stress testing scripts
-    ├── e2e/                    # Playwright E2E tests (13 spec files)
+    ├── e2e/                    # Playwright E2E tests (13 spec files, .spec.js)
     └── src/
         ├── index.ts            # Server entry point (HTTP + WebSocket bootstrap)
         ├── app.ts              # Express 5 app setup (middleware, routes, Swagger)
@@ -138,7 +138,7 @@ Eigennamen/
         │       └── sessionValidator.ts # Session age + integrity checks
         ├── routes/             # REST API routes
         │   ├── index.ts        # Route registration barrel
-        │   ├── healthRoutes.ts # /health, /health/ready, /health/live, /metrics
+        │   ├── healthRoutes.ts # /health, /health/ready, /health/live, /health/metrics, /health/metrics/prometheus
         │   ├── roomRoutes.ts   # Room CRUD API
         │   ├── replayRoutes.ts # /api/replays/:roomCode/:gameId
         │   ├── adminRoutes.ts  # Admin API (password-protected)
@@ -181,17 +181,27 @@ Eigennamen/
         │   ├── rateLimitHandler.ts # Socket-level rate limiting
         │   ├── serverConfig.ts # Socket.io server configuration
         │   ├── socketFunctionProvider.ts # Socket function dependency injection
-        │   └── handlers/       # Event-specific handlers (9 files)
+        │   └── handlers/       # Event-specific handlers (9 barrel files + sub-modules)
         │       ├── gameHandlers.ts    # game:start, game:reveal, game:endTurn, game:forfeit, etc.
         │       ├── gameHandlerUtils.ts # Shared game handler utilities (toHistoryEntry mapper, match finalization)
-        │       ├── roomHandlers.ts    # room:create, room:join, room:leave, room:settings, etc.
+        │       ├── roomHandlers.ts    # room: events barrel — delegates to roomHandlers/
         │       ├── roomHandlerUtils.ts # Shared room handler utilities
-        │       ├── playerHandlers.ts  # player:setTeam, player:setRole, player:kick, etc.
+        │       ├── roomHandlers/      # Room handler sub-modules
+        │       │   ├── roomMembershipHandlers.ts  # room:create, room:join, room:leave
+        │       │   ├── roomReconnectionHandlers.ts # room:reconnect, room:getReconnectionToken
+        │       │   ├── roomSettingsHandlers.ts     # room:settings
+        │       │   └── roomSyncHandlers.ts         # room:resync
+        │       ├── playerHandlers.ts  # player: events barrel — delegates to playerHandlers/
+        │       ├── playerHandlers/    # Player handler sub-modules
+        │       │   ├── playerAttributeHandlers.ts  # player:setNickname
+        │       │   ├── playerModerationHandlers.ts # player:kick
+        │       │   ├── playerRoleHandlers.ts       # player:setTeam, player:setRole, player:setTeamRole
+        │       │   └── spectatorHandlers.ts        # spectator:requestJoin, spectator:approveJoin
         │       ├── playerRoomSync.ts  # Room sync after player state changes
         │       ├── timerHandlers.ts   # timer:start, timer:pause, timer:resume, timer:addTime
         │       ├── chatHandlers.ts    # chat:message, chat:spectator
         │       └── types.ts           # Handler type definitions
-        ├── frontend/           # Frontend TypeScript source (55 modules, compiled via esbuild)
+        ├── frontend/           # Frontend TypeScript source (59 modules, compiled via esbuild)
         │   ├── app.ts          # Frontend entry point + event delegation
         │   ├── setupScreen.ts  # Setup screen (Host/Join/Local quickstart cards)
         │   ├── state.ts        # Reactive state proxy (wraps _rawState with Proxy)
@@ -201,7 +211,8 @@ Eigennamen/
         │   ├── roles.ts        # Role selection UI (spymaster, clicker, team)
         │   ├── ui.ts           # Toast, modal, screen reader announcements
         │   ├── settings.ts     # Settings panel logic
-        │   ├── history.ts      # Game history + replay UI
+        │   ├── history.ts      # Game history barrel — delegates to history-replay.ts
+        │   ├── history-replay.ts # Replay UI (step controls, event rendering)
         │   ├── chat.ts         # Chat UI
         │   ├── timer.ts        # Turn timer UI
         │   ├── i18n.ts         # Internationalization
@@ -211,11 +222,15 @@ Eigennamen/
         │   ├── constants.ts    # Frontend constants (UI timing, selectors)
         │   ├── debug.ts        # Debug logging + state watchers
         │   ├── logger.ts       # Frontend logging utility
+        │   ├── globals.d.ts    # Frontend global type declarations
         │   ├── accessibility.ts # Keyboard navigation, ARIA, skip links
         │   ├── multiplayer.ts  # Multiplayer orchestration barrel
         │   ├── multiplayerListeners.ts # Event listener registration
         │   ├── multiplayerSync.ts # Server state synchronization
-        │   ├── multiplayerUI.ts # Multiplayer-specific UI components
+        │   ├── multiplayerUI.ts # Multiplayer UI barrel — delegates to multiplayerUI-* sub-modules
+        │   ├── multiplayerUI-player.ts # Player list, nickname edit, kick UI
+        │   ├── multiplayerUI-settings.ts # Room settings, forfeit, game mode sync
+        │   ├── multiplayerUI-status.ts # Duet UI, spectator count, reconnection overlay
         │   ├── multiplayerTypes.ts # Multiplayer type definitions
         │   ├── clientAccessor.ts # Socket client accessor
         │   ├── stateMutations.ts # Type-safe state mutation helpers
@@ -322,10 +337,11 @@ GameError (base) — code, details, timestamp
 ### SafeEmit
 
 `socket/safeEmit.ts` wraps all Socket.io emissions:
-- `safeEmitToRoom(io, roomCode, event, data)` — Emit to all players in room
-- `safeEmitToPlayer(io, sessionId, event, data)` — Emit to specific player
-- `safeEmitToPlayers(io, players[], event, dataFn)` — Batch with per-player data
-- `safeEmitToGroup(io, target, event, data)` — Emit to arbitrary groups
+- `safeEmitToRoom(io, roomCode, event, data, options?)` — Emit to all players in room
+- `safeEmitToPlayer(io, sessionId, event, data, options?)` — Emit to specific player
+- `safeEmitToPlayers(io, players[], event, dataFn, options?)` — Batch with per-player data
+- `safeEmitToGroup(io, target, event, data, options?)` — Emit to arbitrary groups
+- `getEmissionMetrics()` / `resetEmissionMetrics()` — Emission tracking utilities
 - All catch errors, log failures, track metrics — never throw
 
 ### Redis Architecture
@@ -356,11 +372,13 @@ Each script has a documented `KEYS[]`, `ARGV[]`, and `Returns` header in the sou
 
 | Lock | Key Pattern | TTL | Purpose |
 |------|-------------|-----|---------|
-| Card reveal | `lock:reveal:${roomCode}` | 5s | Prevent duplicate reveals |
-| Spymaster role | `lock:spymaster:${roomCode}:${team}` | 5s | One spymaster per team |
-| Clicker role | `lock:clicker:${roomCode}:${team}` | 5s | One clicker per team |
-| Timer resume | `lock:timer:resume:${roomCode}` | 5s | Prevent duplicate timers |
-| Host transfer | `lock:host:${roomCode}` | 3s | Atomic host changes |
+| Game creation | `lock:game-create:${roomCode}` | 5s | Prevent duplicate game creation |
+| Card reveal / turn | `lock:reveal:${roomCode}` | 5s | Serialize reveals, end turn, forfeit, abandon |
+| Timer start | `lock:timer:${roomCode}` | 5s | Prevent duplicate timer starts |
+| Player mutation | `lock:player-mutation:${sessionId}` | 5s | Serialize team/role changes per player |
+| Timer expiry | `lock:timer-expire:${roomCode}` | 5s | Prevent duplicate timer expiry handling |
+| Timer restart | `lock:timer-restart:${roomCode}` | 5s | Prevent duplicate timer restarts on reconnect |
+| Host transfer | `lock:host-transfer:${roomCode}` | 5s | Atomic host changes on disconnect |
 
 ### Game Modes
 
@@ -477,8 +495,9 @@ Run `npm run format` to auto-format, `npm run format:check` to verify.
 | Scenario | Pattern | Example |
 |----------|---------|---------|
 | Business logic violation | **Throw** `GameError` subclass | `throw RoomError.notFound(code)` |
+| Invalid input | **Throw** `ValidationError` | `throw ValidationError.invalidCardIndex(index)` |
 | Data integrity failure | **Throw** (never swallow) | Pipeline partial failure, corrupted data |
-| Resource not found | **Return null** | `getRoom()` returning `null` for missing key |
+| Optional resource not found | **Return null** | `getRoom()` returning `null` for missing key |
 | Non-critical background task | **Log and continue** | Audit logging, metrics, TTL refresh |
 
 **Rules:**
@@ -619,7 +638,10 @@ Key env vars (see `server/.env.example` for full list):
 | `ALLOW_IP_MISMATCH` | Allow reconnection from different IP | `false` |
 | `RATE_LIMIT_WINDOW_MS` | HTTP rate limit window | `60000` |
 | `RATE_LIMIT_MAX_REQUESTS` | HTTP rate limit max requests | `100` |
+| `RATE_LIMIT_MAX_ENTRIES` | Max rate limit tracking entries | `10000` |
 | `INSTANCE_ID` | Custom instance ID for multi-instance deployments | Auto-generated |
+| `EMBEDDED_REDIS_TIMEOUT_MS` | Timeout for embedded Redis startup | `10000` |
+| `REDIS_TLS_REJECT_UNAUTHORIZED` | Reject unauthorized TLS connections to Redis | `true` |
 
 ## Health & Monitoring
 
@@ -628,7 +650,8 @@ Key env vars (see `server/.env.example` for full list):
 | `/health` | Basic health check (load balancer) |
 | `/health/ready` | Full dependency check (Redis, etc.) |
 | `/health/live` | Process alive (liveness probe) |
-| `/metrics` | Application metrics, rate limits, connection counts |
+| `/health/metrics` | Application metrics, rate limits, connection counts |
+| `/health/metrics/prometheus` | Prometheus-format metrics |
 
 ## Documentation Index
 

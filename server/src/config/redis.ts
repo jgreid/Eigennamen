@@ -58,6 +58,7 @@ function sleep(ms: number): Promise<void> {
 // Re-export from centralized module (single source of truth for memory mode detection)
 export { isMemoryMode } from './memoryMode';
 import { isMemoryMode } from './memoryMode';
+import { ServerError } from '../errors/GameError';
 
 async function findFreePort(): Promise<number> {
     return new Promise((resolve, reject) => {
@@ -395,14 +396,14 @@ function assertRedisClientShape(client: RedisClientType): void {
 
 export function getRedis(): RedisClient {
     if (!redisClient) {
-        throw new Error('Redis not initialized. Call connectRedis() first.');
+        throw new ServerError('Redis not initialized. Call connectRedis() first.');
     }
     return redisClient as unknown as RedisClient;
 }
 
 export function getPubSubClients(): PubSubClients {
     if (!pubClient || !subClient) {
-        throw new Error('Redis Pub/Sub not initialized.');
+        throw new ServerError('Redis Pub/Sub not initialized.');
     }
     return { pubClient, subClient };
 }

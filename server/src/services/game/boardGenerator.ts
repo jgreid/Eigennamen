@@ -1,6 +1,7 @@
 import type { CardType } from '../../types';
 
 import crypto from 'crypto';
+import { GameStateError } from '../../errors/GameError';
 import {
     BOARD_SIZE,
     FIRST_TEAM_CARDS,
@@ -163,9 +164,9 @@ export function generateBoardLayout(numericSeed: number, isDuet: boolean): Board
     types = [...types, ...(Array(NEUTRAL_CARDS).fill('neutral') as CardType[]), 'assassin'];
 
     if (types.length !== BOARD_SIZE) {
-        throw new Error(
-            `Board generation error: card types count (${types.length}) does not match BOARD_SIZE (${BOARD_SIZE})`
-        );
+        throw GameStateError.corrupted('board-generation', {
+            reason: `card types count (${types.length}) does not match BOARD_SIZE (${BOARD_SIZE})`,
+        });
     }
 
     types = shuffleWithSeed(types, numericSeed + GAME_INTERNALS.TYPES_SHUFFLE_SEED_OFFSET);

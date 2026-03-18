@@ -601,7 +601,7 @@
     margin-bottom: 10px;
     text-align: center;
     font-size: 1.4rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--gradient-primary);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -710,7 +710,7 @@
 }
 
 .btn-save {
-    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    background: var(--gradient-success);
     color: white;
 }
 
@@ -721,7 +721,7 @@
 }
 
 .btn-reset {
-    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    background: var(--gradient-danger);
     color: white;
 }
 
@@ -752,13 +752,13 @@
 
 /* Forfeit team buttons in confirm dialog */
 .btn-forfeit-red {
-    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    background: var(--gradient-danger);
     color: white;
     letter-spacing: 0.3px;
 }
 
 .btn-forfeit-blue {
-    background: linear-gradient(135deg, #3498db, #2980b9);
+    background: var(--gradient-blue-team);
     color: white;
     letter-spacing: 0.3px;
 }

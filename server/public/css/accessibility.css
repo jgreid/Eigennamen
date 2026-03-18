@@ -94,22 +94,22 @@
 }
 
 .toast.error {
-    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    background: var(--gradient-danger);
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .toast.success {
-    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    background: var(--gradient-success);
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .toast.warning {
-    background: linear-gradient(135deg, #f5af19 0%, #f12711 100%);
+    background: var(--gradient-warning);
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .toast.info {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--gradient-primary);
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
