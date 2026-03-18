@@ -3,6 +3,7 @@ import type { Player } from '../types';
 
 import logger from '../utils/logger';
 import { incrementCounter, setGauge, METRIC_NAMES } from '../utils/metrics';
+import { ServerError } from '../errors/GameError';
 
 /**
  * Emission metrics for monitoring
@@ -99,7 +100,7 @@ function safeEmitToRoom(
 
     try {
         if (!io) {
-            throw new Error('Socket.io instance not available');
+            throw new ServerError('Socket.io instance not available');
         }
 
         const target = `room:${roomCode}`;
@@ -125,7 +126,7 @@ function safeEmitToRoom(
 
         const errorMsg = `Failed to emit ${event} to room:${roomCode}: ${errMsg}`;
         if (throwOnError) {
-            throw new Error(errorMsg);
+            throw new ServerError(errorMsg);
         }
 
         logger.error(errorMsg, { event, roomCode, error: errMsg });
@@ -155,7 +156,7 @@ function safeEmitToPlayer(
 
     try {
         if (!io) {
-            throw new Error('Socket.io instance not available');
+            throw new ServerError('Socket.io instance not available');
         }
 
         const target = `player:${sessionId}`;
@@ -181,7 +182,7 @@ function safeEmitToPlayer(
 
         const errorMsg = `Failed to emit ${event} to player:${sessionId}: ${errMsg}`;
         if (throwOnError) {
-            throw new Error(errorMsg);
+            throw new ServerError(errorMsg);
         }
 
         logger.error(errorMsg, { event, sessionId, error: errMsg });
@@ -282,7 +283,7 @@ function safeEmitToGroup(
 
     try {
         if (!io) {
-            throw new Error('Socket.io instance not available');
+            throw new ServerError('Socket.io instance not available');
         }
 
         io.to(target).emit(event, data);
@@ -306,7 +307,7 @@ function safeEmitToGroup(
 
         const errorMsg = `Failed to emit ${event} to ${target}: ${errMsg}`;
         if (throwOnError) {
-            throw new Error(errorMsg);
+            throw new ServerError(errorMsg);
         }
 
         logger.error(errorMsg, { event, target, error: errMsg });
