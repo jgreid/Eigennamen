@@ -432,7 +432,7 @@
 
 /* Red team role buttons */
 .btn-spymaster.red-team {
-    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    background: var(--gradient-danger);
     color: white;
     border-color: transparent;
 }
@@ -457,7 +457,7 @@
 
 /* Blue team role buttons */
 .btn-spymaster.blue-team {
-    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    background: var(--gradient-blue-team);
     color: white;
     border-color: transparent;
 }
@@ -627,7 +627,7 @@ button:focus-visible,
 }
 
 .btn-new-game {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--gradient-primary);
     color: white;
     letter-spacing: 0.3px;
 }
@@ -646,7 +646,7 @@ button:focus-visible,
 }
 
 .btn-end-turn {
-    background: linear-gradient(135deg, #f5af19 0%, #f12711 100%);
+    background: var(--gradient-warning);
     color: white;
 }
 
@@ -674,7 +674,7 @@ button:focus-visible,
 }
 
 .btn-copy {
-    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    background: var(--gradient-success);
     color: white;
 }
 

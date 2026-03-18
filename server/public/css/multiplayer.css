@@ -134,7 +134,7 @@
 }
 
 .multiplayer-modal .btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--gradient-primary);
     color: white;
     padding: 10px 28px;
     border: none;
