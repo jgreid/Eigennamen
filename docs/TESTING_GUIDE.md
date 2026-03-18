@@ -91,7 +91,7 @@ server/src/__tests__/
 ├── ... and 70+ more test files
 ```
 
-**Note**: Test files are organized flat in `__tests__/` (not in subdirectories by domain). Extended and edge-case test files use suffixes like `Extended`, `Unit`, `Branch`, etc.
+**Note**: Test files are organized in subdirectories by domain (e.g., `services/`, `handlers/`, `config/`, `utils/`, `socket/`, `middleware/`, `routes/`). Extended and edge-case test files use suffixes like `Extended`, `Unit`, `Branch`, etc.
 
 ### Writing Unit Tests
 

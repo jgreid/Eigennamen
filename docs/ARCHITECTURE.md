@@ -261,7 +261,9 @@ Eigennamen/
     │   │   ├── player/     # Player sub-modules (cleanup, mutations, queries, reconnection, schemas, stats)
     │   │   └── room/       # Room sub-module (membership)
     │   ├── socket/         # WebSocket setup and utilities (11 files)
-    │   │   └── handlers/   # Event-specific handlers (9 files)
+    │   │   └── handlers/   # Event-specific handlers (9 barrel files + sub-modules)
+    │   │       ├── playerHandlers/ # Player handler sub-modules (4 files)
+    │   │       └── roomHandlers/   # Room handler sub-modules (4 files)
     │   ├── frontend/       # Frontend TypeScript source
     │   │   ├── handlers/   # Client-side event handlers (6 files)
     │   │   ├── store/      # Reactive state store + actions
@@ -302,7 +304,8 @@ Eigennamen/
 | `/health` | Basic health check (load balancer) |
 | `/health/ready` | Full dependency check (readiness probe) |
 | `/health/live` | Process alive check (liveness probe) |
-| `/metrics` | Application metrics, rate limits |
+| `/health/metrics` | Application metrics, rate limits |
+| `/health/metrics/prometheus` | Prometheus-format metrics |
 
 ## Related Documentation
 
