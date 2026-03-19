@@ -351,8 +351,12 @@ export function initRadioOptionStyles(): void {
     });
 }
 
-// Set up event listeners for settings inputs
+// Set up event listeners for settings inputs (idempotent)
+let settingsListenersInitialized = false;
 export function initSettingsListeners(): void {
+    if (settingsListenersInitialized) return;
+    settingsListenersInitialized = true;
+
     const customWordsEl = document.getElementById('custom-words');
     if (customWordsEl) {
         customWordsEl.addEventListener('input', updateWordCount);
