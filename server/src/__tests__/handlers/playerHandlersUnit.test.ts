@@ -695,4 +695,61 @@ describe('Player Handlers', () => {
             });
         });
     });
+
+    describe('player:setTeam edge cases', () => {
+        test('uses checkEmpty flag for active game team switch', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                roomCode: 'TEST12',
+                team: 'red',
+                role: 'spectator',
+            });
+            gameService.getGame.mockResolvedValue({
+                currentTurn: 'red',
+                gameOver: false,
+            });
+            playerService.setTeam.mockResolvedValue({
+                sessionId: 'session-1',
+                team: 'blue',
+                nickname: 'TestPlayer',
+            });
+
+            await eventHandlers['player:setTeam']({ team: 'blue' });
+
+            expect(playerService.setTeam).toHaveBeenCalledWith(
+                'session-1',
+                'blue',
+                true // checkEmpty flag
+            );
+        });
+    });
+
+    describe('player:kick edge cases', () => {
+        test('handles target socket not in sockets map', async () => {
+            playerService.getPlayer.mockImplementation(async (sessionId: string) => {
+                if (sessionId === 'session-1') {
+                    return {
+                        sessionId: 'session-1',
+                        roomCode: 'TEST12',
+                        isHost: true,
+                        nickname: 'Host',
+                    };
+                }
+                return {
+                    sessionId: 'target-session',
+                    roomCode: 'TEST12',
+                    nickname: 'TargetPlayer',
+                    isHost: false,
+                };
+            });
+            playerService.getSocketId.mockResolvedValue('nonexistent-socket-id');
+            playerService.removePlayer.mockResolvedValue();
+            playerService.getPlayersInRoom.mockResolvedValue([]);
+
+            await eventHandlers['player:kick']({ targetSessionId: 'target-session' });
+
+            // Should still complete without crashing
+            expect(playerService.removePlayer).toHaveBeenCalled();
+        });
+    });
 });

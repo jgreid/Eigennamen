@@ -788,4 +788,37 @@ describe('Room Handlers', () => {
             });
         });
     });
+
+    describe('room:create edge cases', () => {
+        test('normalizes room ID to lowercase in socket.roomCode', async () => {
+            roomService.createRoom.mockResolvedValue({
+                room: { code: 'mygame', roomId: 'MyGame', settings: {} },
+                player: { sessionId: 'session-1', nickname: 'Host', isHost: true },
+            });
+
+            await eventHandlers['room:create']({ roomId: 'MyGame', settings: {} });
+
+            expect(mockSocket.roomCode).toBe('mygame');
+        });
+    });
+
+    describe('room:settings edge cases', () => {
+        test('handles settings update error', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                roomCode: 'test-room',
+                isHost: true,
+            });
+            roomService.updateSettings.mockRejectedValue(new Error('Update failed'));
+
+            await eventHandlers['room:settings']({ turnTimer: 90 });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'room:error',
+                expect.objectContaining({
+                    message: 'An unexpected error occurred',
+                })
+            );
+        });
+    });
 });
