@@ -85,6 +85,8 @@ function createRateLimitedHandler(
                     socket.emit(errorEvent, {
                         code: ERROR_CODES.RATE_LIMITED,
                         message: 'Too many requests, please slow down',
+                        recoverable: true,
+                        retryable: true,
                         ...(requestId !== undefined && { requestId }),
                     });
                     if (typeof ackCallback === 'function') ackCallback({ error: true });

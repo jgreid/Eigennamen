@@ -130,6 +130,8 @@ describe('Rate Limit Handler Extended Tests', () => {
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', {
                 code: 'RATE_LIMITED',
                 message: 'Too many requests, please slow down',
+                recoverable: true,
+                retryable: true,
             });
         });
 
