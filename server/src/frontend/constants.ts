@@ -124,6 +124,9 @@ export const UI = {
 
     // Multiplayer join modal close delay
     MP_JOIN_CLOSE_DELAY_MS: 500,
+
+    // Maximum chat messages retained in DOM (oldest pruned when exceeded)
+    MAX_CHAT_MESSAGES: 500,
 };
 
 /**
