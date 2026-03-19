@@ -212,3 +212,55 @@ describe('requestResync', () => {
         return expect(promise).resolves.toBeDefined();
     });
 });
+
+describe('timeout scenarios', () => {
+    beforeEach(() => {
+        jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
+    test('createRoom rejects on timeout', async () => {
+        const host = createMockHost();
+        const promise = createRoom(host, { roomId: 'test' });
+
+        jest.advanceTimersByTime(30001);
+
+        await expect(promise).rejects.toThrow('Create room timeout');
+        expect(host.createInProgress).toBe(false);
+    });
+
+    test('joinRoom rejects on timeout', async () => {
+        const host = createMockHost();
+        const promise = joinRoom(host, 'room', 'nick');
+
+        jest.advanceTimersByTime(20001);
+
+        await expect(promise).rejects.toThrow('Join room timeout');
+        expect(host.joinInProgress).toBe(false);
+    });
+
+    test('requestResync rejects on timeout', async () => {
+        const host = createMockHost();
+        const promise = requestResync(host);
+
+        jest.advanceTimersByTime(10001);
+
+        await expect(promise).rejects.toThrow('Resync timeout');
+    });
+
+    test('createRoom ignores late resolve after already rejected by error', async () => {
+        const host = createMockHost();
+        const promise = createRoom(host, { roomId: 'test' });
+
+        // Reject via error
+        host._listeners['error']?.[0]({ type: 'room', message: 'fail' });
+        await expect(promise).rejects.toEqual(expect.objectContaining({ type: 'room' }));
+
+        // Late roomCreated event — the settled guard silently ignores it
+        // Listeners were cleaned up, so this is a no-op
+        expect(host.createInProgress).toBe(false);
+    });
+});

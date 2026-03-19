@@ -331,3 +331,78 @@ describe('rejoining', () => {
         expect(showReconnectionOverlay).toHaveBeenCalled();
     });
 });
+
+describe('settingsUpdated with teamNames', () => {
+    test('syncs team names into state and calls updateScoreboard', () => {
+        const { updateScoreboard, updateTurnIndicator } = require('../../frontend/game');
+        emit('settingsUpdated', {
+            settings: {
+                teamNames: { red: 'Fire', blue: 'Ice' },
+            },
+        });
+        expect(state.teamNames.red).toBe('Fire');
+        expect(state.teamNames.blue).toBe('Ice');
+        expect(updateScoreboard).toHaveBeenCalled();
+        expect(updateTurnIndicator).toHaveBeenCalled();
+    });
+
+    test('syncs only provided team names', () => {
+        state.teamNames.red = 'Original';
+        state.teamNames.blue = 'Original';
+        emit('settingsUpdated', {
+            settings: {
+                teamNames: { red: 'NewRed' },
+            },
+        });
+        expect(state.teamNames.red).toBe('NewRed');
+        expect(state.teamNames.blue).toBe('Original');
+    });
+});
+
+describe('roomResynced', () => {
+    test('syncs game state when game data is provided', () => {
+        const { syncGameStateFromServer } = require('../../frontend/multiplayerSync');
+        const gameData = { currentTurn: 'blue', gameOver: false };
+        emit('roomResynced', { players: [], room: null, game: gameData, you: null });
+        expect(syncGameStateFromServer).toHaveBeenCalledWith(gameData);
+    });
+
+    test('clears reveal tracking state during resync', () => {
+        state.revealingCards = new Map() as unknown as typeof state.revealingCards;
+        state.revealTimeouts = new Map();
+        state.revealTimestamps = new Map();
+        state.isRevealingCard = true;
+
+        // Set up Maps with entries
+        state.revealingCards = new Set([1, 2]);
+        state.revealTimeouts = new Map([[1, setTimeout(() => {}, 999) as unknown as number]]);
+        state.revealTimestamps = new Map([[1, Date.now()]]);
+
+        emit('roomResynced', { players: [], room: null, game: null });
+
+        expect(state.revealingCards.size).toBe(0);
+        expect(state.revealTimeouts.size).toBe(0);
+        expect(state.revealTimestamps.size).toBe(0);
+        expect(state.isRevealingCard).toBe(false);
+    });
+
+    test('syncs team names from room settings', () => {
+        emit('roomResynced', {
+            players: [],
+            room: {
+                settings: {
+                    teamNames: { red: 'Magma', blue: 'Ocean' },
+                },
+            },
+            game: null,
+        });
+        expect(state.teamNames.red).toBe('Magma');
+        expect(state.teamNames.blue).toBe('Ocean');
+    });
+
+    test('calls updateControls and updateRoleBanner', () => {
+        emit('roomResynced', { players: [], room: null, game: null });
+        expect(updateControls).toHaveBeenCalled();
+        expect(updateRoleBanner).toHaveBeenCalled();
+    });
+});
