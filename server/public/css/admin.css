@@ -315,7 +315,7 @@ tr:hover {
     opacity: 0;
     transform: translateY(20px);
     transition: opacity 0.3s, transform 0.3s;
-    z-index: 1000;
+    z-index: var(--z-modal);
 }
 
 .toast.show {
