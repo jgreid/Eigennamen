@@ -14,8 +14,8 @@ local oldHostKey = KEYS[1]
 local newHostKey = KEYS[2]
 local roomKey = KEYS[3]
 local newHostSessionId = ARGV[1]
-local ttl = tonumber(ARGV[2])
-local now = tonumber(ARGV[3])
+local ttl = tonumber(ARGV[2]) or 86400
+local now = tonumber(ARGV[3]) or 0
 
 -- Get old host data
 local oldHostData = redis.call('GET', oldHostKey)
@@ -54,13 +54,10 @@ room.hostSessionId = newHostSessionId
 redis.call('SET', oldHostKey, cjson.encode(oldHost), 'EX', ttl)
 redis.call('SET', newHostKey, cjson.encode(newHost), 'EX', ttl)
 
--- Preserve room's existing TTL instead of overwriting with player TTL
+-- Preserve room's existing TTL; fall back to 24h if key is persistent or has no TTL
 local roomTTL = redis.call('TTL', roomKey)
-if roomTTL > 0 then
-    redis.call('SET', roomKey, cjson.encode(room), 'EX', roomTTL)
-else
-    redis.call('SET', roomKey, cjson.encode(room))
-end
+if roomTTL <= 0 then roomTTL = 86400 end
+redis.call('SET', roomKey, cjson.encode(room), 'EX', roomTTL)
 
 return cjson.encode({
     success = true,

@@ -15,9 +15,9 @@ local gameKey = KEYS[1]
 local indexKey = KEYS[2]
 local gameJson = ARGV[1]
 local historyId = ARGV[2]
-local timestamp = tonumber(ARGV[3])
-local ttl = tonumber(ARGV[4])
-local maxHistory = tonumber(ARGV[5])
+local timestamp = tonumber(ARGV[3]) or 0
+local ttl = tonumber(ARGV[4]) or 86400
+local maxHistory = tonumber(ARGV[5]) or 50
 
 -- Store the game history entry with TTL
 redis.call('SET', gameKey, gameJson, 'EX', ttl)

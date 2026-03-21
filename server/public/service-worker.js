@@ -7,12 +7,19 @@
  */
 
 // Auto-synced from package.json by esbuild.config.js during build
-const CACHE = 'eigennamen-v5.8.0';
+const CACHE = 'eigennamen-v5.10.0';
 
 const OFFLINE_ASSETS = [
     '/',
     '/index.html',
-    '/manifest.json'
+    '/manifest.json',
+    '/css/variables.css',
+    '/css/layout.css',
+    '/css/components.css',
+    '/css/setup.css',
+    '/css/responsive.css',
+    '/css/accessibility.css',
+    '/icons/icon.svg'
 ];
 
 // Install - cache assets needed for offline standalone mode

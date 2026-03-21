@@ -187,8 +187,10 @@ class DistributedLock {
         // Capture release function after the guard above ensures it exists
         const releaseFn = lockResult.release;
 
+        const lockTimeout = { ...this.config, ...options }.lockTimeout;
+        const operationTimeout = Math.max(lockTimeout - 500, MIN_LOCK_TIMEOUT);
         try {
-            return await fn();
+            return await withTimeout(fn(), operationTimeout, `withLock:${lockKey}`);
         } finally {
             await releaseFn();
         }

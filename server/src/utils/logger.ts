@@ -185,6 +185,8 @@ const logger: Logger = {
         // Get correlation context
         const contextFields = getContextFields();
 
+        let result: LogMeta;
+
         // Handle Error objects
         if (metaOrError instanceof Error) {
             const errorMeta: ErrorMeta = {
@@ -192,29 +194,40 @@ const logger: Logger = {
                 code: (metaOrError as Error & { code?: string }).code,
                 stack: metaOrError.stack,
             };
-            return {
+            result = {
                 ...contextFields,
                 error: errorMeta,
             };
-        }
-
-        // Handle plain objects as metadata
-        if (metaOrError && typeof metaOrError === 'object') {
-            return {
+        } else if (metaOrError && typeof metaOrError === 'object') {
+            // Handle plain objects as metadata
+            result = {
                 ...contextFields,
                 ...(metaOrError as LogMeta),
             };
-        }
-
-        // Handle primitives (strings, numbers, etc.) — wrap as detail
-        if (metaOrError !== undefined && metaOrError !== null) {
-            return {
+        } else if (metaOrError !== undefined && metaOrError !== null) {
+            // Handle primitives (strings, numbers, etc.) — wrap as detail
+            result = {
                 ...contextFields,
                 detail: metaOrError,
             };
+        } else {
+            result = { ...contextFields };
         }
 
-        return { ...contextFields };
+        // Redact sensitive fields to prevent credential leakage in logs.
+        // sessionId is truncated (first 8 chars) — enough for correlation,
+        // not enough for session hijacking. Tokens/secrets are fully masked.
+        if (result.sessionId && typeof result.sessionId === 'string') {
+            result.sessionId = result.sessionId.slice(0, 8) + '…';
+        }
+        const sensitiveKeys = ['token', 'jwt', 'secret', 'reconnectionToken', 'password'];
+        for (const key of sensitiveKeys) {
+            if (key in result) {
+                result[key] = '[REDACTED]';
+            }
+        }
+
+        return result;
     },
 
     child(defaultMeta: LogMeta): ChildLogger {

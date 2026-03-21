@@ -186,6 +186,7 @@ Services must follow a consistent error strategy:
 3. Use `GameError` subclasses (`RoomError`, `PlayerError`, `ValidationError`, `ServerError`) — never throw plain `Error` from services.
 4. Return `null` only when the caller is expected to handle "not found" as a normal case.
 5. Never mix patterns in the same function (e.g., don't return `null` on validation failure and throw on not-found).
+6. Data integrity mismatches (e.g., array length mismatches in game state) must throw `GameStateError.corrupted()` — never log-and-continue with corrupted data.
 
 ```typescript
 // Services: throw typed errors

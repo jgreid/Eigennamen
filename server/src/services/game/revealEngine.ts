@@ -308,6 +308,9 @@ export function getGameStateForPlayer(game: GameState | null, player: Player | n
             revealedLen: game.revealed.length,
             gameId: game.id,
         });
+        throw GameStateError.corrupted(
+            `types/revealed array length mismatch (${game.types.length} vs ${game.revealed.length})`
+        );
     }
 
     if (isDuet) {

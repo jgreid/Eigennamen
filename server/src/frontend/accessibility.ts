@@ -50,7 +50,12 @@ export function removeKeyboardShortcuts(): void {
 function handleKeyboardShortcut(e: KeyboardEvent): void {
     // Don't trigger when typing in inputs, textareas, or selects
     const target = e.target as HTMLElement;
-    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
+    if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable
+    ) {
         return;
     }
 

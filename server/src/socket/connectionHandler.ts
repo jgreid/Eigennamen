@@ -77,6 +77,11 @@ function handleConnection(
         ensureSocketFunctionsRegistered(socketFns);
     } catch (regError) {
         logger.error('Failed to register socket functions, disconnecting:', regError);
+        // Decrement connection count before disconnecting — the disconnect listener
+        // hasn't been registered yet so it won't fire to do the decrement itself.
+        if (gameSocket.clientIP) {
+            decrementConnectionCount(gameSocket.clientIP);
+        }
         socket.disconnect(true);
         return;
     }

@@ -226,6 +226,9 @@ function updateCardScoreBadge(card: HTMLElement, index: number): void {
 // Covers both renderBoard (full) and updateBoardIncremental (partial) — if either
 // is in progress, the other is skipped to prevent stale DOM references.
 let renderingInProgress = false;
+// Set when a renderBoard call is skipped due to renderingInProgress.
+// The next renderBoard call will force a full re-render instead of incremental.
+let pendingFullRender = false;
 
 export function renderBoard(): void {
     const board = state.cachedElements.board || document.getElementById('board');
@@ -238,18 +241,21 @@ export function renderBoard(): void {
         if (!canClickCards()) className += ' no-click';
         board.className = className;
 
-        // Check if we can do an incremental update
-        if (state.boardInitialized && board.children.length === BOARD_SIZE) {
+        // Check if we can do an incremental update (skip if a full render was deferred)
+        if (!pendingFullRender && state.boardInitialized && board.children.length === BOARD_SIZE) {
             updateBoardIncremental();
             return;
         }
 
         // Prevent concurrent full re-renders from overlapping socket messages.
-        // If a render is already in progress, skip this call. The first render
-        // will set boardInitialized=true, and subsequent calls will use the
-        // incremental path above.
-        if (renderingInProgress) return;
+        // If a render is already in progress, mark a pending rerender so the
+        // next call forces a full rebuild instead of using the incremental path.
+        if (renderingInProgress) {
+            pendingFullRender = true;
+            return;
+        }
         renderingInProgress = true;
+        pendingFullRender = false;
 
         // Full re-render (only for new games)
         board.replaceChildren();

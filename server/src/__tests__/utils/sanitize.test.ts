@@ -75,6 +75,18 @@ describe('removeControlChars', () => {
     test('preserves normal Unicode text', () => {
         expect(removeControlChars('Café résumé')).toBe('Café résumé');
     });
+
+    test('normalizes fullwidth characters to ASCII via NFKC', () => {
+        expect(removeControlChars('\uFF21\uFF22\uFF23')).toBe('ABC');
+    });
+
+    test('normalizes combining accents to precomposed form via NFKC', () => {
+        expect(removeControlChars('e\u0301')).toBe('\u00E9');
+    });
+
+    test('normalizes ligatures via NFKC', () => {
+        expect(removeControlChars('\uFB01')).toBe('fi');
+    });
 });
 
 describe('isReservedName', () => {

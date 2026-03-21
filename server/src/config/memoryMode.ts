@@ -7,6 +7,6 @@
  * 2. Test mocks of redis.ts don't break roomConfig.ts at import time
  */
 export function isMemoryMode(): boolean {
-    const redisUrl = process.env['REDIS_URL'] || '';
+    const redisUrl = (process.env['REDIS_URL'] || '').toLowerCase();
     return redisUrl === 'memory' || redisUrl === 'memory://';
 }

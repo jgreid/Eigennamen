@@ -332,8 +332,8 @@
 }
 
 .card-score-badge.card-score-gold {
-    background: rgba(255, 215, 0, 0.6);
-    color: #4e342e;
+    background: rgba(255, 215, 0, 0.75);
+    color: #3e2723;
 }
 
 .card-score-badge.card-score-silver {

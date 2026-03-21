@@ -520,6 +520,22 @@ Run `npm run format` to auto-format, `npm run format:check` to verify.
 - **Error detail stripping**: Internal fields never exposed to clients
 - **GitHub Actions**: All pinned to immutable commit SHAs
 
+### Robustness Practices
+
+- **Distributed lock safety margin**: `withLock()` enforces an operation timeout 500ms shorter than the lock TTL, ensuring the lock holder can release cleanly before another process acquires it
+- **Connection tracking consistency**: Connection counts are decremented on all disconnect paths — including auth failure, registration failure, and shutdown rejection — to prevent IP counter leaks
+- **Fail-fast on data corruption**: Game state array mismatches (types vs revealed) throw `GameStateError.corrupted()` instead of silently propagating truncated data to clients
+- **Socket room membership safety**: All `socket.join()`/`socket.leave()` calls guard on `socket.connected` to prevent stale room memberships on disconnected sockets
+- **Chat DOM cap**: Frontend chat messages are capped at 500 in the DOM; oldest messages are pruned to prevent unbounded growth from message floods
+- **Keyboard shortcut guards**: Shortcuts are suppressed in `contenteditable` elements (in addition to INPUT/TEXTAREA/SELECT)
+- **Idempotent listener initialization**: Frontend event listener setup functions use guard flags to prevent listener accumulation on repeated calls
+- **Consistent error formats**: Rate limit errors include `recoverable` and `retryable` fields matching the format used by all other error paths
+- **NFKC normalization**: All user input (nicknames, chat, room codes) is NFKC-normalized via `removeControlChars()` to prevent Unicode homoglyph attacks
+- **Logger sensitive data redaction**: SessionIds are truncated to 8 chars; tokens, JWTs, secrets, and passwords are fully masked in all log output
+- **Lua script nil guards**: All `tonumber(ARGV[])` calls in Lua scripts include fallback defaults to prevent runtime errors on malformed input
+- **Lua TTL safety**: `hostTransfer.lua` falls back to 24h TTL when a room key has no expiry, preventing indefinite Redis persistence
+- **Board render queueing**: When `renderBoard()` is called during an in-progress render, a pending flag ensures the next call forces a full rebuild instead of silently skipping
+
 ## Key Services
 
 | Service | File | Purpose |

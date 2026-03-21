@@ -2,6 +2,7 @@ import type { ChatMessageData } from './multiplayerTypes.js';
 import { t } from './i18n.js';
 import { isClientConnected } from './clientAccessor.js';
 import { sendSpectatorChat } from './multiplayerUI.js';
+import { UI } from './constants.js';
 
 let unreadCount = 0;
 let chatOpen = false;
@@ -124,6 +125,11 @@ export function handleChatMessage(data: ChatMessageData): void {
     messageEl.appendChild(contentEl);
 
     messagesEl.appendChild(messageEl);
+
+    // Prune oldest messages to prevent unbounded DOM growth
+    while (messagesEl.children.length > UI.MAX_CHAT_MESSAGES) {
+        messagesEl.removeChild(messagesEl.firstChild!);
+    }
 
     // Auto-scroll if near bottom
     const isNearBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 60;

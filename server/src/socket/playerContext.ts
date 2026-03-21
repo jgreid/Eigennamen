@@ -160,18 +160,20 @@ async function getPlayerContext(socket: GameSocket, options: PlayerContextOption
         });
 
         if (redisRoomCode) {
-            if (socketRoomCode) {
+            if (socketRoomCode && socket.connected) {
                 socket.leave(`room:${socketRoomCode}`);
                 socket.leave(`spectators:${socketRoomCode}`);
             }
             socket.roomCode = redisRoomCode;
-            socket.join(`room:${redisRoomCode}`);
-            socket.join(`player:${sessionId}`);
+            if (socket.connected) {
+                socket.join(`room:${redisRoomCode}`);
+                socket.join(`player:${sessionId}`);
+            }
 
             // Re-join spectator room if player is a spectator so they
             // continue receiving spectator-specific events (chat, join requests)
             const isSpectator = player ? isPlayerSpectator(player) : true;
-            if (isSpectator) {
+            if (isSpectator && socket.connected) {
                 socket.join(`spectators:${redisRoomCode}`);
             }
 
@@ -180,7 +182,7 @@ async function getPlayerContext(socket: GameSocket, options: PlayerContextOption
                 roomCode: redisRoomCode,
             });
         } else {
-            if (socketRoomCode) {
+            if (socketRoomCode && socket.connected) {
                 socket.leave(`room:${socketRoomCode}`);
                 socket.leave(`spectators:${socketRoomCode}`);
             }

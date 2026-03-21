@@ -162,6 +162,12 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
     // Connection handling - delegate to connectionHandler
     socketServer.on('connection', (socket: Socket) => {
         if (shuttingDown) {
+            // Decrement connection count — middleware already incremented it,
+            // but handleConnection (which registers the disconnect listener) won't run.
+            const gameSocket = socket as GameSocket;
+            if (gameSocket.clientIP) {
+                decrementConnectionCount(gameSocket.clientIP);
+            }
             socket.disconnect(true);
             return;
         }

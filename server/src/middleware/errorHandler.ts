@@ -4,6 +4,8 @@ import logger from '../utils/logger';
 import { ERROR_CODES } from '../config/constants';
 import { isProduction } from '../config/env';
 
+const KNOWN_ERROR_CODES: ReadonlySet<string> = new Set(Object.values(ERROR_CODES));
+
 /**
  * Custom error type with code and details
  */
@@ -48,7 +50,7 @@ function errorHandler(err: AppError | ZodError, _req: Request, res: Response, _n
     logger.error('Unhandled error:', err);
 
     // Handle known error types
-    if ('code' in err && err.code && (Object.values(ERROR_CODES) as string[]).includes(err.code)) {
+    if ('code' in err && err.code && KNOWN_ERROR_CODES.has(err.code)) {
         const statusMap: ErrorStatusMap = {
             [ERROR_CODES.ROOM_NOT_FOUND]: 404,
             [ERROR_CODES.ROOM_FULL]: 403,
