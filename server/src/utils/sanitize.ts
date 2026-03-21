@@ -13,7 +13,7 @@ function sanitizeHtml(input: unknown): string {
 function removeControlChars(input: unknown): string {
     if (typeof input !== 'string') return '';
     // Remove ASCII control characters (0x00-0x1F) except newline (0x0A) and carriage return (0x0D)
-    return input.replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F]/g, '');
+    return input.normalize('NFKC').replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F]/g, '');
 }
 
 function isReservedName(nickname: unknown, reservedNames: string[]): boolean {
