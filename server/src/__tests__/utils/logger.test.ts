@@ -245,5 +245,31 @@ describe('Logger Configuration', () => {
             expect(() => logger.info('Message')).not.toThrow();
             expect(() => logger.info('Message', {})).not.toThrow();
         });
+
+        it('should truncate sessionId to 8 chars for redaction', () => {
+            const meta = logger._buildMeta({ sessionId: 'abcdefghijklmnop' });
+            expect(meta.sessionId).toBe('abcdefgh\u2026');
+        });
+
+        it('should redact sensitive fields', () => {
+            const meta = logger._buildMeta({
+                token: 'secret-token-value',
+                jwt: 'eyJhbGciOiJIUzI1NiJ9...',
+                reconnectionToken: 'recon-abc123',
+                password: 'hunter2',
+                secret: 'my-secret',
+            });
+            expect(meta.token).toBe('[REDACTED]');
+            expect(meta.jwt).toBe('[REDACTED]');
+            expect(meta.reconnectionToken).toBe('[REDACTED]');
+            expect(meta.password).toBe('[REDACTED]');
+            expect(meta.secret).toBe('[REDACTED]');
+        });
+
+        it('should preserve non-sensitive fields', () => {
+            const meta = logger._buildMeta({ roomCode: 'ABC123', team: 'red' });
+            expect(meta.roomCode).toBe('ABC123');
+            expect(meta.team).toBe('red');
+        });
     });
 });
