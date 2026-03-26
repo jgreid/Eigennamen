@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { createHmac } from 'crypto';
 import logger from '../utils/logger';
 import { isProduction as isProd } from './env';
 
@@ -333,4 +334,44 @@ function generateSessionToken(
     });
 }
 
-export { getJwtSecret, isJwtEnabled, signToken, verifyToken, verifyTokenWithClaims, decodeToken, generateSessionToken };
+/**
+ * Sign match carry-over data with HMAC-SHA256 using the JWT secret.
+ * Returns null if JWT is not configured (development without JWT).
+ */
+function signMatchData(data: Record<string, unknown>): string | null {
+    const secret = getJwtSecret();
+    if (!secret) return null;
+    const payload = JSON.stringify(data);
+    return createHmac('sha256', secret).update(payload).digest('hex');
+}
+
+/**
+ * Verify match carry-over data HMAC signature.
+ * Returns true if signature matches or if JWT is not configured.
+ */
+function verifyMatchSignature(data: Record<string, unknown>, signature: string | null | undefined): boolean {
+    const secret = getJwtSecret();
+    if (!secret) return true; // Skip verification when JWT not configured
+    if (!signature) return false;
+    const expected = createHmac('sha256', secret).update(JSON.stringify(data)).digest('hex');
+    try {
+        return (
+            createHmac('sha256', secret).update(expected).digest('hex') ===
+            createHmac('sha256', secret).update(signature).digest('hex')
+        );
+    } catch {
+        return false;
+    }
+}
+
+export {
+    getJwtSecret,
+    isJwtEnabled,
+    signToken,
+    verifyToken,
+    verifyTokenWithClaims,
+    decodeToken,
+    generateSessionToken,
+    signMatchData,
+    verifyMatchSignature,
+};

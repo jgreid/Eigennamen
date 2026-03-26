@@ -5,6 +5,7 @@ import { VALIDATION } from './constants.js';
 import { t } from './i18n.js';
 import { showChatPanel, hideChatPanel, initChat } from './chat.js';
 import { getClient, isClientConnected } from './clientAccessor.js';
+import { initPlayerListKeyNav } from './accessibility.js';
 import type { ServerPlayerData, ServerRoomData } from './multiplayerTypes.js';
 
 // Session ID pending kick confirmation (used by confirm-kick-modal)
@@ -69,49 +70,141 @@ export async function copyRoomId(): Promise<void> {
     }
 }
 
+/**
+ * Build a single player list item element.
+ */
+function buildPlayerLi(p: ServerPlayerData, isMe: boolean, amHost: boolean): HTMLLIElement {
+    const li = document.createElement('li');
+    li.dataset.sessionId = p.sessionId;
+    li.setAttribute('role', 'listitem');
+    li.tabIndex = 0;
+    if (p.connected === false) li.classList.add('player-disconnected');
+
+    // Compose descriptive aria-label
+    const parts: string[] = [p.nickname];
+    if (isMe) parts.push(t('multiplayer.you'));
+    if (p.team) parts.push(p.team);
+    if (p.role) parts.push(p.role);
+    if (p.isHost) parts.push(t('multiplayer.host'));
+    if (p.connected === false) parts.push(t('multiplayer.offline'));
+    li.setAttribute('aria-label', parts.join(', '));
+
+    const info = document.createElement('span');
+    info.className = 'player-info';
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = `player-name${isMe ? ' you' : ''}${p.team ? ` player-team-${escapeHTML(p.team)}` : ''}`;
+    nameSpan.textContent = p.nickname + (isMe ? ` (${t('multiplayer.you')})` : '');
+    info.appendChild(nameSpan);
+
+    if (p.isHost) {
+        const badge = document.createElement('span');
+        badge.className = 'host-badge';
+        badge.setAttribute('aria-hidden', 'true');
+        badge.textContent = t('multiplayer.host');
+        info.appendChild(badge);
+    }
+
+    const roleSpan = document.createElement('span');
+    roleSpan.className = 'player-role';
+    roleSpan.textContent =
+        (p.role ? `(${p.role})` : '') + (p.connected === false ? ` - ${t('multiplayer.offline')}` : '');
+    info.appendChild(roleSpan);
+
+    li.appendChild(info);
+
+    if (amHost && !isMe) {
+        const kickBtn = document.createElement('button');
+        kickBtn.className = 'btn-kick';
+        kickBtn.dataset.session = p.sessionId;
+        kickBtn.title = t('multiplayer.kickPlayer');
+        kickBtn.setAttribute('aria-label', `${t('multiplayer.kick')} ${p.nickname}`);
+        kickBtn.textContent = t('multiplayer.kick');
+        li.appendChild(kickBtn);
+    }
+
+    return li;
+}
+
+/**
+ * Generate a fingerprint of the player's display-affecting properties
+ * so we can detect when an existing DOM node needs updating.
+ */
+function playerFingerprint(p: ServerPlayerData, isMe: boolean, amHost: boolean): string {
+    return `${p.nickname}|${p.team}|${p.role}|${p.isHost}|${p.connected}|${isMe}|${amHost}`;
+}
+
+// Track fingerprints to detect changes without DOM reads
+const playerFingerprints = new Map<string, string>();
+
 export function updatePlayerList(ul: HTMLUListElement, players: ServerPlayerData[]): void {
     const mySessionId = EigennamenClient.player?.sessionId;
     const amHost = EigennamenClient.player?.isHost;
 
-    ul.replaceChildren();
-    for (const p of players) {
+    ul.setAttribute('role', 'list');
+
+    // Build map of existing DOM nodes keyed by session ID
+    const existingNodes = new Map<string, HTMLLIElement>();
+    for (const child of Array.from(ul.children)) {
+        const li = child as HTMLLIElement;
+        const sid = li.dataset.sessionId;
+        if (sid) existingNodes.set(sid, li);
+    }
+
+    // Track which session IDs are in the new player list
+    const newSessionIds = new Set(players.map((p) => p.sessionId));
+
+    // Remove departed players with animation
+    for (const [sid, li] of existingNodes) {
+        if (!newSessionIds.has(sid)) {
+            li.classList.add('player-leaving');
+            li.addEventListener(
+                'animationend',
+                () => {
+                    li.remove();
+                },
+                { once: true }
+            );
+            // Fallback removal if animation doesn't fire
+            setTimeout(() => {
+                if (li.parentNode) li.remove();
+            }, 300);
+            playerFingerprints.delete(sid);
+        }
+    }
+
+    // Add or update players in order
+    let insertBefore: Node | null = null;
+    for (let i = players.length - 1; i >= 0; i--) {
+        const p = players[i];
         const isMe = p.sessionId === mySessionId;
-        const li = document.createElement('li');
-        if (p.connected === false) li.className = 'player-disconnected';
+        const fp = playerFingerprint(p, isMe, amHost ?? false);
+        const existing = existingNodes.get(p.sessionId);
 
-        const info = document.createElement('span');
-        info.className = 'player-info';
-
-        const nameSpan = document.createElement('span');
-        nameSpan.className = `player-name${isMe ? ' you' : ''}${p.team ? ` player-team-${escapeHTML(p.team)}` : ''}`;
-        nameSpan.textContent = p.nickname + (isMe ? ` (${t('multiplayer.you')})` : '');
-        info.appendChild(nameSpan);
-
-        if (p.isHost) {
-            const badge = document.createElement('span');
-            badge.className = 'host-badge';
-            badge.textContent = t('multiplayer.host');
-            info.appendChild(badge);
+        if (existing) {
+            const oldFp = playerFingerprints.get(p.sessionId);
+            if (oldFp !== fp) {
+                // Properties changed — rebuild in-place
+                const newLi = buildPlayerLi(p, isMe, amHost ?? false);
+                newLi.classList.add('player-changed');
+                ul.replaceChild(newLi, existing);
+                playerFingerprints.set(p.sessionId, fp);
+                insertBefore = newLi;
+            } else {
+                // Ensure correct order
+                if (existing.nextSibling !== insertBefore) {
+                    ul.insertBefore(existing, insertBefore);
+                }
+                insertBefore = existing;
+            }
+        } else {
+            // New player — create and animate in
+            const newLi = buildPlayerLi(p, isMe, amHost ?? false);
+            newLi.classList.add('player-entering');
+            ul.insertBefore(newLi, insertBefore);
+            playerFingerprints.set(p.sessionId, fp);
+            insertBefore = newLi;
         }
-
-        const roleSpan = document.createElement('span');
-        roleSpan.className = 'player-role';
-        roleSpan.textContent =
-            (p.role ? `(${p.role})` : '') + (p.connected === false ? ` - ${t('multiplayer.offline')}` : '');
-        info.appendChild(roleSpan);
-
-        li.appendChild(info);
-
-        if (amHost && !isMe) {
-            const kickBtn = document.createElement('button');
-            kickBtn.className = 'btn-kick';
-            kickBtn.dataset.session = p.sessionId;
-            kickBtn.title = t('multiplayer.kickPlayer');
-            kickBtn.textContent = t('multiplayer.kick');
-            li.appendChild(kickBtn);
-        }
-
-        ul.appendChild(li);
     }
 }
 
@@ -127,6 +220,9 @@ export function initPlayerListUI(): void {
             playerCountBtn.classList.toggle('expanded', !isExpanded);
         });
     }
+
+    // Initialize keyboard navigation for the player list
+    initPlayerListKeyNav();
 
     // Event delegation for kick buttons - uses custom modal instead of native confirm()
     if (playersUl) {

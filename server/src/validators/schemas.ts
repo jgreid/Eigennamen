@@ -34,6 +34,7 @@ export {
     gameHistoryLimitSchema,
     gameReplaySchema,
     gameForfeitSchema,
+    gameReadySchema,
 } from './gameSchemas';
 
 // Re-export chat schemas
@@ -59,6 +60,7 @@ export type {
     GameHistoryLimitInput,
     GameReplayInput,
     GameForfeitInput,
+    GameReadyInput,
 } from './gameSchemas';
 export type { ChatMessageInput, SpectatorChatInput } from './chatSchemas';
 export type { TimerAddTimeInput } from './timerSchemas';

@@ -202,6 +202,22 @@ export interface MatchOverData {
     matchWinner: string;
 }
 
+export interface ReadyCheckPlayer {
+    sessionId: string;
+    nickname: string;
+    ready: boolean;
+}
+
+export interface ReadyStatusData {
+    players?: ReadyCheckPlayer[];
+    startedBy?: string;
+    timeout?: number;
+    playerReady?: {
+        sessionId: string;
+        nickname: string;
+    };
+}
+
 export interface SpymasterViewData {
     types?: string[];
     cardScores?: number[];

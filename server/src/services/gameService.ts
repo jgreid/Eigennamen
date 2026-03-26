@@ -471,6 +471,43 @@ export async function abandonGame(roomCode: string): Promise<void> {
 }
 
 /**
+ * Pause an active game
+ */
+export async function pauseGame(roomCode: string): Promise<void> {
+    const redis: RedisClient = getRedis();
+    const game = await getGame(roomCode);
+    if (!game) throw GameStateError.noActiveGame();
+    if (game.gameOver) throw GameStateError.gameOver();
+
+    game.paused = true;
+    const key = `room:${roomCode}:game`;
+    const ttl = await redis.ttl(key);
+    await withTimeout(
+        redis.set(key, JSON.stringify(game), ttl > 0 ? { EX: ttl } : undefined),
+        TIMEOUTS.REDIS_OPERATION,
+        `pauseGame-${roomCode}`
+    );
+}
+
+/**
+ * Resume a paused game
+ */
+export async function resumeGame(roomCode: string): Promise<void> {
+    const redis: RedisClient = getRedis();
+    const game = await getGame(roomCode);
+    if (!game) throw GameStateError.noActiveGame();
+
+    game.paused = false;
+    const key = `room:${roomCode}:game`;
+    const ttl = await redis.ttl(key);
+    await withTimeout(
+        redis.set(key, JSON.stringify(game), ttl > 0 ? { EX: ttl } : undefined),
+        TIMEOUTS.REDIS_OPERATION,
+        `resumeGame-${roomCode}`
+    );
+}
+
+/**
  * Clean up game data for a room
  */
 export async function cleanupGame(roomCode: string): Promise<void> {

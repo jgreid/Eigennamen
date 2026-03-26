@@ -62,6 +62,14 @@ export const SOCKET_EVENTS = {
     GAME_NEXT_ROUND: 'game:nextRound',
     GAME_ROUND_ENDED: 'game:roundEnded',
     GAME_MATCH_OVER: 'game:matchOver',
+    GAME_READY_CHECK: 'game:readyCheck',
+    GAME_READY: 'game:ready',
+    GAME_READY_STATUS: 'game:readyStatus',
+    GAME_PAUSE: 'game:pause',
+    GAME_RESUME: 'game:resume',
+    GAME_PAUSED: 'game:paused',
+    GAME_RESUMED: 'game:resumed',
+    GAME_TYPING: 'game:typing',
     GAME_ERROR: 'game:error',
 
     // Player events
@@ -72,6 +80,7 @@ export const SOCKET_EVENTS = {
     PLAYER_KICK: 'player:kick',
     PLAYER_KICKED: 'player:kicked',
     PLAYER_UPDATED: 'player:updated',
+    PLAYER_IDLE_WARNING: 'player:idleWarning',
     PLAYER_DISCONNECTED: 'player:disconnected',
     PLAYER_ERROR: 'player:error',
 

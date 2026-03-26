@@ -182,3 +182,43 @@ function toggleShortcutOverlay(): void {
 
 // Screen reader announcements: use announceToScreenReader() from ui.ts
 // (single canonical implementation used throughout the codebase)
+
+let playerListKeyNavAttached = false;
+
+/**
+ * Attach keyboard navigation to the player list dropdown.
+ * Arrow keys move focus between player list items; Escape closes the dropdown.
+ */
+export function initPlayerListKeyNav(): void {
+    if (playerListKeyNavAttached) return;
+    const ul = document.getElementById('mp-players-ul');
+    if (!ul) return;
+
+    ul.addEventListener('keydown', (e: KeyboardEvent) => {
+        const items = Array.from(ul.querySelectorAll<HTMLElement>('li'));
+        if (items.length === 0) return;
+        const current = document.activeElement as HTMLElement;
+        const idx = items.indexOf(current);
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            const next = idx < items.length - 1 ? idx + 1 : 0;
+            items[next]?.focus();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            const prev = idx > 0 ? idx - 1 : items.length - 1;
+            items[prev]?.focus();
+        } else if (e.key === 'Escape') {
+            const listEl = document.getElementById('mp-player-list');
+            if (listEl) listEl.hidden = true;
+            const btn = document.getElementById('mp-player-count-btn');
+            btn?.focus();
+        }
+    });
+
+    playerListKeyNavAttached = true;
+}
+
+export function removePlayerListKeyNav(): void {
+    playerListKeyNavAttached = false;
+}

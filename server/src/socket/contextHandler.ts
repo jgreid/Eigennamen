@@ -9,6 +9,7 @@ import { getPlayerContext, syncSocketRooms } from './playerContext';
 import { createRateLimitedHandler } from './rateLimitHandler';
 import { validateInput } from '../middleware/validation';
 import { withTimeout, TIMEOUTS } from '../utils/timeout';
+import { updatePlayer } from '../services/playerService';
 
 export interface HandlerResult {
     player?: Player;
@@ -37,6 +38,18 @@ function createContextHandler<T = unknown>(
     return createRateLimitedHandler(socket, eventName, async (data: unknown): Promise<void> => {
         const validated = schema ? (validateInput(schema, data) as T) : ((data || {}) as T);
         const ctx: PlayerContextResult = await getPlayerContext(socket, contextOptions);
+
+        // Update lastSeen for idle detection (fire-and-forget, non-critical)
+        if (ctx?.player?.sessionId) {
+            try {
+                const p = updatePlayer(ctx.player.sessionId, { lastSeen: Date.now() });
+                if (p && typeof p === 'object' && 'catch' in p) {
+                    (p as Promise<unknown>).catch(() => {});
+                }
+            } catch {
+                // Ignore — lastSeen is best-effort
+            }
+        }
 
         // Snapshot previous player state before handler modifies it
         const previousPlayer = ctx.player ? { ...ctx.player } : null;

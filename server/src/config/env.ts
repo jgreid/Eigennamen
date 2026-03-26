@@ -142,6 +142,17 @@ export function validateEnv(): boolean {
         }
     }
 
+    // Validate RECONNECT_TOKEN_TTL_SECONDS if provided (applies to all environments)
+    const reconnectTtl = process.env['RECONNECT_TOKEN_TTL_SECONDS'];
+    if (reconnectTtl !== undefined) {
+        const ttlVal = parseInt(reconnectTtl, 10);
+        if (isNaN(ttlVal)) {
+            errors.push('RECONNECT_TOKEN_TTL_SECONDS must be a number');
+        } else if (ttlVal < 60 || ttlVal > 1800) {
+            errors.push('RECONNECT_TOKEN_TTL_SECONDS must be between 60 and 1800');
+        }
+    }
+
     // Validate LOG_LEVEL if provided (applies to all environments)
     const logLevel = process.env['LOG_LEVEL'];
     if (logLevel) {

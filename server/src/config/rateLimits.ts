@@ -6,6 +6,10 @@ export interface RateLimitConfig {
     max: number;
 }
 
+// Per-session rate limits are more generous than per-IP (2x multiplier)
+// to avoid penalizing users on shared networks
+export const SESSION_RATE_LIMIT_MULTIPLIER = 2;
+
 // Rate limits for socket events
 // Keys match the rate limit identifiers used in handlers (not necessarily the event names)
 export const RATE_LIMITS: Record<string, RateLimitConfig> = {
@@ -23,7 +27,12 @@ export const RATE_LIMITS: Record<string, RateLimitConfig> = {
     'game:reveal': { window: 1000, max: 5 }, // 5 per second
     'game:endTurn': { window: 2000, max: 3 }, // 3 per 2 seconds
     'game:forfeit': { window: 10000, max: 2 }, // 2 per 10 seconds
+    'game:pause': { window: 5000, max: 2 }, // 2 per 5 seconds (host only)
+    'game:resume': { window: 5000, max: 2 }, // 2 per 5 seconds (host only)
     'game:nextRound': { window: 5000, max: 2 }, // 2 per 5 seconds (host only, match mode)
+    'game:readyCheck': { window: 10000, max: 2 }, // 2 per 10 seconds (host only)
+    'game:ready': { window: 5000, max: 5 }, // 5 per 5 seconds
+    'game:typing': { window: 1000, max: 1 },
     'game:getHistory': { window: 5000, max: 5 }, // 5 per 5 seconds
     'game:getReplay': { window: 5000, max: 5 }, // 5 per 5 seconds
     // Player events (keys match event names for consistency)

@@ -124,6 +124,16 @@ export function handleChatMessage(data: ChatMessageData): void {
     messageEl.appendChild(document.createTextNode(': '));
     messageEl.appendChild(contentEl);
 
+    // Timestamp
+    if (data.timestamp) {
+        const timeEl = document.createElement('span');
+        timeEl.className = 'chat-timestamp';
+        const d = new Date(data.timestamp);
+        timeEl.textContent = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+        timeEl.title = d.toLocaleTimeString();
+        messageEl.appendChild(timeEl);
+    }
+
     messagesEl.appendChild(messageEl);
 
     // Prune oldest messages to prevent unbounded DOM growth

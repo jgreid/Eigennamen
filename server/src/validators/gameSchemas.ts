@@ -61,11 +61,21 @@ const gameForfeitSchema = z
     .optional()
     .default({});
 
+const gameReadySchema = z.object({}).strict();
+
 // Type exports for schema inference
 export type GameStartInput = ZodType.infer<typeof gameStartSchema>;
 export type GameRevealInput = ZodType.infer<typeof gameRevealSchema>;
 export type GameHistoryLimitInput = ZodType.infer<typeof gameHistoryLimitSchema>;
 export type GameReplayInput = ZodType.infer<typeof gameReplaySchema>;
 export type GameForfeitInput = ZodType.infer<typeof gameForfeitSchema>;
+export type GameReadyInput = ZodType.infer<typeof gameReadySchema>;
 
-export { gameStartSchema, gameRevealSchema, gameHistoryLimitSchema, gameReplaySchema, gameForfeitSchema };
+export {
+    gameStartSchema,
+    gameRevealSchema,
+    gameHistoryLimitSchema,
+    gameReplaySchema,
+    gameForfeitSchema,
+    gameReadySchema,
+};
