@@ -90,6 +90,16 @@ export function updateMatchScoreboard(): void {
     if (roundEl) roundEl.textContent = String(state.gameState.matchRound ?? 1);
 }
 
+export function showScoreDelta(cardEl: HTMLElement, points: number): void {
+    if (points === 0) return;
+    const delta = document.createElement('span');
+    delta.className = `score-delta ${points > 0 ? 'positive' : 'negative'}`;
+    delta.textContent = points > 0 ? `+${points}` : String(points);
+    cardEl.style.position = 'relative';
+    cardEl.appendChild(delta);
+    delta.addEventListener('animationend', () => delta.remove(), { once: true });
+}
+
 export function updateTurnIndicator(): void {
     const indicator = state.cachedElements.turnIndicator || document.getElementById('turn-indicator');
     if (!indicator) return;

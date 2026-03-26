@@ -13,10 +13,10 @@ import { setGauge, METRIC_NAMES } from '../../utils/metrics';
 
 // Backpressure: when the cleanup queue exceeds this threshold,
 // additional sweep passes are run to prevent unbounded growth.
-const CLEANUP_BACKPRESSURE_THRESHOLD = 500;
+const CLEANUP_BACKPRESSURE_THRESHOLD = 200;
 // Hard cap on total items processed per cycle to prevent event-loop starvation.
-// At 50 items/batch, this allows up to 500 items per cycle (10 batches).
-const CLEANUP_MAX_ITEMS_PER_CYCLE = 500;
+// At 100 items/batch, this allows up to 1000 items per cycle (10 batches).
+const CLEANUP_MAX_ITEMS_PER_CYCLE = 1000;
 
 // Late-bound room cleanup callback to break circular dependency with roomService.
 // Set via registerRoomCleanup() during server initialization.

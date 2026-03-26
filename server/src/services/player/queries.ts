@@ -214,6 +214,16 @@ export async function getPlayersInRoom(roomCode: string): Promise<Player[]> {
 }
 
 /**
+ * Get players in a room who have been idle longer than the threshold.
+ * Default threshold is 3 minutes (180000ms).
+ */
+export async function getIdlePlayers(roomCode: string, thresholdMs: number = 180000): Promise<Player[]> {
+    const players = await getPlayersInRoom(roomCode);
+    const now = Date.now();
+    return players.filter((p) => p.connected && p.lastSeen && now - p.lastSeen > thresholdMs);
+}
+
+/**
  * Reset all players' roles to 'spectator' for a new game while preserving teams.
  * This ensures spymaster/clicker roles are re-chosen each game.
  * Acquires each player's mutation lock to prevent races with in-flight

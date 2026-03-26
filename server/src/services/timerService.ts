@@ -529,7 +529,12 @@ export async function hasActiveTimer(roomCode: string): Promise<boolean> {
  * A timer is considered stale if its endTime has passed (plus a generous
  * buffer) and it wasn't cleaned up by its expiration callback. This can
  * happen if the callback threw or Redis deleted the key before the local
- * timeout fired.
+ * timeout fired, or if a distributed lock timeout prevented the expiry
+ * callback from running.
+ *
+ * For stale timers that still have an onExpire callback, we attempt to
+ * invoke it as a recovery mechanism — this prevents turns from hanging
+ * indefinitely when the lock-based expiry path fails.
  *
  * Called periodically from the socket module's cleanup interval.
  */
@@ -547,6 +552,22 @@ export function sweepStaleTimers(): number {
             clearTimeout(timer.timeoutId);
             localTimers.delete(roomCode);
             swept++;
+
+            // Recovery: if this stale timer had an expire callback that never
+            // ran (e.g., lock timeout prevented it), fire it now as a fallback.
+            if (timer.onExpire) {
+                logger.warn(`Stale timer recovery: firing onExpire for room ${roomCode}`);
+                try {
+                    const result = timer.onExpire(roomCode);
+                    if (result && typeof result === 'object' && 'catch' in result) {
+                        (result as Promise<void>).catch((err: Error) => {
+                            logger.error(`Stale timer recovery callback failed for room ${roomCode}:`, err.message);
+                        });
+                    }
+                } catch (err) {
+                    logger.error(`Stale timer recovery callback threw for room ${roomCode}:`, (err as Error).message);
+                }
+            }
         }
     }
 

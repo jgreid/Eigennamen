@@ -191,7 +191,9 @@ describe('Safe Emit Utilities', () => {
 
             expect(result.successful).toBe(3);
             expect(result.failed).toBe(0);
-            expect(mockIo.to).toHaveBeenCalledTimes(3);
+            // Static data is batched into a single io.to() call with all valid targets
+            expect(mockIo.to).toHaveBeenCalledTimes(1);
+            expect(mockIo.to).toHaveBeenCalledWith(['player:session-1', 'player:session-2', 'player:session-3']);
         });
 
         it('should use dataFn function to generate per-player data', () => {
@@ -256,17 +258,15 @@ describe('Safe Emit Utilities', () => {
         it('should count emission failures per player', () => {
             const players = [{ sessionId: 'session-1' }, { sessionId: 'session-2' }];
 
-            // Make first emission succeed, second fail
-            mockEmit
-                .mockImplementationOnce(() => {})
-                .mockImplementationOnce(() => {
-                    throw new Error('Failed');
-                });
+            // With batched static data, a single emit failure affects all valid players
+            mockEmit.mockImplementationOnce(() => {
+                throw new Error('Failed');
+            });
 
             const result = safeEmitToPlayers(mockIo, players, 'test:event', {});
 
-            expect(result.successful).toBe(1);
-            expect(result.failed).toBe(1);
+            expect(result.successful).toBe(0);
+            expect(result.failed).toBe(2);
         });
     });
 

@@ -32,6 +32,6 @@ export const TIMER = {
 
 // Player service internal constants
 export const PLAYER_CLEANUP = {
-    INTERVAL_MS: 60000, // Run cleanup every 60 seconds
-    BATCH_SIZE: 50, // Process up to 50 cleanups per run
+    INTERVAL_MS: 30000, // Run cleanup every 30 seconds (faster response for large rooms)
+    BATCH_SIZE: 100, // Process up to 100 cleanups per run
 } as const;

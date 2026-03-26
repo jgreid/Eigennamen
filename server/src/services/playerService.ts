@@ -451,11 +451,13 @@ export const stopCleanupTask = _stopCleanupTask;
 import {
     getTeamMembers as _getTeamMembers,
     getPlayersInRoom as _getPlayersInRoom,
+    getIdlePlayers as _getIdlePlayers,
     resetRolesForNewGame as _resetRolesForNewGame,
     rotateRolesForNextRound as _rotateRolesForNextRound,
 } from './player/queries';
 export const getTeamMembers = _getTeamMembers;
 export const getPlayersInRoom = _getPlayersInRoom;
+export const getIdlePlayers = _getIdlePlayers;
 export const resetRolesForNewGame = _resetRolesForNewGame;
 export const rotateRolesForNextRound = _rotateRolesForNextRound;
 

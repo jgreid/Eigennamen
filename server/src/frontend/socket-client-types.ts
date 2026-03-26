@@ -33,6 +33,7 @@ import type {
     HistoryResultData,
     ReplayData,
     JoinCreateResult,
+    ReadyStatusData,
 } from './multiplayerTypes.js';
 
 // Event payload types for server-to-client events (adapter's internal bus)
@@ -102,6 +103,7 @@ export interface ClientEventMap {
     historyResult: HistoryResultData;
     replayData: ReplayData;
     historyCleared: { deletedCount: number };
+    'game:readyStatus': ReadyStatusData;
 
     // Timer events
     timerStarted: TimerEventData;

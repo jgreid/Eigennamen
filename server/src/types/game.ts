@@ -214,6 +214,8 @@ export interface GameState {
     blueMatchScore?: number;
     /** Results of completed rounds */
     roundHistory?: RoundResult[];
+    /** Whether the game is paused */
+    paused?: boolean;
     /** Whether the match has ended */
     matchOver?: boolean;
     /** Match winner */

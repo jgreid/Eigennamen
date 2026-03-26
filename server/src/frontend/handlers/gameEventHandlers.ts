@@ -21,6 +21,7 @@ import type {
     SpymasterViewData,
     RoundEndedData,
     MatchOverData,
+    ReadyStatusData,
 } from '../multiplayerTypes.js';
 
 export function registerGameHandlers(): void {
@@ -218,6 +219,27 @@ export function registerGameHandlers(): void {
 
         updateMatchScoreboard();
         showRoundSummary(data.roundResult, data.redMatchScore, data.blueMatchScore);
+    });
+
+    // Ready check status updates
+    EigennamenClient.on('game:readyStatus', (data: ReadyStatusData) => {
+        if (data.players) {
+            state.readyCheck = {
+                active: true,
+                players: data.players,
+                startedBy: data.startedBy || '',
+                timeout: data.timeout || 30,
+            };
+            console.log('[ReadyCheck] Started by', data.startedBy, 'with', data.players.length, 'players');
+        } else if (data.playerReady) {
+            if (state.readyCheck && state.readyCheck.players) {
+                const player = state.readyCheck.players.find((p) => p.sessionId === data.playerReady!.sessionId);
+                if (player) {
+                    player.ready = true;
+                }
+            }
+            console.log('[ReadyCheck] Player ready:', data.playerReady.nickname);
+        }
     });
 
     // Match mode: match over (final round complete, overall winner determined)
