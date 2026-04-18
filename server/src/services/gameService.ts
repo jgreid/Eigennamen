@@ -345,6 +345,7 @@ export async function revealCard(
                     playerNickname,
                     MAX_HISTORY_ENTRIES.toString(),
                     playerTeam || '',
+                    REDIS_TTL.ROOM.toString(),
                 ],
                 errorMap,
                 `revealCard-${roomCode}`,
@@ -381,7 +382,13 @@ export async function endTurn(
             const result = await executeLuaScript<EndTurnResult>(
                 OPTIMIZED_END_TURN_SCRIPT,
                 gameKey,
-                [playerNickname, Date.now().toString(), MAX_HISTORY_ENTRIES.toString(), expectedTeam],
+                [
+                    playerNickname,
+                    Date.now().toString(),
+                    MAX_HISTORY_ENTRIES.toString(),
+                    expectedTeam,
+                    REDIS_TTL.ROOM.toString(),
+                ],
                 luaErrorMap,
                 `endTurn-${roomCode}`,
                 endTurnResultSchema
@@ -474,18 +481,19 @@ export async function abandonGame(roomCode: string): Promise<void> {
  * Pause an active game
  */
 export async function pauseGame(roomCode: string): Promise<void> {
-    const redis: RedisClient = getRedis();
-    const game = await getGame(roomCode);
-    if (!game) throw GameStateError.noActiveGame();
-    if (game.gameOver) throw GameStateError.gameOver();
-
-    game.paused = true;
-    const key = `room:${roomCode}:game`;
-    const ttl = await redis.ttl(key);
-    await withTimeout(
-        redis.set(key, JSON.stringify(game), ttl > 0 ? { EX: ttl } : undefined),
-        TIMEOUTS.REDIS_OPERATION,
-        `pauseGame-${roomCode}`
+    const gameKey = `room:${roomCode}:game`;
+    await withLock(
+        `reveal:${roomCode}`,
+        () =>
+            executeGameTransaction(
+                gameKey,
+                (game: GameState) => {
+                    if (game.gameOver) throw GameStateError.gameOver();
+                    game.paused = true;
+                },
+                `pauseGame-${roomCode}`
+            ),
+        { lockTimeout: LOCKS.CARD_REVEAL * 1000, maxRetries: 5 }
     );
 }
 
@@ -493,17 +501,18 @@ export async function pauseGame(roomCode: string): Promise<void> {
  * Resume a paused game
  */
 export async function resumeGame(roomCode: string): Promise<void> {
-    const redis: RedisClient = getRedis();
-    const game = await getGame(roomCode);
-    if (!game) throw GameStateError.noActiveGame();
-
-    game.paused = false;
-    const key = `room:${roomCode}:game`;
-    const ttl = await redis.ttl(key);
-    await withTimeout(
-        redis.set(key, JSON.stringify(game), ttl > 0 ? { EX: ttl } : undefined),
-        TIMEOUTS.REDIS_OPERATION,
-        `resumeGame-${roomCode}`
+    const gameKey = `room:${roomCode}:game`;
+    await withLock(
+        `reveal:${roomCode}`,
+        () =>
+            executeGameTransaction(
+                gameKey,
+                (game: GameState) => {
+                    game.paused = false;
+                },
+                `resumeGame-${roomCode}`
+            ),
+        { lockTimeout: LOCKS.CARD_REVEAL * 1000, maxRetries: 5 }
     );
 }
 

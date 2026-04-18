@@ -2,7 +2,7 @@
 # Quick system health check script
 # Shows status of all Eigennamen services
 
-set -e
+set -euo pipefail
 
 URL="${1:-http://localhost:3000}"
 

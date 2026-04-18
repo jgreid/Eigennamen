@@ -2,7 +2,7 @@
 # Redis inspection script
 # Shows Redis memory usage and key statistics
 
-set -e
+set -eo pipefail
 
 REDIS_URL="${REDIS_URL:-redis://localhost:6379}"
 
@@ -27,7 +27,7 @@ fi
 # Memory info
 echo ""
 echo "📊 Memory Usage:"
-$REDIS_CMD INFO memory 2>/dev/null | grep -E "used_memory_human|used_memory_peak_human|maxmemory_human|mem_fragmentation_ratio" | while read line; do
+($REDIS_CMD INFO memory 2>/dev/null | grep -E "used_memory_human|used_memory_peak_human|maxmemory_human|mem_fragmentation_ratio" || true) | while read -r line; do
     echo "  $line"
 done
 
