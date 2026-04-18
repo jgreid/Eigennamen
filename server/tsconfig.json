@@ -3,7 +3,7 @@
     // Target and module settings
     "target": "ES2022",
     "module": "commonjs",
-    "moduleResolution": "node",
+    "moduleResolution": "node10",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
 
@@ -46,10 +46,7 @@
     "typeRoots": [
       "./node_modules/@types",
       "./src/types"
-    ],
-
-    // Base URL for module resolution
-    "baseUrl": "."
+    ]
   },
   "include": [
     "src/**/*.ts"
