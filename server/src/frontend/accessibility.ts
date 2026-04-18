@@ -184,6 +184,8 @@ function toggleShortcutOverlay(): void {
 // (single canonical implementation used throughout the codebase)
 
 let playerListKeyNavAttached = false;
+let playerListKeyNavHandler: ((e: KeyboardEvent) => void) | null = null;
+let playerListKeyNavTarget: HTMLElement | null = null;
 
 /**
  * Attach keyboard navigation to the player list dropdown.
@@ -194,7 +196,7 @@ export function initPlayerListKeyNav(): void {
     const ul = document.getElementById('mp-players-ul');
     if (!ul) return;
 
-    ul.addEventListener('keydown', (e: KeyboardEvent) => {
+    const handler = (e: KeyboardEvent): void => {
         const items = Array.from(ul.querySelectorAll<HTMLElement>('li'));
         if (items.length === 0) return;
         const current = document.activeElement as HTMLElement;
@@ -214,11 +216,19 @@ export function initPlayerListKeyNav(): void {
             const btn = document.getElementById('mp-player-count-btn');
             btn?.focus();
         }
-    });
+    };
 
+    ul.addEventListener('keydown', handler);
+    playerListKeyNavHandler = handler;
+    playerListKeyNavTarget = ul;
     playerListKeyNavAttached = true;
 }
 
 export function removePlayerListKeyNav(): void {
+    if (playerListKeyNavTarget && playerListKeyNavHandler) {
+        playerListKeyNavTarget.removeEventListener('keydown', playerListKeyNavHandler);
+    }
+    playerListKeyNavTarget = null;
+    playerListKeyNavHandler = null;
     playerListKeyNavAttached = false;
 }

@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { escapeHTML, copyToClipboard } from './utils.js';
+import { copyToClipboard } from './utils.js';
 import { showToast, openModal, closeModal } from './ui.js';
 import { VALIDATION } from './constants.js';
 import { t } from './i18n.js';
@@ -93,7 +93,19 @@ function buildPlayerLi(p: ServerPlayerData, isMe: boolean, amHost: boolean): HTM
     info.className = 'player-info';
 
     const nameSpan = document.createElement('span');
-    nameSpan.className = `player-name${isMe ? ' you' : ''}${p.team ? ` player-team-${escapeHTML(p.team)}` : ''}`;
+    nameSpan.classList.add('player-name');
+    if (isMe) nameSpan.classList.add('you');
+    if (p.team) {
+        // Slugify team name into a safe CSS class token: class tokens cannot
+        // contain whitespace and escapeHTML would leave entity references that
+        // don't match any selector. Fold to [a-z0-9-] so arbitrary team names
+        // (Unicode, punctuation, spaces) produce a valid, matchable class.
+        const slug = p.team
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+        if (slug) nameSpan.classList.add(`player-team-${slug}`);
+    }
     nameSpan.textContent = p.nickname + (isMe ? ` (${t('multiplayer.you')})` : '');
     info.appendChild(nameSpan);
 
