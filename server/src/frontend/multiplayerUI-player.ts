@@ -189,6 +189,7 @@ export function updatePlayerList(ul: HTMLUListElement, players: ServerPlayerData
     let insertBefore: Node | null = null;
     for (let i = players.length - 1; i >= 0; i--) {
         const p = players[i];
+        if (!p) continue; // narrow for noUncheckedIndexedAccess; loop bound guarantees presence
         const isMe = p.sessionId === mySessionId;
         const fp = playerFingerprint(p, isMe, amHost ?? false);
         const existing = existingNodes.get(p.sessionId);

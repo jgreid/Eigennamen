@@ -160,6 +160,8 @@ const _rawState: AppState = {
     roomStats: null,
 
     resyncInProgress: false,
+
+    readyCheck: null,
 };
 
 // Always-on reactive proxy emits change events via the store event bus.
