@@ -206,12 +206,57 @@ function safeEmitToPlayers(
     dataFn: ((player: Player) => unknown) | unknown,
     options: SafeEmitOptions = {}
 ): BatchEmitResult {
+    const { logSuccess = false } = options;
     const results: BatchEmitResult = { successful: 0, failed: 0, errors: [] };
 
     if (!Array.isArray(players)) {
         logger.error('safeEmitToPlayers called with non-array players');
         return results;
     }
+
+    // Optimization: when dataFn is not a function (static data for all players),
+    // group all valid players into a single multi-target emission instead of
+    // N individual emissions. This is significantly faster for large rooms.
+    if (typeof dataFn !== 'function') {
+        const validTargets: string[] = [];
+        for (const player of players) {
+            if (!player || !player.sessionId) {
+                results.failed++;
+                results.errors.push({ reason: 'Invalid player object' });
+                continue;
+            }
+            validTargets.push(`player:${player.sessionId}`);
+        }
+
+        if (validTargets.length > 0 && io) {
+            maybeResetMetricsWindow();
+            emissionMetrics.total++;
+            try {
+                io.to(validTargets).emit(event, dataFn);
+                emissionMetrics.successful++;
+                incrementCounter(METRIC_NAMES.BROADCASTS_SENT);
+                results.successful = validTargets.length;
+                if (logSuccess) {
+                    logger.debug(`Batch-emitted ${event} to ${validTargets.length} players`);
+                }
+            } catch (error) {
+                const errMsg = error instanceof Error ? error.message : String(error);
+                emissionMetrics.failed++;
+                incrementCounter(METRIC_NAMES.ERRORS, 1, { type: 'emission' });
+                results.failed = validTargets.length;
+                results.errors.push({ error: errMsg });
+            }
+        } else if (!io) {
+            results.failed = players.length;
+            results.errors.push({ reason: 'Socket.io instance not available' });
+        }
+
+        return results;
+    }
+
+    // Per-player data: group by computed data to minimize emissions.
+    // Players receiving identical data share a single emission.
+    const dataGroups = new Map<string, { targets: string[]; data: unknown }>();
 
     for (const player of players) {
         if (!player || !player.sessionId) {
@@ -221,12 +266,13 @@ function safeEmitToPlayers(
         }
 
         try {
-            const data = typeof dataFn === 'function' ? dataFn(player) : dataFn;
-            const success = safeEmitToPlayer(io, player.sessionId, event, data, options);
-            if (success) {
-                results.successful++;
+            const data = dataFn(player);
+            const key = JSON.stringify(data);
+            const group = dataGroups.get(key);
+            if (group) {
+                group.targets.push(`player:${player.sessionId}`);
             } else {
-                results.failed++;
+                dataGroups.set(key, { targets: [`player:${player.sessionId}`], data });
             }
         } catch (error) {
             results.failed++;
@@ -234,6 +280,27 @@ function safeEmitToPlayers(
                 sessionId: player.sessionId,
                 error: error instanceof Error ? error.message : String(error),
             });
+        }
+    }
+
+    // Emit once per unique data payload
+    for (const [, group] of dataGroups) {
+        maybeResetMetricsWindow();
+        emissionMetrics.total++;
+        try {
+            if (!io) {
+                throw new ServerError('Socket.io instance not available');
+            }
+            io.to(group.targets).emit(event, group.data);
+            emissionMetrics.successful++;
+            incrementCounter(METRIC_NAMES.BROADCASTS_SENT);
+            results.successful += group.targets.length;
+        } catch (error) {
+            const errMsg = error instanceof Error ? error.message : String(error);
+            emissionMetrics.failed++;
+            incrementCounter(METRIC_NAMES.ERRORS, 1, { type: 'emission' });
+            results.failed += group.targets.length;
+            results.errors.push({ error: errMsg });
         }
     }
 

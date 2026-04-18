@@ -4,6 +4,7 @@ import rateLimit from 'express-rate-limit';
 import logger from '../utils/logger';
 import { getEnvInt } from '../config/env';
 import { incrementCounter, METRIC_NAMES } from '../utils/metrics';
+import { SESSION_RATE_LIMIT_MULTIPLIER } from '../config/rateLimits';
 
 interface RateLimitConfig {
     max: number;
@@ -119,6 +120,7 @@ function filterTimestampsInPlace(timestamps: number[], windowStart: number): num
 /** Dual-layer rate limiter: per-socket + per-IP */
 function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
     const socketRequests = new Map<string, number[]>();
+    const sessionRequests = new Map<string, number[]>();
     const ipRequests = new Map<string, number[]>();
     const globalIPRequests = new Map<string, number[]>();
     const socketKeyIndex = new Map<string, Set<string>>();
@@ -194,6 +196,30 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
                 return next(new Error('Rate limit exceeded'));
             }
 
+            // === Per-session rate limiting (authenticated connections) ===
+            if (socket.sessionId) {
+                const sessionKey = `session:${socket.sessionId}:${eventName}`;
+                const sessionLimit = limit.max * SESSION_RATE_LIMIT_MULTIPLIER;
+                let sessionTimestamps = sessionRequests.get(sessionKey);
+                if (!sessionTimestamps) {
+                    sessionTimestamps = [];
+                    sessionRequests.set(sessionKey, sessionTimestamps);
+                }
+                const sessionCount = filterTimestampsInPlace(sessionTimestamps, windowStart);
+
+                if (sessionCount >= sessionLimit) {
+                    blockedRequests++;
+                    eventBlocked.set(eventName, (eventBlocked.get(eventName) || 0) + 1);
+                    incrementCounter(METRIC_NAMES.RATE_LIMIT_HITS, 1, { layer: 'session' });
+                    logger.warn(
+                        `Session rate limit exceeded: ${socket.sessionId} for event ${eventName} (${sessionCount} requests)`
+                    );
+                    return next(new Error('Rate limit exceeded'));
+                }
+
+                sessionTimestamps.push(now);
+            }
+
             // === Per-IP rate limiting (with higher threshold) ===
             const ipLimit = limit.max * IP_RATE_LIMIT_MULTIPLIER;
             let ipTimestamps = ipRequests.get(ipKey);
@@ -233,7 +259,7 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
     };
 
     const performLRUEviction = (): number => {
-        const totalEntries = socketRequests.size + ipRequests.size + globalIPRequests.size;
+        const totalEntries = socketRequests.size + sessionRequests.size + ipRequests.size + globalIPRequests.size;
         if (totalEntries <= MAX_TRACKED_ENTRIES) {
             return 0;
         }

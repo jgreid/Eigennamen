@@ -338,7 +338,10 @@
     position: absolute;
     top: 100%;
     right: 0;
-    width: 260px;
+    min-width: 260px;
+    max-width: min(360px, 90vw);
+    max-height: 60dvh;
+    overflow-y: auto;
     margin-top: 4px;
     padding: 8px;
     background: rgba(20, 20, 35, 0.98);
@@ -361,20 +364,68 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 4px 8px;
+    padding: 8px 10px;
+    min-height: 36px;
     background: rgba(255, 255, 255, 0.05);
     border-radius: 4px;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
+    transition: background 0.2s, opacity 0.3s;
+}
+
+/* Join/leave animations */
+.mp-player-list li.player-entering {
+    animation: playerSlideIn 0.3s ease-out;
+}
+
+.mp-player-list li.player-leaving {
+    animation: playerFadeOut 0.25s ease-in forwards;
+}
+
+.mp-player-list li.player-changed {
+    animation: playerPulse 0.4s ease-out;
+}
+
+@keyframes playerSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes playerFadeOut {
+    to {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+}
+
+@keyframes playerPulse {
+    0% {
+        background: rgba(102, 126, 234, 0.2);
+    }
+    100% {
+        background: rgba(255, 255, 255, 0.05);
+    }
 }
 
 .mp-player-list .player-info {
     display: flex;
     align-items: center;
     gap: 6px;
+    min-width: 0;
+    flex: 1;
 }
 
 .mp-player-list .player-name {
     color: rgba(255, 255, 255, 0.8);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 160px;
 }
 
 .mp-player-list .player-name.you {
@@ -403,11 +454,13 @@
     background: rgba(220, 53, 69, 0.2);
     border: 1px solid rgba(220, 53, 69, 0.4);
     color: #ff6b6b;
-    padding: 2px 6px;
+    padding: 4px 8px;
     border-radius: 3px;
-    font-size: 0.65rem;
+    font-size: 0.7rem;
     cursor: pointer;
     transition: all 0.2s;
+    min-height: 28px;
+    flex-shrink: 0;
 }
 
 .mp-player-list .btn-kick:hover {
@@ -607,7 +660,7 @@
 }
 
 .chat-messages {
-    height: 130px;
+    height: clamp(100px, 20vh, 260px);
     overflow-y: auto;
     overscroll-behavior: contain;
     padding: 6px 8px;
@@ -654,6 +707,10 @@
 
 .chat-message.spectator-message {
     opacity: 0.7;
+    background: rgba(255, 255, 255, 0.03);
+    border-left: 2px solid rgba(255, 255, 255, 0.15);
+    padding-left: 6px;
+    border-radius: 2px;
 }
 
 .chat-content {
@@ -691,6 +748,13 @@
     border-color: rgba(255, 255, 255, 0.3);
 }
 
+.chat-timestamp {
+    font-size: 0.6rem;
+    color: rgba(255, 255, 255, 0.35);
+    margin-left: 4px;
+    white-space: nowrap;
+}
+
 .chat-team-only {
     display: flex;
     align-items: center;
@@ -698,11 +762,21 @@
     cursor: pointer;
     font-size: 0.7rem;
     white-space: nowrap;
-    opacity: 0.7;
+    padding: 3px 8px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.2s;
 }
 
 .chat-team-only:hover {
-    opacity: 1;
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.chat-team-only:has(input:checked) {
+    background: rgba(102, 126, 234, 0.2);
+    border-color: rgba(102, 126, 234, 0.4);
 }
 
 .chat-team-label {

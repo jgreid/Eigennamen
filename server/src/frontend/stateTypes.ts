@@ -206,4 +206,14 @@ export interface AppState {
     // until the full resync completes (prevents stale partial updates
     // from overriding fresh resync data)
     resyncInProgress: boolean;
+
+    // Ready check state
+    readyCheck: ReadyCheckState | null;
+}
+
+export interface ReadyCheckState {
+    active: boolean;
+    players: { sessionId: string; nickname: string; ready: boolean }[];
+    startedBy: string;
+    timeout: number;
 }

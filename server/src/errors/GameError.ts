@@ -153,6 +153,10 @@ export class GameStateError extends GameError {
         return new GameStateError(ERROR_CODES.GAME_NOT_STARTED, 'No active game');
     }
 
+    static gamePaused(): GameStateError {
+        return new GameStateError('GAME_PAUSED' as ErrorCode, 'Game is currently paused');
+    }
+
     static corrupted(roomCode: string, context: GameErrorDetails = {}): GameStateError {
         return new GameStateError(ERROR_CODES.SERVER_ERROR, 'Game data corrupted, please start a new game', {
             roomCode,
@@ -237,6 +241,7 @@ export const SAFE_ERROR_CODES: readonly SafeErrorCode[] = [
     'CANNOT_CHANGE_ROLE_DURING_TURN',
     'SPYMASTER_CANNOT_CHANGE_TEAM',
     'GAME_NOT_STARTED',
+    'GAME_PAUSED',
 ] as const;
 
 /**

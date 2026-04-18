@@ -2,18 +2,20 @@ import type { Server } from 'socket.io';
 import type { Player, GameState, Room, RevealResult, EndTurnResult, ForfeitResult } from '../../types';
 import type { GameSocket, RoomContext, GameContext } from './types';
 
-import type { ZodType } from 'zod';
+import { z, type ZodType } from 'zod';
 import * as gameService from '../../services/gameService';
 import * as playerService from '../../services/playerService';
 import * as roomService from '../../services/roomService';
 import { debouncedRefreshRoomTTL } from '../../services/roomService';
 import * as gameHistoryService from '../../services/gameHistoryService';
+import * as timerService from '../../services/timerService';
 import {
     gameRevealSchema,
     gameStartSchema,
     gameHistoryLimitSchema,
     gameReplaySchema,
     gameForfeitSchema,
+    gameReadySchema,
 } from '../../validators/schemas';
 import logger from '../../utils/logger';
 import { ERROR_CODES, SOCKET_EVENTS } from '../../config/constants';
@@ -162,6 +164,8 @@ function gameHandlers(io: Server, socket: GameSocket): void {
             SOCKET_EVENTS.GAME_REVEAL,
             gameRevealSchema,
             async (ctx: GameContext, validated: GameRevealInput) => {
+                if (ctx.game.paused) throw GameStateError.gamePaused();
+
                 if (!ctx.player.team) {
                     throw new ValidationError('You must join a team before revealing cards');
                 }
@@ -281,6 +285,8 @@ function gameHandlers(io: Server, socket: GameSocket): void {
     socket.on(
         SOCKET_EVENTS.GAME_END_TURN,
         createGameHandler(socket, SOCKET_EVENTS.GAME_END_TURN, null, async (ctx: GameContext) => {
+            if (ctx.game.paused) throw GameStateError.gamePaused();
+
             if (!ctx.player.team) {
                 throw new ValidationError('You must join a team before ending the turn');
             }
@@ -347,6 +353,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 if (!ctx.game || ctx.game.gameOver) {
                     throw GameStateError.noActiveGame();
                 }
+                if (ctx.game.paused) throw GameStateError.gamePaused();
 
                 // Stop timer
                 await getSocketFunctions().stopTurnTimer(ctx.roomCode);
@@ -504,6 +511,49 @@ function gameHandlers(io: Server, socket: GameSocket): void {
     );
 
     /**
+     * Initiate a ready check before starting a game (host only)
+     */
+    socket.on(
+        SOCKET_EVENTS.GAME_READY_CHECK,
+        createHostHandler(socket, SOCKET_EVENTS.GAME_READY_CHECK, gameReadySchema, async (ctx: RoomContext) => {
+            if (ctx.game && !ctx.game.gameOver) {
+                throw RoomError.gameInProgress(ctx.roomCode);
+            }
+
+            const players: Player[] = await playerService.getPlayersInRoom(ctx.roomCode);
+
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_READY_STATUS, {
+                players: players.map((p: Player) => ({
+                    sessionId: p.sessionId,
+                    nickname: p.nickname,
+                    ready: false,
+                })),
+                startedBy: ctx.player.nickname,
+                timeout: 30,
+            });
+
+            logger.info(`Ready check initiated in room ${ctx.roomCode} by ${ctx.player.nickname}`);
+        })
+    );
+
+    /**
+     * Respond to a ready check
+     */
+    socket.on(
+        SOCKET_EVENTS.GAME_READY,
+        createRoomHandler(socket, SOCKET_EVENTS.GAME_READY, gameReadySchema, async (ctx: RoomContext) => {
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_READY_STATUS, {
+                playerReady: {
+                    sessionId: ctx.player.sessionId,
+                    nickname: ctx.player.nickname,
+                },
+            });
+
+            logger.info(`Player ${ctx.player.nickname} ready in room ${ctx.roomCode}`);
+        })
+    );
+
+    /**
      * Get past games history for this room (for replay)
      */
     socket.on(
@@ -543,6 +593,57 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 logger.debug(`Replay data retrieved for game ${validated.gameId} in room ${ctx.roomCode}`);
             }
         )
+    );
+
+    /**
+     * Typing indicator — broadcast to room that a player is typing
+     */
+    socket.on(
+        SOCKET_EVENTS.GAME_TYPING,
+        createGameHandler(socket, SOCKET_EVENTS.GAME_TYPING, z.object({}).strict(), async (ctx: GameContext) => {
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_TYPING, {
+                sessionId: ctx.player.sessionId,
+                nickname: ctx.player.nickname,
+            });
+        })
+    );
+
+    /**
+     * Pause the game (host only, requires active game)
+     */
+    socket.on(
+        SOCKET_EVENTS.GAME_PAUSE,
+        createGameHandler(socket, SOCKET_EVENTS.GAME_PAUSE, null, async (ctx: GameContext) => {
+            if (!ctx.player.isHost) throw PlayerError.notHost();
+
+            await gameService.pauseGame(ctx.roomCode);
+            await timerService.pauseTimer(ctx.roomCode);
+
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_PAUSED, {
+                pausedBy: ctx.player.nickname,
+            });
+
+            logger.info(`Game paused in room ${ctx.roomCode} by ${ctx.player.nickname}`);
+        })
+    );
+
+    /**
+     * Resume the game (host only, requires active game)
+     */
+    socket.on(
+        SOCKET_EVENTS.GAME_RESUME,
+        createGameHandler(socket, SOCKET_EVENTS.GAME_RESUME, null, async (ctx: GameContext) => {
+            if (!ctx.player.isHost) throw PlayerError.notHost();
+
+            await gameService.resumeGame(ctx.roomCode);
+            await timerService.resumeTimer(ctx.roomCode);
+
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_RESUMED, {
+                resumedBy: ctx.player.nickname,
+            });
+
+            logger.info(`Game resumed in room ${ctx.roomCode} by ${ctx.player.nickname}`);
+        })
     );
 }
 

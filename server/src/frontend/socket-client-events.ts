@@ -38,6 +38,7 @@ import type {
     ChatMessageData,
     SpectatorChatData,
     ServerErrorData,
+    ReadyStatusData,
 } from './multiplayerTypes.js';
 
 /** Callback signature for registering a socket listener with tracking. */
@@ -217,6 +218,10 @@ export function registerAllEventListeners(register: RegisterFn, emit: EmitFn, cl
 
     register('game:historyCleared', (raw: unknown) => {
         emit('historyCleared', raw as { deletedCount: number });
+    });
+
+    register('game:readyStatus', (raw: unknown) => {
+        emit('game:readyStatus', raw as ReadyStatusData);
     });
 
     register('game:error', (raw: unknown) => {

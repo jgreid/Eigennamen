@@ -13,6 +13,7 @@ jest.mock('../../socket/rateLimitHandler', () => ({
 jest.mock('../../services/gameService');
 jest.mock('../../services/playerService');
 jest.mock('../../services/roomService');
+jest.mock('../../services/timerService');
 jest.mock('../../services/gameHistoryService', () => ({
     saveGameResult: jest.fn().mockResolvedValue({ gameId: 'test-game-id' }),
     getGameHistory: jest.fn().mockResolvedValue([]),

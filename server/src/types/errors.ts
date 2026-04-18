@@ -30,7 +30,8 @@ export type ErrorCode =
     | 'CANNOT_CHANGE_ROLE_DURING_TURN'
     | 'SPYMASTER_CANNOT_CHANGE_TEAM'
     | 'PLAYER_NOT_FOUND'
-    | 'GAME_NOT_STARTED';
+    | 'GAME_NOT_STARTED'
+    | 'GAME_PAUSED';
 
 /**
  * Base interface for game errors
@@ -115,7 +116,8 @@ export type SafeErrorCode =
     | 'CANNOT_SWITCH_TEAM_DURING_TURN'
     | 'CANNOT_CHANGE_ROLE_DURING_TURN'
     | 'SPYMASTER_CANNOT_CHANGE_TEAM'
-    | 'GAME_NOT_STARTED';
+    | 'GAME_NOT_STARTED'
+    | 'GAME_PAUSED';
 
 /**
  * Sanitized error for client emission

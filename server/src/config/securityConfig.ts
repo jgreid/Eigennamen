@@ -5,7 +5,6 @@ import {
     CHAT_MESSAGE_MAX_LENGTH,
     RESERVED_NAMES as SHARED_RESERVED_NAMES,
 } from '../shared';
-
 /**
  * Retry configuration
  */
@@ -14,13 +13,23 @@ export interface RetryConfig {
     baseDelayMs: number;
 }
 
+/**
+ * Get reconnection token TTL from environment with bounds clamping.
+ * @returns TTL in seconds, clamped to [60, 1800], default 300
+ */
+function getReconnectTokenTtl(): number {
+    const raw = process.env.RECONNECT_TOKEN_TTL_SECONDS;
+    const val = raw ? parseInt(raw, 10) : 300;
+    return Math.max(60, Math.min(1800, Number.isFinite(val) ? val : 300));
+}
+
 // Session security configuration
 export const SESSION_SECURITY = {
     MAX_SESSION_AGE_MS: 8 * 60 * 60 * 1000, // 8 hours max session lifetime (reduced from 24h for security)
     MAX_VALIDATION_ATTEMPTS_PER_IP: 20, // Max validation attempts per IP per minute
     IP_MISMATCH_ALLOWED: process.env.ALLOW_IP_MISMATCH === 'true', // Deny reconnection from different IP by default; set ALLOW_IP_MISMATCH=true to allow
     SESSION_ID_MIN_LENGTH: 36, // UUID length
-    RECONNECTION_TOKEN_TTL_SECONDS: 300, // 5 minutes TTL for reconnection tokens (HARDENING: reduced from 15 min to limit session hijacking window)
+    RECONNECTION_TOKEN_TTL_SECONDS: getReconnectTokenTtl(), // Configurable via RECONNECT_TOKEN_TTL_SECONDS env var (default 300, range 60-1800)
     RECONNECTION_TOKEN_LENGTH: 32, // Bytes for secure token
     ROTATE_SESSION_ON_RECONNECT: true, // Issue new session token after successful reconnection
 } as const;

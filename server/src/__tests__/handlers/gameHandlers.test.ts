@@ -13,6 +13,7 @@ jest.mock('../../services/gameService');
 jest.mock('../../services/playerService');
 jest.mock('../../services/roomService');
 jest.mock('../../services/gameHistoryService');
+jest.mock('../../services/timerService');
 jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
