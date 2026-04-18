@@ -96,8 +96,14 @@ export function encodeWordsForURL(words: string[]): string {
     return btoa(words.map(escapeWordDelimiter).join('|')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+// Defense-in-depth cap on encoded payload length before atob() to prevent URL
+// parameter memory inflation. 25 words * 64 chars/word * 4/3 base64 expansion
+// is well under 4 KiB; 8 KiB is a generous upper bound.
+const MAX_ENCODED_WORDS_BYTES = 8 * 1024;
+
 export function decodeWordsFromURL(encoded: string): string[] | null {
     try {
+        if (encoded.length > MAX_ENCODED_WORDS_BYTES) return null;
         const padded = encoded.replace(/-/g, '+').replace(/_/g, '/');
         const decoded = atob(padded);
         // Split on unescaped | only (not preceded by odd number of backslashes)

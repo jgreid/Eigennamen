@@ -103,10 +103,12 @@ describe('Lua Script Behavioral Contracts', () => {
             expect(REVEAL_CARD_SCRIPT).toContain('game.stateVersion = (game.stateVersion or 0) + 1');
         });
 
-        it('TTL is preserved on save', () => {
+        it('TTL is preserved on save with defaultTtl fallback to avoid permanent keys', () => {
             expect(REVEAL_CARD_SCRIPT).toContain("redis.call('TTL', gameKey)");
             expect(REVEAL_CARD_SCRIPT).toContain('currentTTL > 0');
-            expect(REVEAL_CARD_SCRIPT).toContain("'EX', currentTTL");
+            expect(REVEAL_CARD_SCRIPT).toContain('local defaultTtl = tonumber(ARGV[6])');
+            expect(REVEAL_CARD_SCRIPT).toContain('local saveTtl = currentTTL > 0 and currentTTL or defaultTtl');
+            expect(REVEAL_CARD_SCRIPT).toContain("'EX', saveTtl");
         });
 
         it('result includes allTypes when gameOver', () => {
@@ -163,10 +165,12 @@ describe('Lua Script Behavioral Contracts', () => {
             expect(END_TURN_SCRIPT).toContain('game.stateVersion = (game.stateVersion or 0) + 1');
         });
 
-        it('preserves TTL', () => {
+        it('preserves TTL with defaultTtl fallback to avoid permanent keys', () => {
             expect(END_TURN_SCRIPT).toContain("redis.call('TTL', gameKey)");
             expect(END_TURN_SCRIPT).toContain('currentTTL > 0');
-            expect(END_TURN_SCRIPT).toContain("'EX', currentTTL");
+            expect(END_TURN_SCRIPT).toContain('local defaultTtl = tonumber(ARGV[5])');
+            expect(END_TURN_SCRIPT).toContain('local saveTtl = currentTTL > 0 and currentTTL or defaultTtl');
+            expect(END_TURN_SCRIPT).toContain("'EX', saveTtl");
         });
     });
 

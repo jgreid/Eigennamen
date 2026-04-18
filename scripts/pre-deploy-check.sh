@@ -2,7 +2,7 @@
 # Pre-deployment validation script
 # Run before deploying to catch common issues
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
@@ -32,7 +32,7 @@ success() {
 # 1. Check environment variables
 echo "📋 Checking environment configuration..."
 
-if [ -n "$JWT_SECRET" ]; then
+if [ -n "${JWT_SECRET:-}" ]; then
     if [ ${#JWT_SECRET} -lt 32 ]; then
         error "JWT_SECRET must be at least 32 characters (current: ${#JWT_SECRET})"
     else
@@ -42,7 +42,7 @@ else
     warning "JWT_SECRET not set in environment (will use .env file)"
 fi
 
-if [ "$NODE_ENV" = "production" ]; then
+if [ "${NODE_ENV:-}" = "production" ]; then
     success "NODE_ENV=production"
 else
     warning "NODE_ENV is not 'production' (current: ${NODE_ENV:-development})"

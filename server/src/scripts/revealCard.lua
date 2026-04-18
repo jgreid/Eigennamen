@@ -6,6 +6,9 @@ local maxHistoryEntries = tonumber(ARGV[4])
 if maxHistoryEntries == nil or maxHistoryEntries < 1 then maxHistoryEntries = 100 end
 -- Bug #4 fix: Add player team parameter for turn validation
 local playerTeam = ARGV[5]
+-- Default TTL applied when the key has no expiry (-1) to prevent permanent keys
+local defaultTtl = tonumber(ARGV[6])
+if defaultTtl == nil or defaultTtl < 1 then defaultTtl = 86400 end
 
 -- Defense-in-depth: Validate index bounds (0-24 for 25-card board)
 -- JS already validates, but Lua should also check to prevent any bypass
@@ -260,12 +263,10 @@ end
 -- Increment version
 game.stateVersion = (game.stateVersion or 0) + 1
 
--- Save updated game, preserving TTL
-if currentTTL > 0 then
-    redis.call('SET', gameKey, cjson.encode(game), 'EX', currentTTL)
-else
-    redis.call('SET', gameKey, cjson.encode(game))
-end
+-- Save updated game, preserving TTL (or falling back to the caller-supplied
+-- default TTL so the key never becomes permanent)
+local saveTtl = currentTTL > 0 and currentTTL or defaultTtl
+redis.call('SET', gameKey, cjson.encode(game), 'EX', saveTtl)
 
 -- Return result
 local result = {

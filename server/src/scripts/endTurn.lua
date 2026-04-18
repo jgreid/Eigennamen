@@ -6,6 +6,7 @@
 -- ARGV[2]: Timestamp (ms)
 -- ARGV[3]: Max history entries
 -- ARGV[4]: Expected current turn team (race condition guard)
+-- ARGV[5]: Default TTL in seconds (applied when the key has no expiry)
 --
 -- Returns: JSON `{success: true, previousTurn, currentTurn}` or `{error: 'CODE'}`
 
@@ -15,6 +16,8 @@ local timestamp = tonumber(ARGV[2])
 local maxHistoryEntries = tonumber(ARGV[3])
 if maxHistoryEntries == nil or maxHistoryEntries < 1 then maxHistoryEntries = 100 end
 local expectedTeam = ARGV[4]
+local defaultTtl = tonumber(ARGV[5])
+if defaultTtl == nil or defaultTtl < 1 then defaultTtl = 86400 end
 
 -- Preserve existing TTL so the key doesn't become permanent
 local currentTTL = redis.call('TTL', gameKey)
@@ -77,12 +80,10 @@ end
 -- Increment version
 game.stateVersion = (game.stateVersion or 0) + 1
 
--- Save game, preserving TTL
-if currentTTL > 0 then
-    redis.call('SET', gameKey, cjson.encode(game), 'EX', currentTTL)
-else
-    redis.call('SET', gameKey, cjson.encode(game))
-end
+-- Save game, preserving TTL (or falling back to the caller-supplied default
+-- TTL so the key never becomes permanent)
+local saveTtl = currentTTL > 0 and currentTTL or defaultTtl
+redis.call('SET', gameKey, cjson.encode(game), 'EX', saveTtl)
 
 return cjson.encode({
     success = true,

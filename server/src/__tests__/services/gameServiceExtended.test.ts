@@ -60,7 +60,16 @@ const {
     buildRevealResult,
     getGameStateForPlayer,
 } = require('../../services/game/revealEngine');
-const { createGame, getGame, revealCard, endTurn, forfeitGame, cleanupGame } = require('../../services/gameService');
+const {
+    createGame,
+    getGame,
+    revealCard,
+    endTurn,
+    forfeitGame,
+    cleanupGame,
+    pauseGame,
+    resumeGame,
+} = require('../../services/gameService');
 
 describe('validateCardIndex', () => {
     test('accepts valid indices 0-24', () => {
@@ -1081,5 +1090,112 @@ describe('cleanupGame', () => {
 
         expect(mockRedis.del).toHaveBeenCalledWith('room:TEST01:game');
         expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining('cleaned up'));
+    });
+});
+
+describe('pauseGame / resumeGame', () => {
+    const createMockGameData = (overrides = {}) => ({
+        id: 'game-1',
+        seed: 'test-seed',
+        words: DEFAULT_WORDS.slice(0, 25),
+        types: [...Array(9).fill('red'), ...Array(8).fill('blue'), ...Array(7).fill('neutral'), 'assassin'],
+        revealed: Array(25).fill(false),
+        currentTurn: 'red',
+        redScore: 3,
+        blueScore: 2,
+        redTotal: 9,
+        blueTotal: 8,
+        gameOver: false,
+        winner: null,
+        currentClue: null,
+        guessesUsed: 0,
+        guessesAllowed: 0,
+        clues: [],
+        history: [],
+        stateVersion: 1,
+        paused: false,
+        ...overrides,
+    });
+
+    beforeEach(() => {
+        mockRedis.set.mockReset().mockResolvedValue('OK'); // default: lock acquires
+        mockRedis.watch.mockReset().mockResolvedValue('OK');
+        mockRedis.unwatch.mockReset().mockResolvedValue('OK');
+        mockRedis.eval.mockReset().mockResolvedValue(1); // lock release script
+        mockRedis.get.mockReset();
+        mockRedis.ttl.mockReset().mockResolvedValue(3600);
+        mockMulti.exec.mockReset().mockResolvedValue(mockMultiResult);
+    });
+
+    test('pauseGame persists paused=true and preserves TTL via EX', async () => {
+        mockRedis.get.mockResolvedValue(JSON.stringify(createMockGameData({ paused: false })));
+
+        await pauseGame('TEST01');
+
+        // Multi.set called with paused=true and EX using the existing TTL
+        expect(mockMulti.set).toHaveBeenCalledWith(
+            'room:TEST01:game',
+            expect.stringContaining('"paused":true'),
+            expect.objectContaining({ EX: 3600 })
+        );
+    });
+
+    test('pauseGame rejects when game is already over', async () => {
+        mockRedis.get.mockResolvedValue(JSON.stringify(createMockGameData({ gameOver: true })));
+
+        await expect(pauseGame('TEST01')).rejects.toMatchObject({
+            code: ERROR_CODES.GAME_OVER,
+        });
+        expect(mockMulti.set).not.toHaveBeenCalled();
+    });
+
+    test('pauseGame rejects when no game exists', async () => {
+        mockRedis.get.mockResolvedValue(null);
+
+        await expect(pauseGame('TEST01')).rejects.toMatchObject({
+            code: ERROR_CODES.GAME_NOT_STARTED,
+        });
+    });
+
+    test('pauseGame retries on optimistic-lock failure (MULTI returns null)', async () => {
+        mockRedis.get.mockResolvedValue(JSON.stringify(createMockGameData()));
+        // First exec races (returns null), second succeeds
+        mockMulti.exec.mockResolvedValueOnce(null).mockResolvedValueOnce(mockMultiResult);
+
+        await pauseGame('TEST01');
+
+        expect(mockMulti.exec).toHaveBeenCalledTimes(2);
+    });
+
+    test('pauseGame falls back to REDIS_TTL.ROOM when current TTL is missing', async () => {
+        mockRedis.get.mockResolvedValue(JSON.stringify(createMockGameData()));
+        mockRedis.ttl.mockResolvedValue(-1); // no TTL on the key
+
+        await pauseGame('TEST01');
+
+        const setArgs = mockMulti.set.mock.calls[0];
+        expect(setArgs[2]).toEqual(expect.objectContaining({ EX: expect.any(Number) }));
+        // Never SET without EX (that would make the key permanent)
+        expect(setArgs[2].EX).toBeGreaterThan(0);
+    });
+
+    test('resumeGame persists paused=false and preserves TTL', async () => {
+        mockRedis.get.mockResolvedValue(JSON.stringify(createMockGameData({ paused: true })));
+
+        await resumeGame('TEST01');
+
+        expect(mockMulti.set).toHaveBeenCalledWith(
+            'room:TEST01:game',
+            expect.stringContaining('"paused":false'),
+            expect.objectContaining({ EX: 3600 })
+        );
+    });
+
+    test('resumeGame rejects when no game exists', async () => {
+        mockRedis.get.mockResolvedValue(null);
+
+        await expect(resumeGame('TEST01')).rejects.toMatchObject({
+            code: ERROR_CODES.GAME_NOT_STARTED,
+        });
     });
 });

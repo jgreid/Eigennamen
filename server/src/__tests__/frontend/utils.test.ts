@@ -245,6 +245,12 @@ describe('encodeWordsForURL / decodeWordsFromURL', () => {
     it('handles single word', () => {
         expect(decodeWordsFromURL(encodeWordsForURL(['SOLO']))).toEqual(['SOLO']);
     });
+
+    it('rejects payloads larger than the safety cap to prevent URL memory inflation', () => {
+        // 8 KiB + 1 byte — one past the cap
+        const oversized = 'A'.repeat(8 * 1024 + 1);
+        expect(decodeWordsFromURL(oversized)).toBeNull();
+    });
 });
 
 describe('escapeWordDelimiter / unescapeWordDelimiter', () => {
