@@ -37,17 +37,23 @@ end
 -- Get TTL buffer from arguments instead of hardcoding
 local ttlBuffer = tonumber(ARGV[4]) or 60
 
--- Calculate new end time
+-- Calculate new end time and current remaining seconds.
+-- `duration` is the originally-allotted turn length and must NOT be
+-- overwritten on add-time — clients display it alongside the live remaining
+-- time. Only `endTime` and the returned `remainingSeconds` reflect the add.
 local newEndTime = timer.endTime + (secondsToAdd * 1000)
-local newDuration = math.ceil((newEndTime - now) / 1000)
+local remainingMsAfter = newEndTime - now
+local remainingSeconds = 0
+if remainingMsAfter > 0 then
+    remainingSeconds = math.ceil(remainingMsAfter / 1000)
+end
 
 -- Update timer
 timer.endTime = newEndTime
-timer.duration = newDuration
 timer.instanceId = instanceId
 
--- Calculate new TTL (duration + buffer from constant)
-local newTtl = newDuration + ttlBuffer
+-- TTL must cover remaining time plus buffer; preserves original duration for UI.
+local newTtl = remainingSeconds + ttlBuffer
 
 redis.call('SET', timerKey, cjson.encode(timer), 'EX', newTtl)
-return cjson.encode({endTime = newEndTime, duration = newDuration, remainingSeconds = newDuration})
+return cjson.encode({endTime = newEndTime, duration = timer.duration, remainingSeconds = remainingSeconds})

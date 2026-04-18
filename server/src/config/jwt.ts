@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { createHmac } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 import logger from '../utils/logger';
 import { isProduction as isProd } from './env';
 
@@ -355,10 +355,10 @@ function verifyMatchSignature(data: Record<string, unknown>, signature: string |
     if (!signature) return false;
     const expected = createHmac('sha256', secret).update(JSON.stringify(data)).digest('hex');
     try {
-        return (
-            createHmac('sha256', secret).update(expected).digest('hex') ===
-            createHmac('sha256', secret).update(signature).digest('hex')
-        );
+        const expectedBuf = Buffer.from(expected, 'hex');
+        const signatureBuf = Buffer.from(signature, 'hex');
+        if (expectedBuf.length !== signatureBuf.length || expectedBuf.length === 0) return false;
+        return timingSafeEqual(expectedBuf, signatureBuf);
     } catch {
         return false;
     }
