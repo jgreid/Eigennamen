@@ -44,7 +44,7 @@
     "express-rate-limit": "^8.3.2",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
-    "redis": "^5.11.0",
+    "redis": "^5.12.1",
     "socket.io": "^4.7.2",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^11.1.0",
