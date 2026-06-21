@@ -7,6 +7,9 @@ import { UI } from './constants.js';
 let unreadCount = 0;
 let chatOpen = false;
 let chatInitialized = false;
+// Stored so hideChatPanel() can detach it; the toggle/send handlers are
+// module-level functions and are removed by reference directly.
+let chatKeydownHandler: ((e: KeyboardEvent) => void) | null = null;
 
 /**
  * Initialize chat UI event listeners (idempotent)
@@ -23,12 +26,13 @@ export function initChat(): void {
 
     sendBtn?.addEventListener('click', sendChatMessage);
 
-    input?.addEventListener('keydown', (e: KeyboardEvent) => {
+    chatKeydownHandler = (e: KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             sendChatMessage();
         }
-    });
+    };
+    input?.addEventListener('keydown', chatKeydownHandler);
 }
 
 /**
@@ -203,8 +207,22 @@ export function hideChatPanel(): void {
     const panel = document.getElementById('chat-panel');
     if (panel) panel.hidden = true;
 
-    // Reset state — includes chatInitialized so listeners are re-attached
-    // when the panel is shown again (DOM elements are recreated between rooms)
+    // Detach the listeners initChat() attached before re-allowing init. The
+    // previous code only reset chatInitialized without removing listeners, so a
+    // join → leave → join cycle stacked a duplicate set each time (each click
+    // then fired N times). The chat elements are normally static, so removing by
+    // reference here keeps exactly one set of listeners at any time.
+    const toggle = document.getElementById('chat-toggle');
+    toggle?.removeEventListener('click', toggleChat);
+
+    const sendBtn = document.getElementById('chat-send-btn');
+    sendBtn?.removeEventListener('click', sendChatMessage);
+
+    const input = document.getElementById('chat-input');
+    if (input && chatKeydownHandler) input.removeEventListener('keydown', chatKeydownHandler);
+    chatKeydownHandler = null;
+
+    // Reset state — chatInitialized so listeners are re-attached on next show
     chatOpen = false;
     chatInitialized = false;
     unreadCount = 0;
@@ -213,7 +231,6 @@ export function hideChatPanel(): void {
     const body = document.getElementById('chat-body');
     if (body) body.hidden = true;
 
-    const toggle = document.getElementById('chat-toggle');
     if (toggle) toggle.setAttribute('aria-expanded', 'false');
 
     // Clear messages

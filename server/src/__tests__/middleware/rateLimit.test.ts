@@ -353,6 +353,48 @@ describe('Rate Limit Middleware', () => {
                 expect(metrics.blockedRequests).toBeGreaterThan(0);
             });
         });
+
+        describe('Session Rate Limiting', () => {
+            it('should include session entries in getSize for authenticated sockets', () => {
+                const limits = { 'test:event': { max: 100, window: 60000 } };
+                const rl = createSocketRateLimiter(limits);
+                const next = jest.fn();
+
+                // Authenticated socket creates socket + session + IP + global-IP entries
+                rl.getLimiter('test:event')({ id: 'auth', clientIP: '10.9.9.9', sessionId: 'sess-x' }, {}, next);
+
+                expect(rl.getSize()).toBeGreaterThanOrEqual(4);
+            });
+
+            it('should reclaim stale session entries in cleanupStale (no unbounded leak)', () => {
+                const realNow = Date.now();
+                const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(realNow);
+                try {
+                    const limits = { 'test:event': { max: 100, window: 1000 } };
+                    const rl = createSocketRateLimiter(limits);
+                    const middleware = rl.getLimiter('test:event');
+                    const next = jest.fn();
+
+                    // 20 distinct sessions (shared IP) each emit one event → one
+                    // session entry per session.
+                    for (let i = 0; i < 20; i++) {
+                        middleware({ id: `sk-${i}`, clientIP: '10.8.8.8', sessionId: `sess-${i}` }, {}, next);
+                    }
+                    expect(rl.getSize()).toBeGreaterThanOrEqual(40);
+
+                    // Advance past the event window so socket/session/IP entries are
+                    // stale; only the 60s global-IP entry should survive the sweep.
+                    nowSpy.mockReturnValue(realNow + 2000);
+                    rl.cleanupStale();
+
+                    // Before the fix, session entries were never swept and getSize
+                    // stayed ~21. They must now be reclaimed.
+                    expect(rl.getSize()).toBeLessThanOrEqual(1);
+                } finally {
+                    nowSpy.mockRestore();
+                }
+            });
+        });
     });
 
     describe('filterTimestampsInPlace', () => {

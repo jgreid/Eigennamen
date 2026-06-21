@@ -1377,21 +1377,22 @@ describe('Player Service', () => {
             expect(result.reason).toBe('SCRIPT_ERROR');
         });
 
-        test('logs warning when Lua script returns failure', async () => {
+        test('preserves and logs the failure reason from the Lua script', async () => {
+            // hostTransfer.lua returns `{success:false, reason:'...'}`. The result
+            // schema must preserve `reason` so callers can log/inspect it (it was
+            // previously stripped, surfacing as `undefined`).
             mockRedis.eval.mockResolvedValue(
                 JSON.stringify({
                     success: false,
-                    error: 'OLD_HOST_NOT_FOUND',
+                    reason: 'OLD_HOST_NOT_FOUND',
                 })
             );
 
             const result = await playerService.atomicHostTransfer('s1', 's2', 'ROOM01');
 
             expect(result.success).toBe(false);
-            expect(logger.warn).toHaveBeenCalledWith(
-                expect.stringContaining('Host transfer failed'),
-                expect.any(Object)
-            );
+            expect(result.reason).toBe('OLD_HOST_NOT_FOUND');
+            expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('OLD_HOST_NOT_FOUND'), expect.any(Object));
         });
     });
 });
