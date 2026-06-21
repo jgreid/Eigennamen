@@ -2,7 +2,7 @@ import type { Room, CreateRoomSettings, CreateRoomResult, RoomSettings } from '.
 import type { Player, RedisClient } from '../types';
 
 import { getRedis } from '../config/redis';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import logger from '../utils/logger';
 import * as playerService from './playerService';
 import * as timerService from './timerService';
@@ -51,7 +51,7 @@ export async function createRoom(
     const { nickname: hostNickname, ...cleanSettings } = settings;
 
     const room: Room = {
-        id: uuidv4(),
+        id: randomUUID(),
         code: normalizedRoomId, // Use normalized room ID as the code
         roomId: roomId, // Keep original for display
         hostSessionId,

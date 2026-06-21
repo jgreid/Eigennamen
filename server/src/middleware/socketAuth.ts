@@ -1,6 +1,6 @@
 import type { Socket } from 'socket.io';
 
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import logger from '../utils/logger';
 import * as playerService from '../services/playerService';
 import { getClientIP } from './auth/clientIP';
@@ -32,7 +32,7 @@ async function authenticateSocket(socket: Socket, next: (err?: Error) => void): 
         const resolution = await resolveSessionId(auth, currentIP);
 
         // Use validated session ID or generate new one
-        authSocket.sessionId = resolution.validatedSessionId || uuidv4();
+        authSocket.sessionId = resolution.validatedSessionId || randomUUID();
         authSocket.clientIP = currentIP;
 
         // Flag IP mismatch on socket for monitoring

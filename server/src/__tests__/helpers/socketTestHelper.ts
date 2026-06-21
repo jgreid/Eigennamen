@@ -9,7 +9,7 @@ import http from 'http';
 import { Server } from 'socket.io';
 
 const Client = require('socket.io-client');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('crypto');
 
 type AnyRecord = Record<string, any>;
 

@@ -4,6 +4,11 @@
     "target": "ES2022",
     "module": "commonjs",
     "moduleResolution": "node10",
+    // TS 6.0 deprecates the 'node10' resolution and turns it into a hard error.
+    // node10 remains correct for this CommonJS server build, so silence the
+    // deprecation until a deliberate migration to 'node16'/'nodenext'. Without
+    // this, both `tsc --noEmit` and every ts-jest suite fail to compile.
+    "ignoreDeprecations": "6.0",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
 
@@ -55,7 +60,7 @@
     "node_modules",
     "dist",
     "coverage",
-    "src/__tests__/**/*.test.ts",
+    "src/__tests__",
     "src/frontend"
   ]
 }

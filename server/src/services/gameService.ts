@@ -9,7 +9,7 @@ import type {
     RoundResult,
 } from '../types';
 
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { getRedis } from '../config/redis';
 import logger from '../utils/logger';
 import {
@@ -162,7 +162,7 @@ function buildGameState(
     const numericSeed = hashString(seed);
 
     const base: GameState = {
-        id: uuidv4(),
+        id: randomUUID(),
         seed,
         wordListId: usedWordListId,
         words: boardWords,

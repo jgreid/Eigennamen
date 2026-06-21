@@ -1,6 +1,6 @@
 import { getRedis } from '../config/redis';
 import logger from './logger';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { withTimeout } from './timeout';
 import { ServerError } from '../errors/GameError';
 import { RELEASE_LOCK_SCRIPT as _RELEASE_LOCK_SCRIPT, EXTEND_LOCK_SCRIPT as _EXTEND_LOCK_SCRIPT } from '../scripts';
@@ -65,7 +65,7 @@ class DistributedLock {
         }
         const redis = getRedis();
         const key = `lock:${lockKey}`;
-        const ownerId = `${this.instanceId}:${uuidv4()}`;
+        const ownerId = `${this.instanceId}:${randomUUID()}`;
 
         for (let attempt = 0; attempt < config.maxRetries; attempt++) {
             try {

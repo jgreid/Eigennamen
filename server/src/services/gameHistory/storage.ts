@@ -3,7 +3,7 @@ import type { GameDataInput, GameHistoryEntry, GameHistorySummary, EndReason, Hi
 
 import { getRedis } from '../../config/redis';
 import logger from '../../utils/logger';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { tryParseJSON } from '../../utils/parseJSON';
 import { withTimeout, TIMEOUTS } from '../../utils/timeout';
 import { ATOMIC_SAVE_GAME_HISTORY_SCRIPT } from '../../scripts';
@@ -100,7 +100,7 @@ export async function saveGameResult(roomCode: string, gameData: GameDataInput):
     }
 
     // Generate a unique history ID if game doesn't have one
-    const historyId = gameData.id || uuidv4();
+    const historyId = gameData.id || randomUUID();
     const timestamp = Date.now();
 
     // Build the history entry with replay data

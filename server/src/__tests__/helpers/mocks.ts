@@ -5,7 +5,7 @@
  * Reduces boilerplate and ensures consistency across tests.
  */
 
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('crypto');
 
 type AnyRecord = Record<string, any>;
 
