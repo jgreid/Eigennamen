@@ -402,6 +402,11 @@ jobs:
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'HIGH,CRITICAL'
+          # Block only on vulnerabilities with a published fix (which the
+          # Dockerfile's `apk upgrade` then resolves). Brand-new base-image CVEs
+          # with no upstream fix yet are tracked in the Security tab via the
+          # SARIF upload below, but must not perpetually block every PR.
+          ignore-unfixed: true
           exit-code: '1'
 
       - name: Upload Trivy results to GitHub Security tab
@@ -439,6 +444,11 @@ jobs:
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
+
+      # Memory mode (REDIS_URL=memory) spawns an embedded redis-server process,
+      # so the binary must be on PATH. The runner image does not ship it.
+      - name: Install Redis (for embedded memory-mode server)
+        run: sudo apt-get update && sudo apt-get install -y redis-server
 
       - name: Start server
         run: |

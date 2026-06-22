@@ -31,17 +31,28 @@ FROM node:25.2-alpine3.21
 
 WORKDIR /app
 
-# Install curl for healthcheck, redis for embedded memory-mode server,
-# create non-root user, and create logs directory
-RUN apk add --no-cache curl redis && \
+# Patch OS packages to the latest available (clears base-image CVEs in
+# openssl/musl/zlib, etc.), install curl for healthcheck and redis for the
+# embedded memory-mode server, create non-root user, and create logs directory
+RUN apk upgrade --no-cache && \
+    apk add --no-cache curl redis && \
     addgroup -g 1001 -S nodejs && \
     adduser -S eigennamen -u 1001 && \
     mkdir -p /app/logs && chown eigennamen:nodejs /app/logs
 
-# Copy package files and install production dependencies
+# Copy package files and install production dependencies.
+# npm/corepack are build-time tooling only — the runtime entrypoint is
+# `node dist/index.js` and never invokes them. Removing them after the install
+# eliminates their bundled-dependency CVEs from the shipped image and shrinks
+# the attack surface.
 COPY --chown=eigennamen:nodejs server/package*.json ./
 RUN npm ci --omit=dev && \
-    npm cache clean --force
+    npm cache clean --force && \
+    rm -rf /usr/local/lib/node_modules/npm \
+           /usr/local/lib/node_modules/corepack \
+           /usr/local/bin/npm \
+           /usr/local/bin/npx \
+           /usr/local/bin/corepack
 
 # Copy compiled JavaScript from builder
 COPY --chown=eigennamen:nodejs --from=builder /app/dist ./dist
