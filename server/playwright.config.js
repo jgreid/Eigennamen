@@ -65,11 +65,14 @@ module.exports = defineConfig({
         },
     ],
 
-    // Run local dev server before tests
+    // Run a dev server before tests when one isn't already running.
+    // In CI the workflow starts the built server (node dist/index.js) and waits
+    // for health before invoking Playwright, so reuse it rather than trying to
+    // bind a second server to the same port (which throws when reuse is off).
     webServer: {
         command: 'npm run dev',
         url: 'http://localhost:3000',
-        reuseExistingServer: !process.env.CI,
+        reuseExistingServer: true,
         timeout: 60000,
     },
 

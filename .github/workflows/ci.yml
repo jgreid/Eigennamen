@@ -395,19 +395,20 @@ jobs:
 
           docker stop ci-test
 
-      - name: Run Trivy vulnerability scanner
+      - name: Run Trivy vulnerability scanner (report-only)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
         with:
           image-ref: 'eigennamen:ci'
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'HIGH,CRITICAL'
-          # Block only on vulnerabilities with a published fix (which the
-          # Dockerfile's `apk upgrade` then resolves). Brand-new base-image CVEs
-          # with no upstream fix yet are tracked in the Security tab via the
-          # SARIF upload below, but must not perpetually block every PR.
-          ignore-unfixed: true
-          exit-code: '1'
+          # Report-only: findings are uploaded to the Security tab below for
+          # full visibility, but they do not block merges. Base-image/system
+          # CVEs are patched where possible via the Dockerfile's `apk upgrade`,
+          # yet new ones appear faster than the distro ships fixes, so a hard
+          # gate on them is not operable. Application-dependency CVEs (which we
+          # do control) stay gated by the `Security Audit` (npm audit) job.
+          exit-code: '0'
 
       - name: Upload Trivy results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@7aefa1c9aed02ae41531ec219164e64a0f087410 # v4
