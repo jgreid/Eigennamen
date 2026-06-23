@@ -44,23 +44,42 @@ async function runOnce(browser, i) {
         const ms = Date.now() - started;
         const dom = await page
             .evaluate(() => {
+                const w = window;
                 const byId = (id) => document.getElementById(id);
                 const board = byId('board');
+                const btn = document.querySelector('[data-testid="setup-local-btn"]');
                 return {
-                    href: location.href,
+                    appReady: w.__appEventListenersReady,
+                    moduleLoaded: w.__appModuleLoaded,
+                    pending: w.__pendingSetupAction === undefined ? 'undef' : w.__pendingSetupAction,
                     setupHidden: byId('setup-screen') ? byId('setup-screen').hidden : 'no-el',
                     appLayoutHidden: byId('app-layout') ? byId('app-layout').hidden : 'no-el',
-                    boardHidden: board ? board.hidden : 'no-el',
                     boardChildren: board ? board.children.length : -1,
-                    boardOffsetParentNull: board ? board.offsetParent === null : 'no-el',
-                    localBtnVisible: (() => {
-                        const b = document.querySelector('[data-testid="setup-local-btn"]');
-                        return b ? b.offsetParent !== null : false;
-                    })(),
+                    btnAction: btn ? btn.getAttribute('data-action') : 'no-btn',
                 };
             })
             .catch((err) => ({ evalError: err.message }));
-        return { ok: false, i, ms, msg: (e instanceof Error ? e.message : String(e)).split('\n')[0], errs, dom };
+        // Does a SECOND click recover? (transient pre-ready state vs persistent)
+        let retryWorked = false;
+        try {
+            const b = page.locator('[data-testid="setup-local-btn"]');
+            if (await b.isVisible({ timeout: 500 }).catch(() => false)) {
+                await b.click({ timeout: 2000 }).catch(() => {});
+            }
+            await page.locator('[data-testid="game-board"]').waitFor({ state: 'visible', timeout: 3000 });
+            retryWorked = true;
+        } catch {
+            retryWorked = false;
+        }
+        return {
+            ok: false,
+            i,
+            ms,
+            msg: (e instanceof Error ? e.message : String(e)).split('\n')[0],
+            errs,
+            dom,
+            retryWorked,
+        };
     } finally {
         await ctx.close();
     }
@@ -85,7 +104,9 @@ async function runOnce(browser, i) {
         } else {
             if (firstFail < 0) firstFail = i;
             console.log(
-                `#${i} FAIL ${r.ms}ms :: ${r.msg} :: errs=${JSON.stringify(r.errs)} :: dom=${JSON.stringify(r.dom)}`
+                `#${i} FAIL ${r.ms}ms retryWorked=${r.retryWorked} :: ${r.msg} :: errs=${JSON.stringify(
+                    r.errs
+                )} :: dom=${JSON.stringify(r.dom)}`
             );
         }
     }
