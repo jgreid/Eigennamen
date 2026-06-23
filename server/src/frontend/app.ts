@@ -359,12 +359,22 @@ async function init(): Promise<void> {
         await initI18n();
         // Initialize setup screen listeners
         initSetupScreen();
-        // Show setup screen or load game directly.
-        // Guard: the awaits above (i18n + wordlist) yield control, so the user
-        // may have already clicked Local/Host/Join and started a session. If so,
-        // do not re-show the setup screen — that would clobber the live board.
+        // If the user clicked a setup action before this module finished loading
+        // (module scripts can execute late under a service worker / slow chunk
+        // fetch), the non-module fallback only performed a visual toggle. Complete
+        // the real action now — otherwise we'd re-show the setup screen and the
+        // click (e.g. "Local") would appear to do nothing.
+        const pendingWindow = window as Window & { __pendingSetupAction?: string };
+        const pendingSetupAction = pendingWindow.__pendingSetupAction;
+        pendingWindow.__pendingSetupAction = undefined;
+        // hasSessionStarted() guard: the awaits above (i18n + wordlist) yield
+        // control, so the user may have already clicked Local/Host/Join via the
+        // module's own listeners and started a session. If so, don't touch the
+        // setup screen — that would clobber the live board.
         if (!hasSessionStarted()) {
-            if (shouldShowSetupScreen()) {
+            if (pendingSetupAction) {
+                handleSetupAction(pendingSetupAction);
+            } else if (shouldShowSetupScreen()) {
                 showSetupScreen();
             } else {
                 // Ensure app layout is visible when skipping setup screen

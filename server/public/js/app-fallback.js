@@ -24,6 +24,14 @@ document.addEventListener('click', function (e) {
 
     var action = target.dataset.action;
 
+    // Record the setup action so the module can complete it for real once it
+    // loads. The cases below only perform a visual toggle (no game start, no
+    // socket connect); without this bridge the module's init() would re-show
+    // the setup screen and clobber a click made before the module was ready.
+    if (action && action.indexOf('setup-') === 0) {
+        window.__pendingSetupAction = action;
+    }
+
     var setupBoard = document.getElementById('setup-board');
     var joinForm = document.getElementById('setup-join-form');
     var hostForm = document.getElementById('setup-host-form');
