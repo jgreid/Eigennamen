@@ -456,7 +456,7 @@ jobs:
 
       - name: Start server
         run: |
-          node dist/index.js &
+          node dist/index.js > /tmp/server-out.log 2>&1 &
           echo $! > /tmp/server.pid
         env:
           NODE_ENV: test
@@ -491,6 +491,13 @@ jobs:
         env:
           BASE_URL: http://localhost:3000
           CI: true
+
+      # TEMP DIAGNOSTIC: surface server-side errors/crashes during the run.
+      - name: Server log (diagnostic)
+        if: always()
+        run: |
+          echo "=== tail of server stdout/stderr ==="
+          tail -n 120 /tmp/server-out.log || echo "(no server log)"
 
       - name: Upload Playwright report
         if: always()
