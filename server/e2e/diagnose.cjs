@@ -42,7 +42,25 @@ async function runOnce(browser, i) {
         return { ok: true, i, ms, cards, errs };
     } catch (e) {
         const ms = Date.now() - started;
-        return { ok: false, i, ms, msg: (e instanceof Error ? e.message : String(e)).split('\n')[0], errs };
+        const dom = await page
+            .evaluate(() => {
+                const byId = (id) => document.getElementById(id);
+                const board = byId('board');
+                return {
+                    href: location.href,
+                    setupHidden: byId('setup-screen') ? byId('setup-screen').hidden : 'no-el',
+                    appLayoutHidden: byId('app-layout') ? byId('app-layout').hidden : 'no-el',
+                    boardHidden: board ? board.hidden : 'no-el',
+                    boardChildren: board ? board.children.length : -1,
+                    boardOffsetParentNull: board ? board.offsetParent === null : 'no-el',
+                    localBtnVisible: (() => {
+                        const b = document.querySelector('[data-testid="setup-local-btn"]');
+                        return b ? b.offsetParent !== null : false;
+                    })(),
+                };
+            })
+            .catch((err) => ({ evalError: err.message }));
+        return { ok: false, i, ms, msg: (e instanceof Error ? e.message : String(e)).split('\n')[0], errs, dom };
     } finally {
         await ctx.close();
     }
@@ -66,7 +84,9 @@ async function runOnce(browser, i) {
             }
         } else {
             if (firstFail < 0) firstFail = i;
-            console.log(`#${i} FAIL ${r.ms}ms :: ${r.msg} :: errs=${JSON.stringify(r.errs)}`);
+            console.log(
+                `#${i} FAIL ${r.ms}ms :: ${r.msg} :: errs=${JSON.stringify(r.errs)} :: dom=${JSON.stringify(r.dom)}`
+            );
         }
     }
     console.log(`\n=== SUMMARY: ${pass}/${ITERATIONS} passed, firstFail=${firstFail}, slowest=${slowest}ms ===\n`);
