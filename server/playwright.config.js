@@ -17,7 +17,9 @@ module.exports = defineConfig({
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? 2 : 0,
     workers: process.env.CI ? 1 : undefined,
-    reporter: process.env.CI ? 'github' : 'html',
+    // 'github' adds inline PR annotations; 'list' streams per-test results to the
+    // job log so progress/failures are visible even if the job is cut short.
+    reporter: process.env.CI ? [['github'], ['list']] : 'html',
 
     // Global timeout settings
     timeout: 30000,

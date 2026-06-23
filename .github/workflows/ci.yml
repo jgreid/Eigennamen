@@ -422,8 +422,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     # Bound the job so a hung/very-slow Playwright run can't occupy a runner for
-    # the 6h default. A healthy chromium run of this suite is well under this.
-    timeout-minutes: 20
+    # the 6h default. The full serial suite (workers:1, retries:2) needs headroom.
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: server
