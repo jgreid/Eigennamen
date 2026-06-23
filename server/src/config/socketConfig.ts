@@ -6,7 +6,9 @@ export const SOCKET = {
     SOCKET_COUNT_CACHE_MS: 5000, // Cache socket count for 5 seconds
     SOCKET_COUNT_TIMEOUT_MS: 2000, // Timeout for fetching socket count
     REDIS_KEEPALIVE_MS: 10000, // Redis keepalive interval
-    MAX_CONNECTIONS_PER_IP: 10, // Max concurrent socket connections per IP
+    // Max concurrent socket connections per IP. Configurable so test/CI runs
+    // (where all traffic shares one IP) can raise it above the production default.
+    MAX_CONNECTIONS_PER_IP: Number(process.env.MAX_CONNECTIONS_PER_IP) || 10,
     MAX_HTTP_BUFFER_SIZE: 100 * 1024, // 100KB max message size
     DISCONNECT_TIMEOUT_MS: 30000, // Timeout for disconnect handler to prevent hangs
     CONNECTIONS_CLEANUP_INTERVAL_MS: 5 * 60 * 1000, // Recount connections per IP every 5 minutes
