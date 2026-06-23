@@ -322,6 +322,15 @@ export function renderBoard(): void {
         renderingInProgress = false;
         initBoardEventDelegation();
         attachResizeListener();
+        // If another renderBoard() was requested while this one was running it
+        // was skipped (renderingInProgress) with pendingFullRender left set.
+        // Honor it now — otherwise that request is silently dropped, which can
+        // leave the board empty (e.g. a reactive render fired during newGame()
+        // that the explicit game-start render overtook). pendingFullRender stays
+        // set so the re-entrant call takes the full-rebuild path.
+        if (pendingFullRender) {
+            renderBoard();
+        }
     } catch (err) {
         renderingInProgress = false;
         logger.error('renderBoard failed:', err);

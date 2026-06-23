@@ -102,6 +102,28 @@ const sel = {
 };
 
 /**
+ * Dismiss the setup screen into the local game by clicking "Local".
+ *
+ * The setup screen translates its labels during app init (translatePage); a
+ * click that lands in that brief window is occasionally dropped even though the
+ * app is fully loaded, leaving the user on the setup screen. A second click
+ * always works, so re-click until the board appears.
+ * @param {import('@playwright/test').Page} page
+ */
+async function clickLocalUntilBoard(page) {
+    const localBtn = page.locator(sel.setupLocalBtn);
+    const board = page.locator(sel.board);
+    for (let attempt = 0; attempt < 5; attempt++) {
+        // Already in the game (e.g. URL-encoded state, or a prior click landed).
+        if (await board.isVisible({ timeout: 250 }).catch(() => false)) return;
+        if (await localBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+            await localBtn.click({ timeout: 2000 }).catch(() => {});
+        }
+        if (await board.isVisible({ timeout: 2000 }).catch(() => false)) return;
+    }
+}
+
+/**
  * Navigate to the home page and dismiss the setup screen to reach the game.
  * Clicks the Solo button on the setup screen to load standalone mode.
  * @param {import('@playwright/test').Page} page
@@ -109,11 +131,7 @@ const sel = {
 async function goToGame(page) {
     await page.goto('/');
 
-    // If setup screen is visible, click Local to enter the game
-    const localBtn = page.locator(sel.setupLocalBtn);
-    if (await localBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await localBtn.click();
-    }
+    await clickLocalUntilBoard(page);
 
     // Wait for game board to be visible
     await page.locator(sel.board).waitFor({ state: 'visible', timeout: 5000 });
@@ -130,10 +148,7 @@ async function createRoom(page, nickname) {
     await page.goto('/');
 
     // Dismiss setup screen first, then use the multiplayer modal
-    const localBtn = page.locator(sel.setupLocalBtn);
-    if (await localBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await localBtn.click();
-    }
+    await clickLocalUntilBoard(page);
 
     await page.locator(sel.multiplayerBtn).click();
     await page.locator(sel.modeCreateBtn).click();
@@ -161,10 +176,7 @@ async function joinRoom(page, roomId, nickname) {
     await page.goto('/');
 
     // Dismiss setup screen first, then use the multiplayer modal
-    const localBtn = page.locator(sel.setupLocalBtn);
-    if (await localBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await localBtn.click();
-    }
+    await clickLocalUntilBoard(page);
 
     await page.locator(sel.multiplayerBtn).click();
 
@@ -209,4 +221,4 @@ async function becomeCurrentClicker(page) {
     return isRedTurn;
 }
 
-module.exports = { sel, goToGame, createRoom, joinRoom, selectTeam, becomeCurrentClicker };
+module.exports = { sel, goToGame, clickLocalUntilBoard, createRoom, joinRoom, selectTeam, becomeCurrentClicker };
