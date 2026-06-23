@@ -8,7 +8,7 @@
 const http = require('http');
 const { Server } = require('socket.io');
 const Client = require('socket.io-client');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('crypto');
 
 // Test configuration — use port 0 for OS-assigned dynamic port to avoid conflicts
 let SOCKET_URL = '';

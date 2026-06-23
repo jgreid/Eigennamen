@@ -34,11 +34,16 @@ export const luaResultSchema = z.object({
 });
 
 /**
- * Host transfer Lua result schema
+ * Host transfer Lua result schema.
+ *
+ * hostTransfer.lua returns `{success:true, oldHost, newHost}` on success or
+ * `{success:false, reason}` on failure. Only `success` and `reason` are consumed
+ * by callers (the failure reason is logged in disconnectHandler), so the schema
+ * preserves `reason`. The previous schema declared `error`/`newHostSessionId`/
+ * `newHostNickname`, which the script never emits, and omitted `reason`, so the
+ * real failure reason was silently stripped and logged as `undefined`.
  */
 export const hostTransferResultSchema = z.object({
     success: z.boolean(),
-    error: z.string().optional(),
-    newHostSessionId: z.string().optional(),
-    newHostNickname: z.string().optional(),
+    reason: z.string().optional(),
 });

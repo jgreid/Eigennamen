@@ -17,7 +17,9 @@ module.exports = defineConfig({
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? 2 : 0,
     workers: process.env.CI ? 1 : undefined,
-    reporter: process.env.CI ? 'github' : 'html',
+    // 'github' adds inline PR annotations; 'list' streams per-test results to the
+    // job log so progress/failures are visible even if the job is cut short.
+    reporter: process.env.CI ? [['github'], ['list']] : 'html',
 
     // Global timeout settings
     timeout: 30000,
@@ -65,11 +67,14 @@ module.exports = defineConfig({
         },
     ],
 
-    // Run local dev server before tests
+    // Run a dev server before tests when one isn't already running.
+    // In CI the workflow starts the built server (node dist/index.js) and waits
+    // for health before invoking Playwright, so reuse it rather than trying to
+    // bind a second server to the same port (which throws when reuse is off).
     webServer: {
         command: 'npm run dev',
         url: 'http://localhost:3000',
-        reuseExistingServer: !process.env.CI,
+        reuseExistingServer: true,
         timeout: 60000,
     },
 

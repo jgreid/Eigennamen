@@ -26,7 +26,7 @@ type RateLimiterMiddleware = (socket: RateLimitSocket, data: unknown, next: (err
 
 interface LRUEntry {
     key: string;
-    map: 'socket' | 'ip' | 'global_ip';
+    map: 'socket' | 'session' | 'ip' | 'global_ip';
     lastActivity: number;
 }
 
@@ -275,6 +275,12 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
             allEntries.push({ key, map: 'socket', lastActivity });
         }
 
+        for (const [key, timestamps] of sessionRequests.entries()) {
+            const lastTs = timestamps[timestamps.length - 1];
+            const lastActivity = timestamps.length > 0 && lastTs !== undefined ? lastTs : 0;
+            allEntries.push({ key, map: 'session', lastActivity });
+        }
+
         for (const [key, timestamps] of ipRequests.entries()) {
             const lastTs = timestamps[timestamps.length - 1];
             const lastActivity = timestamps.length > 0 && lastTs !== undefined ? lastTs : 0;
@@ -292,6 +298,8 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
             const entry = allEntries[i] as LRUEntry;
             if (entry.map === 'socket') {
                 socketRequests.delete(entry.key);
+            } else if (entry.map === 'session') {
+                sessionRequests.delete(entry.key);
             } else if (entry.map === 'ip') {
                 ipRequests.delete(entry.key);
             } else {
@@ -319,6 +327,7 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
             const windowStart = now - maxWindow;
 
             let cleanedSocket = 0;
+            let cleanedSession = 0;
             let cleanedIP = 0;
 
             for (const [key, timestamps] of socketRequests.entries()) {
@@ -339,6 +348,17 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
                 }
             }
 
+            // Session entries are tracked per (sessionId, event). A session can
+            // outlive its socket (reconnection), so — like IP entries — these are
+            // reclaimed by stale-timeout/LRU rather than on socket disconnect.
+            for (const [key, timestamps] of sessionRequests.entries()) {
+                const newLength = filterTimestampsInPlace(timestamps, windowStart);
+                if (newLength === 0) {
+                    sessionRequests.delete(key);
+                    cleanedSession++;
+                }
+            }
+
             for (const [key, timestamps] of ipRequests.entries()) {
                 const newLength = filterTimestampsInPlace(timestamps, windowStart);
                 if (newLength === 0) {
@@ -356,8 +376,10 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
                 }
             }
 
-            if (cleanedSocket > 0 || cleanedIP > 0) {
-                logger.info(`Cleaned up ${cleanedSocket} socket and ${cleanedIP} IP rate limit entries`);
+            if (cleanedSocket > 0 || cleanedSession > 0 || cleanedIP > 0) {
+                logger.info(
+                    `Cleaned up ${cleanedSocket} socket, ${cleanedSession} session and ${cleanedIP} IP rate limit entries`
+                );
             }
 
             performLRUEviction();
@@ -414,7 +436,7 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
         }
     };
 
-    const getSize = (): number => socketRequests.size + ipRequests.size + globalIPRequests.size;
+    const getSize = (): number => socketRequests.size + sessionRequests.size + ipRequests.size + globalIPRequests.size;
 
     const getMetrics = (): RateLimiterMetrics => {
         const uptimeMs = Date.now() - startTime;

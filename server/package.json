@@ -47,8 +47,8 @@
     "redis": "^5.12.1",
     "socket.io": "^4.7.2",
     "swagger-ui-express": "^5.0.1",
-    "uuid": "^14.0.1",
     "winston": "^3.11.0",
+    "ws": "^8.21.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -76,6 +76,9 @@
     "ts-node-dev": "^2.0.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.61.1"
+  },
+  "overrides": {
+    "ws": "^8.21.0"
   },
   "engines": {
     "node": ">=22.0.0"

@@ -108,6 +108,12 @@ export function handleSpectatorChatMessage(data: SpectatorChatData): void {
 
     chatMessages.appendChild(messageEl);
 
+    // Prune oldest messages to prevent unbounded DOM growth (shares the
+    // #chat-messages container with regular chat, which prunes the same way).
+    while (chatMessages.children.length > UI.MAX_CHAT_MESSAGES) {
+        chatMessages.removeChild(chatMessages.firstChild!);
+    }
+
     // Auto-scroll if near bottom
     const isNearBottom = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < 60;
     if (isNearBottom) {

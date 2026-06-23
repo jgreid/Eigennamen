@@ -18,6 +18,19 @@ import { isClientConnected } from './clientAccessor.js';
 import { t } from './i18n.js';
 import type { JoinCreateResult } from './multiplayerTypes.js';
 
+/**
+ * Set once the user leaves the setup screen for a game/room. init() finishes
+ * asynchronously (it awaits i18n + wordlist loading); a click that lands during
+ * that window starts a session, and without this guard init()'s tail would then
+ * re-show the setup screen and clobber the board. See hasSessionStarted().
+ */
+let sessionStarted = false;
+
+/** Whether the user has already started/joined a game from the setup screen. */
+export function hasSessionStarted(): boolean {
+    return sessionStarted;
+}
+
 /** Check whether the setup screen should be shown on load. */
 export function shouldShowSetupScreen(): boolean {
     // Skip if there's a game encoded in the URL (standalone mode)
@@ -177,6 +190,7 @@ async function handleJoinSubmit(): Promise<void> {
 
         safeSetItem('eigennamen-nickname', nickname);
         state.currentRoomId = result.room?.code || normalizedRoomId;
+        sessionStarted = true;
         hideSetupScreen();
         onMultiplayerJoined(result, false);
     } catch (error: unknown) {
@@ -271,6 +285,7 @@ async function handleHostSubmit(): Promise<void> {
             });
         }
 
+        sessionStarted = true;
         hideSetupScreen();
         onMultiplayerJoined(result, true);
     } catch (error: unknown) {
@@ -294,6 +309,7 @@ async function handleHostSubmit(): Promise<void> {
 
 /** Handle going to solo/offline mode. */
 function handleOffline(): void {
+    sessionStarted = true;
     hideSetupScreen();
     loadGameFromURL();
 }

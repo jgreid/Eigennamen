@@ -23,9 +23,12 @@ const addTimeResultSchema = z.object({
     remainingSeconds: z.number(),
 });
 
-// Zod schema for atomic resume timer Lua script result
+// Zod schema for atomic resume timer Lua script result.
+// `expired` is optional because the script's error returns (`{error:'NOT_PAUSED'}`
+// etc.) omit it; requiring it made those results fail validation and silently
+// return null, so the `result.error` diagnostic branch below was unreachable.
 const resumeTimerResultSchema = z.object({
-    expired: z.boolean(),
+    expired: z.boolean().optional(),
     remainingSeconds: z.number().optional(),
     pausedFor: z.number().optional(),
     hadRemaining: z.number().optional(),

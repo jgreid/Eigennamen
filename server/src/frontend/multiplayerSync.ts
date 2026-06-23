@@ -61,7 +61,9 @@ export const multiplayerEventNames: string[] = [
     'roomWarning',
     'historyResult',
     'replayData',
+    'historyCleared',
     'statsUpdated',
+    'chatMessage',
     'spectatorChatMessage',
 ];
 

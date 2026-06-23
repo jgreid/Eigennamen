@@ -927,6 +927,19 @@ describe('multiplayerSync', () => {
             expect(multiplayerEventNames).toContain('timerExpired');
         });
 
+        it('contains every event registered by registerChatAndErrorHandlers', () => {
+            // These are attached in handlers/chatEventHandlers.ts on every
+            // setupMultiplayerListeners() call. Any name missing from this cleanup
+            // list leaks a duplicate listener on each room rejoin — this guards the
+            // previously-missing 'chatMessage' and 'historyCleared'.
+            expect(multiplayerEventNames).toContain('chatMessage');
+            expect(multiplayerEventNames).toContain('spectatorChatMessage');
+            expect(multiplayerEventNames).toContain('historyResult');
+            expect(multiplayerEventNames).toContain('replayData');
+            expect(multiplayerEventNames).toContain('historyCleared');
+            expect(multiplayerEventNames).toContain('error');
+        });
+
         it('contains connection-related events', () => {
             expect(multiplayerEventNames).toContain('disconnected');
             expect(multiplayerEventNames).toContain('roomResynced');

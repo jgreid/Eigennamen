@@ -60,7 +60,13 @@ import {
 } from './settings.js';
 import { initI18n, setLanguage } from './i18n.js';
 import { initColorBlindMode, initKeyboardShortcuts } from './accessibility.js';
-import { shouldShowSetupScreen, showSetupScreen, initSetupScreen, handleSetupAction } from './setupScreen.js';
+import {
+    shouldShowSetupScreen,
+    showSetupScreen,
+    initSetupScreen,
+    handleSetupAction,
+    hasSessionStarted,
+} from './setupScreen.js';
 import { logger } from './logger.js';
 
 // Signal that the ES module loaded successfully
@@ -353,14 +359,29 @@ async function init(): Promise<void> {
         await initI18n();
         // Initialize setup screen listeners
         initSetupScreen();
-        // Show setup screen or load game directly
-        if (shouldShowSetupScreen()) {
-            showSetupScreen();
-        } else {
-            // Ensure app layout is visible when skipping setup screen
-            const appLayout = document.getElementById('app-layout');
-            if (appLayout) appLayout.hidden = false;
-            loadGameFromURL();
+        // If the user clicked a setup action before this module finished loading
+        // (module scripts can execute late under a service worker / slow chunk
+        // fetch), the non-module fallback only performed a visual toggle. Complete
+        // the real action now — otherwise we'd re-show the setup screen and the
+        // click (e.g. "Local") would appear to do nothing.
+        const pendingWindow = window as Window & { __pendingSetupAction?: string };
+        const pendingSetupAction = pendingWindow.__pendingSetupAction;
+        pendingWindow.__pendingSetupAction = undefined;
+        // hasSessionStarted() guard: the awaits above (i18n + wordlist) yield
+        // control, so the user may have already clicked Local/Host/Join via the
+        // module's own listeners and started a session. If so, don't touch the
+        // setup screen — that would clobber the live board.
+        if (!hasSessionStarted()) {
+            if (pendingSetupAction) {
+                handleSetupAction(pendingSetupAction);
+            } else if (shouldShowSetupScreen()) {
+                showSetupScreen();
+            } else {
+                // Ensure app layout is visible when skipping setup screen
+                const appLayout = document.getElementById('app-layout');
+                if (appLayout) appLayout.hidden = false;
+                loadGameFromURL();
+            }
         }
         // Wire up language selector
         const langSelect = document.getElementById('language-select') as HTMLSelectElement | null;

@@ -1,6 +1,6 @@
 import type { Player } from '../../types';
 
-import { validate as isValidUuid } from 'uuid';
+import { isValidUuid } from '../../utils/uuid';
 import logger from '../../utils/logger';
 import * as playerService from '../../services/playerService';
 import { getRedis } from '../../config/redis';
