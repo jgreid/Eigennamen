@@ -47,7 +47,7 @@
     "redis": "^5.12.1",
     "socket.io": "^4.7.2",
     "swagger-ui-express": "^5.0.1",
-    "uuid": "^14.0.0",
+    "uuid": "^14.0.1",
     "winston": "^3.11.0",
     "zod": "^4.4.3"
   },
