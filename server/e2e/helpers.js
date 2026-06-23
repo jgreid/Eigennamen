@@ -113,13 +113,14 @@ const sel = {
 async function clickLocalUntilBoard(page) {
     const localBtn = page.locator(sel.setupLocalBtn);
     const board = page.locator(sel.board);
-    for (let attempt = 0; attempt < 5; attempt++) {
+    const deadline = Date.now() + 15000;
+    while (Date.now() < deadline) {
         // Already in the game (e.g. URL-encoded state, or a prior click landed).
         if (await board.isVisible({ timeout: 250 }).catch(() => false)) return;
         if (await localBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
             await localBtn.click({ timeout: 2000 }).catch(() => {});
         }
-        if (await board.isVisible({ timeout: 2000 }).catch(() => false)) return;
+        if (await board.isVisible({ timeout: 1500 }).catch(() => false)) return;
     }
 }
 

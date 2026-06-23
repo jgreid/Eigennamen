@@ -456,7 +456,7 @@ jobs:
 
       - name: Start server
         run: |
-          node dist/index.js > /tmp/server-out.log 2>&1 &
+          node dist/index.js &
           echo $! > /tmp/server.pid
         env:
           NODE_ENV: test
@@ -476,28 +476,11 @@ jobs:
           echo "::error::Server failed to start within 30s"
           exit 1
 
-      # TEMP DIAGNOSTIC: surface the real browser-side boot failure that the full
-      # suite hides behind generic "element stayed hidden" timeouts. Remove once
-      # the root cause is fixed and the full suite is re-enabled below.
-      - name: Diagnose app boot (browser console)
-        run: node e2e/diagnose.cjs
-        env:
-          BASE_URL: http://localhost:3000
-
       - name: Run Playwright tests
-        # TEMP: disabled for the diagnostic run above; re-enable with the fix.
-        if: false
         run: npx playwright test --project=chromium
         env:
           BASE_URL: http://localhost:3000
           CI: true
-
-      # TEMP DIAGNOSTIC: surface server-side errors/crashes during the run.
-      - name: Server log (diagnostic)
-        if: always()
-        run: |
-          echo "=== tail of server stdout/stderr ==="
-          tail -n 120 /tmp/server-out.log || echo "(no server log)"
 
       - name: Upload Playwright report
         if: always()
