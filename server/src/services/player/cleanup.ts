@@ -127,15 +127,21 @@ export async function processScheduledCleanups(limit: number = 50): Promise<numb
             return 0;
         }
 
-        // Periodically trim ancient entries (>24h old) to prevent unbounded set growth
+        // Periodically trim ancient entries (>24h old) to prevent unbounded set growth.
+        // Best-effort: wrapped in withTimeout so a slow/unavailable Redis can't hang the
+        // recurring cleanup task, and failures are logged rather than silently swallowed.
         try {
             const oneDayAgo = now - 24 * 60 * 60 * 1000;
-            await redis.eval("return redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, ARGV[1])", {
-                keys: ['scheduled:player:cleanup'],
-                arguments: [oneDayAgo.toString()],
-            });
-        } catch {
-            // Non-critical cleanup
+            await withTimeout(
+                redis.eval("return redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, ARGV[1])", {
+                    keys: ['scheduled:player:cleanup'],
+                    arguments: [oneDayAgo.toString()],
+                }),
+                TIMEOUTS.REDIS_OPERATION,
+                'processScheduledCleanups-trim-ancient'
+            );
+        } catch (err) {
+            logger.debug(`Failed to trim ancient cleanup entries: ${(err as Error).message}`);
         }
 
         let cleanedUp = 0;

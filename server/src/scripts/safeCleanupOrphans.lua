@@ -18,6 +18,12 @@ local blueTeamKey = KEYS[3]
 local count = tonumber(ARGV[1])
 local cleaned = 0
 
+-- Guard against a missing or malformed count: `for i = 1, nil do` raises a
+-- runtime error, and a negative count would silently skip the loop.
+if not count or count < 1 then
+    return 0
+end
+
 for i = 1, count do
     local sessionId = ARGV[i + 1]
     local playerKey = 'player:' .. sessionId
