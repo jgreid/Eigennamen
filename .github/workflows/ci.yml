@@ -422,8 +422,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     # Bound the job so a hung/very-slow Playwright run can't occupy a runner for
-    # the 6h default. The full serial suite (workers:1, retries:2) needs headroom.
-    timeout-minutes: 35
+    # the 6h default. E2E is non-blocking, so keep this tight; --max-failures also
+    # aborts a flaky run early.
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: server
@@ -515,7 +516,12 @@ jobs:
   ci-passed:
     name: CI Passed
     if: always()
-    needs: [lint, typecheck, build, test, security, docker, e2e]
+    # E2E is intentionally NOT a dependency: the suite has known pre-existing
+    # instability under the single shared server (per-IP socket limit + click/
+    # render timing flakiness) and is tracked for stabilization separately. It
+    # still runs and reports as its own check, but does not gate merge — and
+    # this gate reports as soon as the required jobs finish.
+    needs: [lint, typecheck, build, test, security, docker]
     runs-on: ubuntu-latest
     steps:
       - name: Check all jobs
@@ -526,11 +532,6 @@ jobs:
           echo "Test: ${{ needs.test.result }}"
           echo "Security: ${{ needs.security.result }}"
           echo "Docker: ${{ needs.docker.result }}"
-          # E2E is non-blocking: the suite has known pre-existing instability under
-          # the single shared server (per-IP socket limit + click/render timing
-          # flakiness) and is tracked for stabilization separately. It still runs
-          # and reports below, but does not gate merge.
-          echo "E2E (non-blocking): ${{ needs.e2e.result }}"
 
           # Fail if any required (blocking) job failed
           if [ "${{ needs.lint.result }}" != "success" ] || \
