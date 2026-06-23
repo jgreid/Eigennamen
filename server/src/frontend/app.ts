@@ -60,7 +60,13 @@ import {
 } from './settings.js';
 import { initI18n, setLanguage } from './i18n.js';
 import { initColorBlindMode, initKeyboardShortcuts } from './accessibility.js';
-import { shouldShowSetupScreen, showSetupScreen, initSetupScreen, handleSetupAction } from './setupScreen.js';
+import {
+    shouldShowSetupScreen,
+    showSetupScreen,
+    initSetupScreen,
+    handleSetupAction,
+    hasSessionStarted,
+} from './setupScreen.js';
 import { logger } from './logger.js';
 
 // Signal that the ES module loaded successfully
@@ -353,14 +359,19 @@ async function init(): Promise<void> {
         await initI18n();
         // Initialize setup screen listeners
         initSetupScreen();
-        // Show setup screen or load game directly
-        if (shouldShowSetupScreen()) {
-            showSetupScreen();
-        } else {
-            // Ensure app layout is visible when skipping setup screen
-            const appLayout = document.getElementById('app-layout');
-            if (appLayout) appLayout.hidden = false;
-            loadGameFromURL();
+        // Show setup screen or load game directly.
+        // Guard: the awaits above (i18n + wordlist) yield control, so the user
+        // may have already clicked Local/Host/Join and started a session. If so,
+        // do not re-show the setup screen — that would clobber the live board.
+        if (!hasSessionStarted()) {
+            if (shouldShowSetupScreen()) {
+                showSetupScreen();
+            } else {
+                // Ensure app layout is visible when skipping setup screen
+                const appLayout = document.getElementById('app-layout');
+                if (appLayout) appLayout.hidden = false;
+                loadGameFromURL();
+            }
         }
         // Wire up language selector
         const langSelect = document.getElementById('language-select') as HTMLSelectElement | null;
