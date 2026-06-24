@@ -20,6 +20,7 @@ import {
     CLEANUP_ORPHANED_TOKEN_SCRIPT,
     RELEASE_LOCK_SCRIPT,
     EXTEND_LOCK_SCRIPT,
+    SAFE_CLEANUP_ORPHANS_SCRIPT,
 } from '../../scripts';
 
 describe('Lua Script Validation', () => {
@@ -69,6 +70,22 @@ describe('Lua Script Validation', () => {
         it('EXTEND_LOCK_SCRIPT only extends owned locks', () => {
             expect(EXTEND_LOCK_SCRIPT).toContain('redis.call("get", KEYS[1]) == ARGV[1]');
             expect(EXTEND_LOCK_SCRIPT).toContain('redis.call("pexpire"');
+        });
+
+        it('EXTEND_LOCK_SCRIPT guards against an invalid TTL argument', () => {
+            // tonumber(ARGV[2]) with a fallback guard prevents passing a raw/NaN
+            // value straight into pexpire (which would error or no-op silently).
+            expect(EXTEND_LOCK_SCRIPT).toContain('tonumber(ARGV[2])');
+            expect(EXTEND_LOCK_SCRIPT).toMatch(/if not ttl or ttl <= 0 then/);
+        });
+    });
+
+    describe('input nil-guards', () => {
+        it('SAFE_CLEANUP_ORPHANS_SCRIPT guards against a missing/invalid count', () => {
+            // `for i = 1, nil do` raises a runtime error; a negative count silently
+            // skips the loop. The guard returns 0 instead.
+            expect(SAFE_CLEANUP_ORPHANS_SCRIPT).toContain('tonumber(ARGV[1])');
+            expect(SAFE_CLEANUP_ORPHANS_SCRIPT).toMatch(/if not count or count < 1 then/);
         });
     });
 
