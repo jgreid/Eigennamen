@@ -249,6 +249,8 @@ export interface CreateGameOptions {
     wordList?: string[];
     /** Game mode (classic, duet, match) */
     gameMode?: GameMode;
+    /** Explicit board seed for reproducible games (defaults to a random seed). */
+    seed?: string;
     /** Match state to carry forward when starting next round */
     matchCarryOver?: {
         matchRound: number;
@@ -303,6 +305,20 @@ export interface RevealResult {
     redMatchScore?: number;
     /** Match: updated cumulative blue match score */
     blueMatchScore?: number;
+}
+
+/**
+ * Result of submitting a clue
+ */
+export interface ClueResult {
+    /** The clue word (sanitized) */
+    word: string;
+    /** The clue number */
+    number: number;
+    /** The team that gave the clue */
+    team: Team;
+    /** Guesses now allowed this turn (0 = unlimited) */
+    guessesAllowed: number;
 }
 
 /**

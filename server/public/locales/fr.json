@@ -15,6 +15,32 @@
         "redTeam": "Équipe Rouge",
         "blueTeam": "Équipe Bleue"
     },
+    "clue": {
+        "giveClue": "Donner un indice",
+        "give": "Donner",
+        "errorEmpty": "Saisir un indice",
+        "errorSingleWord": "L'indice doit être un seul mot"
+    },
+    "bots": {
+        "addTitle": "Ajouter un bot",
+        "team": "Équipe",
+        "teamRed": "Rouge",
+        "teamBlue": "Bleu",
+        "seat": "Poste",
+        "style": "Style",
+        "styleSmart": "Malin",
+        "styleCautious": "Prudent",
+        "styleRandom": "Aléatoire",
+        "skill": "Niveau",
+        "skillExpert": "Expert",
+        "skillIntermediate": "Intermédiaire",
+        "skillNovice": "Novice",
+        "add": "Ajouter un bot",
+        "badge": "🤖 BOT",
+        "remove": "Retirer",
+        "added": "Bot ajouté",
+        "hostOnly": "Seul l'hôte peut ajouter des bots"
+    },
     "roles": {
         "spymaster": "Maître-espion",
         "clicker": "Agent de terrain",
@@ -68,6 +94,7 @@
         "invalidWordCount": "Partie invalide : exactement {{count}} mots requis",
         "notEnoughWords": "Pas assez de mots ! Vous avez besoin d'au moins {{count}} mots pour jouer. Ajoutez-en dans les Paramètres.",
         "turnEndedAnnounce": "Tour terminé. C'est au tour de {{team}}.",
+        "clueGivenAnnounce": "Indice de {{team}} : {{word}} ({{number}}).",
         "wordRevealedAs": "{{word}} révélé comme {{type}}",
         "roleCleared": "Rôle {{role}} retiré. Maintenant dans l'équipe {{team}}.",
         "copy": "Copier",

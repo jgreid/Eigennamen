@@ -137,6 +137,45 @@ describe('Game Handlers', () => {
             expect(gameService.createGame).toHaveBeenCalledWith('TEST12', expect.any(Object));
         });
 
+        test('broadcasts a bot seat with its preserved role, not spectator', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                isHost: true,
+                team: 'red',
+            });
+            gameService.getGame.mockResolvedValue(null);
+            gameService.createGame.mockResolvedValue({ id: 'game-1', currentTurn: 'red', redTotal: 9, blueTotal: 8 });
+            gameService.getGameStateForPlayer.mockReturnValue({ id: 'game-1' });
+            roomService.getRoom.mockResolvedValue({ settings: { gameMode: 'classic' } });
+            // resetRolesForNewGame keeps bot roles; humans become spectator.
+            playerService.resetRolesForNewGame.mockResolvedValue([
+                { sessionId: 'bot-1', team: 'red', role: 'spymaster', isBot: true },
+                { sessionId: 'session-456', team: 'red', role: 'spectator' },
+            ]);
+
+            const handlers = mockSocket.on.mock.calls;
+            const startHandler = handlers.find((h) => h[0] === 'game:start');
+            await startHandler[1]({});
+
+            // The bot's PLAYER_UPDATED carries its real role, not a hardcoded spectator.
+            expect(mockIo.emit).toHaveBeenCalledWith(
+                'player:updated',
+                expect.objectContaining({
+                    sessionId: 'bot-1',
+                    changes: expect.objectContaining({ role: 'spymaster', team: 'red' }),
+                })
+            );
+            // The human is still reset to spectator.
+            expect(mockIo.emit).toHaveBeenCalledWith(
+                'player:updated',
+                expect.objectContaining({
+                    sessionId: 'session-456',
+                    changes: expect.objectContaining({ role: 'spectator' }),
+                })
+            );
+        });
+
         test('prevents starting when game in progress', async () => {
             playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'TEST12', isHost: true });
             gameService.getGame.mockResolvedValue({ gameOver: false });
@@ -299,6 +338,83 @@ describe('Game Handlers', () => {
                 winner: 'blue',
                 reason: 'assassin',
             });
+        });
+    });
+
+    describe('game:clue handler', () => {
+        test('registers handler', () => {
+            const handlers = mockSocket.on.mock.calls;
+            const clueHandler = handlers.find((h) => h[0] === 'game:clue');
+            expect(clueHandler).toBeDefined();
+        });
+
+        test('rejects a non-spymaster', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                role: 'clicker',
+                team: 'red',
+                nickname: 'Player1',
+            });
+            gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
+
+            const handlers = mockSocket.on.mock.calls;
+            const clueHandler = handlers.find((h) => h[0] === 'game:clue');
+            await clueHandler[1]({ word: 'fruit', number: 3 });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({ message: expect.stringContaining('spymaster') })
+            );
+            expect(gameService.submitClue).not.toHaveBeenCalled();
+        });
+
+        test('rejects when it is not the spymaster team’s turn', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                role: 'spymaster',
+                team: 'red',
+                nickname: 'Player1',
+            });
+            gameService.getGame.mockResolvedValue({ currentTurn: 'blue' });
+
+            const handlers = mockSocket.on.mock.calls;
+            const clueHandler = handlers.find((h) => h[0] === 'game:clue');
+            await clueHandler[1]({ word: 'fruit', number: 3 });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({ message: expect.stringContaining('turn') })
+            );
+        });
+
+        test('submits a clue and broadcasts it', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                role: 'spymaster',
+                team: 'red',
+                nickname: 'TestSpy',
+            });
+            gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
+            gameService.submitClue.mockResolvedValue({
+                word: 'FRUIT',
+                number: 3,
+                team: 'red',
+                guessesAllowed: 4,
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const clueHandler = handlers.find((h) => h[0] === 'game:clue');
+            await clueHandler[1]({ word: 'fruit', number: 3 });
+
+            expect(gameService.submitClue).toHaveBeenCalledWith('TEST12', 'red', 'fruit', 3, 'TestSpy');
+            expect(mockIo.to).toHaveBeenCalledWith('room:TEST12');
+            expect(mockIo.emit).toHaveBeenCalledWith(
+                'game:clueGiven',
+                expect.objectContaining({ word: 'FRUIT', number: 3, team: 'red', guessesAllowed: 4 })
+            );
         });
     });
 

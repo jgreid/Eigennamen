@@ -38,6 +38,8 @@ export interface Player {
     lastIP?: string;
     /** User ID from authenticated account (if any) */
     userId?: string;
+    /** Whether this player is a server-side bot (no live socket) */
+    isBot?: boolean;
 }
 
 /**

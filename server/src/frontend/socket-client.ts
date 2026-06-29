@@ -198,6 +198,10 @@ import type { JoinCreateResult } from './multiplayerTypes.js';
             this._getSocket()?.emit('game:reveal', { index });
         },
 
+        submitClue(word: string, number: number): void {
+            this._getSocket()?.emit('game:clue', { word, number });
+        },
+
         endTurn(): void {
             queueOrEmit(this, 'game:endTurn', {});
         },
@@ -224,6 +228,18 @@ import type { JoinCreateResult } from './multiplayerTypes.js';
 
         clearHistory(): void {
             this._getSocket()?.emit('game:clearHistory');
+        },
+
+        // =====================
+        // Bot Actions (host only)
+        // =====================
+
+        addBot(team: string, role: string, strategyId: string, skillPreset: string): void {
+            this._getSocket()?.emit('bot:add', { team, role, strategyId, skillPreset });
+        },
+
+        removeBot(sessionId: string): void {
+            this._getSocket()?.emit('bot:remove', { sessionId });
         },
 
         // =====================

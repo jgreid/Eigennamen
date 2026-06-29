@@ -13,6 +13,10 @@ server/coverage/
 server/playwright-report/
 server/test-results/
 
+# Bot self-play corpora + downloaded semantic assets (see docs/INTELLIGENT_BOTS_SPEC.md)
+server/src/bots/results/
+server/src/bots/data/
+
 # Environment
 .env
 *.log

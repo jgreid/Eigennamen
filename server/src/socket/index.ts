@@ -32,6 +32,7 @@ import {
 import { createTimerExpireCallback as createTimerExpireCallbackImpl } from './disconnectHandler';
 import { createSocketServer } from './serverConfig';
 import { handleConnection, ensureSocketFunctionsRegistered } from './connectionHandler';
+import { initBotController, stopBotController } from '../bots/botController';
 import { ServerError } from '../errors/GameError';
 
 import type { ExpressAppWithSockets } from './connectionHandler';
@@ -190,6 +191,9 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
     // Wire up room cleanup callback to break playerService ↔ roomService circular dependency
     registerRoomCleanup(cleanupRoom);
 
+    // Initialize the server-side bot controller (reacts to game mutations)
+    initBotController(socketServer);
+
     return socketServer;
 }
 
@@ -203,6 +207,7 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
  */
 async function cleanupSocketModule(): Promise<void> {
     shuttingDown = true;
+    stopBotController();
     stopRateLimitCleanup();
     stopConnectionsCleanup();
 

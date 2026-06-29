@@ -35,6 +35,7 @@ jest.mock('../../socket/handlers/gameHandlers', () => jest.fn());
 jest.mock('../../socket/handlers/playerHandlers', () => jest.fn());
 jest.mock('../../socket/handlers/chatHandlers', () => jest.fn());
 jest.mock('../../socket/handlers/timerHandlers', () => jest.fn());
+jest.mock('../../socket/handlers/botHandlers', () => jest.fn());
 
 jest.mock('../../socket/connectionTracker', () => ({
     decrementConnectionCount: jest.fn(),

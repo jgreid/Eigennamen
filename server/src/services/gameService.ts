@@ -5,6 +5,7 @@ import type {
     CreateGameOptions,
     RevealResult,
     EndTurnResult,
+    ClueResult,
     ForfeitResult,
     RoundResult,
 } from '../types';
@@ -49,13 +50,17 @@ import type { RedisClient } from './game/luaGameOps';
 import {
     OPTIMIZED_REVEAL_SCRIPT,
     OPTIMIZED_END_TURN_SCRIPT,
+    OPTIMIZED_SUBMIT_CLUE_SCRIPT,
     gameStateSchema,
     MAX_HISTORY_ENTRIES,
     executeLuaScript,
     executeGameTransaction,
     revealResultSchema,
     endTurnResultSchema,
+    clueResultSchema,
 } from './game/luaGameOps';
+
+import { isClueLegalForBoard } from '../shared/gameRules';
 
 // Re-export types for consumers
 export type { CreateGameOptions, RevealResult, EndTurnResult, ForfeitResult };
@@ -271,7 +276,7 @@ export async function createGame(roomCode: string, options: CreateGameOptions = 
                 throw RoomError.notFound(roomCode);
             }
 
-            const seed = generateSeed();
+            const seed = options.seed || generateSeed();
             const numericSeed = hashString(seed);
             const isDuet = options.gameMode === 'duet';
 
@@ -392,6 +397,70 @@ export async function endTurn(
                 luaErrorMap,
                 `endTurn-${roomCode}`,
                 endTurnResultSchema
+            );
+            notifyGameMutation(roomCode);
+            return result;
+        },
+        { lockTimeout: LOCKS.CARD_REVEAL * 1000, maxRetries: 5 }
+    );
+}
+
+/**
+ * Submit a spymaster's clue for the current turn — atomic Lua execution under
+ * the same distributed lock used by reveal/endTurn so it serializes with them.
+ *
+ * Role enforcement (spymaster-only) is the caller's responsibility; this
+ * function validates game state, turn ownership, and clue legality (the clue
+ * may not reference a word on the board) so that both the socket handler and
+ * future internal callers (bots) share the same rules.
+ */
+export async function submitClue(
+    roomCode: string,
+    team: Team,
+    word: string,
+    clueNumber: number,
+    spymasterName: string = 'Unknown'
+): Promise<ClueResult> {
+    const gameKey = `room:${roomCode}:game`;
+
+    return withLock(
+        `reveal:${roomCode}`,
+        async () => {
+            // Read the board to enforce clue legality. Board words are immutable
+            // for the lifetime of a game, so this read is not racy; the Lua op
+            // below re-validates turn/game-over/paused atomically.
+            const game = await getGame(roomCode);
+            if (!game) throw GameStateError.noActiveGame();
+            if (game.gameOver) throw GameStateError.gameOver();
+            if (game.paused) throw GameStateError.gamePaused();
+            if (game.currentTurn !== team) throw PlayerError.notYourTurn(team);
+            if (!isClueLegalForBoard(word, game.words)) {
+                throw new ValidationError('Clue cannot match or derive from a word on the board');
+            }
+
+            const luaErrorMap: Record<string, Error> = {
+                NO_GAME: GameStateError.noActiveGame(),
+                GAME_OVER: GameStateError.gameOver(),
+                GAME_PAUSED: GameStateError.gamePaused(),
+                NOT_YOUR_TURN: PlayerError.notYourTurn(team),
+                CLUE_ALREADY_GIVEN: new ValidationError('A clue has already been given this turn'),
+            };
+
+            const result = await executeLuaScript<ClueResult>(
+                OPTIMIZED_SUBMIT_CLUE_SCRIPT,
+                gameKey,
+                [
+                    word,
+                    Math.trunc(clueNumber).toString(),
+                    spymasterName,
+                    team,
+                    Date.now().toString(),
+                    MAX_HISTORY_ENTRIES.toString(),
+                    REDIS_TTL.ROOM.toString(),
+                ],
+                luaErrorMap,
+                `submitClue-${roomCode}`,
+                clueResultSchema
             );
             notifyGameMutation(roomCode);
             return result;

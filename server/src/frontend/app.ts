@@ -68,6 +68,8 @@ import {
     hasSessionStarted,
 } from './setupScreen.js';
 import { logger } from './logger.js';
+import { initClueUI } from './clueUI.js';
+import { initBotsUI, addBotFromForm, removeBot } from './botsUI.js';
 
 // Signal that the ES module loaded successfully
 (window as Window & { __appModuleLoaded?: boolean }).__appModuleLoaded = true;
@@ -295,6 +297,14 @@ function setupEventListeners(): void {
                 closeReplay();
                 break;
 
+            // Bot management (host only)
+            case 'add-bot':
+                addBotFromForm();
+                break;
+            case 'remove-bot':
+                removeBot(target.dataset.session ?? '');
+                break;
+
             // Setup screen actions
             case 'setup-host':
             case 'setup-join':
@@ -346,6 +356,9 @@ async function init(): Promise<void> {
         initPlayerListUI();
         // Initialize nickname edit UI
         initNicknameEditUI();
+        // Initialize spymaster clue UX + host bot management UI
+        initClueUI();
+        initBotsUI();
         // Load notification preferences
         loadNotificationPrefs();
         initNotificationPrefsUI();

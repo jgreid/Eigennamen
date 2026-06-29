@@ -31,11 +31,16 @@ export {
 export {
     gameStartSchema,
     gameRevealSchema,
+    gameClueSchema,
     gameHistoryLimitSchema,
     gameReplaySchema,
     gameForfeitSchema,
     gameReadySchema,
 } from './gameSchemas';
+
+// Re-export bot schemas
+export { botConfigSchema, botAddSchema, botRemoveSchema } from './botSchemas';
+export type { BotAddInput, BotRemoveInput } from './botSchemas';
 
 // Re-export chat schemas
 export { chatMessageSchema, spectatorChatSchema } from './chatSchemas';
@@ -57,6 +62,7 @@ export type {
 export type {
     GameStartInput,
     GameRevealInput,
+    GameClueInput,
     GameHistoryLimitInput,
     GameReplayInput,
     GameForfeitInput,

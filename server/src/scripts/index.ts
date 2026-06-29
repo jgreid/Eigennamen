@@ -11,6 +11,9 @@ export const REVEAL_CARD_SCRIPT: string = loadLua('revealCard.lua');
 /** Atomic turn end with score updates */
 export const END_TURN_SCRIPT: string = loadLua('endTurn.lua');
 
+/** Atomic clue submission (sets currentClue, guessesAllowed, history) */
+export const SUBMIT_CLUE_SCRIPT: string = loadLua('submitClue.lua');
+
 /** Atomic player field updates with TTL refresh */
 export const UPDATE_PLAYER_SCRIPT: string = loadLua('updatePlayer.lua');
 

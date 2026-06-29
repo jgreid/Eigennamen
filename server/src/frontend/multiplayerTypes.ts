@@ -5,6 +5,7 @@ export interface ServerPlayerData {
     role: 'spymaster' | 'clicker' | 'spectator' | null;
     isHost: boolean;
     connected: boolean;
+    isBot?: boolean;
 }
 
 export interface ServerRoomData {
@@ -50,6 +51,14 @@ export interface ClueData {
     team: string;
     spymaster?: string;
     guessesAllowed?: number;
+}
+
+export interface ClueGivenData {
+    word: string;
+    number: number;
+    team: string;
+    guessesAllowed?: number;
+    spymaster?: { sessionId: string; nickname: string };
 }
 
 export interface JoinCreateResult {

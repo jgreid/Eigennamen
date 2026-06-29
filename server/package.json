@@ -33,7 +33,9 @@
     "predeploy": "../scripts/pre-deploy-check.sh",
     "redis:inspect": "../scripts/redis-inspect.sh",
     "loadtest": "node loadtest/stress-test.js",
-    "loadtest:memory": "node loadtest/memory-leak-test.js"
+    "loadtest:memory": "node loadtest/memory-leak-test.js",
+    "bots:train": "ts-node --transpile-only src/bots/harness/runMatches.ts",
+    "bots:parity": "ts-node --transpile-only src/bots/harness/parity.ts"
   },
   "dependencies": {
     "@socket.io/redis-adapter": "^8.2.1",

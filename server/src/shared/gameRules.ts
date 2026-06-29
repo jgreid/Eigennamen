@@ -59,6 +59,63 @@ export const BOARD_VALUE_MAX = 30;
  */
 export const ASSASSIN_SCORE_POOL = [-2, -2, -1, -1, -1, 0, 0, 1, 2] as const;
 
+// ---- Clue rules ----
+
+/** Maximum length of a clue word (after sanitization). */
+export const CLUE_WORD_MAX_LENGTH = 40;
+
+/** Maximum value for a clue number. */
+export const CLUE_NUMBER_MAX = 9;
+
+/**
+ * Normalize a word for clue-legality comparison: NFKC, trim, uppercase.
+ * Board words are stored uppercase, so this aligns the two sides.
+ */
+export function normalizeClueWord(word: string): string {
+    return word.normalize('NFKC').trim().toLocaleUpperCase('en-US');
+}
+
+/**
+ * Crude English stemmer used ONLY for clue-legality checks. Strips a few
+ * common inflectional suffixes so e.g. RUNNING / RUNS collapse toward RUN.
+ * Deliberately conservative and lossy — it governs clue legality, never
+ * scoring, so occasional over-stemming is acceptable.
+ */
+function crudeStem(word: string): string {
+    const suffixes = ['INGLY', 'EDLY', 'ING', 'EST', 'ERS', 'ED', 'ER', 'LY', 'ES', 'S'];
+    for (const suffix of suffixes) {
+        if (word.length > suffix.length + 2 && word.endsWith(suffix)) {
+            return word.slice(0, -suffix.length);
+        }
+    }
+    return word;
+}
+
+/**
+ * Whether a clue is legal to give for a given board. Mirrors the standard
+ * rule that a clue may not reference a word on the board: rejects an exact
+ * match, a substring match in either direction (covers multi-word board
+ * entries like "ICE CREAM"), or a shared crude stem (grammatical variant).
+ *
+ * Pure and environment-agnostic so both the server (gameService) and the
+ * frontend (to pre-disable the submit button) can share it.
+ *
+ * @returns true if the clue may be given.
+ */
+export function isClueLegalForBoard(clue: string, boardWords: string[]): boolean {
+    const c = normalizeClueWord(clue);
+    if (c.length === 0) return false;
+    const cStem = crudeStem(c);
+    for (const raw of boardWords) {
+        const b = normalizeClueWord(raw);
+        if (b.length === 0) continue;
+        if (c === b || c.includes(b) || b.includes(c)) return false;
+        const bStem = crudeStem(b);
+        if (cStem.length >= 3 && cStem === bStem) return false;
+    }
+    return true;
+}
+
 // Default word list (standard Codenames set)
 export const DEFAULT_WORDS = [
     'AFRICA',

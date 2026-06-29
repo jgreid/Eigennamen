@@ -10,12 +10,14 @@ import {
     updateMatchScoreboard,
 } from '../game.js';
 import { updateRoleBanner, updateControls } from '../roles.js';
+import { updateClueUI } from '../clueUI.js';
 import { playNotificationSound, setTabNotification, checkAndNotifyTurn } from '../notifications.js';
 import { updateDuetUI, updateDuetInfoBar, updateForfeitButton } from '../multiplayerUI.js';
 import { syncGameStateFromServer } from '../multiplayerSync.js';
 import type {
     GameStartedData,
     CardRevealedData,
+    ClueGivenData,
     TurnEndedData,
     GameOverData,
     SpymasterViewData,
@@ -73,6 +75,7 @@ export function registerGameHandlers(): void {
             state.gameMode = data.gameMode || 'match';
             updateDuetUI(data.game);
             updateForfeitButton();
+            updateClueUI();
             if (data.isNextRound) {
                 const round = data.game?.matchRound ?? 2;
                 showToast(t('game.roundStarted', { round: String(round) }), 'success', 5000);
@@ -134,6 +137,42 @@ export function registerGameHandlers(): void {
         }
     });
 
+    EigennamenClient.on('clueGiven', (data: ClueGivenData) => {
+        if (state.resyncInProgress) return;
+        if (!data || !data.word) return;
+
+        // Reflect the clue in game state so clue-aware UI (and guess limiting)
+        // stays in sync. guessesAllowed of 0 means unlimited.
+        state.gameState.currentClue = {
+            word: data.word,
+            number: data.number,
+            team: data.team,
+            guessesAllowed: data.guessesAllowed,
+            spymaster: data.spymaster?.nickname,
+        };
+        state.gameState.guessesUsed = 0;
+        if (typeof data.guessesAllowed === 'number') {
+            state.gameState.guessesAllowed = data.guessesAllowed;
+        }
+
+        updateTurnIndicator();
+        updateControls();
+
+        // Surface the clue to all players (clickers, spectators, and the
+        // spymaster's own confirmation). The clue word is rendered via
+        // textContent inside showToast, so it is safe to pass directly.
+        const teamName = data.team === 'red' ? state.teamNames.red : state.teamNames.blue;
+        const message = t('game.clueGivenAnnounce', {
+            team: teamName,
+            word: data.word,
+            number: String(data.number),
+        });
+        showToast(message, 'info', 5000);
+        announceToScreenReader(message);
+        playNotificationSound('reveal');
+        updateClueUI();
+    });
+
     EigennamenClient.on('turnEnded', (data: TurnEndedData) => {
         if (state.resyncInProgress) return;
         if (data.currentTurn) {
@@ -186,6 +225,10 @@ export function registerGameHandlers(): void {
         setTabNotification(false);
         playNotificationSound('gameOver');
         updateForfeitButton();
+        // A game can end while the local spymaster's clue form is open (opponent
+        // forfeit, assassin reveal, timer/duet-token expiry). Recompute so the
+        // form hides instead of staying interactable after game over.
+        updateClueUI();
     });
 
     // Handle spymaster view (card types for spymasters)

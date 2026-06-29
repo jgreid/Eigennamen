@@ -49,6 +49,8 @@ export const SOCKET_EVENTS = {
     GAME_STARTED: 'game:started',
     GAME_REVEAL: 'game:reveal',
     GAME_CARD_REVEALED: 'game:cardRevealed',
+    GAME_CLUE: 'game:clue',
+    GAME_CLUE_GIVEN: 'game:clueGiven',
     GAME_END_TURN: 'game:endTurn',
     GAME_TURN_ENDED: 'game:turnEnded',
     GAME_FORFEIT: 'game:forfeit',
@@ -73,6 +75,10 @@ export const SOCKET_EVENTS = {
     GAME_RESUMED: 'game:resumed',
     GAME_TYPING: 'game:typing',
     GAME_ERROR: 'game:error',
+
+    // Bot events
+    BOT_ADD: 'bot:add',
+    BOT_REMOVE: 'bot:remove',
 
     // Player events
     PLAYER_SET_TEAM: 'player:setTeam',

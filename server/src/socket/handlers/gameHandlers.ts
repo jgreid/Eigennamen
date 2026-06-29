@@ -11,6 +11,7 @@ import * as gameHistoryService from '../../services/gameHistoryService';
 import * as timerService from '../../services/timerService';
 import {
     gameRevealSchema,
+    gameClueSchema,
     gameStartSchema,
     gameHistoryLimitSchema,
     gameReplaySchema,
@@ -26,6 +27,7 @@ import { withTimeout, TIMEOUTS } from '../../utils/timeout';
 import { getSocketFunctions } from '../socketFunctionProvider';
 import { safeEmitToRoom, safeEmitToPlayers } from '../safeEmit';
 import { saveCompletedGameHistory, handleMatchRoundFinalization } from './gameHandlerUtils';
+import { applyClue, applyReveal, applyEndTurn } from './gameActions';
 
 /**
  * Game start input
@@ -40,6 +42,14 @@ interface GameStartInput {
  */
 interface GameRevealInput {
     index: number;
+}
+
+/**
+ * Game clue input
+ */
+interface GameClueInput {
+    word: string;
+    number: number;
 }
 
 /**
@@ -124,11 +134,15 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                     gameMode,
                 }));
 
-                // Broadcast role resets so all clients clear spymaster/clicker state
+                // Broadcast role resets so all clients clear spymaster/clicker state.
+                // Humans were reset to spectator; bots keep their seat role
+                // (resetRolesForNewGame skips them), so broadcast the ACTUAL role
+                // rather than a hardcoded 'spectator' — otherwise clients show a bot
+                // as a spectator while the controller still plays its real role.
                 for (const p of players) {
                     safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
                         sessionId: p.sessionId,
-                        changes: { role: 'spectator', team: p.team },
+                        changes: { role: p.role ?? 'spectator', team: p.team },
                     });
                 }
 
@@ -199,69 +213,23 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                     );
                 }
 
-                // Bug #4 fix: Pass player team to revealCard for Lua-level turn validation
-                const result: RevealResult = await withTimeout(
-                    gameService.revealCard(ctx.roomCode, validated.index, ctx.player.nickname, ctx.player.team),
-                    TIMEOUTS.GAME_ACTION,
-                    'game:reveal'
-                );
-
-                // Broadcast the reveal to all players
-                const revealPayload: Record<string, unknown> = {
-                    index: result.index,
-                    type: result.type,
-                    word: result.word,
-                    redScore: result.redScore,
-                    blueScore: result.blueScore,
-                    currentTurn: result.currentTurn,
-                    guessesUsed: result.guessesUsed,
-                    guessesAllowed: result.guessesAllowed,
-                    turnEnded: result.turnEnded,
-                    gameOver: result.gameOver,
-                    winner: result.winner,
-                    player: {
+                // Bug #4 fix: Pass player team to applyReveal for Lua-level turn validation.
+                // applyReveal performs the reveal, broadcasts game:cardRevealed, handles
+                // timer restart / game-over broadcast + history — shared with the bot path.
+                const result: RevealResult = await applyReveal(
+                    io,
+                    ctx.roomCode,
+                    {
                         sessionId: ctx.player.sessionId,
                         nickname: ctx.player.nickname,
                         team: ctx.player.team,
+                        role: ctx.player.role,
                     },
-                };
-                // Include Duet-specific fields if present
-                if (result.timerTokens !== undefined) revealPayload.timerTokens = result.timerTokens;
-                if (result.greenFound !== undefined) revealPayload.greenFound = result.greenFound;
-                // Include match mode fields
-                if (result.cardScore !== undefined) revealPayload.cardScore = result.cardScore;
-                if (result.redMatchScore !== undefined) revealPayload.redMatchScore = result.redMatchScore;
-                if (result.blueMatchScore !== undefined) revealPayload.blueMatchScore = result.blueMatchScore;
-                safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_CARD_REVEALED, revealPayload);
+                    validated.index
+                );
 
-                // Handle turn ending
-                if (result.turnEnded && !result.gameOver) {
-                    const room: Room | null = await roomService.getRoom(ctx.roomCode);
-                    if (room && room.settings && room.settings.turnTimer) {
-                        await getSocketFunctions().startTurnTimer(ctx.roomCode, room.settings.turnTimer);
-                    }
-                }
-
-                // If game is over, stop timer FIRST then reveal all card types
+                // Audit log game end (handler-specific — needs the socket's client IP)
                 if (result.gameOver) {
-                    await getSocketFunctions().stopTurnTimer(ctx.roomCode);
-
-                    const gameOverPayload: Record<string, unknown> = {
-                        winner: result.winner,
-                        reason: result.endReason,
-                        types: result.allTypes,
-                    };
-                    if (result.allDuetTypes) gameOverPayload.duetTypes = result.allDuetTypes;
-                    if (result.greenFound !== undefined) gameOverPayload.greenFound = result.greenFound;
-                    if (result.timerTokens !== undefined) gameOverPayload.timerTokens = result.timerTokens;
-                    safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_OVER, gameOverPayload);
-
-                    await saveCompletedGameHistory(ctx.roomCode);
-
-                    // Match mode: atomically finalize round and emit result
-                    await handleMatchRoundFinalization(io, ctx.roomCode);
-
-                    // Audit log game end
                     const clientIpEnd = socket.clientIP || socket.handshake.address;
                     audit(AUDIT_EVENTS.GAME_ENDED, {
                         roomCode: ctx.roomCode,
@@ -271,10 +239,50 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                     });
                 }
 
-                // Keep room alive during active games
-                await debouncedRefreshRoomTTL(ctx.roomCode);
-
                 logger.info(`Card ${validated.index} revealed in room ${ctx.roomCode}`);
+            }
+        )
+    );
+
+    /**
+     * Give a clue (current team's spymaster only)
+     */
+    socket.on(
+        SOCKET_EVENTS.GAME_CLUE,
+        createGameHandler(
+            socket,
+            SOCKET_EVENTS.GAME_CLUE,
+            gameClueSchema as ZodType<GameClueInput>,
+            async (ctx: GameContext, validated: GameClueInput) => {
+                if (ctx.game.paused) throw GameStateError.gamePaused();
+
+                if (!ctx.player.team) {
+                    throw new ValidationError('You must join a team before giving a clue');
+                }
+
+                // Only the spymaster may give clues
+                if (ctx.player.role !== 'spymaster') {
+                    throw PlayerError.notSpymaster();
+                }
+
+                if (ctx.player.team !== ctx.game.currentTurn) {
+                    throw PlayerError.notYourTurn(ctx.player.team);
+                }
+
+                await applyClue(
+                    io,
+                    ctx.roomCode,
+                    {
+                        sessionId: ctx.player.sessionId,
+                        nickname: ctx.player.nickname,
+                        team: ctx.player.team,
+                        role: ctx.player.role,
+                    },
+                    validated.word,
+                    validated.number
+                );
+
+                logger.info(`Clue given in room ${ctx.roomCode} by ${ctx.player.nickname}`);
             }
         )
     );
@@ -316,25 +324,12 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 throw PlayerError.notClicker();
             }
 
-            const result: EndTurnResult = await withTimeout(
-                gameService.endTurn(ctx.roomCode, ctx.player.nickname, ctx.player.team),
-                TIMEOUTS.GAME_ACTION,
-                'game:endTurn'
-            );
-
-            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_TURN_ENDED, {
-                currentTurn: result.currentTurn,
-                previousTurn: result.previousTurn,
+            const result: EndTurnResult = await applyEndTurn(io, ctx.roomCode, {
+                sessionId: ctx.player.sessionId,
+                nickname: ctx.player.nickname,
+                team: ctx.player.team,
+                role: ctx.player.role,
             });
-
-            // Restart timer for new turn if configured
-            const room: Room | null = await roomService.getRoom(ctx.roomCode);
-            if (room && room.settings && room.settings.turnTimer) {
-                await getSocketFunctions().startTurnTimer(ctx.roomCode, room.settings.turnTimer);
-            }
-
-            // Keep room alive during active games
-            await debouncedRefreshRoomTTL(ctx.roomCode);
 
             logger.info(`Turn ended in room ${ctx.roomCode}, now ${result.currentTurn}'s turn`);
         })
@@ -431,11 +426,14 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 isNextRound: true,
             }));
 
-            // Broadcast role resets so all clients clear spymaster/clicker state
+            // Broadcast role resets so all clients clear spymaster/clicker state.
+            // Bots keep their seat role across rounds (resetRolesForNewGame skips
+            // them), so broadcast the actual role rather than a hardcoded
+            // 'spectator' to keep client rosters consistent with server state.
             for (const p of players) {
                 safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
                     sessionId: p.sessionId,
-                    changes: { role: 'spectator', team: p.team },
+                    changes: { role: p.role ?? 'spectator', team: p.team },
                 });
             }
 

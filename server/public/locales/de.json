@@ -15,6 +15,32 @@
         "redTeam": "Rotes Team",
         "blueTeam": "Blaues Team"
     },
+    "clue": {
+        "giveClue": "Hinweis geben",
+        "give": "Geben",
+        "errorEmpty": "Hinweiswort eingeben",
+        "errorSingleWord": "Hinweis muss ein einzelnes Wort sein"
+    },
+    "bots": {
+        "addTitle": "Bot hinzufügen",
+        "team": "Team",
+        "teamRed": "Rot",
+        "teamBlue": "Blau",
+        "seat": "Platz",
+        "style": "Stil",
+        "styleSmart": "Schlau",
+        "styleCautious": "Vorsichtig",
+        "styleRandom": "Zufällig",
+        "skill": "Stärke",
+        "skillExpert": "Experte",
+        "skillIntermediate": "Mittel",
+        "skillNovice": "Anfänger",
+        "add": "Bot hinzufügen",
+        "badge": "🤖 BOT",
+        "remove": "Entfernen",
+        "added": "Bot hinzugefügt",
+        "hostOnly": "Nur der Host kann Bots hinzufügen"
+    },
     "roles": {
         "spymaster": "Geheimdienstchef",
         "clicker": "Ermittler",
@@ -68,6 +94,7 @@
         "invalidWordCount": "Ungültiges Spiel: genau {{count}} Wörter benötigt",
         "notEnoughWords": "Nicht genug Wörter! Mindestens {{count}} Wörter zum Spielen benötigt. Bitte füge mehr Wörter in den Einstellungen hinzu.",
         "turnEndedAnnounce": "Zug beendet. Jetzt ist {{team}} dran.",
+        "clueGivenAnnounce": "Hinweis von {{team}}: {{word}} ({{number}}).",
         "wordRevealedAs": "{{word}} aufgedeckt als {{type}}",
         "roleCleared": "{{role}}-Rolle entfernt. Jetzt im {{team}}-Team.",
         "copy": "Kopieren",

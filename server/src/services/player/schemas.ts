@@ -20,6 +20,7 @@ export const playerSchema = z.object({
     disconnectedAt: z.number().optional(),
     lastIP: z.string().optional(),
     userId: z.string().optional(),
+    isBot: z.boolean().optional(),
 });
 
 /**

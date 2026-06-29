@@ -46,9 +46,14 @@ interface EigennamenClientAPI {
     startGame(options: Record<string, unknown>): void;
     nextRound(): void;
     revealCard(index: number): void;
+    submitClue(word: string, number: number): void;
     endTurn(): void;
     forfeit(team?: string): void;
     abandonGame(): void;
+
+    // Bot management (host only)
+    addBot(team: string, role: string, strategyId: string, skillPreset: string): void;
+    removeBot(sessionId: string): void;
 
     // Host queries
     isHost(): boolean;

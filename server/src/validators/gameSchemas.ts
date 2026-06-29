@@ -2,6 +2,7 @@ import type { z as ZodType } from 'zod';
 
 import { z } from 'zod';
 import { BOARD_SIZE } from '../config/constants';
+import { CLUE_WORD_MAX_LENGTH, CLUE_NUMBER_MAX } from '../shared/gameRules';
 import { removeControlChars } from '../utils/sanitize';
 
 const gameStartSchema = z
@@ -38,6 +39,25 @@ const gameRevealSchema = z.object({
         .max(BOARD_SIZE - 1, 'Invalid card index'),
 });
 
+// Clue schema (for game:clue) — structural validation only. Board-word
+// legality (clue must not reference a word on the board) is enforced in the
+// service layer where the board is known, so both the socket handler and any
+// internal caller (e.g. bots) share that rule.
+const gameClueSchema = z.object({
+    word: z
+        .string()
+        .min(1, 'Clue is required')
+        .max(CLUE_WORD_MAX_LENGTH, 'Clue is too long')
+        .transform((val: string) => removeControlChars(val).trim())
+        .refine((val: string) => val.length >= 1, 'Clue is required')
+        .refine((val: string) => !/\s/.test(val), 'Clue must be a single word'),
+    number: z
+        .number()
+        .int('Clue number must be a whole number')
+        .min(0, 'Clue number must be at least 0')
+        .max(CLUE_NUMBER_MAX, `Clue number cannot exceed ${CLUE_NUMBER_MAX}`),
+});
+
 // Game history limit schema (for game:getHistory)
 const gameHistoryLimitSchema = z.object({
     limit: z.number().int().min(1, 'Limit must be at least 1').max(50, 'Limit cannot exceed 50').optional().default(10),
@@ -66,6 +86,7 @@ const gameReadySchema = z.object({}).strict();
 // Type exports for schema inference
 export type GameStartInput = ZodType.infer<typeof gameStartSchema>;
 export type GameRevealInput = ZodType.infer<typeof gameRevealSchema>;
+export type GameClueInput = ZodType.infer<typeof gameClueSchema>;
 export type GameHistoryLimitInput = ZodType.infer<typeof gameHistoryLimitSchema>;
 export type GameReplayInput = ZodType.infer<typeof gameReplaySchema>;
 export type GameForfeitInput = ZodType.infer<typeof gameForfeitSchema>;
@@ -74,6 +95,7 @@ export type GameReadyInput = ZodType.infer<typeof gameReadySchema>;
 export {
     gameStartSchema,
     gameRevealSchema,
+    gameClueSchema,
     gameHistoryLimitSchema,
     gameReplaySchema,
     gameForfeitSchema,

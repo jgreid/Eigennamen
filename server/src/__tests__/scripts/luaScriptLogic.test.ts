@@ -9,6 +9,7 @@
 import {
     REVEAL_CARD_SCRIPT,
     END_TURN_SCRIPT,
+    SUBMIT_CLUE_SCRIPT,
     SET_ROLE_SCRIPT,
     HOST_TRANSFER_SCRIPT,
     SAFE_TEAM_SWITCH_SCRIPT,
@@ -171,6 +172,42 @@ describe('Lua Script Behavioral Contracts', () => {
             expect(END_TURN_SCRIPT).toContain('local defaultTtl = tonumber(ARGV[5])');
             expect(END_TURN_SCRIPT).toContain('local saveTtl = currentTTL > 0 and currentTTL or defaultTtl');
             expect(END_TURN_SCRIPT).toContain("'EX', saveTtl");
+        });
+    });
+
+    describe('submitClue.lua logic', () => {
+        it('validates game-over, paused, and turn preconditions', () => {
+            expect(SUBMIT_CLUE_SCRIPT).toContain("error = 'GAME_OVER'");
+            expect(SUBMIT_CLUE_SCRIPT).toContain("error = 'GAME_PAUSED'");
+            expect(SUBMIT_CLUE_SCRIPT).toContain('game.currentTurn ~= expectedTeam');
+            expect(SUBMIT_CLUE_SCRIPT).toContain("error = 'NOT_YOUR_TURN'");
+        });
+
+        it('rejects a second clue in the same turn', () => {
+            expect(SUBMIT_CLUE_SCRIPT).toContain('game.currentClue ~= cjson.null');
+            expect(SUBMIT_CLUE_SCRIPT).toContain("error = 'CLUE_ALREADY_GIVEN'");
+        });
+
+        it('grants number+1 guesses, with 0 meaning unlimited', () => {
+            expect(SUBMIT_CLUE_SCRIPT).toContain('guessesAllowed = number + 1');
+            expect(SUBMIT_CLUE_SCRIPT).toContain('guessesAllowed = 0');
+        });
+
+        it('sets currentClue and resets the guess counter', () => {
+            expect(SUBMIT_CLUE_SCRIPT).toContain('game.currentClue = {');
+            expect(SUBMIT_CLUE_SCRIPT).toContain('game.guessesUsed = 0');
+            expect(SUBMIT_CLUE_SCRIPT).toContain('game.guessesAllowed = guessesAllowed');
+        });
+
+        it('appends a clue history entry with action=clue', () => {
+            expect(SUBMIT_CLUE_SCRIPT).toContain("action = 'clue'");
+            expect(SUBMIT_CLUE_SCRIPT).toContain('table.insert(game.clues');
+        });
+
+        it('increments stateVersion and preserves TTL', () => {
+            expect(SUBMIT_CLUE_SCRIPT).toContain('game.stateVersion = (game.stateVersion or 0) + 1');
+            expect(SUBMIT_CLUE_SCRIPT).toContain('local saveTtl = currentTTL > 0 and currentTTL or defaultTtl');
+            expect(SUBMIT_CLUE_SCRIPT).toContain("'EX', saveTtl");
         });
     });
 

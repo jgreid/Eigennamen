@@ -11,6 +11,7 @@ import type {
     ServerGameData,
     GameStartedData,
     CardRevealedData,
+    ClueGivenData,
     TurnEndedData,
     GameOverData,
     RoundEndedData,
@@ -95,6 +96,7 @@ export interface ClientEventMap {
     // Game events
     gameStarted: GameStartedData;
     cardRevealed: CardRevealedData;
+    clueGiven: ClueGivenData;
     turnEnded: TurnEndedData;
     gameOver: GameOverData;
     'game:roundEnded': RoundEndedData;
