@@ -64,14 +64,9 @@ export function computeLeaderboard(entrants: Entrant[], results: MatchResult[]):
             blue.assassinHits++;
         }
 
-        const isDuet = r.gameMode === 'duet';
-        // Per-entrant scores: 1 win, 0 loss, 0.5 draw (for Elo + tallies).
-        let redScore: number;
-        if (isDuet) {
-            // Cooperative: completion is a shared win.
-            const win = r.winner === 'red' ? 1 : 0;
-            redScore = win;
-            if (win) {
+        if (r.gameMode === 'duet') {
+            // Cooperative: completion is a shared win, otherwise a shared loss.
+            if (r.winner === 'red') {
                 red.wins++;
                 blue.wins++;
             } else {
@@ -79,6 +74,8 @@ export function computeLeaderboard(entrants: Entrant[], results: MatchResult[]):
                 blue.losses++;
             }
         } else {
+            // Per-entrant score for the head-to-head Elo: 1 win, 0 loss, 0.5 draw.
+            let redScore: number;
             if (r.winner === 'red') {
                 redScore = 1;
                 red.wins++;
@@ -92,7 +89,6 @@ export function computeLeaderboard(entrants: Entrant[], results: MatchResult[]):
                 red.draws++;
                 blue.draws++;
             }
-            // Elo update (head-to-head only).
             const expRed = expectedScore(red.elo, blue.elo);
             red.elo += ELO_K * (redScore - expRed);
             blue.elo += ELO_K * (1 - redScore - (1 - expRed));
