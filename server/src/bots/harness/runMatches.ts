@@ -59,6 +59,12 @@ export const DEFAULT_ENTRANTS: Entrant[] = [
         spymaster: { strategyId: 'randomSpymaster', skillPreset: 'intermediate' },
         clicker: { strategyId: 'greedyClicker', skillPreset: 'expert' },
     },
+    {
+        // Full semantic pipeline: table-backed spymaster + table-backed clicker.
+        id: 'semantic',
+        spymaster: { strategyId: 'embeddingSpymaster', skillPreset: 'expert' },
+        clicker: { strategyId: 'greedyClicker', skillPreset: 'expert' },
+    },
 ];
 
 /* istanbul ignore next -- CLI entry, exercised manually via `npm run bots:train` */

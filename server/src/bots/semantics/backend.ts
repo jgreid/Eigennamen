@@ -14,6 +14,9 @@ export interface SemanticBackend {
     readonly id: string;
     /** Relatedness of two words in [0, 1]. */
     relatedness(a: string, b: string): number;
+    /** Candidate clue words this backend knows about (spymaster vocabulary).
+     *  Optional — backends without a fixed vocabulary (e.g. lexical) omit it. */
+    vocabulary?(): string[];
 }
 
 /** Character bigrams of an uppercased word (e.g. "FRUIT" -> FR,RU,UI,IT). */

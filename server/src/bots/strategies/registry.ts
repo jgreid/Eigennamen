@@ -8,16 +8,34 @@
  */
 import type { ClickerStrategy, SpymasterStrategy, SkillParams, StrategyFactory } from './types';
 import { makeRandomClicker, makeCautiousClicker, makeGreedyClicker } from './clickers';
-import { makeRandomSpymaster } from './spymasters';
+import { makeRandomSpymaster, makeEmbeddingSpymaster } from './spymasters';
+import { tableBackend } from '../semantics/tableBackend';
 
-export const STRATEGY_IDS = ['randomClicker', 'cautiousClicker', 'greedyClicker', 'randomSpymaster'] as const;
+export const STRATEGY_IDS = [
+    'randomClicker',
+    'cautiousClicker',
+    'greedyClicker',
+    'randomSpymaster',
+    'embeddingSpymaster',
+] as const;
 export type StrategyId = (typeof STRATEGY_IDS)[number];
 
 const REGISTRY: Record<string, StrategyFactory> = {
     randomClicker: { strategyId: 'randomClicker', label: 'Random', makeClicker: makeRandomClicker },
     cautiousClicker: { strategyId: 'cautiousClicker', label: 'Cautious', makeClicker: makeCautiousClicker },
-    greedyClicker: { strategyId: 'greedyClicker', label: 'Greedy', makeClicker: makeGreedyClicker },
+    // Greedy and the semantic spymaster share the baked association table so the
+    // clicker can actually interpret the spymaster's clues.
+    greedyClicker: {
+        strategyId: 'greedyClicker',
+        label: 'Greedy',
+        makeClicker: (skill) => makeGreedyClicker(skill, tableBackend),
+    },
     randomSpymaster: { strategyId: 'randomSpymaster', label: 'Random Spymaster', makeSpymaster: makeRandomSpymaster },
+    embeddingSpymaster: {
+        strategyId: 'embeddingSpymaster',
+        label: 'Semantic',
+        makeSpymaster: (skill) => makeEmbeddingSpymaster(skill, tableBackend),
+    },
 };
 
 export function isStrategyId(value: string): value is StrategyId {

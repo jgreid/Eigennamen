@@ -109,9 +109,10 @@ describe('runTournament', () => {
     it('plays every pair and produces a full leaderboard', () => {
         const spec = { entrants: DEFAULT_ENTRANTS, gameMode: 'classic' as const, gamesPerPair: 4, baseSeed: 't' };
         const { results, leaderboard } = runTournament(spec);
-        // 3 entrants => 3 unordered pairs => 3 * 4 games
-        expect(results).toHaveLength(12);
-        expect(leaderboard).toHaveLength(3);
+        const n = DEFAULT_ENTRANTS.length;
+        const pairs = (n * (n - 1)) / 2;
+        expect(results).toHaveLength(pairs * spec.gamesPerPair);
+        expect(leaderboard).toHaveLength(n);
         expect(leaderboard.reduce((s, e) => s + e.games, 0)).toBe(results.length * 2);
     });
 
