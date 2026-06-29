@@ -320,6 +320,7 @@ export async function cleanupRoom(code: string): Promise<void> {
         ...sessionIds.map((sessionId) => `player:${sessionId}`),
         ...sessionIds.map((sessionId) => `session:${sessionId}:socket`), // Also clean socket mappings
         ...sessionIds.map((sessionId) => `reconnect:session:${sessionId}`), // Clean reconnection session keys
+        ...sessionIds.map((sessionId) => `bot:${sessionId}:cfg`), // Clean bot strategy config (no-op for humans)
         ...reconnectTokens.filter((t): t is string => t !== null).map((token) => `reconnect:token:${token}`), // Clean reconnection token keys
         `room:${code}`,
         `room:${code}:players`,

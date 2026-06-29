@@ -506,17 +506,18 @@ npx playwright show-trace trace.zip
 
 ## Continuous Integration
 
-Tests run automatically on every PR and push to main via `.github/workflows/ci.yml`. The CI pipeline includes 8 quality gates:
+Tests run automatically on every PR and push to main via `.github/workflows/ci.yml`. The CI pipeline includes 6 merge-blocking quality gates (the `ci-passed` gate's dependencies):
 
 | Job | Description |
 |-----|-------------|
-| **Test** | Jest with coverage (Node 22 + 24 matrix) |
+| **Lint** | ESLint with `--max-warnings 0` (Prettier formatting check runs as a step inside this job) |
 | **Typecheck** | `tsc --noEmit` (backend + frontend) |
-| **Lint** | ESLint with `--max-warnings 0` |
-| **Format** | Prettier formatting check |
+| **Build** | Production build (`tsc` + esbuild + Lua copy) |
+| **Test** | Jest with coverage (Node 22 + 24 matrix) |
 | **Security** | `npm audit` (fails on critical vulnerabilities) |
 | **Docker** | Build image, verify health endpoint, Trivy vulnerability scan |
-| **E2E** | Playwright tests against a running server (Chromium) |
+
+**E2E** (Playwright against a running server, Chromium) also runs on every PR/push but is intentionally **non-blocking** — it is excluded from the `ci-passed` gate.
 
 Additionally, **CodeQL** runs weekly for automated security scanning (`.github/workflows/codeql.yml`).
 

@@ -6,9 +6,10 @@ Comprehensive reference for Claude Code, Squirmy, and other AI assistants workin
 
 Web-based multiplayer implementation of the board game "Eigennamen" (GPL v3.0).
 
-- **Standalone mode**: Offline single-page app. Game state encoded entirely in the URL — no server required. Open `index.html` directly or serve statically.
-- **Multiplayer mode**: Real-time synchronized gameplay via Node.js + Express 5 + Socket.io + Redis. Supports multiple concurrent rooms, reconnection, spectators, game history/replays, and an admin dashboard.
+- **Standalone mode**: Offline single-page app. Game state is encoded entirely in the URL, so no *backend* is required. The page loads its JS/CSS by absolute path (`/js/...`, `/css/...`), so serve the `server/public/` directory statically (e.g. `cd server/public && python -m http.server`) — opening `index.html` straight off the filesystem (`file://`) fails because those absolute paths don't resolve.
+- **Multiplayer mode**: Real-time synchronized gameplay via Node.js + Express 5 + Socket.io + Redis. Supports multiple concurrent rooms, reconnection, spectators, game history/replays, AI bot opponents, and an admin dashboard.
 - **Three game modes**: Classic (competitive), Duet (2-player cooperative), Match (multi-round competitive scoring)
+- **AI bots**: Optional bot players (host-managed via `bot:add`/`bot:remove`) that occupy spymaster/clicker seats and play through the same game ops as humans. Strategies range from random to a semantic spymaster backed by an offline association table or optional word embeddings. See `server/src/bots/` and [docs/INTELLIGENT_BOTS_SPEC.md](docs/INTELLIGENT_BOTS_SPEC.md).
 - **Four languages**: English, German, Spanish, French — with localized word lists
 - **PWA**: Installable as a Progressive Web App with service worker
 
@@ -25,7 +26,7 @@ npm run dev                    # Start dev server (uses REDIS_URL env, defaults 
 docker compose up -d --build   # Start with Docker (Redis + app)
 
 # Quality gates (all four must pass before submitting a PR)
-npm test                       # All tests (backend + frontend, 136 suites)
+npm test                       # All tests (backend + frontend, 156 suites)
 npm run lint                   # ESLint
 npm run format:check           # Prettier check
 npm run typecheck              # TypeScript check
@@ -45,13 +46,15 @@ npm run loadtest               # Stress test
 npm run loadtest:memory        # Memory leak test
 npm run redis:inspect          # Inspect Redis state
 npm run health                 # Health check
+npm run bots:train             # Headless bot self-play harness (strategy tuning)
+npm run bots:parity            # Verify bot engine vs Lua game-op parity
 ```
 
 ## Directory Structure
 
 ```
 Eigennamen/
-├── index.html                  # Standalone SPA entry point (no server needed)
+├── index.html                  # SPA entry point (served from server/public; uses absolute asset paths)
 ├── wordlist.txt                # Default word list
 ├── docker-compose.yml          # Docker orchestration (app + Redis)
 ├── fly.toml                    # Fly.io deployment config
@@ -63,6 +66,7 @@ Eigennamen/
 ├── README.md                   # Project overview + gameplay guide
 ├── scripts/                    # Shell scripts
 │   ├── dev-setup.sh            # Development environment setup
+│   ├── fetch-bot-embeddings.sh # Download optional word-embedding model for bots
 │   ├── fly-launch.sh           # Fly.io deployment
 │   ├── health-check.sh         # Health check
 │   ├── pre-deploy-check.sh     # Pre-deployment validation
@@ -71,7 +75,9 @@ Eigennamen/
 │   ├── ADDING_A_FEATURE.md     # Worked example: adding a socket event end-to-end
 │   ├── ARCHITECTURE.md         # System architecture + data flow diagrams
 │   ├── BACKUP_AND_DR.md        # Backup strategy + disaster recovery
+│   ├── BOT_EMBEDDINGS.md       # Optional word-embedding backend for bots
 │   ├── DEPLOYMENT.md           # Production deployment (Docker, Fly.io, Heroku, K8s)
+│   ├── INTELLIGENT_BOTS_SPEC.md # AI bot design spec (engine, strategies, semantics)
 │   ├── SERVER_SPEC.md          # Full API specification (REST + WebSocket events)
 │   ├── SETUP_SCREEN_GUIDE.md   # User-facing setup screen walkthrough
 │   ├── TESTING_GUIDE.md        # Testing patterns, mocking, coverage thresholds
@@ -108,6 +114,15 @@ Eigennamen/
     └── src/
         ├── index.ts            # Server entry point (HTTP + WebSocket bootstrap)
         ├── app.ts              # Express 5 app setup (middleware, routes, Swagger)
+        ├── bots/               # AI bot opponents (pure engine + live driver)
+        │   ├── botController.ts # Live bot driver singleton — subscribes to onGameMutation, defers reactions (queueMicrotask), per-room in-flight guard
+        │   ├── engine.ts       # Pure, deterministic bot game model (no Redis/socket deps)
+        │   ├── playOneAction.ts # Shared move computation (builds bot view → strategy → action)
+        │   ├── presets.ts      # Skill-preset resolution (novice/expert → SkillParams)
+        │   ├── rng.ts          # Seeded RNG for reproducible bot decisions
+        │   ├── strategies/     # spymasters, clickers, registry, types
+        │   ├── semantics/      # Clue semantics: association table + optional embedding backends
+        │   └── harness/        # Headless self-play (runMatches, parity, playGame, scoring)
         ├── config/             # Configuration modules (13 files)
         │   ├── constants.ts    # Barrel — re-exports version, gameConfig, errorCodes, roomConfig, socketConfig, securityConfig, rateLimits
         │   ├── version.ts     # APP_VERSION + APP_MAJOR_VERSION (reads from package.json — single source of truth)
@@ -150,6 +165,7 @@ Eigennamen/
         │   ├── timerService.ts # Turn timers (Redis-backed, pause/resume/add-time)
         │   ├── gameHistoryService.ts # Game history barrel — re-exports from gameHistory/
         │   ├── auditService.ts # Security audit logging (ring buffer)
+        │   ├── botService.ts   # Bot lifecycle: addBot/removeBot/getBotConfig (bots are first-class room players)
         │   ├── game/           # Game sub-modules
         │   │   ├── boardGenerator.ts # Board generation + card distribution
         │   │   ├── revealEngine.ts   # Card reveal logic + win detection
@@ -181,9 +197,11 @@ Eigennamen/
         │   ├── rateLimitHandler.ts # Socket-level rate limiting
         │   ├── serverConfig.ts # Socket.io server configuration
         │   ├── socketFunctionProvider.ts # Socket function dependency injection
-        │   └── handlers/       # Event-specific handlers (9 barrel files + sub-modules)
-        │       ├── gameHandlers.ts    # game:start, game:reveal, game:endTurn, game:forfeit, etc.
+        │   └── handlers/       # Event-specific handlers (barrel files + sub-modules)
+        │       ├── gameHandlers.ts    # game:start, game:reveal, game:clue, game:endTurn, game:forfeit, etc.
+        │       ├── gameActions.ts     # Shared applyClue/applyReveal/applyEndTurn used by both socket handlers and the bot controller
         │       ├── gameHandlerUtils.ts # Shared game handler utilities (toHistoryEntry mapper, match finalization)
+        │       ├── botHandlers.ts     # bot:add, bot:remove (host-only bot management)
         │       ├── roomHandlers.ts    # room: events barrel — delegates to roomHandlers/
         │       ├── roomHandlerUtils.ts # Shared room handler utilities
         │       ├── roomHandlers/      # Room handler sub-modules
@@ -201,9 +219,10 @@ Eigennamen/
         │       ├── timerHandlers.ts   # timer:start, timer:pause, timer:resume, timer:addTime
         │       ├── chatHandlers.ts    # chat:message, chat:spectator
         │       └── types.ts           # Handler type definitions
-        ├── frontend/           # Frontend TypeScript source (59 modules, compiled via esbuild)
+        ├── frontend/           # Frontend TypeScript source (60 modules, compiled via esbuild)
         │   ├── app.ts          # Frontend entry point + event delegation
         │   ├── setupScreen.ts  # Setup screen (Host/Join/Local quickstart cards)
+        │   ├── botsUI.ts       # Host bot-management panel (add/remove bots)
         │   ├── state.ts        # Reactive state proxy (wraps _rawState with Proxy)
         │   ├── stateTypes.ts   # State type definitions
         │   ├── board.ts        # Board rendering + card interaction
@@ -280,15 +299,16 @@ Eigennamen/
         │   ├── parseJSON.ts    # Safe JSON parsing for Redis data
         │   ├── retryAsync.ts   # Async retry with exponential backoff
         │   └── ...             # sanitize, timeout, correlationId, etc.
-        ├── validators/         # Zod validation schemas (7 files)
+        ├── validators/         # Zod validation schemas (8 files)
         │   ├── schemas.ts      # Barrel export
         │   ├── schemaHelpers.ts # Base schemas, sanitization (removeControlChars)
         │   ├── roomSchemas.ts  # roomCreateSchema, roomJoinSchema, roomSettingsSchema, roomReconnectSchema
         │   ├── playerSchemas.ts # playerTeamSchema, playerRoleSchema, playerNicknameSchema, playerKickSchema
-        │   ├── gameSchemas.ts  # gameStartSchema, gameRevealSchema (index 0-24), gameHistoryLimitSchema
+        │   ├── gameSchemas.ts  # gameStartSchema, gameRevealSchema (index 0-24), gameClueSchema, gameHistoryLimitSchema
         │   ├── chatSchemas.ts  # chatMessageSchema (1-500 chars), spectatorChatSchema
+        │   ├── botSchemas.ts   # botAddSchema, botRemoveSchema, botConfigSchema
         │   └── timerSchemas.ts # timerAddTimeSchema (10-300 seconds)
-        ├── scripts/            # Redis Lua scripts (28 atomic operations)
+        ├── scripts/            # Redis Lua scripts (29 atomic operations)
         │   ├── index.ts        # Barrel export with documented KEYS/ARGV/Returns headers
         │   └── atomicRateLimit.lua # Extracted rate-limit Lua script
         └── __tests__/          # Jest tests (136 suites)
@@ -350,11 +370,11 @@ GameError (base) — code, details, timestamp
 - **External Redis** — Full features, multi-instance scaling via pub/sub, data persistence
 - **Memory mode** (`REDIS_URL=memory`) — Spawns embedded redis-server, single instance, data lost on restart
 
-**28 Lua scripts** for atomic operations (all in `scripts/`):
+**29 Lua scripts** for atomic operations (all in `scripts/`):
 
 | Category | Scripts |
 |----------|---------|
-| Card/Turn | `REVEAL_CARD_SCRIPT`, `END_TURN_SCRIPT` |
+| Card/Turn | `REVEAL_CARD_SCRIPT`, `END_TURN_SCRIPT`, `SUBMIT_CLUE_SCRIPT` |
 | Player | `UPDATE_PLAYER_SCRIPT`, `SAFE_TEAM_SWITCH_SCRIPT`, `SET_ROLE_SCRIPT` |
 | Room | `ATOMIC_CREATE_ROOM_SCRIPT`, `ATOMIC_JOIN_SCRIPT`, `ATOMIC_SET_ROOM_STATUS_SCRIPT`, `ATOMIC_REMOVE_PLAYER_SCRIPT`, `ATOMIC_UPDATE_SETTINGS_SCRIPT`, `HOST_TRANSFER_SCRIPT` |
 | TTL | `ATOMIC_REFRESH_TTL_SCRIPT`, `ATOMIC_PERSIST_GAME_STATE_SCRIPT` |
@@ -422,6 +442,7 @@ All event names defined in `config/socketConfig.ts`. Format: `domain:action` (cl
 |-----------------|-----------------|
 | `game:start` | `game:started` |
 | `game:reveal` | `game:cardRevealed` |
+| `game:clue` | `game:clueGiven` |
 | `game:endTurn` | `game:turnEnded` |
 | `game:forfeit` | `game:over` |
 | `game:abandon` | `game:spymasterView` |
@@ -429,7 +450,13 @@ All event names defined in `config/socketConfig.ts`. Format: `domain:action` (cl
 | `game:getHistory` | `game:historyResult` |
 | `game:getReplay` | `game:replayData` |
 | `game:clearHistory` | `game:historyCleared` |
-| | `game:error` |
+| | `game:readyStatus`, `game:error` |
+
+### Bot Events
+| Client → Server | Server → Client |
+|-----------------|-----------------|
+| `bot:add` (host) | (room/player broadcasts; `bot:error` on failure) |
+| `bot:remove` (host) | (room/player broadcasts; `bot:error` on failure) |
 
 ### Player Events
 | Client → Server | Server → Client |
@@ -525,7 +552,7 @@ Run `npm run format` to auto-format, `npm run format:check` to verify.
 - **Distributed lock safety margin**: `withLock()` enforces an operation timeout 500ms shorter than the lock TTL, ensuring the lock holder can release cleanly before another process acquires it
 - **Connection tracking consistency**: Connection counts are decremented on all disconnect paths — including auth failure, registration failure, and shutdown rejection — to prevent IP counter leaks
 - **Fail-fast on data corruption**: Game state array mismatches (types vs revealed) throw `GameStateError.corrupted()` instead of silently propagating truncated data to clients
-- **Socket room membership safety**: All `socket.join()`/`socket.leave()` calls guard on `socket.connected` to prevent stale room memberships on disconnected sockets
+- **Socket room membership safety**: The deferred room-sync path (`playerRoomSync` / `playerContext.updateSocketRooms`) guards `socket.join()`/`socket.leave()` on `socket.connected`, so a socket that disconnected mid-handler is not re-added to rooms. (The `room:create`/`room:join` handlers themselves run on a freshly-connected socket inside the connection handler.)
 - **Chat DOM cap**: Frontend chat messages are capped at 500 in the DOM; oldest messages are pruned to prevent unbounded growth from message floods
 - **Keyboard shortcut guards**: Shortcuts are suppressed in `contenteditable` elements (in addition to INPUT/TEXTAREA/SELECT)
 - **Idempotent listener initialization**: Frontend event listener setup functions use guard flags to prevent listener accumulation on repeated calls
@@ -546,6 +573,7 @@ Run `npm run format` to auto-format, `npm run format:check` to verify.
 | `timerService` | `services/timerService.ts` | Turn timers — Redis-backed with pause/resume/add-time |
 | `gameHistoryService` | `services/gameHistoryService.ts` | Game history barrel — delegates to `gameHistory/` sub-modules (types, validation, storage, replayEngine) |
 | `auditService` | `services/auditService.ts` | Security audit logging (in-memory ring buffer, MAX_LOGS_PER_CATEGORY=10000) |
+| `botService` | `services/botService.ts` | Bot lifecycle — addBot/removeBot/getBotConfig (bots are first-class Redis players driven by `bots/botController.ts`) |
 
 All paths relative to `server/src/`.
 
@@ -656,7 +684,7 @@ Key env vars (see `server/.env.example` for full list):
 | `RATE_LIMIT_MAX_REQUESTS` | HTTP rate limit max requests | `100` |
 | `RATE_LIMIT_MAX_ENTRIES` | Max rate limit tracking entries | `10000` |
 | `INSTANCE_ID` | Custom instance ID for multi-instance deployments | Auto-generated |
-| `EMBEDDED_REDIS_TIMEOUT_MS` | Timeout for embedded Redis startup | `10000` |
+| `EMBEDDED_REDIS_TIMEOUT_MS` | Timeout for embedded Redis startup (min 1000) | `5000` |
 | `REDIS_TLS_REJECT_UNAUTHORIZED` | Reject unauthorized TLS connections to Redis | `true` |
 
 ## Health & Monitoring
@@ -683,5 +711,7 @@ Key env vars (see `server/.env.example` for full list):
 | [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) | Testing patterns, mocking Redis, coverage |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production deployment (Docker, Fly.io, Heroku, K8s) |
 | [docs/BACKUP_AND_DR.md](docs/BACKUP_AND_DR.md) | Backup strategy + disaster recovery |
+| [docs/INTELLIGENT_BOTS_SPEC.md](docs/INTELLIGENT_BOTS_SPEC.md) | AI bot design spec (engine, strategies, semantics, harness) |
+| [docs/BOT_EMBEDDINGS.md](docs/BOT_EMBEDDINGS.md) | Optional word-embedding backend for the semantic bot spymaster |
 | [docs/SETUP_SCREEN_GUIDE.md](docs/SETUP_SCREEN_GUIDE.md) | User-facing setup screen walkthrough |
 | [docs/WINDOWS_SETUP.md](docs/WINDOWS_SETUP.md) | Windows development setup |

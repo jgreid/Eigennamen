@@ -421,6 +421,13 @@ jobs:
     name: E2E Tests
     needs: build
     runs-on: ubuntu-latest
+    # E2E is intentionally non-blocking (see the CI Passed gate, which omits it
+    # from `needs`). Without continue-on-error a flaky E2E failure would still flip
+    # the whole workflow run's aggregate conclusion to "failure", which silently
+    # blocks the Deploy workflow (it gates on workflow_run.conclusion == 'success').
+    # continue-on-error keeps the job's own check visible while leaving the run
+    # conclusion green, so the documented non-blocking intent actually holds.
+    continue-on-error: true
     # Bound the job so a hung/very-slow Playwright run can't occupy a runner for
     # the 6h default. E2E is non-blocking, so keep this tight; --max-failures also
     # aborts a flaky run early.

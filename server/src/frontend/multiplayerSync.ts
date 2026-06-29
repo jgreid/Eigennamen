@@ -33,6 +33,8 @@ import type { ServerPlayerData, ServerGameData, ReconnectionData, DOMListenerEnt
 export const multiplayerEventNames: string[] = [
     'gameStarted',
     'cardRevealed',
+    'clueGiven',
+    'game:readyStatus',
     'turnEnded',
     'gameOver',
     'game:roundEnded',

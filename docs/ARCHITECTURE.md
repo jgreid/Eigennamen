@@ -250,18 +250,19 @@ Eigennamen/
     ├── src/
     │   ├── index.ts        # Server entry point
     │   ├── app.ts          # Express configuration + Swagger
+    │   ├── bots/           # AI bot opponents (pure engine, strategies, semantics, harness + live controller)
     │   ├── config/         # Configuration modules (13 files)
     │   ├── errors/         # Custom error classes (GameError hierarchy)
     │   ├── middleware/      # Express middleware (10 files)
     │   │   └── auth/       # Socket auth sub-modules (4 files)
     │   ├── routes/         # REST API routes (8 files)
-    │   ├── services/       # Business logic (21 service files)
+    │   ├── services/       # Business logic (22 service files incl. botService)
     │   │   ├── game/       # Game sub-modules (board, reveal, lua)
     │   │   ├── gameHistory/ # Game history sub-modules (types, validation, storage, replayEngine)
     │   │   ├── player/     # Player sub-modules (cleanup, mutations, queries, reconnection, schemas, stats)
     │   │   └── room/       # Room sub-module (membership)
     │   ├── socket/         # WebSocket setup and utilities (11 files)
-    │   │   └── handlers/   # Event-specific handlers (9 barrel files + sub-modules)
+    │   │   └── handlers/   # Event-specific handlers (barrel files incl. botHandlers + sub-modules)
     │   │       ├── playerHandlers/ # Player handler sub-modules (4 files)
     │   │       └── roomHandlers/   # Room handler sub-modules (4 files)
     │   ├── frontend/       # Frontend TypeScript source
@@ -270,9 +271,9 @@ Eigennamen/
     │   │   └── game/       # Game sub-modules (reveal, scoring)
     │   ├── types/          # TypeScript type definitions (11 files)
     │   ├── utils/          # Utility modules (11 files)
-    │   ├── validators/     # Zod validation schemas (7 files)
-    │   ├── scripts/        # Redis Lua scripts (28 atomic operations)
-    │   └── __tests__/      # Jest tests (136 suites)
+    │   ├── validators/     # Zod validation schemas (8 files)
+    │   ├── scripts/        # Redis Lua scripts (29 atomic operations)
+    │   └── __tests__/      # Jest tests (156 suites)
     │       ├── helpers/    # Test utilities and mocks
     │       ├── integration/ # Integration tests
     │       └── frontend/   # Frontend unit tests

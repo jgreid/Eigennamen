@@ -105,12 +105,18 @@ async function resolveGameWords(
     return { words, usedWordListId: null };
 }
 
-// Zod schema for match carry-over data to prevent score manipulation
+// Zod schema for match carry-over data to prevent score manipulation.
+// Scores are SIGNED: trap cards are worth -1 and the assassin can be worth -2
+// (see gameRules CARD_SCORE_DISTRIBUTION / ASSASSIN_SCORE_POOL), so a round can
+// net negative card points. The live game-state schema (luaGameOps) and the
+// per-reveal Lua accumulation both allow negatives, so these fields must too —
+// a .min(0) floor here would throw at the round transition for an otherwise
+// valid match and permanently strand it.
 const roundResultSchema = z.object({
     roundNumber: z.number().int().min(1),
     roundWinner: z.enum(['red', 'blue']).nullable(),
-    redRoundScore: z.number().int().min(0),
-    blueRoundScore: z.number().int().min(0),
+    redRoundScore: z.number().int(),
+    blueRoundScore: z.number().int(),
     redBonusAwarded: z.boolean(),
     blueBonusAwarded: z.boolean(),
     endReason: z.string(),
@@ -119,8 +125,8 @@ const roundResultSchema = z.object({
 
 const matchCarryOverSchema = z.object({
     matchRound: z.number().int().min(1).max(100),
-    redMatchScore: z.number().int().min(0),
-    blueMatchScore: z.number().int().min(0),
+    redMatchScore: z.number().int(),
+    blueMatchScore: z.number().int(),
     roundHistory: z.array(roundResultSchema),
     firstTeamHistory: z.array(z.enum(['red', 'blue'])),
 });

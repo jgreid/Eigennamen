@@ -213,12 +213,28 @@ describe('Environment Configuration', () => {
             validateEnv();
 
             expect(logger.warn).toHaveBeenCalledWith(
-                expect.stringContaining('LOG_LEVEL "trace" is not a standard Winston level')
+                expect.stringContaining('LOG_LEVEL "trace" is not a supported level')
             );
         });
 
+        it('should warn about Winston levels the custom logger does not support', () => {
+            // verbose/silly are valid Winston levels but the custom logger
+            // (utils/logger.ts) has no such level, so they would be silently
+            // ignored — the validator must warn instead of accepting them.
+            for (const level of ['verbose', 'silly']) {
+                jest.clearAllMocks();
+                process.env.LOG_LEVEL = level;
+
+                validateEnv();
+
+                expect(logger.warn).toHaveBeenCalledWith(
+                    expect.stringContaining(`LOG_LEVEL "${level}" is not a supported level`)
+                );
+            }
+        });
+
         it('should accept valid LOG_LEVEL values', () => {
-            const validLevels = ['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly'];
+            const validLevels = ['error', 'warn', 'info', 'http', 'debug'];
             for (const level of validLevels) {
                 jest.clearAllMocks();
                 process.env.LOG_LEVEL = level;

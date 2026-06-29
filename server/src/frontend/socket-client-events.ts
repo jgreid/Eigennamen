@@ -131,6 +131,23 @@ export function registerAllEventListeners(register: RegisterFn, emit: EmitFn, cl
         emit('error', { type: 'room', ...error });
     });
 
+    // The server derives the client error event from the event-name prefix
+    // (rateLimitHandler: `${domain}:error`), so spectator/bot/timer/chat handlers
+    // emit spectator:error / bot:error / timer:error / chat:error. Route each to
+    // the shared internal error bus so failures surface to the user instead of
+    // being silently dropped.
+    for (const [domain, type] of [
+        ['spectator:error', 'spectator'],
+        ['bot:error', 'bot'],
+        ['timer:error', 'timer'],
+        ['chat:error', 'chat'],
+    ] as const) {
+        register(domain, (raw: unknown) => {
+            const error = raw as ServerErrorData;
+            emit('error', { type, ...error });
+        });
+    }
+
     // Handle room:warning (non-fatal issues like stale stats)
     register('room:warning', (raw: unknown) => {
         emit('roomWarning', raw as RoomWarningData);

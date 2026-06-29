@@ -231,6 +231,40 @@ describe('createGame - match mode', () => {
         expect(game.matchOver).toBe(false);
         expect(game.matchWinner).toBeNull();
     });
+
+    test('carries over negative round/match scores (assassin -2, traps -1) without throwing', async () => {
+        // Card scores are signed: revealing the assassin (-2) or traps (-1) can
+        // leave a team with a net-negative round and match score. The carry-over
+        // schema must accept these so the next round can start (regression).
+        const carryOver = {
+            matchRound: 2,
+            redMatchScore: -2,
+            blueMatchScore: 5,
+            roundHistory: [
+                {
+                    roundNumber: 1,
+                    roundWinner: 'blue' as const,
+                    redRoundScore: -2,
+                    blueRoundScore: 5,
+                    redBonusAwarded: false,
+                    blueBonusAwarded: true,
+                    endReason: 'assassin',
+                    completedAt: Date.now() - 30000,
+                },
+            ],
+            firstTeamHistory: ['red'] as ('red' | 'blue')[],
+        };
+
+        const game = await createGame('MATCH3', {
+            gameMode: 'match',
+            matchCarryOver: carryOver,
+        });
+
+        expect(game.gameMode).toBe('match');
+        expect(game.redMatchScore).toBe(-2);
+        expect(game.blueMatchScore).toBe(5);
+        expect(game.roundHistory?.[0].redRoundScore).toBe(-2);
+    });
 });
 
 describe('forfeitGame - duet mode', () => {

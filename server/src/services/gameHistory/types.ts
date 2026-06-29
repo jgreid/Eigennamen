@@ -1,4 +1,4 @@
-import type { Team, CardType } from '../../types';
+import type { Team, CardType, GameMode } from '../../types';
 
 /**
  * Initial board state for replay
@@ -18,7 +18,8 @@ export interface FinalGameState {
     blueScore: number;
     redTotal: number;
     blueTotal: number;
-    winner: Team;
+    // null for a duet cooperative loss (no winning team).
+    winner: Team | null;
     gameOver: boolean;
 }
 
@@ -75,8 +76,10 @@ export interface GameDataInput {
     blueScore: number;
     redTotal: number;
     blueTotal: number;
-    winner?: Team;
+    winner?: Team | null;
     gameOver?: boolean;
+    // Needed so validation can accept a null winner for a duet cooperative loss.
+    gameMode?: GameMode;
     createdAt?: number;
     clues?: GameClue[];
     history?: HistoryEntry[];

@@ -294,7 +294,6 @@ export interface ReplayData {
         types?: string[];
     };
     events?: ReplayEvent[];
-    replay?: unknown;
 }
 
 export interface GameHistoryEntry {

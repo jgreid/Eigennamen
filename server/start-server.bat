@@ -56,13 +56,14 @@ if %ERRORLEVEL% neq 0 (
 echo Docker is running!
 echo.
 
-:: Navigate to the script's directory (in case user double-clicked the script)
-cd /d "%~dp0"
+:: Navigate to the repository root (this script lives in server/, but
+:: docker-compose.yml, the build context and .env all live one level up).
+cd /d "%~dp0.."
 
 :: Check if docker-compose.yml exists
 if not exist "docker-compose.yml" (
     echo ERROR: docker-compose.yml not found.
-    echo Please make sure you're running this script from the 'server' folder.
+    echo Please make sure this script is located in the 'server' folder of the repository.
     pause
     exit /b 1
 )
@@ -86,7 +87,7 @@ if %ERRORLEVEL% neq 0 (
     echo Common fixes:
     echo   1. Make sure Docker Desktop is fully started
     echo   2. Try running this script as Administrator
-    echo   3. Check if ports 3000, 5432, or 6379 are in use
+    echo   3. Check if ports 3000 or 6379 are in use
     echo.
     pause
     exit /b 1

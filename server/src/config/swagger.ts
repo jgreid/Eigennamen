@@ -250,13 +250,25 @@ See the project README for WebSocket event documentation.
             get: {
                 tags: ['Health'],
                 summary: 'Server metrics',
-                description: 'Returns detailed server metrics including memory usage, uptime, and Redis status.',
+                description:
+                    'Returns detailed server metrics including memory usage, uptime, and Redis status. ' +
+                    'In production this endpoint requires HTTP Basic auth (password = ADMIN_PASSWORD) to ' +
+                    'prevent reconnaissance; it is unauthenticated in development. ' +
+                    '(/health, /health/ready and /health/live remain unauthenticated for load balancers.)',
                 responses: {
                     '200': {
                         description: 'Metrics retrieved successfully',
                         content: {
                             'application/json': {
                                 schema: { $ref: '#/components/schemas/Metrics' },
+                            },
+                        },
+                    },
+                    '401': {
+                        description: 'Missing or invalid Basic auth credentials (production only)',
+                        content: {
+                            'application/json': {
+                                schema: { $ref: '#/components/schemas/Error' },
                             },
                         },
                     },
@@ -267,6 +279,28 @@ See the project README for WebSocket event documentation.
                                 schema: { $ref: '#/components/schemas/Error' },
                             },
                         },
+                    },
+                },
+            },
+        },
+        '/health/metrics/prometheus': {
+            get: {
+                tags: ['Health'],
+                summary: 'Prometheus metrics',
+                description:
+                    'Returns metrics in Prometheus text exposition format for scraping. Same auth as ' +
+                    '/health/metrics (HTTP Basic, password = ADMIN_PASSWORD, in production only).',
+                responses: {
+                    '200': {
+                        description: 'Prometheus-format metrics',
+                        content: {
+                            'text/plain': {
+                                schema: { type: 'string' },
+                            },
+                        },
+                    },
+                    '401': {
+                        description: 'Missing or invalid Basic auth credentials (production only)',
                     },
                 },
             },

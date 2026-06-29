@@ -50,12 +50,30 @@ function countOwnUnrevealed(view: BotSpymasterView): number {
     return n;
 }
 
+/**
+ * Pick a last-resort clue when no vocabulary word is legal for the board. Each
+ * candidate is validated with the SAME isClueLegalForBoard the authoritative
+ * submitClue path uses, so the bot never emits a clue the server would reject —
+ * a rejected clue ends the bot tick with no retry, stalling its turn. Returns
+ * the first legal candidate; only in a pathological board (every candidate
+ * collides) does it fall through to the first word.
+ */
+const FALLBACK_CLUES = ['CLUE', 'HINT', 'TOPIC', 'THEME', 'NOTION', 'ASPECT', 'DETAIL', 'SUBJECT'] as const;
+
+function pickFallbackClue(view: BotSpymasterView): string {
+    const words = view.words as string[];
+    for (const w of FALLBACK_CLUES) {
+        if (isClueLegalForBoard(w, words)) return w;
+    }
+    return FALLBACK_CLUES[0];
+}
+
 export function makeRandomSpymaster(_skill: SkillParams): SpymasterStrategy {
     return {
         strategyId: 'randomSpymaster',
         chooseClue(view: BotSpymasterView, ctx: BotContext): BotAction {
             const legal = CLUE_VOCAB.filter((w) => isClueLegalForBoard(w, view.words as string[]));
-            const pool = legal.length > 0 ? legal : ['CLUE'];
+            const pool = legal.length > 0 ? legal : [pickFallbackClue(view)];
             const word = pool[ctx.rng.int(pool.length)] as string;
             // A small, conservative number bounded by remaining own cards.
             const own = countOwnUnrevealed(view);
@@ -139,7 +157,7 @@ export function makeEmbeddingSpymaster(
                     legalVocab.length > 0
                         ? legalVocab
                         : CLUE_VOCAB.filter((w) => isClueLegalForBoard(w, view.words as string[]));
-                const word = (pool[0] ?? 'CLUE') as string;
+                const word = (pool[0] ?? pickFallbackClue(view)) as string;
                 return { kind: 'clue', word, number: 1 };
             }
 

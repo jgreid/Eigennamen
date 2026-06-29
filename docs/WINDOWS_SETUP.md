@@ -172,10 +172,9 @@ Type this command and press **Enter**:
 docker compose ps
 ```
 
-You should see a table showing three services all with "running" in their status:
+You should see a table showing two services all with "running" in their status:
 - `server-api-1` - running
 - `server-redis-1` - running
-- `server-db-1` - running
 
 **Congratulations! Your game server is now running!**
 
@@ -265,7 +264,7 @@ If you want to shut down the server (maybe you're done playing or want to turn o
 1. Double-click `check-status.bat` in the server folder to see if services are running
 2. If services aren't running, double-click `start-server.bat` to start them
 3. Or manually: open Command Prompt, navigate to the server folder, and type `docker compose ps`
-4. If you don't see three services with "running" status, type `docker compose up -d --build` to start them
+4. If you don't see two services with "running" status, type `docker compose up -d --build` to start them
 
 ### Nothing happens when I type commands
 

@@ -125,7 +125,8 @@ export async function saveGameResult(roomCode: string, gameData: GameDataInput):
             blueScore: gameData.blueScore,
             redTotal: gameData.redTotal,
             blueTotal: gameData.blueTotal,
-            winner: gameData.winner || 'red',
+            // Preserve null for a duet loss instead of mislabeling it a red win.
+            winner: gameData.winner ?? null,
             gameOver: gameData.gameOver || false,
         },
 
@@ -240,7 +241,7 @@ export async function getGameHistory(roomCode: string, limit: number = 10): Prom
                 timestamp: game.timestamp,
                 startedAt: game.startedAt,
                 endedAt: game.endedAt,
-                winner: game.finalState?.winner,
+                winner: game.finalState?.winner ?? undefined,
                 redScore: game.finalState?.redScore,
                 blueScore: game.finalState?.blueScore,
                 redTotal: game.finalState?.redTotal,

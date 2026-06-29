@@ -252,6 +252,32 @@ describe('history module', () => {
             const cards = document.querySelectorAll('.replay-card');
             expect(cards).toHaveLength(25);
         });
+
+        test('unwraps the { replay } envelope sent by the server', () => {
+            // Both the socket emit and the REST route wrap the payload as
+            // { replay: ReplayData }; renderReplayData must unwrap it so the
+            // board, winner badge and event log are not blank.
+            setupReplayDOM();
+            const inner = createReplayData();
+            renderReplayData({ replay: inner } as any);
+            expect(state.currentReplayData).toBe(inner);
+            const badge = document.querySelector('.winner-badge');
+            expect(badge!.textContent).toContain('wins');
+            expect(document.querySelectorAll('.replay-card')).toHaveLength(25);
+        });
+
+        test('does not throw when a reveal event has no card type', () => {
+            // classList.add rejects an empty-string token; an untyped reveal
+            // must not abort applyReplayState.
+            setupReplayDOM();
+            const data = createReplayData();
+            data.events = [{ type: 'reveal', data: { index: 0 } } as any];
+            renderReplayData(data);
+            state.currentReplayIndex = 0;
+            expect(() => applyReplayState()).not.toThrow();
+            const card = document.querySelectorAll('.replay-card')[0];
+            expect(card.classList.contains('revealed')).toBe(true);
+        });
     });
 
     describe('applyReplayState', () => {

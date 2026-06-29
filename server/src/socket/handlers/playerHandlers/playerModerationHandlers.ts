@@ -4,6 +4,7 @@ import type { GameSocket, RoomContext } from '../types';
 import type { RoomStats } from '../../../services/playerService';
 
 import * as playerService from '../../../services/playerService';
+import * as botService from '../../../services/botService';
 import { playerKickSchema } from '../../../validators/schemas';
 import logger from '../../../utils/logger';
 import { SOCKET_EVENTS } from '../../../config/constants';
@@ -66,8 +67,15 @@ export default function playerModerationHandlers(io: Server, socket: GameSocket)
                 // Invalidate reconnection token so kicked player cannot rejoin
                 await playerService.invalidateRoomReconnectToken(validated.targetSessionId);
 
-                // Remove player from room data (after socket is disconnected)
-                await playerService.removePlayer(validated.targetSessionId);
+                // Remove player from room data (after socket is disconnected).
+                // Bots carry a strategy config blob (bot:{sessionId}:cfg); route their
+                // removal through botService so that key is cleaned up rather than
+                // orphaned until its TTL expires.
+                if (targetPlayer.isBot) {
+                    await botService.removeBot(ctx.roomCode, validated.targetSessionId);
+                } else {
+                    await playerService.removePlayer(validated.targetSessionId);
+                }
 
                 // Update player list for remaining players
                 const remainingPlayers: Player[] = await playerService.getPlayersInRoom(ctx.roomCode);

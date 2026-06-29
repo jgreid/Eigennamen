@@ -31,18 +31,31 @@ function shouldTrustProxy(): boolean {
 }
 
 /**
+ * True only when actually running on Fly.io, where the edge proxy injects and
+ * overwrites the Fly-Client-IP header (so a client cannot forge it).
+ */
+function isFlyDeployment(): boolean {
+    return !!(process.env.FLY_APP_NAME || process.env.FLY_ALLOC_ID);
+}
+
+/**
  * Get client IP address from socket, handling proxies securely
  * Only trusts X-Forwarded-For when behind a known/configured proxy
  */
 function getClientIP(socket: Socket): string {
     // Only check proxy headers if we're configured to trust proxy
     if (shouldTrustProxy()) {
-        // Prefer platform-specific headers that cannot be spoofed by clients
-        // Fly.io sets Fly-Client-IP at the edge proxy
-        const flyClientIP = socket.handshake.headers['fly-client-ip'];
-        if (flyClientIP) {
-            const ip = Array.isArray(flyClientIP) ? flyClientIP[0] : flyClientIP;
-            if (ip) return ip.trim();
+        // Fly.io's edge proxy injects/overwrites Fly-Client-IP, so it cannot be
+        // forged ON FLY. On a generic reverse proxy (the bare TRUST_PROXY case),
+        // nothing strips a client-supplied Fly-Client-IP, so honoring it would let
+        // a client spoof its source IP — defeating per-IP rate limits and session
+        // IP-binding. Only trust this header when actually deployed on Fly.
+        if (isFlyDeployment()) {
+            const flyClientIP = socket.handshake.headers['fly-client-ip'];
+            if (flyClientIP) {
+                const ip = Array.isArray(flyClientIP) ? flyClientIP[0] : flyClientIP;
+                if (ip) return ip.trim();
+            }
         }
 
         const xForwardedFor = socket.handshake.headers['x-forwarded-for'];

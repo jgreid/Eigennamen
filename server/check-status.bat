@@ -9,8 +9,8 @@ echo   Codenames Server - Status
 echo ========================================
 echo.
 
-:: Navigate to the script's directory
-cd /d "%~dp0"
+:: Navigate to the repository root (docker compose must run where docker-compose.yml lives).
+cd /d "%~dp0.."
 
 :: Check if Docker is running
 docker info >nul 2>nul
