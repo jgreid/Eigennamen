@@ -7,9 +7,11 @@ const { ERROR_CODES } = require('../../config/constants');
 const mockRedis = {
     set: jest.fn().mockResolvedValue('OK'),
     sAdd: jest.fn().mockResolvedValue(1),
+    sRem: jest.fn().mockResolvedValue(1),
     expire: jest.fn().mockResolvedValue(1),
     del: jest.fn().mockResolvedValue(1),
     get: jest.fn(),
+    eval: jest.fn().mockResolvedValue(1),
 };
 
 jest.mock('../../config/redis', () => ({ getRedis: () => mockRedis }));
@@ -28,7 +30,9 @@ describe('botService.addBot', () => {
         jest.clearAllMocks();
         mockRedis.set.mockResolvedValue('OK');
         mockRedis.sAdd.mockResolvedValue(1);
+        mockRedis.sRem.mockResolvedValue(1);
         mockRedis.expire.mockResolvedValue(1);
+        mockRedis.eval.mockResolvedValue(1);
         playerService.getPlayersInRoom.mockResolvedValue([]);
     });
 
@@ -47,8 +51,15 @@ describe('botService.addBot', () => {
         expect(bot.sessionId.startsWith('bot-')).toBe(true);
         expect(bot.nickname).toContain('Greedy');
 
-        // Added to the room players set and the team set.
-        expect(mockRedis.sAdd).toHaveBeenCalledWith('room:ROOM01:players', bot.sessionId);
+        // Atomic join (player record + players-set insertion + capacity check).
+        expect(mockRedis.eval).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.objectContaining({
+                keys: ['room:ROOM01:players', 'room:ROOM01'],
+                arguments: expect.arrayContaining([bot.sessionId, `player:${bot.sessionId}`]),
+            })
+        );
+        // Added to the team set.
         expect(mockRedis.sAdd).toHaveBeenCalledWith('room:ROOM01:team:red', bot.sessionId);
         // Config persisted under bot:{sessionId}:cfg.
         expect(mockRedis.set).toHaveBeenCalledWith(
@@ -59,10 +70,29 @@ describe('botService.addBot', () => {
     });
 
     it('rejects when the room is at capacity', async () => {
-        playerService.getPlayersInRoom.mockResolvedValue(new Array(50).fill({}));
+        mockRedis.eval.mockResolvedValue(0); // atomic join: room full
         await expect(
             addBot('ROOM01', { team: 'red', role: 'clicker', strategyId: 'randomClicker', skillPreset: 'novice' })
         ).rejects.toMatchObject({ code: ERROR_CODES.ROOM_FULL });
+    });
+
+    it('rejects when the room no longer exists', async () => {
+        mockRedis.eval.mockResolvedValue(-2); // atomic join: room deleted
+        await expect(
+            addBot('ROOM01', { team: 'red', role: 'clicker', strategyId: 'randomClicker', skillPreset: 'novice' })
+        ).rejects.toMatchObject({ code: ERROR_CODES.ROOM_NOT_FOUND });
+    });
+
+    it('rolls back the bot when a follow-up write fails', async () => {
+        mockRedis.eval.mockResolvedValue(1); // join succeeded
+        mockRedis.set.mockRejectedValueOnce(new Error('cfg write failed')); // cfg blob fails
+        await expect(
+            addBot('ROOM01', { team: 'blue', role: 'spymaster', strategyId: 'randomSpymaster', skillPreset: 'novice' })
+        ).rejects.toThrow('cfg write failed');
+        // Player + set memberships are cleaned up so no half-bot is left behind.
+        expect(mockRedis.sRem).toHaveBeenCalledWith('room:ROOM01:players', expect.stringMatching(/^bot-/));
+        expect(mockRedis.sRem).toHaveBeenCalledWith('room:ROOM01:team:blue', expect.stringMatching(/^bot-/));
+        expect(mockRedis.del).toHaveBeenCalledWith(expect.stringMatching(/^player:bot-/));
     });
 });
 

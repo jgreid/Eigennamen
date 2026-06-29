@@ -134,11 +134,15 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                     gameMode,
                 }));
 
-                // Broadcast role resets so all clients clear spymaster/clicker state
+                // Broadcast role resets so all clients clear spymaster/clicker state.
+                // Humans were reset to spectator; bots keep their seat role
+                // (resetRolesForNewGame skips them), so broadcast the ACTUAL role
+                // rather than a hardcoded 'spectator' — otherwise clients show a bot
+                // as a spectator while the controller still plays its real role.
                 for (const p of players) {
                     safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
                         sessionId: p.sessionId,
-                        changes: { role: 'spectator', team: p.team },
+                        changes: { role: p.role ?? 'spectator', team: p.team },
                     });
                 }
 
@@ -422,11 +426,14 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 isNextRound: true,
             }));
 
-            // Broadcast role resets so all clients clear spymaster/clicker state
+            // Broadcast role resets so all clients clear spymaster/clicker state.
+            // Bots keep their seat role across rounds (resetRolesForNewGame skips
+            // them), so broadcast the actual role rather than a hardcoded
+            // 'spectator' to keep client rosters consistent with server state.
             for (const p of players) {
                 safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
                     sessionId: p.sessionId,
-                    changes: { role: 'spectator', team: p.team },
+                    changes: { role: p.role ?? 'spectator', team: p.team },
                 });
             }
 

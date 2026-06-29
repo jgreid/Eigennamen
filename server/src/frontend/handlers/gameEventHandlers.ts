@@ -225,6 +225,10 @@ export function registerGameHandlers(): void {
         setTabNotification(false);
         playNotificationSound('gameOver');
         updateForfeitButton();
+        // A game can end while the local spymaster's clue form is open (opponent
+        // forfeit, assassin reveal, timer/duet-token expiry). Recompute so the
+        // form hides instead of staying interactable after game over.
+        updateClueUI();
     });
 
     // Handle spymaster view (card types for spymasters)

@@ -12,12 +12,13 @@ import { getRedis } from '../config/redis';
 import logger from '../utils/logger';
 import { withTimeout, TIMEOUTS } from '../utils/timeout';
 import { REDIS_TTL, ROOM_MAX_PLAYERS } from '../config/constants';
-import { RoomError, ValidationError, PlayerError } from '../errors/GameError';
+import { RoomError, ValidationError, PlayerError, ServerError } from '../errors/GameError';
 import { tryParseJSON } from '../utils/parseJSON';
 import * as playerService from './playerService';
 import { hashString } from './game/boardGenerator';
 import { strategyLabel } from '../bots/strategies/registry';
 import { botConfigSchema } from '../validators/botSchemas';
+import { ATOMIC_JOIN_SCRIPT } from '../scripts';
 import type { BotConfig } from '../bots/strategies/types';
 
 export interface AddBotOptions {
@@ -40,12 +41,6 @@ function shortId(): string {
  */
 export async function addBot(roomCode: string, opts: AddBotOptions): Promise<Player> {
     const redis: RedisClient = getRedis();
-
-    // Capacity check (bots count toward room capacity like any player).
-    const players = await playerService.getPlayersInRoom(roomCode);
-    if (players.length >= ROOM_MAX_PLAYERS) {
-        throw RoomError.full(roomCode);
-    }
 
     const sessionId = `bot-${randomUUID()}`;
     const nickname = opts.nickname?.trim() || `${strategyLabel(opts.strategyId)} Bot ${shortId()}`;
@@ -71,36 +66,83 @@ export async function addBot(roomCode: string, opts: AddBotOptions): Promise<Pla
         seed: hashString(sessionId),
     };
 
-    // Persist the player record.
-    await withTimeout(
-        redis.set(`player:${sessionId}`, JSON.stringify(player), { EX: REDIS_TTL.PLAYER }),
-        TIMEOUTS.REDIS_OPERATION,
-        `addBot-setPlayer-${sessionId}`
-    );
-
-    // Add to the room players set + the team set, mirroring a human join.
     const playersKey = `room:${roomCode}:players`;
     const teamKey = `room:${roomCode}:team:${opts.team}`;
-    await Promise.all([
-        withTimeout(redis.sAdd(playersKey, sessionId), TIMEOUTS.REDIS_OPERATION, `addBot-sAddPlayers-${sessionId}`),
-        withTimeout(redis.sAdd(teamKey, sessionId), TIMEOUTS.REDIS_OPERATION, `addBot-sAddTeam-${sessionId}`),
-        withTimeout(
-            redis.set(botCfgKey(sessionId), JSON.stringify(config), { EX: REDIS_TTL.ROOM }),
+
+    // Atomic capacity check + player record + set insertion, using the SAME
+    // primitive a human join uses. This serialises against concurrent bot:add
+    // and room:join events so the room can never exceed ROOM_MAX_PLAYERS (the
+    // previous read-then-write was a TOCTOU that two rapid adds could both pass).
+    const result = (await withTimeout(
+        redis.eval(ATOMIC_JOIN_SCRIPT, {
+            keys: [playersKey, `room:${roomCode}`],
+            arguments: [
+                ROOM_MAX_PLAYERS.toString(),
+                sessionId,
+                JSON.stringify(player),
+                `player:${sessionId}`,
+                REDIS_TTL.PLAYER.toString(),
+            ],
+        }),
+        TIMEOUTS.REDIS_OPERATION,
+        `addBot-join-${sessionId}`
+    )) as number;
+
+    if (result === -2) {
+        throw RoomError.notFound(roomCode);
+    }
+    if (result === 0) {
+        throw RoomError.full(roomCode);
+    }
+    if (result !== 1) {
+        // -1 (already a member) cannot happen for a fresh UUID; treat anything
+        // other than success as a server error rather than leaving a half-bot.
+        throw new ServerError(`Failed to add bot (join result ${result})`);
+    }
+
+    // Follow-up writes: team-set membership + the strategy config blob. If either
+    // fails, roll the bot back so we never leave a player in the room set that the
+    // controller can't drive (no cfg) or a seat with no team membership.
+    try {
+        await Promise.all([
+            withTimeout(redis.sAdd(teamKey, sessionId), TIMEOUTS.REDIS_OPERATION, `addBot-sAddTeam-${sessionId}`),
+            withTimeout(
+                redis.set(botCfgKey(sessionId), JSON.stringify(config), { EX: REDIS_TTL.ROOM }),
+                TIMEOUTS.REDIS_OPERATION,
+                `addBot-setCfg-${sessionId}`
+            ),
+        ]);
+        await withTimeout(
+            redis.expire(teamKey, REDIS_TTL.ROOM),
             TIMEOUTS.REDIS_OPERATION,
-            `addBot-setCfg-${sessionId}`
-        ),
-    ]);
-    await Promise.all([
-        withTimeout(
-            redis.expire(playersKey, REDIS_TTL.ROOM),
-            TIMEOUTS.REDIS_OPERATION,
-            `addBot-expirePlayers-${sessionId}`
-        ),
-        withTimeout(redis.expire(teamKey, REDIS_TTL.ROOM), TIMEOUTS.REDIS_OPERATION, `addBot-expireTeam-${sessionId}`),
-    ]);
+            `addBot-expireTeam-${sessionId}`
+        );
+    } catch (err) {
+        await rollbackBot(redis, roomCode, opts.team, sessionId);
+        throw err;
+    }
 
     logger.info(`Bot ${nickname} (${sessionId}) added to room ${roomCode} as ${opts.team} ${opts.role}`);
     return player;
+}
+
+/**
+ * Best-effort cleanup of a partially-created bot. Each delete is independent and
+ * swallows its own error — rollback must never mask the original failure.
+ */
+async function rollbackBot(redis: RedisClient, roomCode: string, team: Team, sessionId: string): Promise<void> {
+    const ops: Promise<unknown>[] = [
+        redis.sRem(`room:${roomCode}:players`, sessionId),
+        redis.sRem(`room:${roomCode}:team:${team}`, sessionId),
+        redis.del(`player:${sessionId}`),
+        redis.del(botCfgKey(sessionId)),
+    ];
+    const settled = await Promise.allSettled(ops);
+    for (const r of settled) {
+        if (r.status === 'rejected') {
+            logger.warn(`addBot rollback step failed for ${sessionId}`, { error: String(r.reason) });
+        }
+    }
 }
 
 /**

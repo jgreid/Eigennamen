@@ -94,6 +94,46 @@ describe('playOneAction', () => {
         expect(action.kind).toBe('noop');
     });
 
+    it('gives the duet blue spymaster its OWN (side-B) perspective, not red types', () => {
+        // Duet: types[] encodes side-A greens as 'red'; duetTypes[] encodes
+        // side-B greens as 'blue'. A blue spymaster must group against duetTypes,
+        // otherwise it sees zero own cards. Capture the view the strategy receives.
+        const g = game({
+            gameMode: 'duet',
+            types: ['red', 'neutral', 'assassin', 'neutral'],
+            duetTypes: ['neutral', 'blue', 'neutral', 'blue'],
+        });
+        const blueSeat: Player = { ...seat('spymaster'), team: 'blue' };
+        let seenTypes: readonly unknown[] | null = null;
+        const probe = {
+            strategyId: 'probe',
+            chooseClue(view: { types: readonly unknown[] }) {
+                seenTypes = view.types;
+                return { kind: 'clue' as const, word: 'X', number: 1 };
+            },
+        };
+        playOneAction(g, blueSeat, probe, ctx);
+        expect(seenTypes).toEqual(['neutral', 'blue', 'neutral', 'blue']);
+    });
+
+    it('gives the duet red spymaster the side-A types perspective', () => {
+        const g = game({
+            gameMode: 'duet',
+            types: ['red', 'neutral', 'assassin', 'red'],
+            duetTypes: ['neutral', 'blue', 'neutral', 'blue'],
+        });
+        let seenTypes: readonly unknown[] | null = null;
+        const probe = {
+            strategyId: 'probe',
+            chooseClue(view: { types: readonly unknown[] }) {
+                seenTypes = view.types;
+                return { kind: 'clue' as const, word: 'X', number: 1 };
+            },
+        };
+        playOneAction(g, seat('spymaster'), probe, ctx);
+        expect(seenTypes).toEqual(['red', 'neutral', 'assassin', 'red']);
+    });
+
     it('masks unrevealed card types from the clicker', () => {
         // The clicker strategy only ever sees its view; verify via a greedy-style
         // probe that the view passed in hides unrevealed types (all null here).

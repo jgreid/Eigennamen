@@ -25,13 +25,20 @@ function gameModeOf(game: GameState): GameMode {
 }
 
 function buildSpymasterView(game: GameState, team: 'red' | 'blue'): BotSpymasterView {
+    const mode = gameModeOf(game);
+    // In Duet each side has its own key card: types[] is the side-A (red)
+    // perspective (its greens encoded as 'red'), duetTypes[] is the side-B (blue)
+    // perspective (its greens encoded as 'blue'). Mirror getGameStateForPlayer's
+    // per-team split so the blue spymaster groups its OWN greens/assassins rather
+    // than red's — otherwise it finds zero own cards and never clues meaningfully.
+    const types = mode === 'duet' && team === 'blue' ? (game.duetTypes ?? game.types) : game.types;
     return {
         role: 'spymaster',
         team,
-        gameMode: gameModeOf(game),
+        gameMode: mode,
         words: game.words,
         revealed: game.revealed,
-        types: game.types,
+        types,
         currentTurn: game.currentTurn,
     };
 }
