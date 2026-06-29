@@ -9,13 +9,13 @@ echo   Codenames Server - Stopping
 echo ========================================
 echo.
 
-:: Navigate to the script's directory
-cd /d "%~dp0"
+:: Navigate to the repository root (docker-compose.yml lives one level up from server/).
+cd /d "%~dp0.."
 
 :: Check if docker-compose.yml exists
 if not exist "docker-compose.yml" (
     echo ERROR: docker-compose.yml not found.
-    echo Please make sure you're running this script from the 'server' folder.
+    echo Please make sure this script is located in the 'server' folder of the repository.
     pause
     exit /b 1
 )

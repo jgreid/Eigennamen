@@ -30,7 +30,14 @@ export function closeReplay(): void {
     closeModal('replay-modal');
 }
 
-export function renderReplayData(data: ReplayData): void {
+export function renderReplayData(input: ReplayData | { replay?: ReplayData } | null): void {
+    // Both delivery paths wrap the payload as { replay: ReplayData }: the socket
+    // GAME_REPLAY_DATA emit (gameHandlers) and the REST /api/replays response
+    // (replayRoutes). Unwrap that envelope so either shape renders correctly.
+    const data = (
+        input && (input as { replay?: ReplayData }).replay ? (input as { replay?: ReplayData }).replay : input
+    ) as ReplayData;
+
     state.currentReplayData = data;
     state.currentReplayIndex = -1;
     state.replayPlaying = false;
@@ -154,7 +161,12 @@ export function applyReplayState(): void {
             const cardIndex = event.data?.index;
             const cardType = event.data?.type;
             if (cardIndex !== undefined && cards[cardIndex]) {
-                cards[cardIndex].classList.add('revealed', cardType || '');
+                // classList.add throws on an empty-string token, so only add a
+                // type class when the reveal event actually carries a card type.
+                cards[cardIndex].classList.add('revealed');
+                if (cardType) {
+                    cards[cardIndex].classList.add(cardType);
+                }
                 // Highlight current move
                 if (i === state.currentReplayIndex) {
                     cards[cardIndex].classList.add('current-move');

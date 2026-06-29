@@ -8,7 +8,7 @@
  * - Persists language preference in localStorage
  */
 
-import { state } from './state.js';
+import { state, BOARD_SIZE } from './state.js';
 import { logger } from './logger.js';
 
 /** Supported languages with display names */
@@ -95,7 +95,7 @@ export async function setLanguage(lang: string, persist: boolean = true): Promis
     // Load localized word list if using default words
     if (state.wordSource === 'default' || state.wordSource === 'combined') {
         const localWords = await getLocalizedWordList(lang);
-        if (localWords && localWords.length >= 25) {
+        if (localWords && localWords.length >= BOARD_SIZE) {
             state.localizedDefaultWords = localWords;
         } else {
             state.localizedDefaultWords = null;

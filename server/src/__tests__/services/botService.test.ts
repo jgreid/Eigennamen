@@ -18,6 +18,7 @@ jest.mock('../../config/redis', () => ({ getRedis: () => mockRedis }));
 jest.mock('../../utils/logger', () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() }));
 jest.mock('../../services/playerService', () => ({
     getPlayersInRoom: jest.fn(),
+    getTeamMembers: jest.fn(),
     getPlayer: jest.fn(),
     removePlayer: jest.fn(),
 }));
@@ -34,6 +35,7 @@ describe('botService.addBot', () => {
         mockRedis.expire.mockResolvedValue(1);
         mockRedis.eval.mockResolvedValue(1);
         playerService.getPlayersInRoom.mockResolvedValue([]);
+        playerService.getTeamMembers.mockResolvedValue([]);
     });
 
     it('creates a bot player on the requested team/role', async () => {
@@ -67,6 +69,17 @@ describe('botService.addBot', () => {
             expect.any(String),
             expect.objectContaining({ EX: expect.any(Number) })
         );
+    });
+
+    it('rejects when the requested seat (team+role) is already occupied', async () => {
+        playerService.getTeamMembers.mockResolvedValue([
+            { sessionId: 'human-1', team: 'red', role: 'spymaster', connected: true, nickname: 'Alice' },
+        ]);
+        await expect(
+            addBot('ROOM01', { team: 'red', role: 'spymaster', strategyId: 'randomSpymaster', skillPreset: 'novice' })
+        ).rejects.toMatchObject({ code: ERROR_CODES.INVALID_INPUT });
+        // Must not have created any player record for the rejected bot.
+        expect(mockRedis.eval).not.toHaveBeenCalled();
     });
 
     it('rejects when the room is at capacity', async () => {

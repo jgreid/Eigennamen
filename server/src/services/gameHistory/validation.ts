@@ -97,10 +97,17 @@ export function validateGameData(gameData: GameDataInput | null | undefined): Va
         errors.push('blueTotal must be a non-negative integer');
     }
 
-    // Validate winner if game is over
+    // Validate winner if game is over. Duet is cooperative: a loss (assassin or
+    // running out of timer tokens) legitimately has no winning team (winner null),
+    // so do not reject those — otherwise every duet loss is silently dropped.
     if (gameData.gameOver) {
-        if (gameData.winner !== 'red' && gameData.winner !== 'blue') {
-            errors.push('winner must be "red" or "blue" when game is over');
+        const cooperative = gameData.gameMode === 'duet';
+        const winnerOk =
+            gameData.winner === 'red' ||
+            gameData.winner === 'blue' ||
+            (cooperative && (gameData.winner === null || gameData.winner === undefined));
+        if (!winnerOk) {
+            errors.push('winner must be "red" or "blue" when game is over (or null for a duet loss)');
         }
     }
 

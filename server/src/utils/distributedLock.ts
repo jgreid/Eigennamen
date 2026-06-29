@@ -52,17 +52,13 @@ class DistributedLock {
         if (config.lockTimeout < MIN_LOCK_TIMEOUT) {
             config.lockTimeout = MIN_LOCK_TIMEOUT;
         }
-        // Warn if lock timeout is shorter than the maximum total retry wait time.
-        // This means the lock could expire before all retries complete, which is
-        // usually a misconfiguration.
-        const maxRetryWait = config.retryDelay * (Math.pow(2, config.maxRetries) - 1);
-        if (config.lockTimeout < maxRetryWait && config.maxRetries > 3) {
-            logger.warn('Lock timeout shorter than max retry duration', {
-                lockKey,
-                lockTimeout: config.lockTimeout,
-                maxRetryWait,
-            });
-        }
+        // NOTE: a lock TTL shorter than the total retry-wait window is NOT a
+        // misconfiguration — a waiter that retries after the current holder's TTL
+        // expires simply acquires the freed lock. (A previous warning here both
+        // mis-computed the window with an UNCAPPED exponential — ignoring
+        // maxRetryDelay — and fired on virtually every default acquisition, so it
+        // was pure log noise.) The meaningful signal is the "failed to acquire
+        // after max retries" warning below.
         const redis = getRedis();
         const key = `lock:${lockKey}`;
         const ownerId = `${this.instanceId}:${randomUUID()}`;

@@ -12,7 +12,8 @@
 # Usage:
 #     scripts/fetch-bot-embeddings.sh [glove|fasttext|numberbatch] [--trim N]
 #
-#   glove       (default) GloVe 6B 100d — ~330 MB download, no header line.
+#   glove       (default) GloVe 6B 100d — ~822 MB zip download; the extracted
+#               100d vectors file is ~330 MB. No header line.
 #   fasttext    fastText wiki-news 300d 1M — ~600 MB unzipped, richer vocab.
 #   numberbatch ConceptNet Numberbatch English 19.08 — ~300 MB, knowledge-graph.
 #   --trim N    keep only the first N vectors (files are frequency-ordered, so
@@ -21,6 +22,16 @@
 #
 # Models are large and licensed by their authors (GloVe: PDDL/ODC-BY; fastText:
 # CC-BY-SA-3.0; Numberbatch: CC-BY-SA-4.0). Review the license before bundling.
+#
+# NOTE (integrity): these are large third-party files fetched over HTTPS with no
+# checksum verification here — verify their published hashes yourself before
+# trusting them in a sensitive deployment.
+#
+# NOTE (deployment): server/src/bots/data/ is git-ignored and is NOT copied into
+# the Docker/Fly image, so a BOT_EMBEDDINGS_PATH set there will not resolve in a
+# deployed container. To use embeddings in production, run this fetch as a build
+# step in the Dockerfile or mount the vectors file as a volume, then point
+# BOT_EMBEDDINGS_PATH at that in-container location.
 set -euo pipefail
 
 MODEL="${1:-glove}"

@@ -1,6 +1,13 @@
 # Intelligent Bots — Design Specification
 
-**Status:** Draft / proposal
+**Status:** Partly shipped — this document is now part design spec, part
+retrospective. The core pieces have landed: the `game:clue` / `game:clueGiven`
+clue channel (event, `gameService.submitClue`, `submitClue.lua`), the bot
+subsystem under `server/src/bots/`, and the `bot:add` / `bot:remove` host
+events. Sections below preserve the original design narrative; where they
+described future work that has since shipped, this is flagged inline. **For the
+current state, the code in `server/src/bots/` is authoritative.**
+
 **Scope:** Add AI-controlled players ("bots") to Eigennamen for two purposes:
 
 1. **Solo playtesting** — a human (or no human at all) plays a real game with bots filling the empty seats, in a normal multiplayer room.
@@ -66,30 +73,36 @@ solo-test build after Phase 1.
 
 ---
 
-## 3. The one hard constraint: there is no clue channel today
+## 3. The one hard constraint that shaped the design: the clue channel (now SHIPPED)
 
-This is the single most important fact for autonomous play, and it is easy to
-miss because the *types* exist.
+This was the single most important fact for autonomous play. When this document
+was first written there was **no way for a spymaster to transmit a clue through
+the app** — the `Clue` types existed but `currentClue` / `guessesAllowed` were
+only ever reset to `null`/`0`, never set to a real value. That gap has since
+been closed; the clue channel is **IMPLEMENTED**:
 
-`types/game.ts` defines `Clue`, `ClueHistoryEntry`, and `GameState.currentClue /
-guessesAllowed / clues[]`. But across the entire codebase, `currentClue` and
-`guessesAllowed` are **only ever reset to `null`/`0`** — never set to a real
-value:
+- `config/socketConfig.ts` defines `GAME_CLUE: 'game:clue'` and
+  `GAME_CLUE_GIVEN: 'game:clueGiven'`.
+- `services/gameService.ts` exports `submitClue(...)`, which validates
+  turn/role, runs the atomic Lua writer, and fires `notifyGameMutation`.
+- `scripts/submitClue.lua` is the atomic writer — it sets `currentClue`,
+  appends to `clues[]` and a `ClueHistoryEntry`, and sets `guessesAllowed`,
+  executed under the `reveal:{roomCode}` lock (see §6).
+- `socket/handlers/gameHandlers.ts` registers `game:clue`, gated on
+  `role === 'spymaster' && team === currentTurn`.
 
-- `services/game/revealEngine.ts:105‑107`, `scripts/revealCard.lua`,
-  `scripts/endTurn.lua` all *clear* them.
-- `config/socketConfig.ts` has **no** `game:clue` event.
-- `services/gameService.ts` has **no** `submitClue` function.
+The previously-"vestigial" clue fields (`currentClue` / `clues[]` /
+`ClueHistoryEntry`) are now the live coordination channel — `revealEngine.ts`,
+`revealCard.lua`, and `endTurn.lua` still *clear* them at turn boundaries as
+before, but `submitClue` is what populates them.
 
-**Conclusion:** clue-giving in Eigennamen is verbal / out-of-band. The app only
-transmits **board state, whose turn it is, card reveals, turn ends, and scores.**
-The clue fields are vestigial scaffolding that was never wired up.
-
-Consequences for bots:
+Consequences for bots (the design rationale, still valid):
 
 - A **clicker bot** only needs the existing reveal/endTurn channel *plus* the
-  ability to read a clue. A **spymaster bot** has nowhere to put its clue.
-- Therefore Phase 0 adds a real `game:clue` event (§6). The **natural-language
+  ability to read a clue. A **spymaster bot** needs somewhere to put its clue —
+  which the shipped `game:clue` event now provides.
+- The real `game:clue` event (§6) is what unblocks autonomous spymaster play.
+  The **natural-language
   clue word is the coordination channel**: a clicker (human or bot) ranks
   unrevealed cards by semantic similarity to `currentClue.word`. Bots get no
   information a human clicker wouldn't — no covert side channel.
@@ -104,7 +117,8 @@ Consequences for bots:
 | A mutation notifier already exists. | `socket/gameMutationNotifier.ts` — `onGameMutation(listener)` / `notifyGameMutation(roomCode)`. | The bot controller reacts to game changes with **zero polling**. |
 | `notifyGameMutation` fires **inside** the `reveal:{roomCode}` lock. | `gameService.ts:354` is within the `withLock(...)` callback. | The controller **must defer** its reaction (e.g. `queueMicrotask`/`setImmediate`) or it will try to re-enter a held lock. Captured as a design rule (§9) and a risk (§17). |
 | Role-masked views are already produced by one function. | `getGameStateForPlayer(game, player)` at `revealEngine.ts:253` returns `PlayerGameState` with `types[]` nulled for non-spymasters. | Bot views are **structural subsets** of an existing type — no new masking logic. |
-| Game services are socket-free and directly callable. | `createGame` (`gameService.ts:254`), `getGame` (`:296`), `revealCard` (`:317`), `endTurn` (`:366`), `forfeitGame` (`:407`). | Both the live controller and the headless harness call the same functions. |
+| Game services are socket-free and directly callable. | `createGame`, `getGame`, `revealCard`, `endTurn`, `forfeitGame`, and the shipped `submitClue` (`gameService.ts:423`) — all callable without a socket. | Both the live controller and the headless harness call the same functions. |
+| The clue channel is implemented (was a prerequisite, now SHIPPED). | `socketConfig.ts` `GAME_CLUE`/`GAME_CLUE_GIVEN`; `gameService.submitClue`; `scripts/submitClue.lua`; `game:clue` handler in `gameHandlers.ts` (spymaster + turn gated). | Spymaster bots have a real channel; no covert side channel — see §3, §6. |
 | Card reveal/turn already serialize under a distributed lock. | `revealCard`/`endTurn` wrap `withLock('reveal:{roomCode}', …, {lockTimeout: LOCKS.CARD_REVEAL*1000, maxRetries:5})`. | A bot acting on a stale snapshot is safely rejected by the lock + Lua preconditions (`NOT_YOUR_TURN`, `ALREADY_REVEALED`). |
 | Board generation is pure, seeded, environment-agnostic. | `services/game/boardGenerator.ts` (`generateBoardLayout`, `selectBoardWords`, `generateCardScores`, `generateDuetBoard`, `seededRandom`/Mulberry32, `hashString`, `shuffleWithSeed`). | Per-game seeds for tournaments reuse this verbatim; reproducible boards for free. |
 | Turn timers are skippable. | `timerService` / `timerHandlers`; `startTurnTimer` is gated on room settings. | Headless self-play disables timers for fast simulation. |
@@ -189,7 +203,11 @@ Consequences for bots:
 
 ---
 
-## 6. Phase 0 — the `game:clue` event (prerequisite, ships first)
+## 6. Phase 0 — the `game:clue` event (prerequisite — SHIPPED)
+
+> **Status: DONE.** This phase has shipped. The event, schema, Lua writer,
+> service function, and handler all exist (see §3 / §4). The design steps below
+> are retained as the as-built record; verify specifics against the code.
 
 A real game action, not chat-encoding and not an admin mutation. Same path for
 human and bot spymasters. Wired in dependency order:
@@ -404,7 +422,7 @@ Added one registry entry at a time. The catalogue grows; the interface does not.
 | `cautiousClicker` | clicker | `greedyClicker` that ends turn early when the top candidate's similarity margin over the next is thin (careful human model). |
 | `randomSpymaster` | spymaster | Emits an arbitrary legal clue word + number. Degenerate driver so the harness runs **with no semantic assets**. |
 | `numberOnlySpymaster` | spymaster | Picks `number` = count of own cards it intends to link, placeholder word. Exercises clicker bots without embeddings. |
-| `embeddingSpymaster` | spymaster | Loads external word vectors (ConceptNet Numberbatch preferred) from `server/src/bots/data/`; picks a word maximizing cosine similarity to own unrevealed cards while maximizing distance from assassin/opponent cards. Falls back to subword vectors / a hash-keyed association index for out-of-vocabulary custom-list words (see §20). |
+| `embeddingSpymaster` | spymaster | Loads external word vectors (ConceptNet Numberbatch preferred) via `semantics/vectorBackend.ts` (path set by `BOT_EMBEDDINGS_PATH`); picks a word maximizing cosine similarity to own unrevealed cards while maximizing distance from assassin/opponent cards. Falls back to subword vectors / a hash-keyed association index for out-of-vocabulary custom-list words (see §20). |
 | `mctsLiteSpymaster` | spymaster | Shallow search over clue candidates scoring expected cards-revealed-before-mistake; depth bounded by `SkillParams.lookahead`. |
 | `duetCooperativeClicker` | clicker | Duet-aware: trades high-confidence green reveals against `timerToken` risk; tracks progress toward 15 greens. |
 | `matchAwareClicker` / `matchAwareSpymaster` | both | Weight match-mode `cardScores` (gold/silver/trap) and score margin into reveal/clue choice; reuse classic strategies with a scoring overlay where possible. |
@@ -475,9 +493,10 @@ Added one registry entry at a time. The catalogue grows; the interface does not.
 
 **Results store**
 
-- Append-only **NDJSON** under `server/src/bots/results/`. The
-  `gameHistoryService` TTL/cap make Redis history unusable as a corpus; history
-  stays for replay/attribution only.
+- Append-only **NDJSON** corpus written by the harness (own store, not under a
+  committed `results/` dir — see `server/src/bots/harness/` for the as-built
+  output handling). The `gameHistoryService` TTL/cap make Redis history unusable
+  as a corpus; history stays for replay/attribution only.
 
 **Iteration loop**
 
@@ -486,7 +505,12 @@ Added one registry entry at a time. The catalogue grows; the interface does not.
 
 ---
 
-## 13. New socket events
+## 13. Socket events (SHIPPED)
+
+> **Status: DONE.** All four events below are implemented:
+> `game:clue` / `game:clueGiven` in `socketConfig.ts` + `gameHandlers.ts`, and
+> `bot:add` / `bot:remove` (`BOT_ADD` / `BOT_REMOVE`) in `socketConfig.ts` +
+> `socket/handlers/botHandlers.ts`. Verify guards/payloads against the code.
 
 | Event | Direction | Guard | Payload |
 |-------|-----------|-------|---------|
@@ -498,31 +522,39 @@ Added one registry entry at a time. The catalogue grows; the interface does not.
 
 ---
 
-## 14. New files and modules
+## 14. Files and modules
+
+> **As-built.** The tree below reflects the **actual** `server/src/bots/`
+> layout (strategies collapsed into `clickers.ts` / `spymasters.ts`; flat
+> `semantics/` files; an added `engine.ts` and `rng.ts`; a richer `harness/`).
+> The original proposal split strategies into one file per type and put
+> semantic backends under a `backends/` subdir — the shipped code does not.
+> `server/src/bots/` is authoritative.
 
 ```
 server/src/bots/
+├── engine.ts               # core game-loop driver shared by live + harness
+├── rng.ts                  # Mulberry32-based per-bot SeededRng
+├── playOneAction.ts        # pure shared decision helper (live + harness)
+├── botController.ts        # singleton; onGameMutation subscriber, tickRoom, reentrancy guard, lastSeen refresh
+├── presets.ts              # named SkillParams presets (novice/intermediate/expert)
 ├── strategies/
 │   ├── types.ts            # BotAction, Spymaster/ClickerStrategy, views, SeededRng, SkillParams, BotContext, BotConfig
 │   ├── registry.ts         # strategyId → StrategyFactory; one entry per type
-│   ├── randomClicker.ts
-│   ├── greedyClicker.ts
-│   ├── cautiousClicker.ts
-│   ├── randomSpymaster.ts
-│   ├── embeddingSpymaster.ts
-│   └── …                   # mctsLite, duet/match-aware, etc.
-├── presets.ts              # named SkillParams presets (novice/intermediate/expert)
-├── playOneAction.ts        # pure shared decision helper (live + harness)
-├── botController.ts        # singleton; onGameMutation subscriber, tickRoom, reentrancy guard, lastSeen refresh
+│   ├── clickers.ts         # clicker strategies (random/greedy/cautious/duet/match-aware)
+│   └── spymasters.ts       # spymaster strategies (random/numberOnly/embedding/mctsLite/match-aware)
 ├── semantics/
-│   ├── backend.ts          # SemanticBackend: relatedness(a,b), vectorize(word); pluggable (curated|numberbatch|fasttext|llm)
-│   ├── associationIndex.ts # per-list association cache keyed by hash(normalized word set); built offline, reused at runtime (see §20)
-│   └── backends/           # curatedTable.ts, numberbatch.ts, fasttext.ts, llm.ts
-├── data/                   # pluggable semantic vectors (ConceptNet Numberbatch preferred), network-optional, NOT committed by default
-├── harness/
-│   ├── runMatches.ts       # headless tournament runner (npm run bots:train)
-│   └── scoring.ts          # Elo/TrueSkill + mode-specific fitness + Wilson interval
-└── results/                # append-only NDJSON corpus (own store, not gameHistory)
+│   ├── backend.ts          # SemanticBackend interface: relatedness(a,b), vectorize(word)
+│   ├── tableBackend.ts     # baked curated association table (dictionary-word fallback)
+│   ├── vectorBackend.ts    # pre-trained word vectors (fastText/GloVe/word2vec/Numberbatch)
+│   ├── selectBackend.ts    # lazy backend selection via BOT_EMBEDDINGS_PATH
+│   └── associations.ts     # content-hash-keyed per-list association cache (see §20)
+└── harness/
+    ├── runMatches.ts       # headless tournament runner
+    ├── playGame.ts         # single-game self-play loop
+    ├── parity.ts           # Lua-vs-TS parity harness (see §15)
+    ├── scoring.ts          # Elo/TrueSkill + mode-specific fitness + Wilson interval
+    └── types.ts            # MatchResult, TournamentSpec, harness types
 
 server/src/services/botService.ts                 # buildBotPlayer/removeBotPlayer; sets isBot, team+role, connected:true; persists bot:{sessionId}:cfg
 server/src/socket/handlers/botHandlers.ts          # host-only bot:add / bot:remove via createHostHandler
@@ -556,10 +588,18 @@ Appendix A summarizes the per-mode rules a bot engine must respect.
 
 ## 16. Phased roadmap
 
+> **Status:** Phases 0 and 1 have largely shipped — the `game:clue` channel,
+> the bot subsystem under `server/src/bots/` (`engine.ts`, `playOneAction.ts`,
+> `botController.ts`, strategies, presets), and the `bot:add` / `bot:remove`
+> host handlers all exist. Later phases (harness scoring, embedding spymasters,
+> per-mode polish) are partly in tree under `server/src/bots/harness/` and
+> `server/src/bots/semantics/`; treat the estimates below as the original plan
+> and the code as the source of truth.
+
 | Phase | Deliverable | Est. |
 |-------|-------------|------|
-| **0** | `game:clue` feature, decoupled from bots: socketConfig events, shared stemming-aware `gameClueSchema`, `submitClue.lua` under the reveal lock, `gameService.submitClue`, the handler (reusing the reveal permission pattern), cross-mode tests, minimal frontend clue form + `EigennamenClient.submitClue` + `game:clueGiven` handler. Independently human-usable. | 3–5 d |
-| **1** | Solo playtest, **classic** mode: `isBot` field, `botService`, `botController` on `onGameMutation`, `playOneAction`, `bot:add/remove` host handlers, reentrancy guard + `connected:true`/`lastSeen` cleanup survival, `randomClicker` + `greedyClicker`. Playable bot-filled room with human or bot clues. | 5–8 d |
+| **0** ✅ **SHIPPED** | `game:clue` feature, decoupled from bots: socketConfig events, shared stemming-aware `gameClueSchema`, `submitClue.lua` under the reveal lock, `gameService.submitClue`, the handler (reusing the reveal permission pattern), cross-mode tests, minimal frontend clue form + `EigennamenClient.submitClue` + `game:clueGiven` handler. Independently human-usable. | 3–5 d |
+| **1** ✅ **SHIPPED** | Solo playtest, **classic** mode: `isBot` field, `botService`, `botController` on `onGameMutation`, `playOneAction`, `bot:add/remove` host handlers, reentrancy guard + `connected:true`/`lastSeen` cleanup survival, `randomClicker` + `greedyClicker`. Playable bot-filled room with human or bot clues. | 5–8 d |
 | **2** | Parity gate + harness skeleton: share the already-pure `revealEngine`/`boardGenerator` rules; add the blocking Lua-vs-TS parity test across all three modes; `runMatches.ts` running the first corpus against the real `gameService`/Lua path via `createMockRedis`; `worker_threads` sharding; `MatchResult` + NDJSON output. | 4–6 d |
 | **3** | Spymaster strategies + skill model: `registry`, `presets.ts`, per-bot `SeededRng` wiring, `embeddingSpymaster` (pluggable vector backend), `mctsLite`. Add 2–4 d if bundling/licensing an embedding set. | 4–7 d |
 | **4** | Scoring + iteration loop: Elo/TrueSkill, mode-specific + graded-duet fitness, Wilson-interval win-rate, `leaderboard.json`, seed-stable regression diffing, optional pure-rules fast path **only after** the parity gate is green, periodic socket-mode fidelity sample. | 4–6 d |
@@ -697,7 +737,7 @@ choice.
 
 ### The unifying primitive: a hash-keyed association index
 
-`server/src/bots/semantics/associationIndex.ts` precomputes the word→word
+`server/src/bots/semantics/associations.ts` precomputes the word→word
 relatedness a strategy needs and **caches it keyed by a content hash of the
 normalized board word set** — *not* by `wordListId`, so an ephemeral inline
 `wordList` and a stored list share the cache and identical lists collide on one

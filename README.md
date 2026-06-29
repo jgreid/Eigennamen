@@ -8,6 +8,7 @@ A web-based implementation of the popular board game Eigennamen, optimized for r
 
 - **Standalone or multiplayer** — Works offline with URL-based state or with real-time server
 - **Three game modes** — Classic, Duet (cooperative 2-player), Match (competitive multi-round scoring)
+- **AI bot opponents** — Host-managed bots fill spymaster/clicker seats, from random play to a semantic spymaster (offline association table or optional word embeddings)
 - **Real-time multiplayer** — Synchronized game state via Socket.io with reconnection support
 - **URL-based game sharing** — All game state encoded in the URL for easy sharing
 - **Custom word lists** — Use your own themed word lists (with optional database persistence)
@@ -26,34 +27,28 @@ A web-based implementation of the popular board game Eigennamen, optimized for r
 
 **New to Eigennamen?** Check out the [Complete Quickstart Guide](QUICKSTART.md) for step-by-step instructions including your first game walkthrough.
 
-### Option 1: Open directly
+### Option 1: Run the standalone app (no backend)
 
-1. Download `index.html` to your computer
-2. Double-click to open in any modern web browser
-3. Share your screen and the game link with friends!
-
-### Option 2: Serve locally
-
-If opening directly doesn't work (some browsers restrict local file access), use a simple HTTP server:
+The standalone build lives in `server/public/` — `index.html` plus its JS/CSS/icons. Serve that directory and open it:
 
 ```bash
+cd server/public
+
 # Using Python 3
 python -m http.server 8000
 
-# Using Node.js (npx)
-npx serve
-
-# Using PHP
-php -S localhost:8000
+# ...or Node.js (npx serve), or PHP (php -S localhost:8000)
 ```
 
-Then open `http://localhost:8000` in your browser.
+Then open `http://localhost:8000`. Game state is encoded entirely in the URL, so no backend or Redis is needed — share the URL to share the game.
 
-### Option 3: Host online
+> **Note:** opening `index.html` straight from the filesystem (`file://`) does **not** work. The page loads its assets by absolute path (`/js/...`, `/css/...`), which only resolve when `server/public/` is the web root.
 
-Upload `index.html` (and optionally `wordlist.txt`) to any web hosting service like GitHub Pages, Netlify, or your own server.
+### Option 2: Host online
 
-### Option 4: Real-time multiplayer server
+Deploy the contents of `server/public/` to any static host (GitHub Pages, Netlify, your own server) so the absolute asset paths resolve from the site root.
+
+### Option 3: Real-time multiplayer server
 
 For true real-time synchronization without URL sharing, use the multiplayer server:
 
@@ -230,6 +225,8 @@ Works in all modern browsers:
 | [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) | Testing documentation and patterns |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Deployment guide (Docker, Fly.io, Heroku, K8s) |
 | [docs/BACKUP_AND_DR.md](docs/BACKUP_AND_DR.md) | Backup strategy and disaster recovery |
+| [docs/INTELLIGENT_BOTS_SPEC.md](docs/INTELLIGENT_BOTS_SPEC.md) | AI bot design spec (engine, strategies, semantics) |
+| [docs/BOT_EMBEDDINGS.md](docs/BOT_EMBEDDINGS.md) | Optional word-embedding backend for bots |
 | [server/README.md](server/README.md) | Server setup and configuration |
 
 ## License

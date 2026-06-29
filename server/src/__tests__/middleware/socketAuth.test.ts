@@ -86,11 +86,12 @@ describe('Socket Authentication Middleware', () => {
     });
 
     describe('shouldTrustProxy / getClientIP', () => {
-        const createMockSocket = (address, forwardedFor = null) => ({
+        const createMockSocket = (address, forwardedFor = null, flyClientIP = null) => ({
             handshake: {
                 address,
                 headers: {
                     'x-forwarded-for': forwardedFor,
+                    ...(flyClientIP !== null ? { 'fly-client-ip': flyClientIP } : {}),
                 },
             },
         });
@@ -99,6 +100,7 @@ describe('Socket Authentication Middleware', () => {
             // Clean up environment variables
             delete process.env.TRUST_PROXY;
             delete process.env.FLY_APP_NAME;
+            delete process.env.FLY_ALLOC_ID;
             delete process.env.DYNO;
         });
 
@@ -155,6 +157,23 @@ describe('Socket Authentication Middleware', () => {
             const socket = createMockSocket('192.168.1.100', null);
             const ip = getClientIP(socket);
             expect(ip).toBe('192.168.1.100');
+        });
+
+        test('ignores a spoofable Fly-Client-IP under generic TRUST_PROXY (not on Fly)', () => {
+            // A non-Fly reverse proxy does not strip Fly-Client-IP, so a client
+            // could forge it. Under bare TRUST_PROXY the header must NOT be trusted;
+            // X-Forwarded-For (rightmost, proxy-appended) is used instead.
+            process.env.TRUST_PROXY = 'true';
+            const socket = createMockSocket('172.16.0.1', '198.51.100.25', '6.6.6.6');
+            const ip = getClientIP(socket);
+            expect(ip).toBe('198.51.100.25');
+        });
+
+        test('trusts Fly-Client-IP only when actually deployed on Fly.io', () => {
+            process.env.FLY_APP_NAME = 'my-app';
+            const socket = createMockSocket('172.16.0.1', '198.51.100.25', '203.0.113.7');
+            const ip = getClientIP(socket);
+            expect(ip).toBe('203.0.113.7');
         });
     });
 

@@ -14,14 +14,19 @@ Get from zero to playing your first game in minutes. This guide covers three dep
 
 ## Option A: Standalone (1 Minute)
 
-The simplest way to play - no server needed. Game state is encoded in the URL.
+The simplest way to play - no backend needed. Game state is encoded in the URL.
 
 ### Steps
 
-1. **Open the game**
+1. **Serve the app**
+
+   The standalone build lives in `server/public/` (`index.html` plus its JS/CSS). Serve that directory:
+   ```bash
+   cd server/public
+   python -m http.server 8000
+   # Then open http://localhost:8000
    ```
-   Open index.html in your browser (double-click the file)
-   ```
+   > Opening `index.html` straight from disk (`file://`) won't work — it loads its assets by absolute path (`/js/...`, `/css/...`), which only resolve when `server/public/` is the web root.
 
 2. **Start a game**
    - Click **"Play Local"** on the setup screen to start an offline game immediately
@@ -34,12 +39,6 @@ The simplest way to play - no server needed. Game state is encoded in the URL.
    - Each player opens the URL in their own browser
 
 That's it! Players select their roles and you're ready to play.
-
-> **Tip:** If double-clicking doesn't work, serve the file locally:
-> ```bash
-> python -m http.server 8000
-> # Then open http://localhost:8000
-> ```
 
 ---
 

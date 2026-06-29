@@ -76,6 +76,7 @@ export async function saveCompletedGameHistory(roomCode: string): Promise<void> 
                 redTotal: completedGame.redTotal,
                 blueTotal: completedGame.blueTotal,
                 winner: completedGame.winner ?? undefined,
+                gameMode: completedGame.gameMode,
                 gameOver: completedGame.gameOver,
                 createdAt: completedGame.createdAt,
                 clues: completedGame.clues,

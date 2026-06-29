@@ -9,6 +9,7 @@ import { ERROR_CODES, SOCKET_EVENTS } from '../../../config/constants';
 import { createRoomHandler, createHostHandler } from '../../contextHandler';
 import { PlayerError } from '../../../errors/GameError';
 import { sanitizeHtml } from '../../../utils/sanitize';
+import { safeEmitToPlayer } from '../../safeEmit';
 
 export default function spectatorHandlers(io: Server, socket: GameSocket): void {
     // Spectator: Request to join a team
@@ -31,18 +32,15 @@ export default function spectatorHandlers(io: Server, socket: GameSocket): void 
                     throw new PlayerError(ERROR_CODES.NOT_HOST, 'No host found in room');
                 }
 
-                // Emit join request to the host (io captured from outer closure)
-                const hostSockets = await io.in(host.sessionId).fetchSockets();
-                if (hostSockets.length > 0) {
-                    // Safe to cast: we just verified length > 0
-                    const hostSocket = hostSockets[0] as (typeof hostSockets)[number];
-                    hostSocket.emit(SOCKET_EVENTS.SPECTATOR_JOIN_REQUEST, {
-                        requesterId: ctx.sessionId,
-                        requesterNickname: ctx.player.nickname,
-                        team: validated.team,
-                        timestamp: Date.now(),
-                    });
-                }
+                // Emit join request to the host. A player's socket is reachable only via
+                // the `player:${sessionId}` room (joined at room-join/reconnect), so we
+                // address it through safeEmitToPlayer rather than the bare sessionId.
+                safeEmitToPlayer(io, host.sessionId, SOCKET_EVENTS.SPECTATOR_JOIN_REQUEST, {
+                    requesterId: ctx.sessionId,
+                    requesterNickname: ctx.player.nickname,
+                    team: validated.team,
+                    timestamp: Date.now(),
+                });
 
                 logger.info(
                     `Spectator ${sanitizeHtml(ctx.player.nickname)} requested to join ${validated.team} team in room ${ctx.roomCode}`
@@ -71,31 +69,21 @@ export default function spectatorHandlers(io: Server, socket: GameSocket): void 
                 }
 
                 if (validated.approved) {
-                    // Notify the requester they've been approved (io captured from outer closure)
-                    const requesterSockets = await io.in(validated.requesterId).fetchSockets();
-                    if (requesterSockets.length > 0) {
-                        // Safe to cast: we just verified length > 0
-                        const requesterSocket = requesterSockets[0] as (typeof requesterSockets)[number];
-                        requesterSocket.emit(SOCKET_EVENTS.SPECTATOR_JOIN_APPROVED, {
-                            message: 'Your request to join a team has been approved',
-                            timestamp: Date.now(),
-                        });
-                    }
+                    // Notify the requester they've been approved (via their player: room).
+                    safeEmitToPlayer(io, validated.requesterId, SOCKET_EVENTS.SPECTATOR_JOIN_APPROVED, {
+                        message: 'Your request to join a team has been approved',
+                        timestamp: Date.now(),
+                    });
 
                     logger.info(
                         `Host approved spectator ${sanitizeHtml(requester.nickname)} join request in room ${ctx.roomCode}`
                     );
                 } else {
-                    // Notify the requester they've been denied (io captured from outer closure)
-                    const requesterSockets = await io.in(validated.requesterId).fetchSockets();
-                    if (requesterSockets.length > 0) {
-                        // Safe to cast: we just verified length > 0
-                        const deniedSocket = requesterSockets[0] as (typeof requesterSockets)[number];
-                        deniedSocket.emit(SOCKET_EVENTS.SPECTATOR_JOIN_DENIED, {
-                            message: 'Your request to join a team was denied',
-                            timestamp: Date.now(),
-                        });
-                    }
+                    // Notify the requester they've been denied (via their player: room).
+                    safeEmitToPlayer(io, validated.requesterId, SOCKET_EVENTS.SPECTATOR_JOIN_DENIED, {
+                        message: 'Your request to join a team was denied',
+                        timestamp: Date.now(),
+                    });
 
                     logger.info(
                         `Host denied spectator ${sanitizeHtml(requester.nickname)} join request in room ${ctx.roomCode}`

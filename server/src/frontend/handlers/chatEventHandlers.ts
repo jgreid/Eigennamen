@@ -37,7 +37,9 @@ export function registerChatAndErrorHandlers(): void {
             });
     });
 
-    EigennamenClient.on('replayData', (data: ReplayData) => {
+    // The server emits the replay wrapped as { replay: ReplayData };
+    // renderReplayData unwraps either shape.
+    EigennamenClient.on('replayData', (data: { replay?: ReplayData } | ReplayData) => {
         import('../history.js')
             .then(({ renderReplayData }) => {
                 renderReplayData(data);

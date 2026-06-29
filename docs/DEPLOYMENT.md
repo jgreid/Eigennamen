@@ -317,9 +317,11 @@ curl https://eigennamen-staging.fly.dev/health/ready
 For local staging that mirrors production:
 
 ```bash
-# Use production-like config with memory limits
-docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --build
+# Use production-like config
+docker compose -f docker-compose.yml up -d --build
 ```
+
+> Note: Create your own `docker-compose.staging.yml` override (and pass it with an additional `-f docker-compose.staging.yml`) if you need staging-specific resource limits.
 
 ### Staging Checklist
 

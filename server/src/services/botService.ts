@@ -42,6 +42,17 @@ function shortId(): string {
 export async function addBot(roomCode: string, opts: AddBotOptions): Promise<Player> {
     const redis: RedisClient = getRedis();
 
+    // Enforce the same one-spymaster/one-clicker-per-team invariant the human
+    // setRole path enforces (SET_ROLE_SCRIPT → ROLE_TAKEN). Without this a host
+    // could seat a bot on a role a human (or another bot) already holds, and the
+    // game logic that resolves the acting seat via members.find(role) would then
+    // drive a contested seat. Mirrors the ValidationError message setRole produces.
+    const existingMembers = await playerService.getTeamMembers(roomCode, opts.team);
+    const occupant = existingMembers.find((p) => p.connected && p.role === opts.role);
+    if (occupant) {
+        throw new ValidationError(`${opts.team} team already has a ${opts.role} (${occupant.nickname})`);
+    }
+
     const sessionId = `bot-${randomUUID()}`;
     const nickname = opts.nickname?.trim() || `${strategyLabel(opts.strategyId)} Bot ${shortId()}`;
 
@@ -167,14 +178,24 @@ export async function removeBot(roomCode: string, sessionId: string): Promise<vo
 
 /**
  * Read a bot's persisted config (null if missing/corrupt).
+ *
+ * Reading also extends the config's TTL: the live bot controller calls this
+ * immediately before every bot action, so an actively-playing bot keeps its
+ * config lease fresh and never gets stranded in a long-lived (TTL-refreshed)
+ * room, while a config in an idle/abandoned room still ages out with the room.
  */
 export async function getBotConfig(sessionId: string): Promise<BotConfig | null> {
     const redis: RedisClient = getRedis();
-    const raw = await withTimeout(
-        redis.get(botCfgKey(sessionId)),
-        TIMEOUTS.REDIS_OPERATION,
-        `getBotConfig-${sessionId}`
-    );
+    const key = botCfgKey(sessionId);
+    const raw = await withTimeout(redis.get(key), TIMEOUTS.REDIS_OPERATION, `getBotConfig-${sessionId}`);
     if (!raw) return null;
+    // Best-effort lease renewal — never let a TTL refresh failure break the read.
+    void withTimeout(
+        redis.expire(key, REDIS_TTL.ROOM),
+        TIMEOUTS.REDIS_OPERATION,
+        `getBotConfig-ttl-${sessionId}`
+    ).catch(() => {
+        /* non-critical */
+    });
     return tryParseJSON(raw, botConfigSchema, `bot config ${sessionId}`) as BotConfig | null;
 }

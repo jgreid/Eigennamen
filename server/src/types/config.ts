@@ -177,7 +177,8 @@ export interface RetrySettings {
 export interface RetryConfig {
     OPTIMISTIC_LOCK: RetrySettings;
     REDIS_OPERATION: RetrySettings;
-    DISTRIBUTED_LOCK: RetrySettings;
+    // Distributed-lock retries live in utils/distributedLock.ts (DEFAULT_CONFIG),
+    // not in RETRY_CONFIG — intentionally omitted here.
     NETWORK_REQUEST: RetrySettings;
     RACE_CONDITION: { delayMs: number };
 }

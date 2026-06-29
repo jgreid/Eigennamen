@@ -81,17 +81,13 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
 
     describe('spectator:requestJoin', () => {
         it('should send join request to host', async () => {
-            const mockHostSocket = { emit: jest.fn() };
-            mockIo.in.mockReturnValue({
-                fetchSockets: jest.fn().mockResolvedValue([mockHostSocket]),
-            });
-
             playerService.getPlayersInRoom.mockResolvedValue([{ sessionId: 'host-1', isHost: true, nickname: 'Host' }]);
 
             await handlers['spectator:requestJoin']({ team: 'red' });
 
-            expect(mockIo.in).toHaveBeenCalledWith('host-1');
-            expect(mockHostSocket.emit).toHaveBeenCalledWith('spectator:joinRequest', {
+            // Host is addressed via its player: room, not the bare sessionId.
+            expect(mockIo.to).toHaveBeenCalledWith('player:host-1');
+            expect(mockIo.emit).toHaveBeenCalledWith('spectator:joinRequest', {
                 requesterId: 'session-1',
                 requesterNickname: 'Player1',
                 team: 'red',
@@ -132,17 +128,13 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
             );
         });
 
-        it('should handle host with no connected socket', async () => {
-            mockIo.in.mockReturnValue({
-                fetchSockets: jest.fn().mockResolvedValue([]),
-            });
-
+        it('should not throw when host has no connected socket', async () => {
             playerService.getPlayersInRoom.mockResolvedValue([{ sessionId: 'host-1', isHost: true }]);
 
-            // Should not throw, just silently skip emit
+            // Emitting to an empty player: room is a harmless no-op.
             await handlers['spectator:requestJoin']({ team: 'red' });
 
-            expect(mockIo.in).toHaveBeenCalledWith('host-1');
+            expect(mockIo.to).toHaveBeenCalledWith('player:host-1');
         });
     });
 
@@ -160,11 +152,6 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
         });
 
         it('should approve a spectator join request', async () => {
-            const mockRequesterSocket = { emit: jest.fn() };
-            mockIo.in.mockReturnValue({
-                fetchSockets: jest.fn().mockResolvedValue([mockRequesterSocket]),
-            });
-
             // Target is a spectator
             playerService.getPlayer
                 .mockResolvedValueOnce({
@@ -188,7 +175,8 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
                 approved: true,
             });
 
-            expect(mockRequesterSocket.emit).toHaveBeenCalledWith(
+            expect(mockIo.to).toHaveBeenCalledWith('player:requester-1');
+            expect(mockIo.emit).toHaveBeenCalledWith(
                 'spectator:joinApproved',
                 expect.objectContaining({
                     message: expect.stringContaining('approved'),
@@ -197,11 +185,6 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
         });
 
         it('should deny a spectator join request', async () => {
-            const mockDeniedSocket = { emit: jest.fn() };
-            mockIo.in.mockReturnValue({
-                fetchSockets: jest.fn().mockResolvedValue([mockDeniedSocket]),
-            });
-
             playerService.getPlayer
                 .mockResolvedValueOnce({
                     sessionId: 'session-1',
@@ -224,7 +207,8 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
                 approved: false,
             });
 
-            expect(mockDeniedSocket.emit).toHaveBeenCalledWith(
+            expect(mockIo.to).toHaveBeenCalledWith('player:requester-1');
+            expect(mockIo.emit).toHaveBeenCalledWith(
                 'spectator:joinDenied',
                 expect.objectContaining({
                     message: expect.stringContaining('denied'),
@@ -319,11 +303,7 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
             );
         });
 
-        it('should handle requester with no connected socket on approve', async () => {
-            mockIo.in.mockReturnValue({
-                fetchSockets: jest.fn().mockResolvedValue([]),
-            });
-
+        it('should not throw when requester has no connected socket on approve', async () => {
             playerService.getPlayer
                 .mockResolvedValueOnce({
                     sessionId: 'session-1',
@@ -341,20 +321,16 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
                     role: 'spectator',
                 });
 
-            // Should not throw
+            // Should not throw — emit to an empty player: room is a no-op.
             await handlers['spectator:approveJoin']({
                 requesterId: 'requester-1',
                 approved: true,
             });
 
-            expect(mockIo.in).toHaveBeenCalledWith('requester-1');
+            expect(mockIo.to).toHaveBeenCalledWith('player:requester-1');
         });
 
-        it('should handle requester with no connected socket on deny', async () => {
-            mockIo.in.mockReturnValue({
-                fetchSockets: jest.fn().mockResolvedValue([]),
-            });
-
+        it('should not throw when requester has no connected socket on deny', async () => {
             playerService.getPlayer
                 .mockResolvedValueOnce({
                     sessionId: 'session-1',
@@ -377,7 +353,7 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
                 approved: false,
             });
 
-            expect(mockIo.in).toHaveBeenCalledWith('requester-1');
+            expect(mockIo.to).toHaveBeenCalledWith('player:requester-1');
         });
     });
 

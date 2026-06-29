@@ -279,6 +279,22 @@ describe('Game History Service', () => {
 
             expect(result.teamNames).toEqual({ red: 'Red', blue: 'Blue' });
         });
+
+        test('persists a duet cooperative loss (winner null) instead of dropping it', async () => {
+            // Regression: duet losses set winner=null; the validator previously
+            // required red/blue and silently discarded them.
+            const duetLoss = {
+                ...mockGameData,
+                gameMode: 'duet',
+                winner: null,
+                gameOver: true,
+            };
+
+            const result = await gameHistoryService.saveGameResult('ROOMD', duetLoss);
+
+            expect(result).not.toBeNull();
+            expect(result.finalState.winner).toBeNull();
+        });
     });
 
     describe('getGameHistory', () => {

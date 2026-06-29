@@ -292,12 +292,18 @@ socket.emit('game:start', {
     wordListId: null // Optional custom word list
 });
 
-// Reveal a card (host only)
+// Give a clue (spymaster of the team whose turn it is only)
+socket.emit('game:clue', {
+    word: "ANIMALS",
+    number: 3
+});
+
+// Reveal a card (acting clicker of the current turn's team)
 socket.emit('game:reveal', {
     index: 5 // 0-24
 });
 
-// End turn (host only)
+// End turn (acting clicker of the current turn's team)
 socket.emit('game:endTurn');
 
 // Forfeit game
@@ -316,6 +322,15 @@ socket.on('game:started', {
         redTotal: 9,
         blueTotal: 8
     }
+});
+
+// Clue given (broadcast to room)
+socket.on('game:clueGiven', {
+    word: "ANIMALS",
+    number: 3,
+    team: "red",
+    guessesAllowed: 4,
+    spymaster: { sessionId: "uuid", nickname: "Alice" }
 });
 
 // Card revealed
@@ -341,6 +356,39 @@ socket.on('game:over', {
     types: [...] // Reveal all card types
 });
 ```
+
+#### Bot Events
+
+```javascript
+// ===== CLIENT → SERVER (host only) =====
+
+// Add a bot player to a team/role
+socket.emit('bot:add', {
+    team: "red",            // "red" or "blue"
+    role: "spymaster",      // "spymaster" or "clicker"
+    strategyId: "...",      // bot strategy identifier
+    skillPreset: "...",     // bot skill preset
+    nickname: "BotAlice"    // optional
+});
+
+// Remove a bot player
+socket.emit('bot:remove', {
+    sessionId: "bot-uuid"
+});
+
+// ===== SERVER → CLIENT =====
+
+// Bot operation failed
+socket.on('bot:error', {
+    code: "...",
+    message: "..."
+});
+```
+
+> Note: Bots are first-class room players. They surface to other clients via the
+> existing `room:playerJoined` / `room:playerLeft` / `room:statsUpdated`
+> broadcasts, so there are no dedicated bot broadcast events. Only failures use a
+> dedicated `bot:error` event.
 
 #### Chat Events
 
@@ -639,8 +687,13 @@ const authorizeAction = (action) => (socket, data, next) => {
     switch (action) {
         case 'reveal':
         case 'endTurn':
-            if (!player.isHost) {
-                return next(new Error('Only host can perform this action'));
+            // Acting clicker of the current turn's team (falls back to any
+            // non-spymaster team member if the clicker is disconnected).
+            if (player.role === 'spymaster') {
+                return next(new Error('Spymasters cannot reveal or end turn'));
+            }
+            if (player.team !== room.game.currentTurn) {
+                return next(new Error('Not your team\'s turn'));
             }
             break;
 
@@ -716,10 +769,17 @@ const schemas = {
     }),
 
     gameClue: z.object({
-        word: z.string().min(1).max(50).trim()
-            .regex(/^[A-Za-z\s-]+$/, 'Clue must contain only letters'),
-        number: z.number().int().min(0).max(25)
+        // word: sanitized via removeControlChars + trim, 1–40 chars
+        // (CLUE_WORD_MAX_LENGTH), refined to a SINGLE token (no whitespace).
+        word: z.string()
+            .transform(removeControlChars)
+            .pipe(z.string().min(1).max(40))
+            .refine((w) => !/\s/.test(w), 'Clue must be a single word'),
+        // number: integer 0–9 (CLUE_NUMBER_MAX)
+        number: z.number().int().min(0).max(9)
     }),
+    // Note: board-word legality (a clue must not reference a word on the board)
+    // is enforced in the SERVICE layer (gameService.submitClue), not the schema.
 
     chatMessage: z.object({
         text: z.string().min(1).max(500).trim(),
@@ -914,7 +974,7 @@ REDIS_URL=redis://localhost:6379
 
 # Authentication
 JWT_SECRET=your-secret-key-min-32-chars
-JWT_EXPIRES_IN=7d
+# Token expiry is hardcoded to 24h in config/jwt.ts; there is no JWT_EXPIRES_IN env var.
 
 # CORS
 CORS_ORIGIN=*

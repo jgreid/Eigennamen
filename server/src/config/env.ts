@@ -153,12 +153,16 @@ export function validateEnv(): boolean {
         }
     }
 
-    // Validate LOG_LEVEL if provided (applies to all environments)
+    // Validate LOG_LEVEL if provided (applies to all environments).
+    // These must match the levels the custom logger actually defines
+    // (utils/logger.ts). The broader Winston set (verbose/silly) is intentionally
+    // excluded: the logger has no such level, so setting one would be silently
+    // ignored and fall back to the NODE_ENV default — warn instead.
     const logLevel = process.env['LOG_LEVEL'];
     if (logLevel) {
-        const validLevels = ['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly'];
+        const validLevels = ['error', 'warn', 'info', 'http', 'debug'];
         if (!validLevels.includes(logLevel)) {
-            warnings.push(`LOG_LEVEL "${logLevel}" is not a standard Winston level (${validLevels.join(', ')})`);
+            warnings.push(`LOG_LEVEL "${logLevel}" is not a supported level (${validLevels.join(', ')})`);
         }
     }
 
