@@ -280,6 +280,18 @@ If you want to shut down the server (maybe you're done playing or want to turn o
 
 **How to fix it:** This is normal! The first time can take 5-10 minutes. Subsequent starts will be much faster (just a few seconds).
 
+### "spawn redis-server ENOENT" when running `npm run dev`
+
+**What it means:** You tried to run the server directly with Node instead of Docker, using `REDIS_URL=memory`. That mode still needs a `redis-server` program installed, and **Windows doesn't come with one** — so it can't start.
+
+**How to fix it:** On Windows, use **Docker** (this guide's main path — double-click `start-server.bat`). Docker includes Redis, so you never have to install it yourself. If you specifically want to run with Node directly, first install a Windows Redis such as [Memurai](https://www.memurai.com/) or run Redis inside WSL2, then start with `$env:REDIS_URL="redis://127.0.0.1:6379"; npm run dev` instead of `REDIS_URL=memory`.
+
+### "'REDIS_URL=memory' is not recognized" in PowerShell
+
+**What it means:** The `REDIS_URL=memory npm run dev` form only works in Bash (macOS/Linux/Git Bash). PowerShell sets variables differently.
+
+**How to fix it:** In PowerShell, run `$env:REDIS_URL="memory"; npm run dev`. In the old Command Prompt (cmd.exe), run `set REDIS_URL=memory && npm run dev`. (But on Windows, Docker is still the easier path — see above.)
+
 ---
 
 ## Quick Reference Card
