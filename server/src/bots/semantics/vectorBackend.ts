@@ -138,8 +138,11 @@ function loadVectors(opts: Required<VectorBackendOptions>): LoadedVectors {
             return vecs.size < opts.maxWords;
         };
 
+        // keepGoing goes false when handleLine hits the maxWords cap; the inner
+        // `if (!keepGoing) break` exits the outer loop, and the trailing-line check
+        // below honours it — so it is NOT part of this header condition.
         let keepGoing = true;
-        while (bytesRead > 0 && keepGoing) {
+        while (bytesRead > 0) {
             remainder += buf.toString('utf8', 0, bytesRead);
             let nl = remainder.indexOf('\n');
             while (nl !== -1) {
