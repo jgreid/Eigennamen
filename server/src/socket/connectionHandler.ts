@@ -15,6 +15,7 @@ import gameHandlers from './handlers/gameHandlers';
 import playerHandlers from './handlers/playerHandlers';
 import chatHandlers from './handlers/chatHandlers';
 import timerHandlers from './handlers/timerHandlers';
+import botHandlers from './handlers/botHandlers';
 
 /**
  * Express app with socket count update function
@@ -90,6 +91,7 @@ function handleConnection(
     roomHandlers(socketServer, gameSocket);
     gameHandlers(socketServer, gameSocket);
     playerHandlers(socketServer, gameSocket);
+    botHandlers(socketServer, gameSocket);
     chatHandlers(socketServer, gameSocket);
     timerHandlers(socketServer, gameSocket);
 

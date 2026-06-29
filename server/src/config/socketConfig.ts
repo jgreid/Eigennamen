@@ -76,6 +76,10 @@ export const SOCKET_EVENTS = {
     GAME_TYPING: 'game:typing',
     GAME_ERROR: 'game:error',
 
+    // Bot events
+    BOT_ADD: 'bot:add',
+    BOT_REMOVE: 'bot:remove',
+
     // Player events
     PLAYER_SET_TEAM: 'player:setTeam',
     PLAYER_SET_ROLE: 'player:setRole',

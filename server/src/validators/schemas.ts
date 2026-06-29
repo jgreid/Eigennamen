@@ -38,6 +38,10 @@ export {
     gameReadySchema,
 } from './gameSchemas';
 
+// Re-export bot schemas
+export { botConfigSchema, botAddSchema, botRemoveSchema } from './botSchemas';
+export type { BotAddInput, BotRemoveInput } from './botSchemas';
+
 // Re-export chat schemas
 export { chatMessageSchema, spectatorChatSchema } from './chatSchemas';
 

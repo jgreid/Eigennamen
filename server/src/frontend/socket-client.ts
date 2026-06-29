@@ -231,6 +231,18 @@ import type { JoinCreateResult } from './multiplayerTypes.js';
         },
 
         // =====================
+        // Bot Actions (host only)
+        // =====================
+
+        addBot(team: string, role: string, strategyId: string, skillPreset: string): void {
+            this._getSocket()?.emit('bot:add', { team, role, strategyId, skillPreset });
+        },
+
+        removeBot(sessionId: string): void {
+            this._getSocket()?.emit('bot:remove', { sessionId });
+        },
+
+        // =====================
         // Chat Actions
         // =====================
 

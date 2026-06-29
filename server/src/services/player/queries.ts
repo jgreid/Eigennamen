@@ -234,7 +234,9 @@ export async function resetRolesForNewGame(roomCode: string): Promise<Player[]> 
 
     const results = await Promise.all(
         players.map((player) => {
-            if (player.role && player.role !== 'spectator') {
+            // Bots keep their committed seat role across a new game; only humans
+            // are reset to spectator to re-pick each game.
+            if (!player.isBot && player.role && player.role !== 'spectator') {
                 return withLock(
                     `player-mutation:${player.sessionId}`,
                     async () => {

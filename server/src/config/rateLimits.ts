@@ -36,6 +36,9 @@ export const RATE_LIMITS: Record<string, RateLimitConfig> = {
     'game:typing': { window: 1000, max: 1 },
     'game:getHistory': { window: 5000, max: 5 }, // 5 per 5 seconds
     'game:getReplay': { window: 5000, max: 5 }, // 5 per 5 seconds
+    // Bot events (host only)
+    'bot:add': { window: 2000, max: 10 }, // 10 per 2 seconds (host adds several bots quickly)
+    'bot:remove': { window: 2000, max: 10 }, // 10 per 2 seconds
     // Player events (keys match event names for consistency)
     'player:setTeam': { window: 2000, max: 5 }, // 5 per 2 seconds
     'player:setRole': { window: 2000, max: 5 }, // 5 per 2 seconds

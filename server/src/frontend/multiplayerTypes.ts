@@ -5,6 +5,7 @@ export interface ServerPlayerData {
     role: 'spymaster' | 'clicker' | 'spectator' | null;
     isHost: boolean;
     connected: boolean;
+    isBot?: boolean;
 }
 
 export interface ServerRoomData {
