@@ -302,6 +302,83 @@ describe('Game Handlers', () => {
         });
     });
 
+    describe('game:clue handler', () => {
+        test('registers handler', () => {
+            const handlers = mockSocket.on.mock.calls;
+            const clueHandler = handlers.find((h) => h[0] === 'game:clue');
+            expect(clueHandler).toBeDefined();
+        });
+
+        test('rejects a non-spymaster', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                role: 'clicker',
+                team: 'red',
+                nickname: 'Player1',
+            });
+            gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
+
+            const handlers = mockSocket.on.mock.calls;
+            const clueHandler = handlers.find((h) => h[0] === 'game:clue');
+            await clueHandler[1]({ word: 'fruit', number: 3 });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({ message: expect.stringContaining('spymaster') })
+            );
+            expect(gameService.submitClue).not.toHaveBeenCalled();
+        });
+
+        test('rejects when it is not the spymaster team’s turn', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                role: 'spymaster',
+                team: 'red',
+                nickname: 'Player1',
+            });
+            gameService.getGame.mockResolvedValue({ currentTurn: 'blue' });
+
+            const handlers = mockSocket.on.mock.calls;
+            const clueHandler = handlers.find((h) => h[0] === 'game:clue');
+            await clueHandler[1]({ word: 'fruit', number: 3 });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({ message: expect.stringContaining('turn') })
+            );
+        });
+
+        test('submits a clue and broadcasts it', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                role: 'spymaster',
+                team: 'red',
+                nickname: 'TestSpy',
+            });
+            gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
+            gameService.submitClue.mockResolvedValue({
+                word: 'FRUIT',
+                number: 3,
+                team: 'red',
+                guessesAllowed: 4,
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const clueHandler = handlers.find((h) => h[0] === 'game:clue');
+            await clueHandler[1]({ word: 'fruit', number: 3 });
+
+            expect(gameService.submitClue).toHaveBeenCalledWith('TEST12', 'red', 'fruit', 3, 'TestSpy');
+            expect(mockIo.to).toHaveBeenCalledWith('room:TEST12');
+            expect(mockIo.emit).toHaveBeenCalledWith(
+                'game:clueGiven',
+                expect.objectContaining({ word: 'FRUIT', number: 3, team: 'red', guessesAllowed: 4 })
+            );
+        });
+    });
+
     describe('game:endTurn handler', () => {
         test('registers handler', () => {
             const handlers = mockSocket.on.mock.calls;

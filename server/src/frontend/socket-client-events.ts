@@ -27,6 +27,7 @@ import type {
     PlayerDisconnectedData,
     GameStartedData,
     CardRevealedData,
+    ClueGivenData,
     TurnEndedData,
     GameOverData,
     RoundEndedData,
@@ -186,6 +187,10 @@ export function registerAllEventListeners(register: RegisterFn, emit: EmitFn, cl
 
     register('game:cardRevealed', (raw: unknown) => {
         emit('cardRevealed', raw as CardRevealedData);
+    });
+
+    register('game:clueGiven', (raw: unknown) => {
+        emit('clueGiven', raw as ClueGivenData);
     });
 
     register('game:turnEnded', (raw: unknown) => {

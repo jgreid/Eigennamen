@@ -52,6 +52,14 @@ export interface ClueData {
     guessesAllowed?: number;
 }
 
+export interface ClueGivenData {
+    word: string;
+    number: number;
+    team: string;
+    guessesAllowed?: number;
+    spymaster?: { sessionId: string; nickname: string };
+}
+
 export interface JoinCreateResult {
     room?: ServerRoomData;
     player?: ServerPlayerData;

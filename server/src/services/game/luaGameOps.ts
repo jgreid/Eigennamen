@@ -7,11 +7,12 @@ import { withTimeout, TIMEOUTS } from '../../utils/timeout';
 import { parseJSON, tryParseJSON } from '../../utils/parseJSON';
 import { REDIS_TTL, GAME_HISTORY, RETRY_CONFIG } from '../../config/constants';
 import { GameStateError, ServerError } from '../../errors/GameError';
-import { REVEAL_CARD_SCRIPT, END_TURN_SCRIPT } from '../../scripts';
+import { REVEAL_CARD_SCRIPT, END_TURN_SCRIPT, SUBMIT_CLUE_SCRIPT } from '../../scripts';
 
 // Re-export Lua scripts from centralized barrel
 export const OPTIMIZED_REVEAL_SCRIPT: string = REVEAL_CARD_SCRIPT;
 export const OPTIMIZED_END_TURN_SCRIPT: string = END_TURN_SCRIPT;
+export const OPTIMIZED_SUBMIT_CLUE_SCRIPT: string = SUBMIT_CLUE_SCRIPT;
 
 // Lua cjson roundtrip converts empty arrays [] to empty objects {}.
 // This preprocessor normalizes empty objects back to empty arrays so
@@ -138,6 +139,15 @@ export const endTurnResultSchema = z
     .object({
         currentTurn: teamSchema,
         previousTurn: teamSchema,
+    })
+    .passthrough();
+
+export const clueResultSchema = z
+    .object({
+        word: z.string(),
+        number: z.number(),
+        team: teamSchema,
+        guessesAllowed: z.number(),
     })
     .passthrough();
 

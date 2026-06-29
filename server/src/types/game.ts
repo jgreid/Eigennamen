@@ -306,6 +306,20 @@ export interface RevealResult {
 }
 
 /**
+ * Result of submitting a clue
+ */
+export interface ClueResult {
+    /** The clue word (sanitized) */
+    word: string;
+    /** The clue number */
+    number: number;
+    /** The team that gave the clue */
+    team: Team;
+    /** Guesses now allowed this turn (0 = unlimited) */
+    guessesAllowed: number;
+}
+
+/**
  * Result of ending a turn
  */
 export interface EndTurnResult {

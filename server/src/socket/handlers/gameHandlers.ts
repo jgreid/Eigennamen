@@ -11,6 +11,7 @@ import * as gameHistoryService from '../../services/gameHistoryService';
 import * as timerService from '../../services/timerService';
 import {
     gameRevealSchema,
+    gameClueSchema,
     gameStartSchema,
     gameHistoryLimitSchema,
     gameReplaySchema,
@@ -40,6 +41,14 @@ interface GameStartInput {
  */
 interface GameRevealInput {
     index: number;
+}
+
+/**
+ * Game clue input
+ */
+interface GameClueInput {
+    word: string;
+    number: number;
 }
 
 /**
@@ -275,6 +284,64 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 await debouncedRefreshRoomTTL(ctx.roomCode);
 
                 logger.info(`Card ${validated.index} revealed in room ${ctx.roomCode}`);
+            }
+        )
+    );
+
+    /**
+     * Give a clue (current team's spymaster only)
+     */
+    socket.on(
+        SOCKET_EVENTS.GAME_CLUE,
+        createGameHandler(
+            socket,
+            SOCKET_EVENTS.GAME_CLUE,
+            gameClueSchema as ZodType<GameClueInput>,
+            async (ctx: GameContext, validated: GameClueInput) => {
+                if (ctx.game.paused) throw GameStateError.gamePaused();
+
+                if (!ctx.player.team) {
+                    throw new ValidationError('You must join a team before giving a clue');
+                }
+
+                // Only the spymaster may give clues
+                if (ctx.player.role !== 'spymaster') {
+                    throw PlayerError.notSpymaster();
+                }
+
+                if (ctx.player.team !== ctx.game.currentTurn) {
+                    throw PlayerError.notYourTurn(ctx.player.team);
+                }
+
+                const result = await withTimeout(
+                    gameService.submitClue(
+                        ctx.roomCode,
+                        ctx.player.team,
+                        validated.word,
+                        validated.number,
+                        ctx.player.nickname
+                    ),
+                    TIMEOUTS.GAME_ACTION,
+                    'game:clue'
+                );
+
+                // Broadcast the clue to the whole room so clickers and
+                // spectators see it simultaneously.
+                safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_CLUE_GIVEN, {
+                    word: result.word,
+                    number: result.number,
+                    team: result.team,
+                    guessesAllowed: result.guessesAllowed,
+                    spymaster: {
+                        sessionId: ctx.player.sessionId,
+                        nickname: ctx.player.nickname,
+                    },
+                });
+
+                // Keep room alive during active games
+                await debouncedRefreshRoomTTL(ctx.roomCode);
+
+                logger.info(`Clue given in room ${ctx.roomCode} by ${ctx.player.nickname}`);
             }
         )
     );

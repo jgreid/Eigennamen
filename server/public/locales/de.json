@@ -68,6 +68,7 @@
         "invalidWordCount": "Ungültiges Spiel: genau {{count}} Wörter benötigt",
         "notEnoughWords": "Nicht genug Wörter! Mindestens {{count}} Wörter zum Spielen benötigt. Bitte füge mehr Wörter in den Einstellungen hinzu.",
         "turnEndedAnnounce": "Zug beendet. Jetzt ist {{team}} dran.",
+        "clueGivenAnnounce": "Hinweis von {{team}}: {{word}} ({{number}}).",
         "wordRevealedAs": "{{word}} aufgedeckt als {{type}}",
         "roleCleared": "{{role}}-Rolle entfernt. Jetzt im {{team}}-Team.",
         "copy": "Kopieren",

@@ -68,6 +68,7 @@
         "invalidWordCount": "Invalid game: need exactly {{count}} words",
         "notEnoughWords": "Not enough words! You need at least {{count}} words to play. Please add more words in Settings.",
         "turnEndedAnnounce": "Turn ended. Now {{team}}'s turn.",
+        "clueGivenAnnounce": "Clue from {{team}}: {{word}} ({{number}}).",
         "wordRevealedAs": "{{word}} revealed as {{type}}",
         "roleCleared": "{{role}} role cleared. Now on {{team}} team.",
         "copy": "Copy",

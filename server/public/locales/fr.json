@@ -68,6 +68,7 @@
         "invalidWordCount": "Partie invalide : exactement {{count}} mots requis",
         "notEnoughWords": "Pas assez de mots ! Vous avez besoin d'au moins {{count}} mots pour jouer. Ajoutez-en dans les Paramètres.",
         "turnEndedAnnounce": "Tour terminé. C'est au tour de {{team}}.",
+        "clueGivenAnnounce": "Indice de {{team}} : {{word}} ({{number}}).",
         "wordRevealedAs": "{{word}} révélé comme {{type}}",
         "roleCleared": "Rôle {{role}} retiré. Maintenant dans l'équipe {{team}}.",
         "copy": "Copier",

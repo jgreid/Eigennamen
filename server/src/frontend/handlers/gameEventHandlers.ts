@@ -16,6 +16,7 @@ import { syncGameStateFromServer } from '../multiplayerSync.js';
 import type {
     GameStartedData,
     CardRevealedData,
+    ClueGivenData,
     TurnEndedData,
     GameOverData,
     SpymasterViewData,
@@ -132,6 +133,41 @@ export function registerGameHandlers(): void {
             if (typeof data.blueMatchScore === 'number') state.gameState.blueMatchScore = data.blueMatchScore;
             updateMatchScoreboard();
         }
+    });
+
+    EigennamenClient.on('clueGiven', (data: ClueGivenData) => {
+        if (state.resyncInProgress) return;
+        if (!data || !data.word) return;
+
+        // Reflect the clue in game state so clue-aware UI (and guess limiting)
+        // stays in sync. guessesAllowed of 0 means unlimited.
+        state.gameState.currentClue = {
+            word: data.word,
+            number: data.number,
+            team: data.team,
+            guessesAllowed: data.guessesAllowed,
+            spymaster: data.spymaster?.nickname,
+        };
+        state.gameState.guessesUsed = 0;
+        if (typeof data.guessesAllowed === 'number') {
+            state.gameState.guessesAllowed = data.guessesAllowed;
+        }
+
+        updateTurnIndicator();
+        updateControls();
+
+        // Surface the clue to all players (clickers, spectators, and the
+        // spymaster's own confirmation). The clue word is rendered via
+        // textContent inside showToast, so it is safe to pass directly.
+        const teamName = data.team === 'red' ? state.teamNames.red : state.teamNames.blue;
+        const message = t('game.clueGivenAnnounce', {
+            team: teamName,
+            word: data.word,
+            number: String(data.number),
+        });
+        showToast(message, 'info', 5000);
+        announceToScreenReader(message);
+        playNotificationSound('reveal');
     });
 
     EigennamenClient.on('turnEnded', (data: TurnEndedData) => {

@@ -198,6 +198,10 @@ import type { JoinCreateResult } from './multiplayerTypes.js';
             this._getSocket()?.emit('game:reveal', { index });
         },
 
+        submitClue(word: string, number: number): void {
+            this._getSocket()?.emit('game:clue', { word, number });
+        },
+
         endTurn(): void {
             queueOrEmit(this, 'game:endTurn', {});
         },

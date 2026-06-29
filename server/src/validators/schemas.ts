@@ -31,6 +31,7 @@ export {
 export {
     gameStartSchema,
     gameRevealSchema,
+    gameClueSchema,
     gameHistoryLimitSchema,
     gameReplaySchema,
     gameForfeitSchema,
@@ -57,6 +58,7 @@ export type {
 export type {
     GameStartInput,
     GameRevealInput,
+    GameClueInput,
     GameHistoryLimitInput,
     GameReplayInput,
     GameForfeitInput,

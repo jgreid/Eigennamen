@@ -68,6 +68,7 @@
         "invalidWordCount": "Partida no válida: se necesitan exactamente {{count}} palabras",
         "notEnoughWords": "¡No hay suficientes palabras! Necesitas al menos {{count}} palabras para jugar. Añade más en Ajustes.",
         "turnEndedAnnounce": "Turno terminado. Ahora es el turno de {{team}}.",
+        "clueGivenAnnounce": "Pista de {{team}}: {{word}} ({{number}}).",
         "wordRevealedAs": "{{word}} revelada como {{type}}",
         "roleCleared": "Rol de {{role}} eliminado. Ahora en el equipo {{team}}.",
         "copy": "Copiar",
