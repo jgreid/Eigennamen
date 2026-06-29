@@ -139,12 +139,7 @@ export interface CodedError {
  * Lua script error codes
  */
 export type LuaErrorCode =
-    | 'NO_GAME'
-    | 'GAME_OVER'
-    | 'NO_GUESSES'
-    | 'ALREADY_REVEALED'
-    | 'NOT_YOUR_TURN'
-    | 'INVALID_INDEX';
+    'NO_GAME' | 'GAME_OVER' | 'NO_GUESSES' | 'ALREADY_REVEALED' | 'NOT_YOUR_TURN' | 'INVALID_INDEX';
 
 /**
  * Lua script error response

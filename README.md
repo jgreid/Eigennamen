@@ -50,17 +50,37 @@ Deploy the contents of `server/public/` to any static host (GitHub Pages, Netlif
 
 ### Option 3: Real-time multiplayer server
 
-For true real-time synchronization without URL sharing, use the multiplayer server:
+For true real-time synchronization without URL sharing, run the multiplayer server. All players connect to the same server and see updates instantly at `http://localhost:3000`.
+
+#### Recommended: Docker (same on every OS, no Redis to install)
+
+Docker brings its own Redis, so this is the most reliable path — especially on Windows. From the **repository root**:
 
 ```bash
-# With Docker (recommended)
 docker compose up -d --build
-
-# Without Docker (uses in-memory storage)
-cd server && npm install && REDIS_URL=memory npm run dev
 ```
 
-Then open `http://localhost:3000` in your browser. All players connect to the same server and see updates instantly.
+> **Windows:** just double-click `server/start-server.bat` — it starts Docker and the server for you. See the [Windows Setup Guide](docs/WINDOWS_SETUP.md).
+
+#### Without Docker (Node.js 22+ and a Redis binary)
+
+All `npm` commands run from `server/` — that's where `package.json` is. Running `npm install` from the repo root fails with `Could not read package.json`.
+
+```bash
+cd server
+npm install
+REDIS_URL=memory npm run dev      # macOS / Linux / Git Bash
+```
+
+> ⚠️ **`REDIS_URL=memory` is not "no Redis."** It spawns a temporary, no-persistence Redis for you, which still needs a `redis-server` **binary on your PATH** (`brew install redis` on macOS, `sudo apt install redis-server` on Linux). **Windows has no native `redis-server`** — use Docker above, or run Redis via [Memurai](https://www.memurai.com/) / WSL2 and point `REDIS_URL` at it (e.g. `redis://127.0.0.1:6379`).
+
+Setting the variable depends on your shell:
+
+| Shell | Command |
+|-------|---------|
+| **PowerShell** (`PS C:\>`) | `$env:REDIS_URL="memory"; npm run dev` |
+| **cmd.exe** (`C:\>`) | `set REDIS_URL=memory && npm run dev` |
+| **Bash / zsh** (macOS, Linux, Git Bash, WSL) | `REDIS_URL=memory npm run dev` |
 
 **Setup Guides:**
 - [Server README](server/README.md) — Detailed setup instructions

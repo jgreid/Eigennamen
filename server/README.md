@@ -13,8 +13,8 @@ Real-time multiplayer server for Eigennamen Online, built with Node.js, Socket.i
 ## Prerequisites
 
 - Node.js 22+
-- Redis 7+ (optional — uses embedded redis-server with `REDIS_URL=memory`)
-- Docker & Docker Compose (optional)
+- Redis 7+ — or set `REDIS_URL=memory` to auto-spawn a temporary one. Note that even memory mode needs a `redis-server` **binary on your PATH**; it is **not bundled** and there is **no native build on Windows** (use Docker there)
+- Docker & Docker Compose (optional, but the easiest path on Windows — it includes Redis)
 
 **Windows users:** See the dedicated [Windows Setup Guide](../docs/WINDOWS_SETUP.md) for step-by-step instructions.
 
@@ -101,7 +101,7 @@ Use this if you prefer to run services directly on your machine without Docker.
 | **Node.js 22+** | Runs the JavaScript server code | [nodejs.org](https://nodejs.org/) or use `nvm` |
 | **Redis 7+** | Stores game state in memory for fast access | `brew install redis` (Mac) or `apt install redis-server` (Linux) |
 
-> **Note:** Redis is optional. Set `REDIS_URL=memory` to run without an external Redis server.
+> **Note on `REDIS_URL=memory`:** this avoids running a *separate* Redis, but it is **not "no Redis."** The server spawns a throwaway `redis-server` process for you, so a `redis-server` binary must still be installed on your PATH. **Windows has no native `redis-server`** — Windows users should use Docker (Option 1), which includes Redis, or run Redis via [Memurai](https://www.memurai.com/) / WSL2 and set `REDIS_URL=redis://127.0.0.1:6379` instead.
 
 #### Step 1: Install Node.js Dependencies
 
@@ -164,6 +164,16 @@ npm run dev
 npm start
 ```
 
+> **Skipping the `.env` / external Redis?** You can pass `REDIS_URL=memory` inline to auto-spawn a throwaway Redis (requires a `redis-server` binary — see the note above). The syntax depends on your shell:
+>
+> | Shell | Command |
+> |-------|---------|
+> | PowerShell (`PS C:\>`) | `$env:REDIS_URL="memory"; npm run dev` |
+> | cmd.exe (`C:\>`) | `set REDIS_URL=memory && npm run dev` |
+> | Bash / zsh (macOS, Linux, Git Bash, WSL) | `REDIS_URL=memory npm run dev` |
+>
+> `VAR=value command` is Bash-only — in PowerShell it errors with `'REDIS_URL=memory' is not recognized`.
+
 You should see output like:
 ```
 [INFO] Server listening on port 3000
@@ -193,6 +203,9 @@ Once the server is running:
 
 | Problem | Solution |
 |---------|----------|
+| `spawn redis-server ENOENT` (with `REDIS_URL=memory`) | Memory mode needs a `redis-server` binary on PATH. Install Redis (`brew install redis` / `apt install redis-server`), or — on **Windows** — use Docker (Option 1) or point `REDIS_URL` at Memurai/WSL2 Redis. |
+| `'REDIS_URL=memory' is not recognized` (PowerShell) | `VAR=value command` is Bash-only. Use `$env:REDIS_URL="memory"; npm run dev` in PowerShell (see the shell table in Step 4). |
+| `Could not read package.json` from `npm install` | Run it from the `server/` directory (`cd server` first) — there is no `package.json` at the repo root. |
 | "Redis connection refused" | Make sure Redis is running: `redis-cli ping` (or use `REDIS_URL=memory`) |
 | "Port 3000 already in use" | Change `PORT` in `.env` or stop the other process using that port |
 | "CORS error in browser" | Set `CORS_ORIGIN` in `.env` to your client's URL |

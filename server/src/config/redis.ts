@@ -141,10 +141,31 @@ async function startEmbeddedRedis(): Promise<string> {
             if (msg) logger.warn(`Embedded Redis stderr: ${msg}`);
         });
 
-        proc.on('error', (err) => {
+        proc.on('error', (err: NodeJS.ErrnoException) => {
             clearTimeout(timeout);
             embeddedRedisProcess = null;
-            reject(new Error(`Failed to start redis-server: ${err.message}. Is redis-server installed?`));
+            if (err.code === 'ENOENT') {
+                // The most common failure: REDIS_URL=memory still needs a redis-server
+                // binary to spawn, and none is on PATH (e.g. a stock Windows machine).
+                // Log actionable guidance instead of leaking a bare ENOENT stack trace.
+                logger.error(
+                    "REDIS_URL=memory could not start: no 'redis-server' binary was found on your PATH.\n" +
+                        'Memory mode launches a throwaway Redis process for you — it does NOT bundle one. Pick any option:\n' +
+                        '  1. Use Docker instead (brings its own Redis, nothing else to install):\n' +
+                        '       docker compose up -d --build\n' +
+                        "  2. Install Redis so 'redis-server' is on your PATH, then retry:\n" +
+                        '       macOS:    brew install redis\n' +
+                        '       Linux:    sudo apt install redis-server\n' +
+                        '       Windows:  no native redis-server — use Docker (option 1), Memurai, or WSL2\n' +
+                        '  3. Point REDIS_URL at a Redis you already run:\n' +
+                        '       REDIS_URL=redis://127.0.0.1:6379 npm run dev'
+                );
+                reject(
+                    new Error("Memory mode requires a 'redis-server' binary, which was not found (see guidance above)")
+                );
+                return;
+            }
+            reject(new Error(`Failed to start embedded redis-server: ${err.message}`));
         });
 
         proc.on('exit', (code) => {
