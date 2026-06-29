@@ -648,6 +648,14 @@ suites:
 
 ## 20. Semantic data, custom word lists & OOV
 
+> **Implementation status.** The tiered, pluggable backend described here is
+> shipped: lexical floor (`backend.ts`) → baked association table
+> (`tableBackend.ts`) → optional pre-trained word vectors
+> (`vectorBackend.ts`, fastText / GloVe / word2vec / ConceptNet Numberbatch),
+> selected lazily by `selectBackend.ts` via `BOT_EMBEDDINGS_PATH`. OOV words fall
+> through the chain, so custom lists always get a signal. Operator guide:
+> [docs/BOT_EMBEDDINGS.md](BOT_EMBEDDINGS.md).
+
 The game is **Eigennamen** — *proper nouns* — and custom word lists (a stored
 `wordListId`, or an inline `wordList` passed to `game:start`) are a first-class,
 expected use case, not an edge case. Proper nouns, names, neologisms, multi-word
