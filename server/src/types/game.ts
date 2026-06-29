@@ -249,6 +249,8 @@ export interface CreateGameOptions {
     wordList?: string[];
     /** Game mode (classic, duet, match) */
     gameMode?: GameMode;
+    /** Explicit board seed for reproducible games (defaults to a random seed). */
+    seed?: string;
     /** Match state to carry forward when starting next round */
     matchCarryOver?: {
         matchRound: number;

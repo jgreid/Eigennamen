@@ -1,0 +1,156 @@
+/**
+ * Pure engine tests: deterministic board setup, canonical rule scenarios across
+ * all three modes, and rule invariants over many seeds. This is the in-suite
+ * rules gate; the standalone `bots:parity` script cross-checks against real Lua.
+ */
+import type { GameState, GameMode } from '../../types';
+import { createEngineGame, applyEngineClue, applyEngineReveal, applyEngineEndTurn } from '../../bots/engine';
+
+function ownIndices(game: GameState, team: 'red' | 'blue'): number[] {
+    const out: number[] = [];
+    for (let i = 0; i < game.types.length; i++) if (game.types[i] === team && !game.revealed[i]) out.push(i);
+    return out;
+}
+
+describe('createEngineGame', () => {
+    it('is deterministic for the same seed', () => {
+        const a = createEngineGame({ seed: 's1', gameMode: 'classic' });
+        const b = createEngineGame({ seed: 's1', gameMode: 'classic' });
+        expect(a.types).toEqual(b.types);
+        expect(a.words).toEqual(b.words);
+        expect(a.currentTurn).toBe(b.currentTurn);
+    });
+
+    it('builds a classic board with 9/8/7/1 distribution', () => {
+        const g = createEngineGame({ seed: 'class', gameMode: 'classic' });
+        const count = (t: string) => g.types.filter((x) => x === t).length;
+        expect(count('red') + count('blue')).toBe(17);
+        expect(count('neutral')).toBe(7);
+        expect(count('assassin')).toBe(1);
+        expect(g.redTotal + g.blueTotal).toBe(17);
+    });
+
+    it('builds a match board with card scores', () => {
+        const g = createEngineGame({ seed: 'm', gameMode: 'match' });
+        expect(g.cardScores).toHaveLength(25);
+        expect(g.redMatchScore).toBe(0);
+    });
+
+    it('builds a duet board with dual key cards and 15 greens to find', () => {
+        const g = createEngineGame({ seed: 'd', gameMode: 'duet' });
+        expect(g.duetTypes).toHaveLength(25);
+        expect(g.greenTotal).toBe(15);
+        expect(g.timerTokens).toBeGreaterThan(0);
+    });
+});
+
+describe('engine rule scenarios', () => {
+    it('classic: revealing the assassin loses for the revealing team', () => {
+        const g = createEngineGame({ seed: 'assassin', gameMode: 'classic' });
+        const team = g.currentTurn;
+        const assassinIndex = g.types.indexOf('assassin');
+        const res = applyEngineReveal(g, assassinIndex);
+        expect(res.gameOver).toBe(true);
+        expect(res.endReason).toBe('assassin');
+        expect(g.winner).toBe(team === 'red' ? 'blue' : 'red');
+    });
+
+    it('classic: revealing all your cards wins', () => {
+        const g = createEngineGame({ seed: 'win', gameMode: 'classic' });
+        const team = g.currentTurn;
+        for (const i of ownIndices(g, team)) {
+            if (g.gameOver) break;
+            applyEngineReveal(g, i);
+        }
+        expect(g.gameOver).toBe(true);
+        expect(g.winner).toBe(team);
+    });
+
+    it('classic: revealing the opponent/neutral ends the turn', () => {
+        const g = createEngineGame({ seed: 'switch', gameMode: 'classic' });
+        const team = g.currentTurn;
+        const neutralIndex = g.types.indexOf('neutral');
+        const res = applyEngineReveal(g, neutralIndex);
+        expect(res.turnEnded).toBe(true);
+        expect(g.currentTurn).not.toBe(team);
+    });
+
+    it('classic: a clue of N caps guesses at N+1 (maxGuesses ends the turn)', () => {
+        const g = createEngineGame({ seed: 'max', gameMode: 'classic' });
+        const team = g.currentTurn;
+        applyEngineClue(g, team, 'SIGNALX', 1); // 1 -> 2 guesses
+        const own = ownIndices(g, team);
+        applyEngineReveal(g, own[0] as number);
+        const second = applyEngineReveal(g, own[1] as number);
+        expect(second.turnEnded).toBe(true);
+        expect(second.endReason).toBe('maxGuesses');
+    });
+
+    it('duet: revealing the assassin is a cooperative loss', () => {
+        const g = createEngineGame({ seed: 'duet-a', gameMode: 'duet' });
+        const assassinIndex = g.types.indexOf('assassin');
+        const res = applyEngineReveal(g, assassinIndex);
+        expect(res.gameOver).toBe(true);
+        expect(g.winner).toBeNull();
+    });
+
+    it('match: revealing a scored card accumulates the match score', () => {
+        const g = createEngineGame({ seed: 'match-score', gameMode: 'match' });
+        const team = g.currentTurn;
+        const idx = ownIndices(g, team).find((i) => (g.cardScores as number[])[i] !== 0);
+        expect(idx).toBeDefined();
+        const before = team === 'red' ? g.redMatchScore : g.blueMatchScore;
+        applyEngineReveal(g, idx as number);
+        const after = team === 'red' ? g.redMatchScore : g.blueMatchScore;
+        expect((after as number) - (before as number)).toBe((g.cardScores as number[])[idx as number]);
+    });
+
+    it('endTurn switches the team and clears the clue', () => {
+        const g = createEngineGame({ seed: 'et', gameMode: 'classic' });
+        const team = g.currentTurn;
+        applyEngineClue(g, team, 'SIGNALX', 2);
+        const res = applyEngineEndTurn(g);
+        expect(res.currentTurn).not.toBe(team);
+        expect(g.currentClue).toBeNull();
+        expect(g.guessesAllowed).toBe(0);
+    });
+});
+
+describe('engine rule invariants (many seeds, all modes)', () => {
+    const modes: GameMode[] = ['classic', 'duet', 'match'];
+    for (const mode of modes) {
+        it(`${mode}: games terminate and scores stay consistent`, () => {
+            for (let s = 0; s < 300; s++) {
+                const g = createEngineGame({ seed: `inv:${mode}:${s}`, gameMode: mode });
+                let reveals = 0;
+                let guard = 0;
+                while (!g.gameOver && guard++ < 200) {
+                    // Deterministic policy: reveal the lowest unrevealed index.
+                    const idx = g.revealed.findIndex((r) => !r);
+                    if (idx < 0) break;
+                    applyEngineReveal(g, idx);
+                    reveals++;
+                }
+                expect(g.gameOver).toBe(true);
+                expect(g.revealed.filter(Boolean).length).toBe(reveals);
+                expect(g.redScore).toBeLessThanOrEqual(g.redTotal);
+                expect(g.blueScore).toBeLessThanOrEqual(g.blueTotal);
+
+                if (mode === 'match' && g.cardScores && g.revealedBy) {
+                    let red = 0;
+                    let blue = 0;
+                    for (let i = 0; i < 25; i++) {
+                        if (g.revealedBy[i] === 'red') red += g.cardScores[i] as number;
+                        else if (g.revealedBy[i] === 'blue') blue += g.cardScores[i] as number;
+                    }
+                    expect(g.redMatchScore).toBe(red);
+                    expect(g.blueMatchScore).toBe(blue);
+                }
+                if (mode === 'duet') {
+                    expect(g.greenFound as number).toBeLessThanOrEqual(g.greenTotal as number);
+                    if (g.winner === 'red') expect(g.greenFound).toBe(g.greenTotal);
+                }
+            }
+        });
+    }
+});

@@ -276,7 +276,7 @@ export async function createGame(roomCode: string, options: CreateGameOptions = 
                 throw RoomError.notFound(roomCode);
             }
 
-            const seed = generateSeed();
+            const seed = options.seed || generateSeed();
             const numericSeed = hashString(seed);
             const isDuet = options.gameMode === 'duet';
 
