@@ -404,7 +404,7 @@ Added one registry entry at a time. The catalogue grows; the interface does not.
 | `cautiousClicker` | clicker | `greedyClicker` that ends turn early when the top candidate's similarity margin over the next is thin (careful human model). |
 | `randomSpymaster` | spymaster | Emits an arbitrary legal clue word + number. Degenerate driver so the harness runs **with no semantic assets**. |
 | `numberOnlySpymaster` | spymaster | Picks `number` = count of own cards it intends to link, placeholder word. Exercises clicker bots without embeddings. |
-| `embeddingSpymaster` | spymaster | Loads external word vectors (GloVe/ConceptNet) from `server/src/bots/data/`; picks a word maximizing cosine similarity to own unrevealed cards while maximizing distance from assassin/opponent cards. |
+| `embeddingSpymaster` | spymaster | Loads external word vectors (ConceptNet Numberbatch preferred) from `server/src/bots/data/`; picks a word maximizing cosine similarity to own unrevealed cards while maximizing distance from assassin/opponent cards. Falls back to subword vectors / a hash-keyed association index for out-of-vocabulary custom-list words (see §20). |
 | `mctsLiteSpymaster` | spymaster | Shallow search over clue candidates scoring expected cards-revealed-before-mistake; depth bounded by `SkillParams.lookahead`. |
 | `duetCooperativeClicker` | clicker | Duet-aware: trades high-confidence green reveals against `timerToken` risk; tracks progress toward 15 greens. |
 | `matchAwareClicker` / `matchAwareSpymaster` | both | Weight match-mode `cardScores` (gold/silver/trap) and score margin into reveal/clue choice; reuse classic strategies with a scoring overlay where possible. |
@@ -514,7 +514,11 @@ server/src/bots/
 ├── presets.ts              # named SkillParams presets (novice/intermediate/expert)
 ├── playOneAction.ts        # pure shared decision helper (live + harness)
 ├── botController.ts        # singleton; onGameMutation subscriber, tickRoom, reentrancy guard, lastSeen refresh
-├── data/                   # pluggable semantic vectors (GloVe/ConceptNet), network-optional, NOT committed by default
+├── semantics/
+│   ├── backend.ts          # SemanticBackend: relatedness(a,b), vectorize(word); pluggable (curated|numberbatch|fasttext|llm)
+│   ├── associationIndex.ts # per-list association cache keyed by hash(normalized word set); built offline, reused at runtime (see §20)
+│   └── backends/           # curatedTable.ts, numberbatch.ts, fasttext.ts, llm.ts
+├── data/                   # pluggable semantic vectors (ConceptNet Numberbatch preferred), network-optional, NOT committed by default
 ├── harness/
 │   ├── runMatches.ts       # headless tournament runner (npm run bots:train)
 │   └── scoring.ts          # Elo/TrueSkill + mode-specific fitness + Wilson interval
@@ -615,19 +619,22 @@ suites:
 
 ## 19. Open questions (need a decision before/within the relevant phase)
 
-1. **Semantic backend** — GloVe vs ConceptNet vs a small curated association
-   table vs an LLM call as the default, and license compatibility with the
-   project's GPL v3. *Recommendation:* ship a small curated table by default,
-   keep large vectors out of the repo behind a configurable path, and default the
-   harness to `randomSpymaster` so it runs with **no** ML assets.
+1. **Semantic backend & custom word lists** — fully analyzed in **§20**.
+   *Recommendation:* a tiered, pluggable `SemanticBackend` — ConceptNet
+   Numberbatch (CC BY-SA 4.0 → GPL-v3-compatible, strong named-entity coverage,
+   multilingual) as the strong default, a small curated table as the
+   license-clean fallback, and an LLM used **offline** to index custom lists
+   (never in the training hot path). The harness still defaults to
+   `randomSpymaster` so it runs with **no** ML assets.
 2. **Long-term rules ownership** — thin `revealCard.lua` to a CAS-only persist
    with rules in the service under the existing lock (eliminating duplication
    entirely), or keep the parity gate as a permanent state? *Defer* until the
    parity gate proves stable.
 3. **Live bot-room cap** — what concurrent-live-bot-room limit, enforced where,
    to bound CPU/Redis coupling on the game server?
-4. **Clue `number` semantics** in unlimited variants (`guessesAllowed = 0`):
-   does a bot ever emit `number = 0`, and how does the clicker self-limit?
+4. **Clue `number` semantics** in unlimited variants — *resolved in Phase 0*:
+   a clue `number` of N grants N+1 guesses and **`number = 0` means unlimited**
+   (`guessesAllowed = 0`), matching the reveal engine's existing convention.
 5. **Elo vs TrueSkill**, and how to seed initial ratings for new strategy
    versions across iteration runs.
 6. **Duet fitness weighting** (greens-found vs tokens-remaining vs
@@ -636,6 +643,89 @@ suites:
    (skill-jittered 50–150 ms) to feel natural without making the room feel laggy?
 8. **Semantic asset versioning** — embed an asset hash in `BotConfig` so a
    `(gameSeed, botSeed)` reproduction is valid only against a pinned vector file?
+
+---
+
+## 20. Semantic data, custom word lists & OOV
+
+The game is **Eigennamen** — *proper nouns* — and custom word lists (a stored
+`wordListId`, or an inline `wordList` passed to `game:start`) are a first-class,
+expected use case, not an edge case. Proper nouns, names, neologisms, multi-word
+entries, and other-language words are exactly what static semantic resources
+handle worst (**out-of-vocabulary**, OOV). This reshapes the §19-#1 backend
+choice.
+
+### Who breaks, who degrades
+
+- **Clicker bots degrade gracefully.** They rank the 25 board words by
+  relatedness to `currentClue.word`; when a word is OOV they fall back to
+  lexical similarity (shared substrings / edit distance), the clue number, and
+  `riskAversion`. A clicker always has a legal move.
+- **Spymaster bots are the fragile side.** They must *produce* a clue word. A
+  curated table cannot for unknown words; a static embedding model has no vector
+  for OOV board words and no clue vocabulary to search. This is where custom
+  lists bite.
+- **Clue legality is unaffected.** `isClueLegalForBoard` is pure string logic
+  and already works for any board words. (Only caveat: the substring rule can
+  over-reject with short custom words — tunable.)
+
+### Two regimes
+
+1. **Training ground — vocabulary is controlled.** Tournaments run only on
+   *pre-indexed* lists: the four bundled lists plus any onboarded list. A custom
+   list joins the corpus by being **indexed once, offline**, before use — so it
+   never breaks determinism or throughput.
+2. **Live solo-play — vocabulary is arbitrary.** The bot handles OOV at runtime
+   via a tiered spymaster fallback:
+   1. in-vocab → embeddings (fast, free, deterministic);
+   2. OOV → **fastText subword vectors** yield a vector for *any* token (proper
+      nouns / morphology), offline — but its pretrained Wikipedia vectors are
+      CC BY-SA 3.0, so train/host rather than bundle into a GPL-v3 repo;
+   3. still stuck → **LLM backend (Claude)** — the right tool for arbitrary
+      proper-noun / multilingual lists; acceptable for *one live game*, never
+      the training hot path;
+   4. floor → `numberOnlySpymaster` + lexical-similarity clicker, so the game
+      never stalls.
+
+### The unifying primitive: a hash-keyed association index
+
+`server/src/bots/semantics/associationIndex.ts` precomputes the word→word
+relatedness a strategy needs and **caches it keyed by a content hash of the
+normalized board word set** — *not* by `wordListId`, so an ephemeral inline
+`wordList` and a stored list share the cache and identical lists collide on one
+entry.
+
+- The first bot game on a new list pays the indexing cost once (embedding
+  lookups, or **one offline LLM pass**); every later game is cheap,
+  deterministic, and reproducible.
+- This is the ideal use of Claude: index a custom list *offline*, bake the
+  associations, then bots play deterministically against them — LLM quality, no
+  runtime LLM, no nondeterminism.
+- Extends the §11 reproducibility guarantee to
+  `(strategyId, botSeed, gameSeed, vectorAssetHash, wordlistAssocHash)`.
+
+### Backend choice, updated
+
+- **ConceptNet Numberbatch stays the strong default** and is *more* justified
+  here than GloVe/word2vec: it ingests DBpedia/Wiktionary, so its **named-entity
+  coverage is materially better**, and it is multilingual (matches custom lists
+  in any of the four languages). CC BY-SA 4.0 → one-way compatible with GPL v3.
+- **Curated table = dictionary-word lists only** — a fallback, not the answer
+  for arbitrary lists.
+- **Runtime LLM graduates** from "showcase only" to "the correct backend for
+  live play on arbitrary proper-noun lists" — still firewalled out of training.
+- A `SemanticBackend` interface (`relatedness(a, b)`, `vectorize(word)`) makes
+  curated / numberbatch / fasttext / llm interchangeable; `BotConfig` records
+  which backend + asset hash a result depended on.
+
+### Practical notes
+
+- **Multi-word board entries** ("NEW YORK", "Marie Curie") → average token
+  vectors or treat the phrase as a unit; board words may be up to 50 chars
+  (`gameStartSchema`), clue words are single-token ≤ 40.
+- **Default-zero assets:** the harness still defaults to
+  `randomSpymaster`/`numberOnlySpymaster`, so CI and fresh clones run with no
+  downloads; semantic backends are opt-in via a configured path.
 
 ---
 
