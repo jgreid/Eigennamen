@@ -6,6 +6,7 @@ import { t } from './i18n.js';
 import { showChatPanel, hideChatPanel, initChat } from './chat.js';
 import { getClient, isClientConnected } from './clientAccessor.js';
 import { initPlayerListKeyNav } from './accessibility.js';
+import { updateBotPanelVisibility } from './botsUI.js';
 import type { ServerPlayerData, ServerRoomData } from './multiplayerTypes.js';
 
 // Session ID pending kick confirmation (used by confirm-kick-modal)
@@ -41,6 +42,9 @@ export function updateMpIndicator(room: ServerRoomData | null, players: ServerPl
         if (playersUl && players) {
             updatePlayerList(playersUl, players);
         }
+
+        // Show the host-only bot management panel to the host.
+        updateBotPanelVisibility();
     } else {
         if (indicator) indicator.classList.remove('active');
         if (playerListEl) playerListEl.hidden = true;
@@ -117,6 +121,14 @@ function buildPlayerLi(p: ServerPlayerData, isMe: boolean, amHost: boolean): HTM
         info.appendChild(badge);
     }
 
+    if (p.isBot) {
+        const botBadge = document.createElement('span');
+        botBadge.className = 'bot-badge';
+        botBadge.setAttribute('aria-hidden', 'true');
+        botBadge.textContent = t('bots.badge');
+        info.appendChild(botBadge);
+    }
+
     const roleSpan = document.createElement('span');
     roleSpan.className = 'player-role';
     roleSpan.textContent =
@@ -126,13 +138,25 @@ function buildPlayerLi(p: ServerPlayerData, isMe: boolean, amHost: boolean): HTM
     li.appendChild(info);
 
     if (amHost && !isMe) {
-        const kickBtn = document.createElement('button');
-        kickBtn.className = 'btn-kick';
-        kickBtn.dataset.session = p.sessionId;
-        kickBtn.title = t('multiplayer.kickPlayer');
-        kickBtn.setAttribute('aria-label', `${t('multiplayer.kick')} ${p.nickname}`);
-        kickBtn.textContent = t('multiplayer.kick');
-        li.appendChild(kickBtn);
+        if (p.isBot) {
+            // Bots are removed (not kicked) via the bot:remove path.
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'btn-remove-bot';
+            removeBtn.dataset.action = 'remove-bot';
+            removeBtn.dataset.session = p.sessionId;
+            removeBtn.title = t('bots.remove');
+            removeBtn.setAttribute('aria-label', `${t('bots.remove')} ${p.nickname}`);
+            removeBtn.textContent = t('bots.remove');
+            li.appendChild(removeBtn);
+        } else {
+            const kickBtn = document.createElement('button');
+            kickBtn.className = 'btn-kick';
+            kickBtn.dataset.session = p.sessionId;
+            kickBtn.title = t('multiplayer.kickPlayer');
+            kickBtn.setAttribute('aria-label', `${t('multiplayer.kick')} ${p.nickname}`);
+            kickBtn.textContent = t('multiplayer.kick');
+            li.appendChild(kickBtn);
+        }
     }
 
     return li;
@@ -143,7 +167,7 @@ function buildPlayerLi(p: ServerPlayerData, isMe: boolean, amHost: boolean): HTM
  * so we can detect when an existing DOM node needs updating.
  */
 function playerFingerprint(p: ServerPlayerData, isMe: boolean, amHost: boolean): string {
-    return `${p.nickname}|${p.team}|${p.role}|${p.isHost}|${p.connected}|${isMe}|${amHost}`;
+    return `${p.nickname}|${p.team}|${p.role}|${p.isHost}|${p.connected}|${p.isBot}|${isMe}|${amHost}`;
 }
 
 // Track fingerprints to detect changes without DOM reads

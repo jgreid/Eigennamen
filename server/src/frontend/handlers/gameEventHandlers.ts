@@ -10,6 +10,7 @@ import {
     updateMatchScoreboard,
 } from '../game.js';
 import { updateRoleBanner, updateControls } from '../roles.js';
+import { updateClueUI } from '../clueUI.js';
 import { playNotificationSound, setTabNotification, checkAndNotifyTurn } from '../notifications.js';
 import { updateDuetUI, updateDuetInfoBar, updateForfeitButton } from '../multiplayerUI.js';
 import { syncGameStateFromServer } from '../multiplayerSync.js';
@@ -74,6 +75,7 @@ export function registerGameHandlers(): void {
             state.gameMode = data.gameMode || 'match';
             updateDuetUI(data.game);
             updateForfeitButton();
+            updateClueUI();
             if (data.isNextRound) {
                 const round = data.game?.matchRound ?? 2;
                 showToast(t('game.roundStarted', { round: String(round) }), 'success', 5000);
@@ -168,6 +170,7 @@ export function registerGameHandlers(): void {
         showToast(message, 'info', 5000);
         announceToScreenReader(message);
         playNotificationSound('reveal');
+        updateClueUI();
     });
 
     EigennamenClient.on('turnEnded', (data: TurnEndedData) => {

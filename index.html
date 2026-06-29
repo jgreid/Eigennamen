@@ -318,6 +318,19 @@
               >
               <span class="match-target">/ 42</span>
             </div>
+            <!-- Current clue (shown to everyone once a spymaster gives one) -->
+            <div
+              class="clue-display"
+              id="clue-display"
+              data-testid="clue-display"
+              role="status"
+              aria-live="polite"
+              hidden
+            >
+              <span class="clue-icon" aria-hidden="true">💡</span>
+              <span class="clue-word" id="clue-display-word"></span>
+              <span class="clue-number" id="clue-display-number"></span>
+            </div>
           </div>
 
           <div class="scoreboard" role="group" aria-label="Blue team score">
@@ -437,6 +450,55 @@
                   </button>
                 </div>
               </div>
+              <!-- Bot management (host only) -->
+              <div class="bots-panel" id="bots-panel" data-testid="bots-panel" hidden>
+                <div class="bots-panel-title">
+                  <span class="bot-emoji" aria-hidden="true">🤖</span>
+                  <span data-i18n="bots.addTitle">Add a bot</span>
+                </div>
+                <div class="bots-panel-grid">
+                  <label class="bots-field">
+                    <span data-i18n="bots.team">Team</span>
+                    <select id="bot-team-select" data-testid="bot-team-select" aria-label="Bot team">
+                      <option value="red" data-i18n="bots.teamRed">Red</option>
+                      <option value="blue" data-i18n="bots.teamBlue">Blue</option>
+                    </select>
+                  </label>
+                  <label class="bots-field">
+                    <span data-i18n="bots.seat">Seat</span>
+                    <select id="bot-seat-select" data-testid="bot-seat-select" aria-label="Bot seat">
+                      <option value="spymaster" data-i18n="roles.spymaster">Spymaster</option>
+                      <option value="clicker" data-i18n="roles.clicker">Clicker</option>
+                    </select>
+                  </label>
+                  <label class="bots-field">
+                    <span data-i18n="bots.style">Style</span>
+                    <select id="bot-style-select" data-testid="bot-style-select" aria-label="Bot style">
+                      <option value="smart" data-i18n="bots.styleSmart">Smart</option>
+                      <option value="cautious" data-i18n="bots.styleCautious">Cautious</option>
+                      <option value="random" data-i18n="bots.styleRandom">Random</option>
+                    </select>
+                  </label>
+                  <label class="bots-field">
+                    <span data-i18n="bots.skill">Skill</span>
+                    <select id="bot-skill-select" data-testid="bot-skill-select" aria-label="Bot skill">
+                      <option value="expert" data-i18n="bots.skillExpert">Expert</option>
+                      <option value="intermediate" data-i18n="bots.skillIntermediate">Intermediate</option>
+                      <option value="novice" data-i18n="bots.skillNovice">Novice</option>
+                    </select>
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  class="btn-add-bot"
+                  id="btn-add-bot"
+                  data-testid="add-bot-btn"
+                  data-action="add-bot"
+                >
+                  <span aria-hidden="true">＋</span>
+                  <span data-i18n="bots.add">Add Bot</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -493,6 +555,46 @@
             </div>
             <div class="role-hint" id="role-hint"></div>
           </div>
+
+          <!-- Spymaster clue form (shown only to the current-turn spymaster) -->
+          <form class="clue-controls" id="clue-controls" data-testid="clue-controls" hidden>
+            <label class="clue-controls-label" for="clue-word-input" data-i18n="clue.giveClue"
+              >Give a clue</label
+            >
+            <div class="clue-input-row">
+              <input
+                type="text"
+                class="clue-word-input"
+                id="clue-word-input"
+                data-testid="clue-word-input"
+                placeholder="word"
+                maxlength="40"
+                autocomplete="off"
+                autocorrect="off"
+                spellcheck="false"
+                aria-label="Clue word"
+              />
+              <input
+                type="number"
+                class="clue-number-input"
+                id="clue-number-input"
+                data-testid="clue-number-input"
+                min="0"
+                max="9"
+                value="1"
+                aria-label="Number of cards"
+              />
+              <button
+                type="submit"
+                class="btn-give-clue"
+                id="btn-give-clue"
+                data-testid="give-clue-btn"
+                data-i18n="clue.give"
+              >
+                Give
+              </button>
+            </div>
+          </form>
 
           <div class="action-buttons-row">
             <button
@@ -1613,7 +1715,7 @@
       </div>
     </div>
 
-    <script type="module" src="/js/modules/app.js?v=f7edfb41"></script>
+    <script type="module" src="/js/modules/app.js?v=6140c2b8"></script>
     <!-- Fallback: detect if the ES module failed to load + service worker registration -->
     <script src="/js/app-fallback.js"></script>
   </body>

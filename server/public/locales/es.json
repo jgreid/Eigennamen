@@ -15,6 +15,32 @@
         "redTeam": "Equipo Rojo",
         "blueTeam": "Equipo Azul"
     },
+    "clue": {
+        "giveClue": "Dar una pista",
+        "give": "Dar",
+        "errorEmpty": "Escribe una pista",
+        "errorSingleWord": "La pista debe ser una sola palabra"
+    },
+    "bots": {
+        "addTitle": "Añadir un bot",
+        "team": "Equipo",
+        "teamRed": "Rojo",
+        "teamBlue": "Azul",
+        "seat": "Puesto",
+        "style": "Estilo",
+        "styleSmart": "Inteligente",
+        "styleCautious": "Cauto",
+        "styleRandom": "Aleatorio",
+        "skill": "Nivel",
+        "skillExpert": "Experto",
+        "skillIntermediate": "Intermedio",
+        "skillNovice": "Novato",
+        "add": "Añadir bot",
+        "badge": "🤖 BOT",
+        "remove": "Quitar",
+        "added": "Bot añadido",
+        "hostOnly": "Solo el anfitrión puede añadir bots"
+    },
     "roles": {
         "spymaster": "Jefe de espías",
         "clicker": "Agente de campo",

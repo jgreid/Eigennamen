@@ -15,6 +15,32 @@
         "redTeam": "Red Team",
         "blueTeam": "Blue Team"
     },
+    "clue": {
+        "giveClue": "Give a clue",
+        "give": "Give",
+        "errorEmpty": "Enter a clue word",
+        "errorSingleWord": "Clue must be a single word"
+    },
+    "bots": {
+        "addTitle": "Add a bot",
+        "team": "Team",
+        "teamRed": "Red",
+        "teamBlue": "Blue",
+        "seat": "Seat",
+        "style": "Style",
+        "styleSmart": "Smart",
+        "styleCautious": "Cautious",
+        "styleRandom": "Random",
+        "skill": "Skill",
+        "skillExpert": "Expert",
+        "skillIntermediate": "Intermediate",
+        "skillNovice": "Novice",
+        "add": "Add Bot",
+        "badge": "🤖 BOT",
+        "remove": "Remove",
+        "added": "Bot added",
+        "hostOnly": "Only the host can add bots"
+    },
     "roles": {
         "spymaster": "Spymaster",
         "clicker": "Clicker",

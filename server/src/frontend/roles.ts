@@ -8,6 +8,7 @@ import {
 } from './store/selectors.js';
 import { showToast, announceToScreenReader } from './ui.js';
 import { renderBoard } from './board.js';
+import { updateClueUI } from './clueUI.js';
 import { t } from './i18n.js';
 import { logger } from './logger.js';
 import { isClientConnected } from './clientAccessor.js';
@@ -232,6 +233,9 @@ export function updateControls(): void {
     if (roleHint) {
         roleHint.classList.add('hidden');
     }
+
+    // Keep the spymaster clue form / clue chip in sync with role + turn state.
+    updateClueUI();
 }
 
 export function setTeam(team: string | null): void {
