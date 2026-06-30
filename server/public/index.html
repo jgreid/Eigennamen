@@ -31,19 +31,14 @@
     />
     <meta name="apple-mobile-web-app-title" content="Eigennamen" />
     <title>Eigennamen Online</title>
-    <!-- Socket.io client - deferred to avoid blocking HTML parsing -->
-    <script
-      defer
-      src="/js/socket.io.min.js"
-      integrity="sha384-kzavj5fiMwLKzzD1f8S7TeoVIEi7uKHvbTA3ueZkrzYq75pNQUiUi6Dy98Q3fxb0"
-      crossorigin="anonymous"
-    ></script>
-    <script
-      defer
-      src="/js/socket-client.js?v=e256e7f4"
-      integrity="sha384-4lbn9Fq+Ob7J/uDFOQCJrXbsXsIUMwYpnXjvCyB7MZbadd+fpu6MQLJcgt9bp1U9"
-      crossorigin="anonymous"
-    ></script>
+    <!-- Socket.io client - deferred to avoid blocking HTML parsing.
+         Same-origin, first-party scripts: no SRI integrity. With script-src 'self'
+         (no external/CDN scripts permitted) SRI adds no security here, but a hash
+         that drifts from a browser/SW-cached copy hard-blocks the script and breaks
+         the whole app. Freshness is handled instead by the content-hash ?v= cache-bust
+         below, which esbuild keeps in sync with the file contents on every build. -->
+    <script defer src="/js/socket.io.min.js?v=9336af8f"></script>
+    <script defer src="/js/socket-client.js?v=e256e7f4"></script>
     <link rel="stylesheet" href="/css/variables.css" />
     <link rel="stylesheet" href="/css/layout.css" />
     <link rel="stylesheet" href="/css/components.css" />
