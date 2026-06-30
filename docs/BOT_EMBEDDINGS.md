@@ -23,6 +23,13 @@ The choice is made once, lazily, in `selectBackend.ts` (`getSemanticBackend()`),
 so importing the strategy registry never touches the filesystem and tests with
 no env var keep getting the deterministic table backend.
 
+**Which backend am I using?** The first time a bot needs semantics, the server
+logs it once: `Bot embeddings loaded: …` when vectors are active, or
+`Bot semantics: using the offline association table …` otherwise. If your bots
+feel weak — especially on a **custom word list**, which the baked table can't
+cover and which therefore falls all the way to lexical — that log is the signal
+to enable embeddings (below).
+
 ## Quick local playtest (one command)
 
 For laptop / offline bot playtesting, `scripts/dev-bots.mjs` (run via the npm

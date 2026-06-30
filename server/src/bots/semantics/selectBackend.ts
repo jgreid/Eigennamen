@@ -15,6 +15,7 @@
 import type { SemanticBackend } from './backend';
 import { tableBackend } from './tableBackend';
 import { makeVectorBackend } from './vectorBackend';
+import logger from '../../utils/logger';
 
 let cached: SemanticBackend | undefined;
 
@@ -40,9 +41,18 @@ export function getSemanticBackend(): SemanticBackend {
             cached = vb;
             return vb;
         }
+        // path set but the file was missing/unusable — makeVectorBackend already
+        // logged why; fall through to the table so bots still function.
     }
 
     cached = tableBackend;
+    // One-time operator visibility: weak/strong bots depend entirely on this, and
+    // the difference is otherwise invisible. Logged once (the result is memoised).
+    logger.info(
+        'Bot semantics: using the offline association table (lexical fallback for ' +
+            'uncovered words). For stronger, meaning-based clues set BOT_EMBEDDINGS_PATH ' +
+            'to a word-vectors file, or run `npm run dev:bots`. See docs/BOT_EMBEDDINGS.md.'
+    );
     return cached;
 }
 
