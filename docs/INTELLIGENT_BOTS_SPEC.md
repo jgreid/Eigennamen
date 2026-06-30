@@ -548,7 +548,7 @@ server/src/bots/
 │   ├── tableBackend.ts     # baked curated association table (dictionary-word fallback)
 │   ├── vectorBackend.ts    # pre-trained word vectors (fastText/GloVe/word2vec/Numberbatch)
 │   ├── selectBackend.ts    # lazy backend selection via BOT_EMBEDDINGS_PATH
-│   └── associations.ts     # content-hash-keyed per-list association cache (see §20)
+│   └── associations.ts     # baked clue→board-word table for the default list (generated; see §20)
 └── harness/
     ├── runMatches.ts       # headless tournament runner
     ├── playGame.ts         # single-game self-play loop
@@ -751,6 +751,14 @@ entry.
   runtime LLM, no nondeterminism.
 - Extends the §11 reproducibility guarantee to
   `(strategyId, botSeed, gameSeed, vectorAssetHash, wordlistAssocHash)`.
+
+The shipped baked table for the default word list lives in
+`server/src/bots/semantics/associations.ts` and is **generated, not hand-edited**:
+edit the concept→board-word groups in `scripts/generate-associations.mjs` (every
+target is filtered against `DEFAULT_WORDS`, so only real board words survive) and
+regenerate with `npm run bots:associations` (currently 91 clue concepts / 704
+verified pairs). The `tableBackend` falls back to lexical similarity for any pair
+not covered, so custom word lists still degrade gracefully.
 
 ### Backend choice, updated
 

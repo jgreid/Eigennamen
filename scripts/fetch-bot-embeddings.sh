@@ -29,9 +29,10 @@
 #
 # NOTE (deployment): server/src/bots/data/ is git-ignored and is NOT copied into
 # the Docker/Fly image, so a BOT_EMBEDDINGS_PATH set there will not resolve in a
-# deployed container. To use embeddings in production, run this fetch as a build
-# step in the Dockerfile or mount the vectors file as a volume, then point
-# BOT_EMBEDDINGS_PATH at that in-container location.
+# deployed container. The supported way to ship embeddings is the Dockerfile's
+# build-arg bake: `docker build --build-arg BOT_EMBEDDINGS_MODEL=glove ...` then set
+# BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec (see docs/BOT_EMBEDDINGS.md and
+# docs/DEPLOYMENT.md). Alternatively mount a vectors file as a volume.
 set -euo pipefail
 
 MODEL="${1:-glove}"

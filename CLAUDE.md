@@ -50,6 +50,7 @@ npm run health                 # Health check
 npm run bots:train             # Headless bot self-play harness (strategy tuning)
 npm run bots:parity            # Verify bot engine vs Lua game-op parity
 npm run bots:embeddings        # Download bot word-embedding model only (no server start)
+npm run bots:associations      # Regenerate the offline bot association table (semantics fallback)
 ```
 
 ## Directory Structure
@@ -66,9 +67,11 @@ Eigennamen/
 ├── QUICKSTART.md               # Getting started + first game walkthrough
 ├── SECURITY.md                 # Security policy + threat model
 ├── README.md                   # Project overview + gameplay guide
-├── scripts/                    # Shell scripts
+├── scripts/                    # Setup and utility scripts
 │   ├── dev-setup.sh            # Development environment setup
-│   ├── fetch-bot-embeddings.sh # Download optional word-embedding model for bots
+│   ├── dev-bots.mjs            # Cross-platform bot-embeddings setup (Win/macOS/Linux, pure Node)
+│   ├── generate-associations.mjs # Regenerate the bot association table (concept→board-word map)
+│   ├── fetch-bot-embeddings.sh # Manual word-embedding download (incl. ConceptNet Numberbatch)
 │   ├── fly-launch.sh           # Fly.io deployment
 │   ├── health-check.sh         # Health check
 │   ├── pre-deploy-check.sh     # Pre-deployment validation

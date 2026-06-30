@@ -68,6 +68,30 @@ Environment variables in `docker-compose.yml`:
 | `REDIS_URL` | redis://redis:6379 | Redis connection URL |
 | `LOG_LEVEL` | info | debug, info, warn, error |
 | `CORS_ORIGIN` | * | Allowed origins (set in production!) |
+| `BOT_EMBEDDINGS_PATH` | _(unset)_ | Path to a word-vectors file to enable semantic bots (e.g. `/app/embeddings/vectors.vec` when baked, see below). Unset ⇒ offline association table. |
+| `BOT_EMBEDDINGS_MAX_WORDS` | 50000 | Cap on vectors loaded into memory |
+| `BOT_EMBEDDINGS_VOCAB_CAP` | 2000 | Cap on the spymaster's clue-candidate list |
+
+### Optional: bake bot embeddings into the image
+
+The stronger ("Smart") bots reason over real word embeddings. The vectors file is not
+shipped in the image by default, so bake it at **build time** with a build-arg (off by
+default — a normal build is byte-for-byte unchanged and downloads nothing):
+
+```bash
+# Docker (build context = repo root)
+docker build --build-arg BOT_EMBEDDINGS_MODEL=glove -f server/Dockerfile -t eigennamen .
+docker run -e BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec ... eigennamen
+
+# docker compose — one command sets the build-arg and the runtime path:
+BOT_EMBEDDINGS_MODEL=glove BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec \
+  docker compose up -d --build
+```
+
+Supported models: `glove` (default) and `fasttext`. The bake trims to `BOT_EMBEDDINGS_TRIM`
+(default 100000) and writes `/app/embeddings/vectors.vec`. If the path is missing at runtime
+the server logs a warning and falls back to the baked association table, so a misconfigured
+deploy still runs. See [BOT_EMBEDDINGS.md](./BOT_EMBEDDINGS.md#deploying-with-embeddings-docker--flyio).
 
 ---
 
@@ -99,6 +123,14 @@ fly secrets set CORS_ORIGIN=https://your-eigennamen-app.fly.dev
 
 # Deploy
 fly deploy
+```
+
+To ship the embedding-backed ("Smart") bots, bake the vectors at build time and point
+the server at them:
+
+```bash
+fly deploy --build-arg BOT_EMBEDDINGS_MODEL=glove
+fly secrets set BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec
 ```
 
 ### Configuration (fly.toml)

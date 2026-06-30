@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -153,6 +154,17 @@ const body = Object.entries(out)
 const src = `${header}${body}\n};\n`;
 
 writeFileSync(join(ROOT, 'server/src/bots/semantics/associations.ts'), src);
+
+// Format with the repo's prettier so the output matches `npm run format:check`
+// (this script's own line-wrapping differs slightly from prettier's).
+try {
+    execSync('npx prettier --write src/bots/semantics/associations.ts', {
+        cwd: join(ROOT, 'server'),
+        stdio: 'ignore',
+    });
+} catch {
+    console.warn('(prettier not run — run `npm run format` in server/ to format the output)');
+}
 
 const clueCount = Object.keys(out).length;
 const pairCount = Object.values(out).reduce((a, w) => a + w.length, 0);
