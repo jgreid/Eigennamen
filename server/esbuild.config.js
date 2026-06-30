@@ -67,9 +67,9 @@ function updateScriptVersion(scriptPath, urlPath) {
     // the Docker build, where esbuild.config.js sits next to public/).
     const indexPath = path.join(__dirname, 'public/index.html');
 
-    // Read directly and handle a missing file via the error, rather than an
-    // existsSync() pre-check (which is a check-then-use TOCTOU the file could
-    // race between).
+    // Read directly and handle failure rather than checking existence first: a
+    // check-then-read is a TOCTOU race, and a plain try/catch is also more robust
+    // (it covers an unreadable file, not just a missing one).
     let fileContents;
     let html;
     try {
@@ -106,7 +106,8 @@ function updateAppJsVersion() {
     const appJsPath = path.join(appConfig.outdir, 'app.js');
     const indexPath = path.join(__dirname, 'public/index.html');
 
-    // Read-and-catch instead of an existsSync() pre-check (check-then-use TOCTOU).
+    // Read directly and handle failure rather than checking existence first
+    // (a check-then-read is a TOCTOU race; this also covers an unreadable file).
     let fileContents;
     let html;
     try {
@@ -137,7 +138,9 @@ function updateAppJsVersion() {
  */
 function updateServiceWorkerVersion() {
     const swPath = path.join(__dirname, 'public/service-worker.js');
-    // Read-and-catch instead of an existsSync() pre-check (check-then-use TOCTOU).
+
+    // Read directly and handle failure rather than checking existence first
+    // (a check-then-read is a TOCTOU race; this also covers an unreadable file).
     let sw;
     try {
         sw = fs.readFileSync(swPath, 'utf8');

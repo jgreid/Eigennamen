@@ -2,11 +2,13 @@
  * Phase 3 tests: the baked association table backend and the semantic spymaster.
  */
 import { tableBackend } from '../../bots/semantics/tableBackend';
+import { ASSOCIATIONS } from '../../bots/semantics/associations';
 import { makeEmbeddingSpymaster } from '../../bots/strategies/spymasters';
 import { resolveClicker } from '../../bots/strategies/registry';
 import { resolveSkill } from '../../bots/presets';
 import { makeRng } from '../../bots/rng';
 import type { SemanticBackend } from '../../bots/semantics/backend';
+import { DEFAULT_WORDS } from '../../shared/gameRules';
 import type { BotSpymasterView, BotClickerView, BotContext } from '../../bots/strategies/types';
 
 function ctx(seed = 1, preset = 'expert'): BotContext {
@@ -110,6 +112,21 @@ describe('embeddingSpymaster best-effort fallback is assassin-safe', () => {
         });
         const action = makeEmbeddingSpymaster(resolveSkill('expert', 1), backend).chooseClue(view, ctx(1));
         expect(action).toMatchObject({ kind: 'clue', word: 'MILD' });
+    });
+});
+
+describe('baked association table coverage', () => {
+    it('covers most of the default board words (so default games get real clues)', () => {
+        // Every table target is a board word by construction; this guards that the
+        // generator still covers the bulk of the default list. Uncovered words fall
+        // to lexical similarity, which is much weaker — so a regression here would
+        // quietly degrade offline bot play on the standard board.
+        const targets = new Set<string>();
+        for (const words of Object.values(ASSOCIATIONS)) {
+            for (const w of words) targets.add(w.toUpperCase());
+        }
+        const covered = DEFAULT_WORDS.filter((w) => targets.has(w.toUpperCase())).length;
+        expect(covered / DEFAULT_WORDS.length).toBeGreaterThan(0.8);
     });
 });
 
