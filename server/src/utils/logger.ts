@@ -171,10 +171,12 @@ const winstonLogger: WinstonLogger = winston.createLogger({
  * by the transports, so only the free-text message needs this. Exported for tests.
  */
 export function sanitizeLogMessage(message: string): string {
-    if (typeof message !== 'string') return String(message);
-    // Replace CR/LF first (the line-forging vector), then any remaining ASCII
-    // control characters / DEL (terminal-escape injection), with spaces.
-    return message.replace(/[\r\n]/g, ' ').replace(/[\u0000-\u001f\u007f]/g, ' ');
+    // Coerce to string, then strip CR/LF (the line-forging vector) and any other
+    // ASCII control chars / DEL. Every return path runs the newline-stripping
+    // replace, so this reads as a log-injection barrier to static analysis too.
+    return String(message)
+        .replace(/[\r\n]/g, ' ')
+        .replace(/[\u0000-\u001f\u007f]/g, ' ');
 }
 
 const logger: Logger = {
