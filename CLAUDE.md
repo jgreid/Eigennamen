@@ -23,7 +23,9 @@ npm install                    # Install dependencies
 
 # Development
 npm run dev                    # Start dev server (uses REDIS_URL env, defaults to memory mode)
-npm run dev:bots               # Dev server with embedding-backed bots (fetches model once, then offline)
+npm run dev:bots               # Dev server with embedding-backed bots; auto-ensures Redis, fetches model once
+npm run redis:up               # Ensure a local Redis (reuse one, else start a managed Docker container)
+npm run redis:down             # Stop the managed Redis container
 docker compose up -d --build   # Start with Docker (Redis + app)
 
 # Quality gates (all four must pass before submitting a PR)
@@ -70,6 +72,7 @@ Eigennamen/
 ├── scripts/                    # Setup and utility scripts
 │   ├── dev-setup.sh            # Development environment setup
 │   ├── dev-bots.mjs            # Cross-platform bot-embeddings setup (Win/macOS/Linux, pure Node)
+│   ├── ensure-redis.mjs        # Ensure a local Redis (reuse, else managed Docker container)
 │   ├── generate-associations.mjs # Regenerate the bot association table (concept→board-word map)
 │   ├── fetch-bot-embeddings.sh # Manual word-embedding download (incl. ConceptNet Numberbatch)
 │   ├── fly-launch.sh           # Fly.io deployment

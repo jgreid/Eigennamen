@@ -28,9 +28,13 @@ no env var keep getting the deterministic table backend.
 For laptop / offline bot playtesting, `scripts/dev-bots.mjs` (run via the npm
 scripts below) does the whole setup in one step: it downloads a model **once**
 (idempotent — reused on later runs, so it works offline after the first download),
-sets `BOT_EMBEDDINGS_PATH`, and starts `npm run dev`. It is **cross-platform pure
-Node** (Windows / macOS / Linux) — no bash, curl, or unzip required (it uses Node's
-HTTPS download and the built-in `tar`/`unzip` that ship with modern OSes).
+**ensures a Redis is running** (reuses a reachable one, or auto-starts a managed
+`eigennamen-redis` Docker container with a restart policy — so the server never
+hangs reconnecting), sets `BOT_EMBEDDINGS_PATH`, and starts `npm run dev`. It is
+**cross-platform pure Node** (Windows / macOS / Linux) — no bash, curl, or unzip
+required (it uses Node's HTTPS download and the built-in `tar`/`unzip` that ship
+with modern OSes). Use `npm run redis:up` / `npm run redis:down` to manage that
+Redis on its own (e.g. for a plain `npm run dev`).
 
 ```bash
 # from server/
