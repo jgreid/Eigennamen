@@ -230,7 +230,6 @@ docker-compose.yml
 
 ```
 Eigennamen/
-├── index.html              # Frontend entry point (standalone SPA)
 ├── wordlist.txt            # Default word list
 ├── docker-compose.yml      # Multi-service Docker setup
 ├── fly.toml                # Fly.io deployment config
@@ -238,6 +237,7 @@ Eigennamen/
 ├── docs/                   # Documentation
 └── server/                 # Node.js backend
     ├── public/
+    │   ├── index.html     # Frontend entry point (standalone SPA)
     │   ├── js/
     │   │   ├── modules/    # Compiled frontend (built from src/frontend/)
     │   │   │   ├── app.js             # Main bundle (all frontend + shared code)

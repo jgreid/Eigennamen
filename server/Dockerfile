@@ -16,12 +16,10 @@ RUN npm ci
 COPY server/tsconfig*.json ./
 COPY server/esbuild.config.js ./
 
-# Copy source code and static assets (most frequently changing layer)
+# Copy source code and static assets (most frequently changing layer).
+# index.html is a real file under server/public/, so it comes in with this copy.
 COPY server/src/ ./src/
 COPY server/public/ ./public/
-
-# Copy root index.html (symlinked from server/public/index.html)
-COPY index.html ./public/index.html
 
 # Compile TypeScript backend + bundle frontend with esbuild (auto-updates SRI hash)
 RUN npm run build

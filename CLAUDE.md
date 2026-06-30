@@ -6,7 +6,7 @@ Comprehensive reference for Claude Code, Squirmy, and other AI assistants workin
 
 Web-based multiplayer implementation of the board game "Eigennamen" (GPL v3.0).
 
-- **Standalone mode**: Offline single-page app. Game state is encoded entirely in the URL, so no *backend* is required. The page loads its JS/CSS by absolute path (`/js/...`, `/css/...`), so serve the `server/public/` directory statically (e.g. `cd server/public && python -m http.server`) — opening `index.html` straight off the filesystem (`file://`) fails because those absolute paths don't resolve.
+- **Standalone mode**: Offline single-page app. Game state is encoded entirely in the URL, so no *backend* is required. The entry document is `server/public/index.html`; it loads its JS/CSS by absolute path (`/js/...`, `/css/...`), so serve the `server/public/` directory statically (e.g. `cd server/public && python -m http.server`) — opening `index.html` straight off the filesystem (`file://`) fails because those absolute paths don't resolve.
 - **Multiplayer mode**: Real-time synchronized gameplay via Node.js + Express 5 + Socket.io + Redis. Supports multiple concurrent rooms, reconnection, spectators, game history/replays, AI bot opponents, and an admin dashboard.
 - **Three game modes**: Classic (competitive), Duet (2-player cooperative), Match (multi-round competitive scoring)
 - **AI bots**: Optional bot players (host-managed via `bot:add`/`bot:remove`) that occupy spymaster/clicker seats and play through the same game ops as humans. Strategies range from random to a semantic spymaster backed by an offline association table or optional word embeddings. See `server/src/bots/` and [docs/INTELLIGENT_BOTS_SPEC.md](docs/INTELLIGENT_BOTS_SPEC.md).
@@ -59,7 +59,6 @@ npm run bots:associations      # Regenerate the offline bot association table (s
 
 ```
 Eigennamen/
-├── index.html                  # SPA entry point (served from server/public; uses absolute asset paths)
 ├── wordlist.txt                # Default word list
 ├── docker-compose.yml          # Docker orchestration (app + Redis)
 ├── fly.toml                    # Fly.io deployment config
@@ -100,6 +99,7 @@ Eigennamen/
 │   └── pull_request_template.md
 └── server/
     ├── public/                 # Static assets served by Express
+    │   ├── index.html          # SPA entry point (source of truth; uses absolute asset paths)
     │   ├── js/                 # Compiled frontend JS (esbuild output)
     │   │   ├── modules/        # ES module bundles
     │   │   │   ├── app.js      # Main bundle (all frontend + shared code)

@@ -6,7 +6,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import path from 'path';
-import { existsSync, statSync, readFileSync, realpathSync, watch } from 'fs';
+import { readFileSync, watch } from 'fs';
 
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { apiLimiter, strictLimiter } from './middleware/rateLimit';
@@ -21,26 +21,8 @@ import { getAllMetrics, setGauge, METRIC_NAMES } from './utils/metrics';
 import { SOCKET } from './config/constants';
 import { isProduction, parseCorsOrigins } from './config/env';
 
-/**
- * Resolve the real index.html to serve. The repo keeps a single source-of-truth
- * index.html at the project root; server/public/index.html is a symlink to it
- * (and the Docker build copies the root file into public). On Windows, git checks
- * that symlink out as a tiny text stub containing the link target ("../../index.html"),
- * which must never be served as the page — so prefer whichever path resolves to the
- * real file. statSync follows symlinks, so a valid symlink reports the real size.
- */
-function resolveIndexHtml(): string {
-    const publicIndex = path.join(__dirname, '../public/index.html');
-    const rootIndex = path.join(__dirname, '../../index.html');
-    try {
-        if (statSync(publicIndex).size > 100) return publicIndex;
-    } catch {
-        // public/index.html missing — fall through to the root copy.
-    }
-    return existsSync(rootIndex) ? rootIndex : publicIndex;
-}
-
-const INDEX_HTML = resolveIndexHtml();
+// The single source-of-truth entry document, a real file under server/public/.
+const INDEX_HTML = path.join(__dirname, '../public/index.html');
 
 /**
  * Entry document, read once at startup and served from memory. Keeping the route
@@ -67,8 +49,7 @@ loadIndexHtml();
 // event loop open on its own.
 if (!isProduction() && process.env.NODE_ENV !== 'test') {
     try {
-        // Watch the real file — in dev the served path is a symlink to the repo-root copy.
-        watch(realpathSync(INDEX_HTML), { persistent: false }, () => loadIndexHtml());
+        watch(INDEX_HTML, { persistent: false }, () => loadIndexHtml());
     } catch {
         // File watching unsupported here — keep the startup snapshot.
     }
@@ -279,7 +260,8 @@ app.get('/', (_req: Request, res: Response) => {
     res.set('Cache-Control', 'no-cache');
     res.type('html').send(INDEX_HTML_CONTENT);
 });
-// Explicit /index.html route so the real file wins over a Windows symlink stub in public/.
+// Explicit /index.html route so the in-memory document is served (with no-cache)
+// rather than letting express.static serve the file from disk.
 app.get('/index.html', (_req: Request, res: Response) => {
     res.set('Cache-Control', 'no-cache');
     res.type('html').send(INDEX_HTML_CONTENT);
