@@ -106,17 +106,79 @@ function groupBoard(view: BotSpymasterView): BoardGroups {
     return g;
 }
 
-/** Relatedness threshold for a card to "count" as linked by a clue. */
-const LINK = 0.5;
 const MAX_CLUE_NUMBER = 4;
 
+/** Result of scoring a candidate clue against the board. */
+interface ClueEval {
+    /** Own cards the clicker would take before crossing onto any non-own card. */
+    leadOwn: number;
+    /** Sort key: leadOwn, tie-broken by how clear (safe) the clue is. */
+    score: number;
+}
+
 /**
- * Semantic spymaster: scans the backend's clue vocabulary and picks the clue
- * that links the most of its own unrevealed cards while never touching the
- * assassin and avoiding opponent/neutral cards (penalty weighted by
- * riskAversion). Uses the table backend by default; a real embedding backend
- * drops in unchanged. With the asset-free lexical fallback it behaves close to
- * randomSpymaster, so it always produces a legal clue.
+ * Score a candidate clue the way the CLICKER will actually act on it: a clicker
+ * reveals the highest-relatedness unrevealed card. So a clue is worth exactly the
+ * number of the spymaster's OWN cards that out-rank EVERY non-own card by a safety
+ * margin — those are the ones the clicker takes before it would cross onto a
+ * neutral / opponent / (worst of all) the assassin.
+ *
+ * This relative ranking replaces an absolute relatedness threshold, so it works
+ * the same for the asset-free lexical floor, the baked table, and real
+ * embeddings (whose cosine scale differs). It inherently avoids the assassin
+ * (own cards must beat it), with an extra margin near the assassin since touching
+ * it loses instantly. Returns null when no own card leads safely.
+ */
+function evaluateClue(clue: string, groups: BoardGroups, backend: SemanticBackend, margin: number): ClueEval | null {
+    if (groups.own.length === 0) return null;
+    const own = groups.own.map((w) => backend.relatedness(clue, w)).sort((a, b) => b - a);
+    const nonOwn = [...groups.opponent, ...groups.neutral, ...groups.assassin].map((w) => backend.relatedness(clue, w));
+    const maxNonOwn = nonOwn.length > 0 ? Math.max(...nonOwn) : 0;
+    const assassinMax =
+        groups.assassin.length > 0 ? Math.max(...groups.assassin.map((w) => backend.relatedness(clue, w))) : 0;
+
+    // Count own cards that clear every non-own card by the safety margin.
+    let leadOwn = 0;
+    for (const r of own) {
+        if (r >= maxNonOwn + margin) leadOwn++;
+        else break;
+    }
+    if (leadOwn === 0) return null;
+
+    // The assassin is catastrophic, so demand a wider berth: drop any intended
+    // card that doesn't clear the closest assassin by twice the margin.
+    while (leadOwn > 0 && (own[leadOwn - 1] as number) - assassinMax < margin * 2) leadOwn--;
+    if (leadOwn === 0) return null;
+
+    // Prefer covering more cards; tie-break toward a clearer (wider-margin) clue.
+    const safety = Math.min(0.999, Math.max(0, (own[leadOwn - 1] as number) - maxNonOwn));
+    return { leadOwn, score: leadOwn + safety };
+}
+
+/**
+ * Last-resort scoring when no clue links an own card safely (e.g. a custom word
+ * list the backend barely covers): pick the legal clue most related to any own
+ * card, but never one whose closest card is the assassin. Board-derived, so it
+ * varies by game rather than emitting a constant placeholder.
+ */
+function pickBestEffort(legalVocab: readonly string[], groups: BoardGroups, backend: SemanticBackend): string | null {
+    let best: { word: string; topOwn: number } | null = null;
+    for (const clue of legalVocab) {
+        const topOwn = groups.own.length > 0 ? Math.max(...groups.own.map((w) => backend.relatedness(clue, w))) : 0;
+        const topAssassin =
+            groups.assassin.length > 0 ? Math.max(...groups.assassin.map((w) => backend.relatedness(clue, w))) : 0;
+        if (topAssassin >= topOwn) continue; // don't point the clicker at the assassin
+        if (!best || topOwn > best.topOwn) best = { word: clue, topOwn };
+    }
+    return best ? best.word : null;
+}
+
+/**
+ * Semantic spymaster: scans the backend's clue vocabulary and picks the clue that
+ * lets the clicker safely take the most own cards (see evaluateClue). Uses the
+ * table backend by default; a real embedding backend drops in unchanged and makes
+ * it markedly stronger. With only the lexical floor it degrades gracefully to a
+ * best-effort, board-derived clue rather than a constant placeholder.
  */
 export function makeEmbeddingSpymaster(
     skill: SkillParams,
@@ -129,40 +191,36 @@ export function makeEmbeddingSpymaster(
             const groups = groupBoard(view);
             const legalVocab = vocab.filter((c) => isClueLegalForBoard(c, view.words as string[]));
 
-            // Occasional blunder: a random legal clue.
+            // Occasional blunder: a random legal clue (weak-player model).
             if (legalVocab.length > 0 && ctx.rng.next() < skill.blunderRate) {
                 const word = legalVocab[ctx.rng.int(legalVocab.length)] as string;
                 return { kind: 'clue', word, number: 1 };
             }
 
-            const oppWeight = 1 + skill.riskAversion; // opponent links hurt more
-            const neutralWeight = 0.5 * skill.riskAversion;
+            // A larger safety margin = more cautious (fewer, safer cards per clue).
+            const margin = 0.05 + 0.1 * skill.riskAversion;
 
-            let best: { word: string; links: number; score: number } | null = null;
+            let best: { word: string; leadOwn: number; score: number } | null = null;
             for (const clue of legalVocab) {
-                const ownLinks = groups.own.filter((w) => backend.relatedness(clue, w) >= LINK).length;
-                if (ownLinks === 0) continue;
-                // Never risk the assassin.
-                if (groups.assassin.some((w) => backend.relatedness(clue, w) >= LINK)) continue;
-                const oppLinks = groups.opponent.filter((w) => backend.relatedness(clue, w) >= LINK).length;
-                const neutralLinks = groups.neutral.filter((w) => backend.relatedness(clue, w) >= LINK).length;
-                const score = ownLinks - oppWeight * oppLinks - neutralWeight * neutralLinks;
-                if (!best || score > best.score) best = { word: clue, links: ownLinks, score };
+                const ev = evaluateClue(clue, groups, backend, margin);
+                if (ev && (!best || ev.score > best.score)) {
+                    best = { word: clue, leadOwn: ev.leadOwn, score: ev.score };
+                }
             }
 
-            if (!best) {
-                // No vocabulary linked any own card (e.g. custom list): give a safe,
-                // legal placeholder clue so the game proceeds.
+            // Nothing leads safely: best-effort related clue, then a legal placeholder.
+            const word = best?.word ?? pickBestEffort(legalVocab, groups, backend);
+            if (!word) {
                 const pool =
                     legalVocab.length > 0
                         ? legalVocab
                         : CLUE_VOCAB.filter((w) => isClueLegalForBoard(w, view.words as string[]));
-                const word = (pool[0] ?? pickFallbackClue(view)) as string;
-                return { kind: 'clue', word, number: 1 };
+                const fallback = (pool.length > 0 ? pool[ctx.rng.int(pool.length)] : pickFallbackClue(view)) as string;
+                return { kind: 'clue', word: fallback, number: 1 };
             }
 
-            const number = Math.max(1, Math.min(best.links, MAX_CLUE_NUMBER));
-            return { kind: 'clue', word: best.word, number };
+            const number = Math.max(1, Math.min(best?.leadOwn ?? 1, MAX_CLUE_NUMBER));
+            return { kind: 'clue', word, number };
         },
     };
 }
