@@ -181,19 +181,19 @@ export function sanitizeLogMessage(message: string): string {
 
 const logger: Logger = {
     error(message: string, metaOrError: LogMeta | Error | unknown = {}): void {
-        winstonLogger.error(sanitizeLogMessage(message).replace(/[\r\n]/g, ' '), this._buildMeta(metaOrError));
+        winstonLogger.error(sanitizeLogMessage(message), this._buildMeta(metaOrError));
     },
     warn(message: string, meta: LogMeta | Error | unknown = {}): void {
-        winstonLogger.warn(sanitizeLogMessage(message).replace(/[\r\n]/g, ' '), this._buildMeta(meta));
+        winstonLogger.warn(sanitizeLogMessage(message), this._buildMeta(meta));
     },
     info(message: string, meta: LogMeta | Error | unknown = {}): void {
-        winstonLogger.info(sanitizeLogMessage(message).replace(/[\r\n]/g, ' '), this._buildMeta(meta));
+        winstonLogger.info(sanitizeLogMessage(message), this._buildMeta(meta));
     },
     http(message: string, meta: LogMeta | Error | unknown = {}): void {
-        winstonLogger.http(sanitizeLogMessage(message).replace(/[\r\n]/g, ' '), this._buildMeta(meta));
+        winstonLogger.http(sanitizeLogMessage(message), this._buildMeta(meta));
     },
     debug(message: string, meta: LogMeta | Error | unknown = {}): void {
-        winstonLogger.debug(sanitizeLogMessage(message).replace(/[\r\n]/g, ' '), this._buildMeta(meta));
+        winstonLogger.debug(sanitizeLogMessage(message), this._buildMeta(meta));
     },
 
     _buildMeta(metaOrError: LogMeta | Error | unknown): LogMeta {
@@ -239,20 +239,6 @@ const logger: Logger = {
         for (const key of sensitiveKeys) {
             if (key in result) {
                 result[key] = '[REDACTED]';
-            }
-        }
-
-        // Strip CR/LF from string metadata so user-derived values (nicknames, error
-        // strings, room codes) can't forge log lines via the metadata either.
-        for (const key of Object.keys(result)) {
-            const v = result[key];
-            if (typeof v === 'string') result[key] = v.replace(/[\r\n]/g, ' ');
-        }
-        if (result.error && typeof result.error === 'object') {
-            const errObj = result.error as Record<string, unknown>;
-            for (const key of Object.keys(errObj)) {
-                const v = errObj[key];
-                if (typeof v === 'string') errObj[key] = v.replace(/[\r\n]/g, ' ');
             }
         }
 
