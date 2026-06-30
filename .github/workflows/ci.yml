@@ -464,7 +464,7 @@ jobs:
 
       - name: Start server
         run: |
-          node dist/index.js &
+          node dist/index.js > /tmp/server.log 2>&1 &
           echo $! > /tmp/server.pid
         env:
           NODE_ENV: test
@@ -475,17 +475,29 @@ jobs:
           # above the production default (10) so the multiplayer specs aren't
           # rejected with "Too many connections from this IP".
           MAX_CONNECTIONS_PER_IP: '500'
+          # Give the embedded redis-server room to start on slow CI runners.
+          EMBEDDED_REDIS_TIMEOUT_MS: '15000'
 
       - name: Wait for server
         run: |
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:3000/health > /dev/null 2>&1; then
+          # Poll readiness (Redis-aware, like the build job) with a wider window
+          # than the old flat 30s, exit early if the process dies, and dump the
+          # server log on failure so a real problem is diagnosable rather than a
+          # bare "failed to start".
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3000/health/ready > /dev/null 2>&1; then
               echo "Server ready after ${i}s"
               exit 0
             fi
+            if [ -f /tmp/server.pid ] && ! kill -0 "$(cat /tmp/server.pid)" 2>/dev/null; then
+              echo "::error::Server process exited before becoming ready"
+              cat /tmp/server.log || true
+              exit 1
+            fi
             sleep 1
           done
-          echo "::error::Server failed to start within 30s"
+          echo "::error::Server failed to become ready within 60s"
+          cat /tmp/server.log || true
           exit 1
 
       # E2E is non-blocking (see the CI Passed gate). --max-failures bounds the
