@@ -61,11 +61,11 @@ const socketClientConfig = {
  */
 function updateSriHash() {
     const scriptPath = socketClientConfig.outfile;
-    // Check both local dev path (../index.html) and Docker path (public/index.html)
-    const candidates = [path.join(__dirname, '../index.html'), path.join(__dirname, 'public/index.html')];
-    const indexPath = candidates.find((p) => fs.existsSync(p));
+    // index.html is a real file served from server/public/ (same in local dev and
+    // the Docker build, where esbuild.config.js sits next to public/).
+    const indexPath = path.join(__dirname, 'public/index.html');
 
-    if (!fs.existsSync(scriptPath) || !indexPath) {
+    if (!fs.existsSync(scriptPath) || !fs.existsSync(indexPath)) {
         console.warn('SRI update skipped: missing socket-client.js or index.html');
         return;
     }
@@ -96,10 +96,9 @@ function updateSriHash() {
  */
 function updateAppJsVersion() {
     const appJsPath = path.join(appConfig.outdir, 'app.js');
-    const candidates = [path.join(__dirname, '../index.html'), path.join(__dirname, 'public/index.html')];
-    const indexPath = candidates.find((p) => fs.existsSync(p));
+    const indexPath = path.join(__dirname, 'public/index.html');
 
-    if (!fs.existsSync(appJsPath) || !indexPath) {
+    if (!fs.existsSync(appJsPath) || !fs.existsSync(indexPath)) {
         console.warn('app.js version update skipped: missing app.js or index.html');
         return;
     }
