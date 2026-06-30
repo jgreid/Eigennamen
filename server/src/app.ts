@@ -45,8 +45,9 @@ const INDEX_HTML = resolveIndexHtml();
 /**
  * Entry document, read once at startup and served from memory. Keeping the route
  * handlers free of per-request filesystem access avoids a DoS vector (and the
- * corresponding CodeQL "missing rate limiting" finding). index.html only changes
- * on a (re)build, which restarts the dev server, so the cached copy stays correct.
+ * corresponding CodeQL "missing rate limiting" finding). index.html is static at
+ * runtime in production; in dev, restart the server after a frontend rebuild that
+ * rewrites index.html (e.g. an SRI-hash change) so the cached copy is refreshed.
  */
 let INDEX_HTML_CONTENT = '';
 try {
