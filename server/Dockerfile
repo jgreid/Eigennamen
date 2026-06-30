@@ -37,9 +37,8 @@ COPY scripts/ ./scripts/
 RUN mkdir -p /app/embeddings && touch /app/embeddings/.keep && \
     if [ -n "$BOT_EMBEDDINGS_MODEL" ]; then \
         apk add --no-cache unzip && \
-        node scripts/dev-bots.mjs --no-run \
-            --model="$BOT_EMBEDDINGS_MODEL" --trim="$BOT_EMBEDDINGS_TRIM" \
-            --data-dir=/app/embeddings --out=vectors.vec; \
+        BOT_MODEL="$BOT_EMBEDDINGS_MODEL" BOT_TRIM="$BOT_EMBEDDINGS_TRIM" node scripts/dev-bots.mjs --no-run && \
+        cp /app/server/src/bots/data/*.vec /app/embeddings/vectors.vec; \
     fi
 
 # Production stage
