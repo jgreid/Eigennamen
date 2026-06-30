@@ -67,16 +67,22 @@ function updateScriptVersion(scriptPath, urlPath) {
     // the Docker build, where esbuild.config.js sits next to public/).
     const indexPath = path.join(__dirname, 'public/index.html');
 
-    if (!fs.existsSync(scriptPath) || !fs.existsSync(indexPath)) {
+    // Read directly and handle failure rather than checking existence first: a
+    // check-then-read is a TOCTOU race, and a plain try/catch is also more robust
+    // (it covers an unreadable file, not just a missing one).
+    let fileContents;
+    let html;
+    try {
+        fileContents = fs.readFileSync(scriptPath);
+        html = fs.readFileSync(indexPath, 'utf8');
+    } catch {
         console.warn(`Cache-bust update skipped: missing ${path.basename(scriptPath)} or index.html`);
         return;
     }
 
-    const fileContents = fs.readFileSync(scriptPath);
     // First 8 hex chars of the content hash — stable per content, changes on edit.
     const contentVersion = crypto.createHash('sha384').update(fileContents).digest('hex').slice(0, 8);
 
-    let html = fs.readFileSync(indexPath, 'utf8');
     const escaped = urlPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     // Match the src with or without an existing ?v= parameter.
     const pattern = new RegExp(`(${escaped})(\\?v=[A-Za-z0-9]+)?(")`);
@@ -100,15 +106,20 @@ function updateAppJsVersion() {
     const appJsPath = path.join(appConfig.outdir, 'app.js');
     const indexPath = path.join(__dirname, 'public/index.html');
 
-    if (!fs.existsSync(appJsPath) || !fs.existsSync(indexPath)) {
+    // Read directly and handle failure rather than checking existence first
+    // (a check-then-read is a TOCTOU race; this also covers an unreadable file).
+    let fileContents;
+    let html;
+    try {
+        fileContents = fs.readFileSync(appJsPath);
+        html = fs.readFileSync(indexPath, 'utf8');
+    } catch {
         console.warn('app.js version update skipped: missing app.js or index.html');
         return;
     }
 
-    const fileContents = fs.readFileSync(appJsPath);
     const contentVersion = crypto.createHash('sha256').update(fileContents).digest('hex').slice(0, 8);
 
-    let html = fs.readFileSync(indexPath, 'utf8');
     // Match app.js with or without an existing ?v= parameter
     const pattern = /(\/js\/modules\/app\.js)(\?v=[A-Za-z0-9]+)?(")/;
     if (!pattern.test(html)) {
@@ -127,12 +138,17 @@ function updateAppJsVersion() {
  */
 function updateServiceWorkerVersion() {
     const swPath = path.join(__dirname, 'public/service-worker.js');
-    if (!fs.existsSync(swPath)) {
+
+    // Read directly and handle failure rather than checking existence first
+    // (a check-then-read is a TOCTOU race; this also covers an unreadable file).
+    let sw;
+    try {
+        sw = fs.readFileSync(swPath, 'utf8');
+    } catch {
         console.warn('Service worker version update skipped: file not found');
         return;
     }
 
-    let sw = fs.readFileSync(swPath, 'utf8');
     const pattern = /(const CACHE = 'eigennamen-v)[^']+(')/;
     if (!pattern.test(sw)) {
         console.warn('Service worker version update skipped: could not find CACHE constant');
