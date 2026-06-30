@@ -23,7 +23,36 @@ The choice is made once, lazily, in `selectBackend.ts` (`getSemanticBackend()`),
 so importing the strategy registry never touches the filesystem and tests with
 no env var keep getting the deterministic table backend.
 
+## Quick local playtest (one command)
+
+For laptop / offline bot playtesting, `scripts/dev-bots.mjs` (run via the npm
+scripts below) does the whole setup in one step: it downloads a model **once**
+(idempotent — reused on later runs, so it works offline after the first download),
+sets `BOT_EMBEDDINGS_PATH`, and starts `npm run dev`. It is **cross-platform pure
+Node** (Windows / macOS / Linux) — no bash, curl, or unzip required (it uses Node's
+HTTPS download and the built-in `tar`/`unzip` that ship with modern OSes).
+
+```bash
+# from server/
+npm run dev:bots                       # GloVe (default): fetch-if-missing, then run
+npm run dev:bots -- --model=fasttext   # richer vocabulary (bigger download)
+npm run dev:bots -- --trim=50000       # smaller on-disk vectors file
+npm run bots:embeddings                # only prepare the model, don't start the server
+```
+
+Knobs (flags win over env): `--model` / `BOT_MODEL` (`glove` default | `fasttext`)
+and `--trim` / `BOT_TRIM` (keep the first N vectors to save disk; default `100000`).
+Only frequency-ordered models are offered here, because the loader keeps the first
+N vectors — for GloVe/fastText that means the most common N words. For ConceptNet
+Numberbatch (alphabetical), use `scripts/fetch-bot-embeddings.sh` instead. The first
+download is large (GloVe ~830 MB zip); after that the git-ignored
+`server/src/bots/data/` file is reused with no network access. Run `npm install`
+(or `npm run setup`) first if you haven't installed deps / created `.env`.
+
 ## Enabling embeddings
+
+> The manual steps below are what `npm run dev:bots` automates — use them if you
+> want finer control or a custom model file.
 
 1. Fetch a model (large; stored under the git-ignored `server/src/bots/data/`):
 

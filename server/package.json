@@ -35,7 +35,9 @@
     "loadtest": "node loadtest/stress-test.js",
     "loadtest:memory": "node loadtest/memory-leak-test.js",
     "bots:train": "ts-node --transpile-only src/bots/harness/runMatches.ts",
-    "bots:parity": "ts-node --transpile-only src/bots/harness/parity.ts"
+    "bots:parity": "ts-node --transpile-only src/bots/harness/parity.ts",
+    "bots:embeddings": "node ../scripts/dev-bots.mjs --no-run",
+    "dev:bots": "node ../scripts/dev-bots.mjs"
   },
   "dependencies": {
     "@socket.io/redis-adapter": "^8.2.1",
