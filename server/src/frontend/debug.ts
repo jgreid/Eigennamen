@@ -126,20 +126,20 @@ export function createStateProxy<T extends object>(target: T, path: string = 'st
     });
 }
 
-// Keys that must never be written through a dynamic property path, or they
-// could pollute Object.prototype (CWE-1321 prototype pollution).
-const UNSAFE_STATE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
-
+// Keys that must never be written through a dynamic property path, or they could
+// pollute Object.prototype (CWE-1321). Checked as explicit comparisons at each
+// dynamic access below so static analysis recognises the guard.
 export function setState(state: AppState, property: string, value: unknown, source: string = 'unknown'): void {
     const parts = property.split('.');
-    if (parts.some((p) => UNSAFE_STATE_KEYS.has(p))) {
-        console.error(`[State] Refusing unsafe property path: ${property}`);
-        return;
-    }
     let target: Record<string, unknown> = state as unknown as Record<string, unknown>;
 
     for (let i = 0; i < parts.length - 1; i++) {
-        target = target[parts[i]!] as Record<string, unknown>;
+        const key = parts[i]!;
+        if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+            console.error(`[State] Refusing unsafe property path: ${property}`);
+            return;
+        }
+        target = target[key] as Record<string, unknown>;
         if (target === undefined) {
             console.error(`[State] Invalid property path: ${property}`);
             return;
@@ -147,6 +147,10 @@ export function setState(state: AppState, property: string, value: unknown, sour
     }
 
     const lastPart = parts[parts.length - 1]!;
+    if (lastPart === '__proto__' || lastPart === 'constructor' || lastPart === 'prototype') {
+        console.error(`[State] Refusing unsafe property path: ${property}`);
+        return;
+    }
     const oldValue = target[lastPart];
     target[lastPart] = value;
 

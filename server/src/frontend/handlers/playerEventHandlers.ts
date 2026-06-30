@@ -3,7 +3,6 @@ import { showToast, announceToScreenReader } from '../ui.js';
 import { renderBoard } from '../board.js';
 import { updateRoleBanner, updateControls, clearRoleChange } from '../roles.js';
 import { playNotificationSound } from '../notifications.js';
-import { logger } from '../logger.js';
 import { updateMpIndicator } from '../multiplayerUI.js';
 import { syncLocalPlayerState } from '../multiplayerSync.js';
 import type {
@@ -101,35 +100,31 @@ export function registerPlayerHandlers(): void {
                     }
                 }
 
-                if (updatedPlayer) {
-                    // Determine if this update confirms the in-flight role change operation.
-                    // During a role change, skip syncLocalPlayerState for unrelated updates
-                    // to avoid overwriting optimistic UI state (race condition fix).
-                    const rc = state.roleChange;
-                    const isConfirmingUpdate =
-                        rc.phase !== 'idle' &&
-                        ((rc.phase === 'changing_team' && data.changes.team !== undefined) ||
-                            (rc.phase === 'changing_role' &&
-                                (data.changes.role !== undefined || data.changes.team !== undefined)));
+                // updatedPlayer is always set here (the outer guard requires the
+                // current player, and it is reconstructed above if missing).
+                // Determine if this update confirms the in-flight role change operation.
+                // During a role change, skip syncLocalPlayerState for unrelated updates
+                // to avoid overwriting optimistic UI state (race condition fix).
+                const rc = state.roleChange;
+                const isConfirmingUpdate =
+                    rc.phase !== 'idle' &&
+                    ((rc.phase === 'changing_team' && data.changes.team !== undefined) ||
+                        (rc.phase === 'changing_role' &&
+                            (data.changes.role !== undefined || data.changes.team !== undefined)));
 
-                    if (rc.phase === 'idle' || isConfirmingUpdate) {
-                        syncLocalPlayerState(updatedPlayer);
-                    }
+                if (rc.phase === 'idle' || isConfirmingUpdate) {
+                    syncLocalPlayerState(updatedPlayer);
+                }
 
-                    if (isConfirmingUpdate || rc.phase === 'idle') {
-                        clearRoleChange();
-                    }
-                    // If role change in progress but not confirmed by this update,
-                    // leave state machine alone — ack callback handles success/failure
-
-                    updateControls();
-                    updateRoleBanner();
-                    renderBoard();
-                } else {
-                    // Even if player not found, clear role change to prevent blocking
-                    logger.warn('playerUpdated: current player not found in list, clearing role change state');
+                if (isConfirmingUpdate || rc.phase === 'idle') {
                     clearRoleChange();
                 }
+                // If role change in progress but not confirmed by this update,
+                // leave state machine alone — ack callback handles success/failure
+
+                updateControls();
+                updateRoleBanner();
+                renderBoard();
             }
         }
     });

@@ -39,13 +39,12 @@ function createContextHandler<T = unknown>(
         const validated = schema ? (validateInput(schema, data) as T) : ((data || {}) as T);
         const ctx: PlayerContextResult = await getPlayerContext(socket, contextOptions);
 
-        // Update lastSeen for idle detection (fire-and-forget, non-critical)
+        // Update lastSeen for idle detection (fire-and-forget, non-critical).
+        // Promise.resolve wraps a sync or async return; `void` + `.catch` mark it
+        // intentionally not awaited and swallow any rejection.
         if (ctx?.player?.sessionId) {
             try {
-                const p = updatePlayer(ctx.player.sessionId, { lastSeen: Date.now() });
-                if (p && typeof p === 'object' && 'catch' in p) {
-                    (p as Promise<unknown>).catch(() => {});
-                }
+                void Promise.resolve(updatePlayer(ctx.player.sessionId, { lastSeen: Date.now() })).catch(() => {});
             } catch {
                 // Ignore — lastSeen is best-effort
             }
