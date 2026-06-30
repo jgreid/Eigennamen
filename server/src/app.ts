@@ -6,7 +6,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import path from 'path';
-import { existsSync, statSync } from 'fs';
+import { existsSync, statSync, readFileSync } from 'fs';
 
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { apiLimiter, strictLimiter } from './middleware/rateLimit';
@@ -41,6 +41,21 @@ function resolveIndexHtml(): string {
 }
 
 const INDEX_HTML = resolveIndexHtml();
+
+/**
+ * Entry document, read once at startup and served from memory. Keeping the route
+ * handlers free of per-request filesystem access avoids a DoS vector (and the
+ * corresponding CodeQL "missing rate limiting" finding). index.html only changes
+ * on a (re)build, which restarts the dev server, so the cached copy stays correct.
+ */
+let INDEX_HTML_CONTENT = '';
+try {
+    INDEX_HTML_CONTENT = readFileSync(INDEX_HTML, 'utf8');
+} catch (err) {
+    logger.error(`Failed to read index.html at ${INDEX_HTML}`, {
+        error: err instanceof Error ? err.message : String(err),
+    });
+}
 
 /**
  * Extended Express Application with custom properties
@@ -245,12 +260,12 @@ app.get('{/*path}.html', (_req: Request, res: Response, next: NextFunction) => {
 });
 app.get('/', (_req: Request, res: Response) => {
     res.set('Cache-Control', 'no-cache');
-    res.sendFile(INDEX_HTML);
+    res.type('html').send(INDEX_HTML_CONTENT);
 });
 // Explicit /index.html route so the real file wins over a Windows symlink stub in public/.
 app.get('/index.html', (_req: Request, res: Response) => {
     res.set('Cache-Control', 'no-cache');
-    res.sendFile(INDEX_HTML);
+    res.type('html').send(INDEX_HTML_CONTENT);
 });
 
 // Serve static files (the game client) with caching headers
@@ -373,7 +388,7 @@ app.get('/{*splat}', (req: Request, res: Response, next: NextFunction) => {
         return next();
     }
     res.set('Cache-Control', 'no-cache');
-    res.sendFile(INDEX_HTML);
+    res.type('html').send(INDEX_HTML_CONTENT);
 });
 
 // Error handling
