@@ -70,6 +70,7 @@ import {
 import { logger } from './logger.js';
 import { initClueUI } from './clueUI.js';
 import { initBotsUI, addBotFromForm, removeBot } from './botsUI.js';
+import { initGameLog } from './gameLog.js';
 
 // Signal that the ES module loaded successfully
 (window as Window & { __appModuleLoaded?: boolean }).__appModuleLoaded = true;
@@ -359,6 +360,8 @@ async function init(): Promise<void> {
         // Initialize spymaster clue UX + host bot management UI
         initClueUI();
         initBotsUI();
+        // Initialize the live game-log panel (clues + guesses)
+        initGameLog();
         // Load notification preferences
         loadNotificationPrefs();
         initNotificationPrefsUI();

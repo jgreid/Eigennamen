@@ -10,6 +10,7 @@ import { isClientConnected } from '../clientAccessor.js';
 import { closeModal } from '../ui.js';
 import { checkGameOver, updateScoreboard, updateTurnIndicator } from './scoring.js';
 import { batch } from '../store/batch.js';
+import { logGuess } from '../gameLog.js';
 
 /** Data received from the server when a card is revealed */
 interface ServerRevealData {
@@ -114,6 +115,9 @@ export function revealCard(index: number): void {
     // Track for animation
     state.lastRevealedIndex = index;
     state.lastRevealedWasCorrect = type === state.gameState.currentTurn;
+
+    // Log the guess (current turn is still the guessing team — it may switch below)
+    logGuess(state.gameState.currentTurn, state.gameState.words[index] ?? '', type ?? '');
 
     if (type === 'red') {
         state.gameState.redScore++;
@@ -283,6 +287,9 @@ export function revealCardFromServer(index: number, serverData: ServerRevealData
             state.gameState.revealedBy[index] = revealingTeam;
         }
     });
+
+    // Log the guess against the team that was on turn when it was made.
+    logGuess(revealingTeam ?? '', state.gameState.words[index] ?? '', state.gameState.types[index] ?? '');
 
     // Batch DOM updates using requestAnimationFrame for better performance.
     // Store the rAF ID so it can be cancelled on room switch to prevent

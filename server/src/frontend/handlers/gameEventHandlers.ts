@@ -14,6 +14,7 @@ import { updateClueUI } from '../clueUI.js';
 import { playNotificationSound, setTabNotification, checkAndNotifyTurn } from '../notifications.js';
 import { updateDuetUI, updateDuetInfoBar, updateForfeitButton } from '../multiplayerUI.js';
 import { syncGameStateFromServer } from '../multiplayerSync.js';
+import { logClue, clearGameLog } from '../gameLog.js';
 import type {
     GameStartedData,
     CardRevealedData,
@@ -42,6 +43,9 @@ export function registerGameHandlers(): void {
         });
         // Clear debounce so the button is immediately usable
         state.newGameDebounce = false;
+
+        // Start the game log fresh for the new game
+        clearGameLog();
 
         // Full sync game state from server for new games
         if (data.game) {
@@ -171,6 +175,7 @@ export function registerGameHandlers(): void {
         announceToScreenReader(message);
         playNotificationSound('reveal');
         updateClueUI();
+        logClue(data.team, data.word, data.number);
     });
 
     EigennamenClient.on('turnEnded', (data: TurnEndedData) => {

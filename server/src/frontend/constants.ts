@@ -127,6 +127,9 @@ export const UI = {
 
     // Maximum chat messages retained in DOM (oldest pruned when exceeded)
     MAX_CHAT_MESSAGES: 500,
+
+    // Maximum game-log entries (clues + guesses) retained in DOM
+    MAX_GAME_LOG_ENTRIES: 200,
 };
 
 /**

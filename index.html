@@ -748,6 +748,33 @@
           </div>
         </div>
       </main>
+
+      <!-- RIGHT COLUMN - Live game log (clues + guessed words) -->
+      <aside class="gamelog-panel" id="gamelog-panel">
+        <button
+          type="button"
+          class="gamelog-toggle"
+          id="gamelog-toggle"
+          aria-expanded="true"
+          aria-controls="gamelog-body"
+        >
+          <span class="gamelog-toggle-icon" aria-hidden="true">📜</span>
+          <span data-i18n="gameLog.title">Game Log</span>
+          <span class="expand-icon gamelog-expand-icon">▾</span>
+        </button>
+        <div class="gamelog-body" id="gamelog-body">
+          <ol
+            class="gamelog-entries"
+            id="gamelog-entries"
+            role="log"
+            aria-live="polite"
+            aria-label="Game log: clues and guessed words"
+          ></ol>
+          <p class="gamelog-empty" id="gamelog-empty" data-i18n="gameLog.empty">
+            No clues or guesses yet.
+          </p>
+        </div>
+      </aside>
       </div><!-- /.game-body -->
     </div>
 
@@ -1715,7 +1742,7 @@
       </div>
     </div>
 
-    <script type="module" src="/js/modules/app.js?v=63fbf464"></script>
+    <script type="module" src="/js/modules/app.js?v=46703d3c"></script>
     <!-- Fallback: detect if the ES module failed to load + service worker registration -->
     <script src="/js/app-fallback.js"></script>
   </body>

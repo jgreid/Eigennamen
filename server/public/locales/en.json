@@ -380,5 +380,16 @@
         "replayTitle": "Game Replay",
         "loadingGame": "Loading game...",
         "keyboardHint": "Keyboard shortcuts"
+    },
+    "gameLog": {
+        "title": "Game Log",
+        "empty": "No clues or guesses yet.",
+        "clue": "{{team}} clue:",
+        "result": {
+            "correct": "{{team}} correct guess",
+            "wrong": "{{team}} guessed an opponent card",
+            "neutral": "neutral card",
+            "assassin": "assassin!"
+        }
     }
 }
