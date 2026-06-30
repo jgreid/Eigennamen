@@ -293,11 +293,27 @@ If you want to shut down the server (maybe you're done playing or want to turn o
 
 **How to fix it:** This is normal! The first time can take 5-10 minutes. Subsequent starts will be much faster (just a few seconds).
 
-### "spawn redis-server ENOENT" when running `npm run dev`
+### "spawn redis-server ENOENT" or "Redis reconnecting…" when running `npm run dev`
 
-**What it means:** You tried to run the server directly with Node instead of Docker, using `REDIS_URL=memory`. That mode still needs a `redis-server` program installed, and **Windows doesn't come with one** — so it can't start.
+**What it means:** You ran the server directly with Node and no Redis is reachable. Memory mode needs a `redis-server` program that **Windows doesn't come with**, and external mode needs a Redis listening on the configured URL.
 
-**How to fix it:** On Windows, use **Docker** (this guide's main path — double-click `start-server.bat`). Docker includes Redis, so you never have to install it yourself. If you specifically want to run with Node directly, first install a Windows Redis such as [Memurai](https://www.memurai.com/) or run Redis inside WSL2, then start with `$env:REDIS_URL="redis://127.0.0.1:6379"; npm run dev` instead of `REDIS_URL=memory`.
+**How to fix it (easiest):** Use the bot playtest command, which **auto-starts Redis for you** (it reuses a running Redis, or starts a managed `eigennamen-redis` Docker container with a restart policy, then launches the server):
+
+```powershell
+cd server
+npm run dev:bots
+```
+
+If you'd rather run the plain dev server, bring Redis up first (same auto-start, no server):
+
+```powershell
+cd server
+npm run redis:up      # starts/uses Redis (Docker)
+npm run dev
+npm run redis:down    # stop the managed Redis when you're done
+```
+
+Both require **Docker Desktop running**. Without Docker you can instead install a Windows Redis such as [Memurai](https://www.memurai.com/) or run Redis in WSL2, then `$env:REDIS_URL="redis://127.0.0.1:6379"; npm run dev`.
 
 ### "'REDIS_URL=memory' is not recognized" in PowerShell
 

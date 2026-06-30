@@ -38,7 +38,9 @@
     "bots:parity": "ts-node --transpile-only src/bots/harness/parity.ts",
     "bots:embeddings": "node ../scripts/dev-bots.mjs --no-run",
     "bots:associations": "node ../scripts/generate-associations.mjs",
-    "dev:bots": "node ../scripts/dev-bots.mjs"
+    "dev:bots": "node ../scripts/dev-bots.mjs",
+    "redis:up": "node ../scripts/ensure-redis.mjs",
+    "redis:down": "node ../scripts/ensure-redis.mjs --down"
   },
   "dependencies": {
     "@socket.io/redis-adapter": "^8.2.1",

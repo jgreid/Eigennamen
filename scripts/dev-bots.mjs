@@ -34,6 +34,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import https from 'node:https';
 import http from 'node:http';
+import { ensureRedis } from './ensure-redis.mjs';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = dirname(SCRIPT_DIR);
@@ -241,11 +242,17 @@ async function main() {
         return;
     }
 
+    // Make sure a Redis is available before launching (auto-starts a managed
+    // Docker container if needed) so the dev server isn't stuck reconnecting.
+    const redisUrl = await ensureRedis();
+    const childEnv = { ...process.env, BOT_EMBEDDINGS_PATH: relPath };
+    if (redisUrl) childEnv.REDIS_URL = redisUrl;
+
     console.log('🤖 Starting dev server with embedding-backed bots…');
     console.log("   Watch for: 'Bot embeddings loaded: N vectors, M clue candidates'");
     const child = spawn('npm', ['run', 'dev'], {
         cwd: SERVER_DIR,
-        env: { ...process.env, BOT_EMBEDDINGS_PATH: relPath },
+        env: childEnv,
         stdio: 'inherit',
         shell: true, // resolve npm/npm.cmd across platforms
     });
