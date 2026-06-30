@@ -380,5 +380,16 @@
         "replayTitle": "Repetición de partida",
         "loadingGame": "Cargando juego...",
         "keyboardHint": "Atajos de teclado"
+    },
+    "gameLog": {
+        "title": "Registro de juego",
+        "empty": "Aún no hay pistas ni aciertos.",
+        "clue": "Pista de {{team}}:",
+        "result": {
+            "correct": "{{team}} acertó",
+            "wrong": "{{team}} adivinó una carta rival",
+            "neutral": "carta neutral",
+            "assassin": "¡asesino!"
+        }
     }
 }

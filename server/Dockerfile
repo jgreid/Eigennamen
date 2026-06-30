@@ -26,6 +26,21 @@ COPY index.html ./public/index.html
 # Compile TypeScript backend + bundle frontend with esbuild (auto-updates SRI hash)
 RUN npm run build
 
+# --- Optional: bake bot word-embeddings into the image (OFF by default) ---
+# With no build-arg the build is byte-for-byte unchanged (/app/embeddings holds only
+# a .keep placeholder). To ship strong bots in a deployed image, build with e.g.:
+#   docker build --build-arg BOT_EMBEDDINGS_MODEL=glove -f server/Dockerfile .
+# then set BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec on the running container.
+ARG BOT_EMBEDDINGS_MODEL=
+ARG BOT_EMBEDDINGS_TRIM=100000
+COPY scripts/ ./scripts/
+RUN mkdir -p /app/embeddings && touch /app/embeddings/.keep && \
+    if [ -n "$BOT_EMBEDDINGS_MODEL" ]; then \
+        apk add --no-cache unzip && \
+        BOT_MODEL="$BOT_EMBEDDINGS_MODEL" BOT_TRIM="$BOT_EMBEDDINGS_TRIM" node scripts/dev-bots.mjs --no-run && \
+        cp /app/server/src/bots/data/*.vec /app/embeddings/vectors.vec; \
+    fi
+
 # Production stage
 FROM node:25.2-alpine3.21
 
@@ -59,6 +74,10 @@ COPY --chown=eigennamen:nodejs --from=builder /app/dist ./dist
 
 # Copy public folder (static assets) from builder
 COPY --chown=eigennamen:nodejs --from=builder /app/public ./public
+
+# Copy baked bot embeddings (empty unless built with --build-arg BOT_EMBEDDINGS_MODEL).
+# Enable at runtime with BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec.
+COPY --chown=eigennamen:nodejs --from=builder /app/embeddings ./embeddings
 
 # Switch to non-root user
 USER eigennamen

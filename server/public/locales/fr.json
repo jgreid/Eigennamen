@@ -380,5 +380,16 @@
         "replayTitle": "Replay de la partie",
         "loadingGame": "Chargement du jeu...",
         "keyboardHint": "Raccourcis clavier"
+    },
+    "gameLog": {
+        "title": "Journal de jeu",
+        "empty": "Pas encore d'indices ni de propositions.",
+        "clue": "Indice {{team}} :",
+        "result": {
+            "correct": "{{team}} a deviné juste",
+            "wrong": "{{team}} a deviné une carte adverse",
+            "neutral": "carte neutre",
+            "assassin": "assassin !"
+        }
     }
 }

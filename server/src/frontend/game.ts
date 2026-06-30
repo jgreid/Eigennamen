@@ -18,6 +18,7 @@ import { isClientConnected } from './clientAccessor.js';
 import { canActAsClicker } from './store/selectors.js';
 import { checkGameOver, updateScoreboard, updateTurnIndicator } from './game/scoring.js';
 import { showGameOverModal } from './game/reveal.js';
+import { clearGameLog } from './gameLog.js';
 
 export { checkGameOver, updateScoreboard, updateTurnIndicator, updateMatchScoreboard } from './game/scoring.js';
 export {
@@ -31,6 +32,9 @@ export { updateURL } from './url-state.js';
 
 // Helper function to set up the game board (card types, scores, etc.)
 export function setupGameBoard(numericSeed: number): void {
+    // Each standalone (re)deal starts a fresh game log
+    clearGameLog();
+
     // Randomly decide who goes first (gets more cards)
     const firstTeam = seededRandom(numericSeed + 1000) > 0.5 ? 'red' : 'blue';
     state.gameState.currentTurn = firstTeam;

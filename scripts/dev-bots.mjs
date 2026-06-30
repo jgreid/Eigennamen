@@ -80,6 +80,11 @@ function fileSize(path) {
     }
 }
 
+/** Whether the server's dev dependencies (needed by `npm run dev`) are installed. */
+function depsInstalled() {
+    return existsSync(join(SERVER_DIR, 'node_modules', 'typescript')) && existsSync(join(SERVER_DIR, 'node_modules', 'ts-node-dev'));
+}
+
 /** GET with redirect following, into `dest`. Resolves on completion. */
 function download(url, dest, redirects = 0) {
     return new Promise((resolve, reject) => {
@@ -216,6 +221,14 @@ async function main() {
     if (opts.help) {
         console.log('Usage: npm run dev:bots [-- --model=glove|fasttext] [--trim=N] [--no-run]');
         return;
+    }
+
+    // Fail fast BEFORE the (large) download if we intend to launch but deps are missing,
+    // so a fresh clone doesn't pay the download only to hit a missing `tsc`/`ts-node-dev`.
+    if (opts.run && !depsInstalled()) {
+        console.error('❌ Server dependencies are not installed.');
+        console.error('   Run `npm install` from the server/ directory first, then re-run `npm run dev:bots`.');
+        process.exit(1);
     }
 
     const outName = await ensureModel(opts.model, opts.trim);

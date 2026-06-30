@@ -1163,3 +1163,173 @@ button:focus-visible,
     background: rgba(52, 152, 219, 0.3);
     border-color: rgba(52, 152, 219, 0.6);
 }
+
+/* ========== GAME LOG PANEL (live clues + guessed words) ========== */
+.gamelog-panel {
+    width: 240px;
+    min-width: 200px;
+    max-width: 260px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    margin: var(--spacing-sm) var(--spacing-sm) var(--spacing-sm) 0;
+    border-radius: var(--radius-xs);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--color-border-subtle);
+    overflow: hidden;
+}
+
+.gamelog-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 8px 10px;
+    background: transparent;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-align: left;
+}
+
+.gamelog-toggle:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.gamelog-expand-icon {
+    margin-left: auto;
+    transition: transform 0.2s;
+    font-size: 0.7rem;
+}
+
+.gamelog-toggle[aria-expanded='true'] .gamelog-expand-icon {
+    transform: rotate(180deg);
+}
+
+.gamelog-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-top: 1px solid var(--color-border-subtle);
+    scroll-behavior: smooth;
+}
+
+.gamelog-entries {
+    list-style: none;
+    margin: 0;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.8rem;
+    line-height: 1.35;
+}
+
+.gamelog-empty {
+    margin: 0;
+    padding: 16px 10px;
+    text-align: center;
+    font-style: italic;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.gamelog-entry {
+    padding: 4px 8px;
+    border-radius: 4px;
+    border-left: 3px solid transparent;
+    background: rgba(255, 255, 255, 0.03);
+    word-break: break-word;
+}
+
+.gamelog-entry.red {
+    border-left-color: var(--color-red-primary);
+}
+
+.gamelog-entry.blue {
+    border-left-color: var(--color-blue-primary);
+}
+
+.gamelog-label {
+    font-weight: 600;
+    opacity: 0.85;
+}
+
+.gamelog-clue.red .gamelog-label {
+    color: var(--color-red-light);
+}
+
+.gamelog-clue.blue .gamelog-label {
+    color: var(--color-blue-light);
+}
+
+.gamelog-word {
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    font-weight: 700;
+}
+
+.gamelog-number {
+    opacity: 0.7;
+    font-weight: 400;
+}
+
+.gamelog-guess {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.gamelog-icon {
+    flex-shrink: 0;
+    font-size: 0.85rem;
+}
+
+.gamelog-guess.correct .gamelog-icon {
+    color: #2ecc71;
+}
+
+.gamelog-guess.wrong .gamelog-icon {
+    color: var(--color-red-light);
+}
+
+.gamelog-guess.neutral {
+    opacity: 0.7;
+}
+
+.gamelog-guess.assassin {
+    background: rgba(0, 0, 0, 0.45);
+    border-left-color: #000;
+}
+
+.gamelog-guess.assassin .gamelog-word {
+    color: var(--color-red-light);
+}
+
+/* Narrower on mid-size screens, full-width stacked below the board on mobile */
+@media (max-width: 1024px) {
+    .gamelog-panel {
+        width: 190px;
+        min-width: 170px;
+    }
+}
+
+@media (max-width: 768px) {
+    .gamelog-panel {
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+        margin: 0;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+    }
+
+    .gamelog-body {
+        max-height: 28vh;
+    }
+}

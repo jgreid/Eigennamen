@@ -91,6 +91,38 @@ queen 0.10 -0.02 ...
 - Tokens are NFKC-normalised and uppercased to match board words.
 - Vectors are L2-normalised at load, so relatedness is one dot product.
 
+## Deploying with embeddings (Docker / Fly.io)
+
+`server/src/bots/data/` is git-ignored and not copied into the image, so a local
+`BOT_EMBEDDINGS_PATH` won't resolve in a container. Instead, **bake** the vectors
+into the image at build time with a build-arg (off by default — the normal build is
+unchanged and downloads nothing):
+
+```bash
+# Docker (build context = repo root)
+docker build --build-arg BOT_EMBEDDINGS_MODEL=glove -f server/Dockerfile -t eigennamen .
+# then run with the path set:
+docker run -e BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec ... eigennamen
+```
+
+```bash
+# docker compose — one command sets both the build-arg and the runtime path:
+BOT_EMBEDDINGS_MODEL=glove BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec \
+  docker compose up -d --build
+```
+
+```bash
+# Fly.io
+fly deploy --build-arg BOT_EMBEDDINGS_MODEL=glove
+fly secrets set BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec
+```
+
+The bake fetches `BOT_EMBEDDINGS_MODEL` (`glove` | `fasttext`), trims to
+`BOT_EMBEDDINGS_TRIM` (default 100000), and writes `/app/embeddings/vectors.vec`.
+The build needs network access; it adds the model size (trimmed GloVe ≈ 130 MB) to
+the image. If `BOT_EMBEDDINGS_PATH` points at a missing file the server logs a
+warning and falls back to the baked table, so a misconfigured deploy still runs.
+
 ## Tuning
 
 | Env var | Default | Purpose |

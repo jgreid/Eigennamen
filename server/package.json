@@ -37,6 +37,7 @@
     "bots:train": "ts-node --transpile-only src/bots/harness/runMatches.ts",
     "bots:parity": "ts-node --transpile-only src/bots/harness/parity.ts",
     "bots:embeddings": "node ../scripts/dev-bots.mjs --no-run",
+    "bots:associations": "node ../scripts/generate-associations.mjs",
     "dev:bots": "node ../scripts/dev-bots.mjs"
   },
   "dependencies": {

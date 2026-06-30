@@ -380,5 +380,16 @@
         "replayTitle": "Spielwiederholung",
         "loadingGame": "Spiel wird geladen...",
         "keyboardHint": "Tastenkürzel"
+    },
+    "gameLog": {
+        "title": "Spielverlauf",
+        "empty": "Noch keine Hinweise oder Tipps.",
+        "clue": "Hinweis {{team}}:",
+        "result": {
+            "correct": "{{team}} richtig geraten",
+            "wrong": "{{team}} hat eine gegnerische Karte geraten",
+            "neutral": "neutrale Karte",
+            "assassin": "Attentäter!"
+        }
     }
 }

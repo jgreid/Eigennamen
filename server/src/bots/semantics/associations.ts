@@ -1,16 +1,16 @@
 /**
- * Baked word-association table (the "LLM-offline → baked table" backend, §20).
+ * Baked word-association table (the "LLM-offline -> baked table" backend, section 20).
  *
  * Each entry maps a CLUE word to the board words (from the standard set) it is
- * semantically related to. Generated offline (no runtime LLM, no external
- * vectors), so play is deterministic and reproducible and there is no
- * embedding-asset license/size burden. The tableBackend falls back to lexical
- * similarity for any pair not covered here, so custom / out-of-vocabulary word
- * lists still degrade gracefully.
+ * semantically related to. Every target is verified to be a real entry in
+ * DEFAULT_WORDS (server/src/shared/gameRules.ts); clues whose targets are not on
+ * the board are useless, so this table is generated through that filter. The
+ * tableBackend falls back to lexical similarity for any pair not covered here, so
+ * custom / out-of-vocabulary word lists still degrade gracefully.
  *
- * To extend coverage (e.g. for a new word list), regenerate this table offline
- * and replace it — keyed by clue word, uppercased. Keys are the spymaster's
- * candidate clue vocabulary; targets should be real board words to be useful.
+ * Keyed by clue word, uppercased; keys are the spymaster's candidate clue
+ * vocabulary. DO NOT edit by hand: add concept -> board-word groups in
+ * scripts/generate-associations.mjs and re-run `npm run bots:associations`.
  */
 export const ASSOCIATIONS: Record<string, string[]> = {
     ANIMAL: [
@@ -32,14 +32,41 @@ export const ASSOCIATIONS: Record<string, string[]> = {
         'DUCK',
         'MOLE',
         'PLATYPUS',
+        'CALF',
+        'CHICK',
+        'FISH',
     ],
-    BIRD: ['EAGLE', 'HAWK', 'ROBIN', 'DUCK', 'CRANE', 'PENGUIN', 'KIWI', 'PHOENIX'],
+    MAMMAL: [
+        'BEAR',
+        'LION',
+        'HORSE',
+        'DOG',
+        'CAT',
+        'WHALE',
+        'MOUSE',
+        'PANDA',
+        'KANGAROO',
+        'RABBIT',
+        'BUFFALO',
+        'SEAL',
+        'MOLE',
+        'PLATYPUS',
+        'CALF',
+    ],
+    BIRD: ['EAGLE', 'HAWK', 'ROBIN', 'DUCK', 'CRANE', 'PENGUIN', 'KIWI', 'PHOENIX', 'CHICK'],
     INSECT: ['BUG', 'FLY', 'SPIDER', 'TICK', 'WEB', 'SCORPION', 'WORM', 'SLUG'],
     PET: ['DOG', 'CAT', 'RABBIT', 'MOUSE', 'FISH'],
+    FARM: ['HORSE', 'BUFFALO', 'CALF', 'CHICK', 'DUCK', 'FIELD', 'FENCE', 'GRASS', 'MOUSE', 'BARK'],
+    WILD: ['LION', 'BEAR', 'BUFFALO', 'FOREST', 'EAGLE', 'HAWK'],
     WATER: ['BEACH', 'WAVE', 'STREAM', 'POOL', 'ICE', 'SHIP', 'SUB', 'PORT', 'SINK', 'DROP', 'WELL'],
     OCEAN: ['WHALE', 'SHARK', 'SEAL', 'OCTOPUS', 'WAVE', 'SHIP', 'SCUBA DIVER', 'BEACH'],
+    SEA: ['WHALE', 'SHARK', 'SEAL', 'OCTOPUS', 'WAVE', 'SHIP', 'BEACH', 'PORT', 'SCUBA DIVER', 'SUB'],
+    RIVER: ['STREAM', 'BRIDGE', 'BANK', 'FISH', 'DROP'],
+    SWIM: ['WHALE', 'SHARK', 'SEAL', 'FISH', 'POOL', 'WAVE', 'SCUBA DIVER', 'DUCK'],
+    BOAT: ['SHIP', 'SUB', 'PORT', 'DECK', 'ROW'],
     SPACE: ['MOON', 'STAR', 'ALIEN', 'JUPITER', 'SATURN', 'MERCURY', 'SATELLITE', 'TELESCOPE'],
-    SKY: ['STAR', 'MOON', 'CLOUD', 'PLANE', 'JET', 'WIND'],
+    PLANET: ['JUPITER', 'SATURN', 'MERCURY', 'MOON', 'STAR'],
+    SKY: ['STAR', 'MOON', 'PLANE', 'JET', 'WIND'],
     BODY: [
         'ARM',
         'EYE',
@@ -54,17 +81,30 @@ export const ASSOCIATIONS: Record<string, string[]> = {
         'SHOULDER',
         'SPINE',
         'NAIL',
+        'BACK',
     ],
     MUSIC: ['BAND', 'NOTE', 'OPERA', 'PIANO', 'CONCERT', 'ORGAN', 'HORN', 'BUGLE', 'FLUTE', 'CONDUCTOR', 'STRING'],
+    INSTRUMENT: ['PIANO', 'ORGAN', 'HORN', 'BUGLE', 'FLUTE', 'STRING', 'DRILL'],
+    SOUND: ['NOTE', 'HORN', 'BELL', 'BOOM', 'BAND', 'OPERA'],
     WINTER: ['ICE', 'SNOW', 'SNOWMAN', 'ANTARCTICA', 'ALPS', 'HIMALAYAS', 'COLD', 'ICE CREAM'],
-    MOUNTAIN: ['ALPS', 'HIMALAYAS', 'CLIFF', 'MOUNT', 'VOLCANO', 'PEAK'],
+    COLD: ['ICE', 'SNOW', 'SNOWMAN', 'ANTARCTICA', 'COLD', 'WIND'],
+    SNOW: ['ICE', 'SNOW', 'SNOWMAN', 'ALPS', 'HIMALAYAS', 'COLD'],
+    MOUNTAIN: ['ALPS', 'HIMALAYAS', 'CLIFF', 'MOUNT', 'VOLCANO', 'OLYMPUS'],
     ROYAL: ['KING', 'QUEEN', 'PRINCESS', 'CROWN', 'KNIGHT', 'RULER'],
-    WAR: ['SOLDIER', 'FIGHTER', 'MISSILE', 'BOMB', 'PISTOL', 'FORCE', 'STRIKE', 'SHOT', 'TANK'],
+    CASTLE: ['KING', 'QUEEN', 'KNIGHT', 'CROWN', 'TOWER', 'WALL'],
+    WAR: ['SOLDIER', 'FIGHTER', 'MISSILE', 'BOMB', 'PISTOL', 'FORCE', 'STRIKE', 'SHOT'],
+    WEAPON: ['PISTOL', 'MISSILE', 'BOMB', 'SHOT', 'KNIFE', 'SPIKE', 'WHIP', 'BOW', 'FORCE', 'NET'],
+    ARMY: ['SOLDIER', 'FIGHTER', 'FORCE', 'WAR', 'STRIKE', 'MISSILE', 'BOMB'],
     SPY: ['AGENT', 'SPY', 'NINJA', 'SMUGGLER', 'CODE', 'COVER', 'EMBASSY', 'CONTRACT'],
+    SECRET: ['SPY', 'AGENT', 'CODE', 'COVER', 'CLOAK', 'SHADOW', 'EMBASSY', 'CONTRACT'],
     MONEY: ['BANK', 'BILL', 'GOLD', 'MINT', 'POUND', 'CASINO', 'MILLIONAIRE', 'CARD', 'STOCK', 'CHANGE'],
-    GAMBLE: ['CASINO', 'ROULETTE', 'DICE', 'CARD', 'DECK', 'CLUB', 'LUCK', 'CHIP'],
+    RICH: ['GOLD', 'BANK', 'MILLIONAIRE', 'DIAMOND', 'LIMOUSINE', 'CASINO', 'CROWN'],
+    GAMBLE: ['CASINO', 'ROULETTE', 'DICE', 'CARD', 'DECK', 'CLUB', 'LUCK'],
     SPORT: ['BALL', 'RACKET', 'CRICKET', 'COURT', 'PITCH', 'FIELD', 'BAT', 'STADIUM', 'MATCH'],
+    BALL: ['RACKET', 'COURT', 'FIELD', 'BAT', 'PITCH', 'NET'],
+    GAME: ['BALL', 'CARD', 'DICE', 'DECK', 'MATCH', 'PLAY', 'CLUB', 'BAT', 'NET', 'RACKET'],
     ANCIENT: ['PYRAMID', 'EGYPT', 'AZTEC', 'TEMPLE', 'ATLANTIS', 'DINOSAUR', 'MAMMOTH', 'IVORY'],
+    HISTORY: ['EGYPT', 'AZTEC', 'PYRAMID', 'TEMPLE', 'MAMMOTH', 'DINOSAUR', 'REVOLUTION', 'SHAKESPEARE'],
     CITY: ['BERLIN', 'ROME', 'LONDON', 'MOSCOW', 'TOKYO', 'BEIJING', 'NEW YORK', 'WASHINGTON', 'CAPITAL'],
     COUNTRY: [
         'AFRICA',
@@ -82,6 +122,7 @@ export const ASSOCIATIONS: Record<string, string[]> = {
         'EUROPE',
         'CZECH',
     ],
+    TRAVEL: ['PLANE', 'JET', 'SHIP', 'TRAIN', 'HOTEL', 'PORT', 'PASS'],
     FOOD: [
         'APPLE',
         'CARROT',
@@ -99,11 +140,19 @@ export const ASSOCIATIONS: Record<string, string[]> = {
         'BERRY',
     ],
     FRUIT: ['APPLE', 'LEMON', 'ORANGE', 'BERRY', 'KIWI', 'OLIVE'],
+    SWEET: ['CHOCOLATE', 'HONEY', 'JAM', 'PIE', 'ICE CREAM', 'BERRY', 'ORANGE', 'LEMON', 'APPLE'],
+    DRINK: ['WATER', 'BOTTLE', 'MUG', 'STRAW', 'BAR', 'ICE'],
     KITCHEN: ['PLATE', 'FORK', 'PAN', 'COOK', 'MUG', 'BOTTLE', 'KNIFE', 'STRAW'],
+    COOK: ['PAN', 'COOK', 'PLATE', 'FORK', 'KNIFE', 'HAM', 'PIE', 'HONEY'],
     MYTH: ['DRAGON', 'UNICORN', 'GHOST', 'GIANT', 'DWARF', 'ANGEL', 'WITCH', 'LEPRECHAUN', 'CENTAUR', 'PHOENIX'],
+    MAGIC: ['WITCH', 'SPELL', 'DRAGON', 'GHOST', 'UNICORN', 'PHOENIX', 'ANGEL'],
+    MONSTER: ['DRAGON', 'GIANT', 'WITCH', 'GHOST', 'DWARF', 'CENTAUR', 'MAMMOTH', 'DINOSAUR'],
     HERO: ['SUPERHERO', 'ROBOT', 'KNIGHT', 'GIANT', 'NINJA', 'AGENT'],
     SCHOOL: ['TEACHER', 'PUPIL', 'SCHOOL', 'BOARD', 'NOTE', 'PAPER', 'DEGREE'],
+    SCIENCE: ['LAB', 'MICROSCOPE', 'TELESCOPE', 'SCIENTIST', 'ENGINE', 'ROBOT', 'GAS', 'CELL'],
     TOOL: ['DRILL', 'HOOK', 'NAIL', 'NEEDLE', 'KNIFE', 'FORK', 'SCALE', 'WASHER', 'PIPE', 'BOLT'],
+    BUILD: ['TOWER', 'BRIDGE', 'WALL', 'SKYSCRAPER', 'BLOCK', 'COMPOUND', 'DRILL', 'BOLT'],
+    BUILDING: ['TOWER', 'SKYSCRAPER', 'CHURCH', 'HOTEL', 'HOSPITAL', 'SCHOOL', 'STADIUM', 'BANK', 'EMBASSY', 'TEMPLE'],
     LIGHT: ['TORCH', 'LASER', 'RAY', 'FIRE', 'LIGHT', 'STAR', 'MATCH'],
     METAL: ['IRON', 'GOLD', 'COPPER', 'LEAD', 'MARBLE'],
     JEWEL: ['DIAMOND', 'GOLD', 'RING', 'CROWN', 'IVORY'],
@@ -120,15 +169,48 @@ export const ASSOCIATIONS: Record<string, string[]> = {
         'ENGINE',
         'TUBE',
     ],
+    CAR: ['ENGINE', 'VAN', 'LIMOUSINE', 'AMBULANCE', 'TRUNK', 'TRACK', 'JACK'],
+    AIR: ['PLANE', 'JET', 'HELICOPTER', 'PARACHUTE', 'WIND', 'EAGLE', 'HAWK'],
     TIME: ['DAY', 'NIGHT', 'TIME', 'WATCH', 'SPRING', 'MARCH', 'DATE'],
     CRIME: ['THIEF', 'SMUGGLER', 'PIRATE', 'POLICE', 'AGENT', 'SPY', 'LAWYER', 'COURT'],
+    LAW: ['LAWYER', 'COURT', 'POLICE', 'CONTRACT'],
     NATURE: ['FOREST', 'GRASS', 'ROSE', 'MAPLE', 'ROOT', 'PALM', 'GREEN', 'GROUND', 'LOG', 'STICK'],
+    TREE: ['MAPLE', 'PALM', 'ROOT', 'LOG', 'FOREST', 'TRUNK', 'BARK', 'STICK'],
+    PLANT: ['ROSE', 'GRASS', 'MAPLE', 'PALM', 'ROOT', 'FOREST', 'OLIVE'],
     HOSPITAL: ['DOCTOR', 'NURSE', 'AMBULANCE', 'HOSPITAL', 'DISEASE', 'VET', 'LAB', 'NEEDLE'],
-    FIRE: ['FLAME', 'TORCH', 'BURN', 'MATCH', 'VOLCANO', 'BOMB', 'HOT'],
+    MEDICINE: ['DOCTOR', 'NURSE', 'DISEASE', 'HOSPITAL', 'NEEDLE', 'VET', 'LAB'],
+    FIRE: ['TORCH', 'MATCH', 'VOLCANO', 'BOMB', 'LIGHT', 'RAY'],
     GHOSTLY: ['GHOST', 'SHADOW', 'SOUL', 'DEATH', 'WITCH', 'NIGHT'],
+    DARK: ['SHADOW', 'NIGHT', 'GHOST', 'SOUL', 'DEATH', 'CLOAK'],
     THEATRE: ['OPERA', 'PLAY', 'FILM', 'HOLLYWOOD', 'STAR', 'CAST', 'MODEL'],
-    JUNGLE: ['GREEN', 'GRASS', 'FOREST', 'PALM', 'ROOT'],
+    MOVIE: ['FILM', 'HOLLYWOOD', 'STAR', 'CAST', 'SCREEN', 'PLOT', 'COMIC'],
+    ART: ['OPERA', 'PLAY', 'FILM', 'MODEL', 'FIGURE', 'COMIC', 'NOVEL'],
+    BOOK: ['NOVEL', 'NOTE', 'PRESS', 'COMIC', 'PLOT', 'FILE', 'SHAKESPEARE', 'PAPER'],
     PAPER: ['NOTE', 'PAPER', 'CARD', 'MAIL', 'POST', 'NOVEL', 'PRESS', 'FILE'],
-    KEY: ['KEY', 'LOCK', 'CODE', 'PASS', 'CHEST', 'SAFE'],
+    KEY: ['KEY', 'LOCK', 'CODE', 'PASS', 'CHEST'],
+    LOCK: ['KEY', 'LOCK', 'CHEST', 'BOLT', 'PASS'],
     POWER: ['BATTERY', 'CHARGE', 'CELL', 'ENGINE', 'FORCE', 'BOLT'],
+    CLOTHES: [
+        'BOOT',
+        'BELT',
+        'CAP',
+        'DRESS',
+        'GLOVE',
+        'SHOE',
+        'SOCK',
+        'SUIT',
+        'CLOAK',
+        'HOOD',
+        'TIE',
+        'SILK',
+        'COTTON',
+    ],
+    SHAPE: ['CIRCLE', 'SQUARE', 'TRIANGLE', 'POINT', 'LINE', 'ROUND', 'DIAMOND', 'CROSS'],
+    ROUND: ['CIRCLE', 'BALL', 'RING', 'PLATE', 'MOON'],
+    WIND: ['WIND', 'AIR', 'PLANE', 'JET', 'FAN'],
+    DIG: ['HOLE', 'MOLE', 'MINE', 'GROUND', 'PIT', 'DRILL'],
+    HOLE: ['HOLE', 'PIT', 'MINE', 'WELL', 'MOLE'],
+    DOG: ['BARK', 'TAIL'],
+    POKER: ['CARD', 'DECK', 'CLUB', 'JACK', 'QUEEN', 'KING', 'CASINO', 'DICE'],
+    GHOST: ['GHOST', 'SHADOW', 'SOUL', 'WITCH'],
 };
