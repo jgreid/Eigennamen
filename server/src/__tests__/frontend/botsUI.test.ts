@@ -4,7 +4,10 @@
 const mockShowToast = jest.fn();
 jest.mock('../../frontend/ui', () => ({ showToast: mockShowToast }));
 jest.mock('../../frontend/i18n', () => ({ t: jest.fn((k: string) => k) }));
-jest.mock('../../frontend/clientAccessor', () => ({ isClientConnected: jest.fn(() => true) }));
+jest.mock('../../frontend/clientAccessor', () => ({
+    isClientConnected: jest.fn(() => true),
+    getClient: jest.fn(() => (global as any).EigennamenClient ?? null),
+}));
 
 (global as any).EigennamenClient = {
     player: { isHost: true },
@@ -81,5 +84,19 @@ describe('updateBotPanelVisibility', () => {
         (EigennamenClient as any).player = { isHost: false };
         updateBotPanelVisibility();
         expect((document.getElementById('bots-panel') as HTMLElement).hidden).toBe(true);
+    });
+
+    it('hides the panel without throwing when the client never loaded (startup)', () => {
+        // Regression: socket-client.js can fail to execute (e.g. SRI mismatch from
+        // a stale service-worker cache), leaving the EigennamenClient global absent.
+        // initBotsUI() must not throw a ReferenceError that aborts app init().
+        const saved = (global as any).EigennamenClient;
+        delete (global as any).EigennamenClient;
+        try {
+            expect(() => updateBotPanelVisibility()).not.toThrow();
+            expect((document.getElementById('bots-panel') as HTMLElement).hidden).toBe(true);
+        } finally {
+            (global as any).EigennamenClient = saved;
+        }
     });
 });

@@ -6,7 +6,7 @@
  */
 import { t } from './i18n.js';
 import { showToast } from './ui.js';
-import { isClientConnected } from './clientAccessor.js';
+import { isClientConnected, getClient } from './clientAccessor.js';
 
 /** Map a seat + UI style to a concrete strategyId. */
 export function strategyFor(seat: string, style: string): string {
@@ -48,7 +48,12 @@ export function removeBot(sessionId: string): void {
 /** Show the bot panel only to the room host. */
 export function updateBotPanelVisibility(): void {
     const panel = document.getElementById('bots-panel');
-    if (panel) panel.hidden = EigennamenClient.player?.isHost !== true;
+    // Use the safe accessor rather than the bare EigennamenClient global: this
+    // runs at startup via initBotsUI(), before any connection, and the global is
+    // absent entirely if socket-client.js failed to load (e.g. SRI mismatch from
+    // a stale service-worker cache). A bare reference would throw a ReferenceError
+    // that aborts init() and breaks even offline mode.
+    if (panel) panel.hidden = getClient()?.player?.isHost !== true;
 }
 
 export function initBotsUI(): void {
