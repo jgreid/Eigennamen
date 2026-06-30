@@ -6,6 +6,7 @@ import { makeEmbeddingSpymaster } from '../../bots/strategies/spymasters';
 import { resolveClicker } from '../../bots/strategies/registry';
 import { resolveSkill } from '../../bots/presets';
 import { makeRng } from '../../bots/rng';
+import type { SemanticBackend } from '../../bots/semantics/backend';
 import type { BotSpymasterView, BotClickerView, BotContext } from '../../bots/strategies/types';
 
 function ctx(seed = 1, preset = 'expert'): BotContext {
@@ -73,6 +74,42 @@ describe('embeddingSpymaster', () => {
         if (action.kind === 'clue') {
             expect(tableBackend.relatedness(action.word, 'DUCK')).toBeLessThan(0.5);
         }
+    });
+});
+
+describe('embeddingSpymaster best-effort fallback is assassin-safe', () => {
+    // A stub backend with a fixed vocabulary and hand-set relatedness lets us force
+    // the best-effort path (no clue clears the safety margin) and verify the
+    // fallback never knowingly hands the clicker the assassin (instant loss).
+    function stub(rel: Record<string, Record<string, number>>): SemanticBackend {
+        return {
+            id: 'stub',
+            relatedness: (a: string, b: string) => rel[a]?.[b.toUpperCase()] ?? rel[b]?.[a.toUpperCase()] ?? 0,
+            vocabulary: () => Object.keys(rel),
+        };
+    }
+    const view = spymasterView(['OWN', 'OPP', 'NEU', 'ASS'], ['red', 'blue', 'neutral', 'assassin']);
+
+    it('prefers an assassin-safe clue over an assassin-linked one', () => {
+        // Neither clue clears the margin (so evaluateClue returns null for both),
+        // forcing best-effort. DANGER makes the assassin the clicker's top card.
+        const backend = stub({
+            SAFE: { OWN: 0.4, OPP: 0.4, NEU: 0.1, ASS: 0.1 },
+            DANGER: { OWN: 0.4, OPP: 0.1, NEU: 0.1, ASS: 0.9 },
+        });
+        const action = makeEmbeddingSpymaster(resolveSkill('expert', 1), backend).chooseClue(view, ctx(1));
+        expect(action).toMatchObject({ kind: 'clue', word: 'SAFE' });
+    });
+
+    it('when every clue is assassin-linked, deterministically picks the least dangerous', () => {
+        // Regression for the old random placeholder, which could pick WORST and
+        // reveal the assassin on guess 1.
+        const backend = stub({
+            MILD: { OWN: 0.5, OPP: 0.1, NEU: 0.1, ASS: 0.55 },
+            WORST: { OWN: 0.1, OPP: 0.1, NEU: 0.1, ASS: 0.95 },
+        });
+        const action = makeEmbeddingSpymaster(resolveSkill('expert', 1), backend).chooseClue(view, ctx(1));
+        expect(action).toMatchObject({ kind: 'clue', word: 'MILD' });
     });
 });
 
