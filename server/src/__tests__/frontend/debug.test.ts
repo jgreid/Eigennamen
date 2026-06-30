@@ -188,6 +188,17 @@ describe('setState', () => {
         expect(errorSpy).toHaveBeenCalled();
         errorSpy.mockRestore();
     });
+
+    test('refuses prototype-polluting property paths', () => {
+        const mockState = createMockState();
+        const errorSpy = jest.spyOn(console, 'error').mockImplementation();
+        setState(mockState, '__proto__.polluted', 'x', 'test');
+        setState(mockState, 'constructor.prototype.polluted', 'x', 'test');
+        // Object.prototype must remain unpolluted.
+        expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+        expect(errorSpy).toHaveBeenCalled();
+        errorSpy.mockRestore();
+    });
 });
 
 // ========== HISTORY & SNAPSHOT ==========

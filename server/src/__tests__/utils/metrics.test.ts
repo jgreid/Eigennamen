@@ -11,7 +11,20 @@ const {
     getAllMetrics,
     resetMetrics,
     METRIC_NAMES,
+    escapePrometheusLabelValue,
 } = require('../../utils/metrics');
+
+describe('escapePrometheusLabelValue', () => {
+    it('escapes double-quote, newline, and backslash (backslash first)', () => {
+        expect(escapePrometheusLabelValue('a"b')).toBe('a\\"b');
+        expect(escapePrometheusLabelValue('a\nb')).toBe('a\\nb');
+        expect(escapePrometheusLabelValue('a\\b')).toBe('a\\\\b');
+        // A trailing backslash must be escaped so it can't escape the closing quote.
+        expect(escapePrometheusLabelValue('x\\')).toBe('x\\\\');
+        // Backslash escaped before quote: '\"' -> '\\\"', never '\\"'.
+        expect(escapePrometheusLabelValue('\\"')).toBe('\\\\\\"');
+    });
+});
 
 // Mock correlationId
 jest.mock('../../utils/correlationId', () => ({

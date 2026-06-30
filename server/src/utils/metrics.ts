@@ -425,12 +425,22 @@ function getPrometheusMetrics(): string {
 }
 
 /**
+ * Escape a Prometheus label value per the exposition format: backslash,
+ * double-quote and newline must be escaped. Backslash MUST be replaced first so
+ * the escapes added for `"` and `\n` are not themselves double-escaped.
+ * Exported for tests.
+ */
+export function escapePrometheusLabelValue(value: string): string {
+    return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
+}
+
+/**
  * Format labels for Prometheus
  */
 function formatPrometheusLabels(labels: MetricLabels): string {
     if (!labels || Object.keys(labels).length === 0) return '';
     const pairs = Object.entries(labels)
-        .map(([k, v]) => `${k}="${String(v).replace(/"/g, '\\"')}"`)
+        .map(([k, v]) => `${k}="${escapePrometheusLabelValue(String(v))}"`)
         .join(',');
     return `{${pairs}}`;
 }
