@@ -76,29 +76,30 @@ async function basicAuth(req: AdminRequest, res: Response, next: NextFunction): 
         });
     }
 
-    // Decode and verify credentials
+    // Decode and verify credentials. The hash comparison runs UNCONDITIONALLY on
+    // whatever was supplied (empty string if none) — access is granted only when
+    // the constant-time check passes, never gated on a user-controlled value. This
+    // keeps the work (and timing) uniform and avoids a user-controlled bypass.
     try {
-        const base64Credentials = authHeader.split(' ')[1];
-        if (base64Credentials) {
-            const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
-            // Split on first colon only — RFC 7617 allows colons in passwords
-            const colonIndex = credentials.indexOf(':');
-            const username = colonIndex >= 0 ? credentials.substring(0, colonIndex) : credentials;
-            const password = colonIndex >= 0 ? credentials.substring(colonIndex + 1) : '';
+        const base64Credentials = authHeader.split(' ')[1] ?? '';
+        const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
+        // Split on first colon only — RFC 7617 allows colons in passwords
+        const colonIndex = credentials.indexOf(':');
+        const username = colonIndex >= 0 ? credentials.substring(0, colonIndex) : credentials;
+        const password = colonIndex >= 0 ? credentials.substring(colonIndex + 1) : '';
 
-            // Use async scrypt KDF to avoid blocking the event loop
-            const [passwordHash, adminHash] = await Promise.all([
-                scryptAsync(password, getAdminScryptSalt(), 32),
-                getAdminHashAsync(adminPassword),
-            ]);
-            if (crypto.timingSafeEqual(passwordHash, adminHash)) {
-                req.adminUsername = username || 'admin';
-                // Audit successful login
-                Promise.resolve(audit.adminLogin(req.ip ?? '', true)).catch((err: Error) =>
-                    logger.warn('Audit log failed', { error: err.message })
-                );
-                return next();
-            }
+        // Use async scrypt KDF to avoid blocking the event loop
+        const [passwordHash, adminHash] = await Promise.all([
+            scryptAsync(password, getAdminScryptSalt(), 32),
+            getAdminHashAsync(adminPassword),
+        ]);
+        if (crypto.timingSafeEqual(passwordHash, adminHash)) {
+            req.adminUsername = username || 'admin';
+            // Audit successful login
+            Promise.resolve(audit.adminLogin(req.ip ?? '', true)).catch((err: Error) =>
+                logger.warn('Audit log failed', { error: err.message })
+            );
+            return next();
         }
     } catch (error) {
         logger.warn('Failed to decode admin credentials', {

@@ -164,21 +164,36 @@ const winstonLogger: WinstonLogger = winston.createLogger({
     transports,
 });
 
+/**
+ * Strip CR/LF and other control characters from a log message so untrusted text
+ * (room codes, nicknames, error strings, …) can't forge extra log lines or inject
+ * terminal escapes — CWE-117 log injection. Structured metadata is JSON-encoded
+ * by the transports, so only the free-text message needs this. Exported for tests.
+ */
+export function sanitizeLogMessage(message: string): string {
+    // Coerce to string, then strip CR/LF (the line-forging vector) and any other
+    // ASCII control chars / DEL. Every return path runs the newline-stripping
+    // replace, so this reads as a log-injection barrier to static analysis too.
+    return String(message)
+        .replace(/[\r\n]/g, ' ')
+        .replace(/[\u0000-\u001f\u007f]/g, ' ');
+}
+
 const logger: Logger = {
     error(message: string, metaOrError: LogMeta | Error | unknown = {}): void {
-        winstonLogger.error(message, this._buildMeta(metaOrError));
+        winstonLogger.error(sanitizeLogMessage(message), this._buildMeta(metaOrError));
     },
     warn(message: string, meta: LogMeta | Error | unknown = {}): void {
-        winstonLogger.warn(message, this._buildMeta(meta));
+        winstonLogger.warn(sanitizeLogMessage(message), this._buildMeta(meta));
     },
     info(message: string, meta: LogMeta | Error | unknown = {}): void {
-        winstonLogger.info(message, this._buildMeta(meta));
+        winstonLogger.info(sanitizeLogMessage(message), this._buildMeta(meta));
     },
     http(message: string, meta: LogMeta | Error | unknown = {}): void {
-        winstonLogger.http(message, this._buildMeta(meta));
+        winstonLogger.http(sanitizeLogMessage(message), this._buildMeta(meta));
     },
     debug(message: string, meta: LogMeta | Error | unknown = {}): void {
-        winstonLogger.debug(message, this._buildMeta(meta));
+        winstonLogger.debug(sanitizeLogMessage(message), this._buildMeta(meta));
     },
 
     _buildMeta(metaOrError: LogMeta | Error | unknown): LogMeta {
@@ -274,3 +289,5 @@ export type { ContextFields, LogMeta, ErrorMeta, ChildLogger, Logger };
 // CommonJS compat — lets `const logger = require('./logger')` work in tests
 module.exports = logger;
 module.exports.default = logger;
+// Re-attach named exports dropped by the module.exports overwrite above.
+module.exports.sanitizeLogMessage = sanitizeLogMessage;

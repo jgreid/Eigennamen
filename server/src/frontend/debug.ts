@@ -126,8 +126,16 @@ export function createStateProxy<T extends object>(target: T, path: string = 'st
     });
 }
 
+// Keys that must never be written through a dynamic property path, or they
+// could pollute Object.prototype (CWE-1321 prototype pollution).
+const UNSAFE_STATE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
 export function setState(state: AppState, property: string, value: unknown, source: string = 'unknown'): void {
     const parts = property.split('.');
+    if (parts.some((p) => UNSAFE_STATE_KEYS.has(p))) {
+        console.error(`[State] Refusing unsafe property path: ${property}`);
+        return;
+    }
     let target: Record<string, unknown> = state as unknown as Record<string, unknown>;
 
     for (let i = 0; i < parts.length - 1; i++) {

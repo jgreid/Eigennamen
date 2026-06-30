@@ -148,6 +148,19 @@ if (isProduction() && corsOrigins === true) {
     process.exit(1);
 }
 
+/**
+ * Strict CORS origin check. Because credentials (cookies/JWT) are enabled, we must
+ * never echo back an arbitrary Origin. When CORS_ORIGIN is configured (always the
+ * case in production — a wildcard exits above), only those exact origins are
+ * allowed; requests with no Origin header (same-origin, curl, server-to-server)
+ * pass through. The reflect-any path is reachable only in non-production dev.
+ */
+function corsOriginCheck(origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void): void {
+    if (!origin) return callback(null, true);
+    if (corsOrigins === true) return callback(null, true); // dev only (prod blocked above)
+    return callback(null, corsOrigins.includes(origin));
+}
+
 // Security middleware with enhanced CSP
 app.use(
     helmet({
@@ -197,7 +210,7 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
 
 app.use(
     cors({
-        origin: corsOrigins,
+        origin: corsOriginCheck,
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Requested-With'],

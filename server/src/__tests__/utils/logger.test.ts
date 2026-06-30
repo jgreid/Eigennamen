@@ -272,4 +272,19 @@ describe('Logger Configuration', () => {
             expect(meta.team).toBe('red');
         });
     });
+
+    describe('sanitizeLogMessage', () => {
+        it('replaces CR/LF and other control characters with spaces (anti log-forging)', () => {
+            const { sanitizeLogMessage } = require('../../utils/logger');
+            expect(sanitizeLogMessage('line1\nINJECTED')).toBe('line1 INJECTED');
+            expect(sanitizeLogMessage('a\r\nb')).toBe('a  b');
+            expect(sanitizeLogMessage('bell\u0007here')).toBe('bell here');
+            expect(sanitizeLogMessage('clean text 123')).toBe('clean text 123');
+        });
+
+        it('coerces non-strings to a string', () => {
+            const { sanitizeLogMessage } = require('../../utils/logger');
+            expect(sanitizeLogMessage(42)).toBe('42');
+        });
+    });
 });
