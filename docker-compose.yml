@@ -54,6 +54,13 @@ services:
   # Redis Cache
   redis:
     image: redis:7-alpine
+    # Run as the non-root redis user directly. The image normally starts as root
+    # and drops to this user via gosu, but cap_drop: ALL below removes the
+    # SETUID/SETGID capabilities gosu needs — which fails with
+    # "failed switching to redis: operation not permitted". Starting as the
+    # redis user skips that switch entirely (same approach as the API container,
+    # which sets USER in its Dockerfile), so the hardening below stays intact.
+    user: redis
     deploy:
       resources:
         limits:
