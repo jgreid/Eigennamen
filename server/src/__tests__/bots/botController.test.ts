@@ -21,6 +21,7 @@ const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
 const botService = require('../../services/botService');
 const gameActions = require('../../socket/handlers/gameActions');
+const logger = require('../../utils/logger');
 const { initBotController, stopBotController, tickRoom } = require('../../bots/botController');
 
 const mockIo = {};
@@ -108,5 +109,57 @@ describe('botController.tickRoom', () => {
         gameService.getGame.mockResolvedValue(gameNoClue);
         await tickRoom('ROOM01');
         expect(gameService.getGame).not.toHaveBeenCalled();
+    });
+});
+
+describe('botController.tickRoom self-healing (re-arm)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        jest.useFakeTimers();
+        stopBotController();
+        initBotController(mockIo);
+        playerService.updatePlayer.mockResolvedValue({});
+        botService.getBotConfig.mockResolvedValue({
+            strategyId: 'randomSpymaster',
+            skillPreset: 'intermediate',
+            seed: 1,
+        });
+        playerService.getTeamMembers.mockResolvedValue([spymasterBot]);
+    });
+    afterEach(() => {
+        stopBotController();
+        jest.useRealTimers();
+    });
+
+    it('re-arms and retries when a bot action fails, recovering the cascade', async () => {
+        // A failed clue must not strand the room: the only re-trigger is a game
+        // mutation, and a human waiting on this clue cannot produce one.
+        gameService.getGame
+            .mockResolvedValueOnce(gameNoClue) // attempt 1: spymaster's turn (clue rejected)
+            .mockResolvedValueOnce(gameNoClue) // retry: spymaster's turn (clue succeeds)
+            .mockResolvedValue(gameWithClue); // then clicker's turn, no bot clicker -> clean stop
+        gameActions.applyClue.mockRejectedValueOnce(new Error('reveal lock timeout')).mockResolvedValue({});
+
+        await tickRoom('ROOM01');
+        expect(gameActions.applyClue).toHaveBeenCalledTimes(1); // first attempt failed, tick ended
+
+        // The backoff timer fires and the retry succeeds.
+        await jest.advanceTimersByTimeAsync(300);
+        expect(gameActions.applyClue).toHaveBeenCalledTimes(2);
+    });
+
+    it('stops re-arming after the failure cap instead of spinning forever', async () => {
+        gameService.getGame.mockResolvedValue(gameNoClue); // always the bot spymaster's turn
+        gameActions.applyClue.mockRejectedValue(new Error('persistent failure'));
+
+        await tickRoom('ROOM01');
+        // Drive every backed-off retry (delays escalate, capped at 2s each).
+        for (let i = 0; i < 8; i++) {
+            await jest.advanceTimersByTimeAsync(2200);
+        }
+
+        // 1 initial attempt + a bounded number of retries, then it gives up loudly.
+        expect(gameActions.applyClue).toHaveBeenCalledTimes(7);
+        expect(logger.error).toHaveBeenCalled();
     });
 });

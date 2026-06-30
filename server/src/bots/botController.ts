@@ -32,10 +32,56 @@ import { applyClue, applyReveal, applyEndTurn } from '../socket/handlers/gameAct
 
 /** Safety bound on consecutive bot actions in a single tick. */
 const MAX_ACTIONS_PER_TICK = 200;
+/**
+ * Re-arm bounds. Bot ticks are driven only by game mutations, so if a single
+ * bot action fails (a reveal-lock acquisition giving up after its retries, a
+ * GAME_ACTION timeout under contention, or a transiently-rejected move) the
+ * cascade would otherwise stall forever: no further mutation arrives to retry
+ * it, and a human waiting on that bot's clue is stuck. So a failed tick re-arms
+ * itself after a short backoff. The streak is bounded so a *deterministically*
+ * failing action can't spin — after the cap we give up loudly rather than stall
+ * silently or loop. Any success (here or via a human-triggered tick) resets it.
+ */
+const MAX_REARM_ATTEMPTS = 6;
+const REARM_BASE_DELAY_MS = 200;
+const REARM_MAX_DELAY_MS = 2000;
 
 let ioRef: Server | null = null;
 let unsubscribe: (() => void) | null = null;
 const inFlight = new Set<string>();
+/** Per-room consecutive-failure count, used to back off and bound re-arming. */
+const failureStreak = new Map<string, number>();
+/** Per-room pending re-arm timer (at most one in flight). */
+const reArmTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+/** Schedule a bounded, backed-off retry of a room that failed mid-cascade. */
+function scheduleReArm(roomCode: string): void {
+    const streak = (failureStreak.get(roomCode) ?? 0) + 1;
+    failureStreak.set(roomCode, streak);
+    if (streak > MAX_REARM_ATTEMPTS) {
+        logger.error(`botController giving up on ${roomCode} after ${MAX_REARM_ATTEMPTS} consecutive action failures`);
+        return;
+    }
+    if (reArmTimers.has(roomCode)) return; // one pending re-arm at a time
+    const delay = Math.min(REARM_MAX_DELAY_MS, REARM_BASE_DELAY_MS * 2 ** (streak - 1));
+    const timer = setTimeout(() => {
+        reArmTimers.delete(roomCode);
+        void tickRoom(roomCode);
+    }, delay);
+    // A pending bot retry must never keep the process alive on its own.
+    if (typeof timer.unref === 'function') timer.unref();
+    reArmTimers.set(roomCode, timer);
+}
+
+/** Clear any backoff state for a room (called on success / clean stop). */
+function clearReArm(roomCode: string): void {
+    failureStreak.delete(roomCode);
+    const timer = reArmTimers.get(roomCode);
+    if (timer) {
+        clearTimeout(timer);
+        reArmTimers.delete(roomCode);
+    }
+}
 
 /** Register the controller. Idempotent — safe to call once at socket init. */
 export function initBotController(io: Server): void {
@@ -57,6 +103,9 @@ export function stopBotController(): void {
         unsubscribe = null;
     }
     inFlight.clear();
+    for (const timer of reArmTimers.values()) clearTimeout(timer);
+    reArmTimers.clear();
+    failureStreak.clear();
     ioRef = null;
 }
 
@@ -71,6 +120,10 @@ export async function tickRoom(roomCode: string): Promise<void> {
     if (inFlight.has(roomCode)) return;
     inFlight.add(roomCode);
 
+    // Whether the tick ended because an action failed (vs. a clean stop: game
+    // over/paused, a human's seat, or no move to make). A failure re-arms a
+    // retry; a clean stop clears the backoff.
+    let actionFailed = false;
     try {
         // Sequential by design: each bot action mutates shared game state under
         // the reveal lock and must complete before the next is computed.
@@ -105,20 +158,41 @@ export async function tickRoom(roomCode: string): Promise<void> {
             });
 
             const actor = { sessionId: seat.sessionId, nickname: seat.nickname, team, role: seat.role };
-            if (action.kind === 'clue') {
-                await applyClue(io, roomCode, actor, action.word, action.number);
-            } else if (action.kind === 'reveal') {
-                await applyReveal(io, roomCode, actor, action.index);
-            } else if (action.kind === 'endTurn') {
-                await applyEndTurn(io, roomCode, actor);
+            try {
+                if (action.kind === 'clue') {
+                    await applyClue(io, roomCode, actor, action.word, action.number);
+                } else if (action.kind === 'reveal') {
+                    await applyReveal(io, roomCode, actor, action.index);
+                } else if (action.kind === 'endTurn') {
+                    await applyEndTurn(io, roomCode, actor);
+                }
+            } catch (err) {
+                // A single action failed: a lost turn race / already-revealed card
+                // (benign — a re-read fixes it), or a reveal-lock timeout / contention
+                // (transient). Either way DON'T silently abandon the cascade forever —
+                // end this tick and re-arm a retry below. Re-arming is bounded so a
+                // deterministically-rejected move can't spin.
+                logger.warn(`botController action (${action.kind}) for ${roomCode} failed: ${(err as Error).message}`);
+                actionFailed = true;
+                break;
             }
+            // An action succeeded: the cascade is making progress, so reset backoff.
+            clearReArm(roomCode);
         }
         /* eslint-enable no-await-in-loop */
     } catch (err) {
-        // A rejected move (lost the turn race, already revealed, etc.) just ends
-        // the tick; the next mutation re-triggers if a bot still needs to act.
+        // An unexpected failure outside an individual action (e.g. a getGame /
+        // getTeamMembers read). Treat as a transient failure and re-arm.
         logger.warn(`botController tick for ${roomCode} stopped: ${(err as Error).message}`);
+        actionFailed = true;
     } finally {
         inFlight.delete(roomCode);
+    }
+
+    if (actionFailed) {
+        scheduleReArm(roomCode);
+    } else {
+        // Clean stop: nothing more for a bot to do right now. Drop any backoff.
+        clearReArm(roomCode);
     }
 }
