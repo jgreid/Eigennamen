@@ -6,7 +6,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import path from 'path';
-import { existsSync, statSync, readFileSync } from 'fs';
+import { existsSync, statSync, readFileSync, realpathSync, watch } from 'fs';
 
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { apiLimiter, strictLimiter } from './middleware/rateLimit';
@@ -45,17 +45,33 @@ const INDEX_HTML = resolveIndexHtml();
 /**
  * Entry document, read once at startup and served from memory. Keeping the route
  * handlers free of per-request filesystem access avoids a DoS vector (and the
- * corresponding CodeQL "missing rate limiting" finding). index.html is static at
- * runtime in production; in dev, restart the server after a frontend rebuild that
- * rewrites index.html (e.g. an SRI-hash change) so the cached copy is refreshed.
+ * corresponding CodeQL "missing rate limiting" finding). In production index.html
+ * is static at runtime; in development the watcher below refreshes the cache when a
+ * rebuild rewrites it (e.g. an SRI-hash change), so the page never goes stale.
  */
 let INDEX_HTML_CONTENT = '';
-try {
-    INDEX_HTML_CONTENT = readFileSync(INDEX_HTML, 'utf8');
-} catch (err) {
-    logger.error(`Failed to read index.html at ${INDEX_HTML}`, {
-        error: err instanceof Error ? err.message : String(err),
-    });
+function loadIndexHtml(): void {
+    try {
+        INDEX_HTML_CONTENT = readFileSync(INDEX_HTML, 'utf8');
+    } catch (err) {
+        logger.error(`Failed to read index.html at ${INDEX_HTML}`, {
+            error: err instanceof Error ? err.message : String(err),
+        });
+    }
+}
+loadIndexHtml();
+
+// Dev-only hot-reload: refresh the cached document when index.html changes on disk.
+// Skipped in production (static at runtime) and under tests (NODE_ENV=test) so the
+// suite never leaks file-watch handles. persistent:false keeps it from holding the
+// event loop open on its own.
+if (!isProduction() && process.env.NODE_ENV !== 'test') {
+    try {
+        // Watch the real file — in dev the served path is a symlink to the repo-root copy.
+        watch(realpathSync(INDEX_HTML), { persistent: false }, () => loadIndexHtml());
+    } catch {
+        // File watching unsupported here — keep the startup snapshot.
+    }
 }
 
 /**
