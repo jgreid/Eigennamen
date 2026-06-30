@@ -25,22 +25,29 @@ no env var keep getting the deterministic table backend.
 
 ## Quick local playtest (one command)
 
-For laptop / offline bot playtesting, `scripts/dev-bots.sh` does the whole setup in
-one step: it downloads a model **once** (idempotent — reused on later runs, so it
-works offline after the first download), exports `BOT_EMBEDDINGS_PATH`, and starts
-`npm run dev`.
+For laptop / offline bot playtesting, `scripts/dev-bots.mjs` (run via the npm
+scripts below) does the whole setup in one step: it downloads a model **once**
+(idempotent — reused on later runs, so it works offline after the first download),
+sets `BOT_EMBEDDINGS_PATH`, and starts `npm run dev`. It is **cross-platform pure
+Node** (Windows / macOS / Linux) — no bash, curl, or unzip required (it uses Node's
+HTTPS download and the built-in `tar`/`unzip` that ship with modern OSes).
 
 ```bash
-npm run dev:bots                          # from server/ — fetch-if-missing, then run
-BOT_MODEL=numberbatch npm run dev:bots    # stronger word-association model
-npm run bots:embeddings                   # only prepare the model, don't start the server
+# from server/
+npm run dev:bots                       # GloVe (default): fetch-if-missing, then run
+npm run dev:bots -- --model=fasttext   # richer vocabulary (bigger download)
+npm run dev:bots -- --trim=50000       # smaller on-disk vectors file
+npm run bots:embeddings                # only prepare the model, don't start the server
 ```
 
-Knobs: `BOT_MODEL` (`glove` default | `fasttext` | `numberbatch`) and `BOT_TRIM`
-(keep the first N vectors to save disk; default `100000`). The first download is
-large (GloVe ~830 MB zip); after that the git-ignored `server/src/bots/data/` file
-is reused with no network access. Run `npm run setup` first if you haven't installed
-deps / created `.env`.
+Knobs (flags win over env): `--model` / `BOT_MODEL` (`glove` default | `fasttext`)
+and `--trim` / `BOT_TRIM` (keep the first N vectors to save disk; default `100000`).
+Only frequency-ordered models are offered here, because the loader keeps the first
+N vectors — for GloVe/fastText that means the most common N words. For ConceptNet
+Numberbatch (alphabetical), use `scripts/fetch-bot-embeddings.sh` instead. The first
+download is large (GloVe ~830 MB zip); after that the git-ignored
+`server/src/bots/data/` file is reused with no network access. Run `npm install`
+(or `npm run setup`) first if you haven't installed deps / created `.env`.
 
 ## Enabling embeddings
 
