@@ -59,10 +59,17 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
+      - id: cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
         with:
           path: server/node_modules
           key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
+
+      # Fallback: if the install job's cache wasn't restorable (eviction, key
+      # change race), install here so this job never runs against absent deps.
+      - name: Install dependencies (cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: npm ci
 
       - name: Run ESLint
         run: npm run lint
@@ -85,10 +92,17 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
+      - id: cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
         with:
           path: server/node_modules
           key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
+
+      # Fallback: if the install job's cache wasn't restorable (eviction, key
+      # change race), install here so this job never runs against absent deps.
+      - name: Install dependencies (cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: npm ci
 
       - name: Run TypeScript type checking
         run: npm run typecheck
@@ -111,10 +125,17 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
+      - id: cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
         with:
           path: server/node_modules
           key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
+
+      # Fallback: if the install job's cache wasn't restorable (eviction, key
+      # change race), install here so this job never runs against absent deps.
+      - name: Install dependencies (cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: npm ci
 
       - name: Build production artifacts
         run: npm run build
@@ -163,14 +184,6 @@ jobs:
             echo "::warning::Total gzipped JS (${TOTAL_GZIP_KB}KB) exceeds ${MAX_GZIP_KB}KB threshold"
           fi
 
-      # Cache the build output for E2E and other jobs
-      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
-        with:
-          path: |
-            server/dist
-            server/public/js/modules
-          key: build-${{ github.sha }}
-
   # ── Unit & integration tests ───────────────────────────────────────────
   test:
     name: Test (Node ${{ matrix.node-version }})
@@ -192,14 +205,17 @@ jobs:
 
       # For the primary version, restore the cached node_modules.
       # For other versions, run npm ci since native modules may differ.
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
+      - id: cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
         if: matrix.node-version == env.NODE_VERSION
         with:
           path: server/node_modules
           key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
 
+      # Install for the non-primary version (no restore attempted), and as a
+      # fallback for the primary version if the cache wasn't restorable.
       - name: Install dependencies
-        if: matrix.node-version != env.NODE_VERSION
+        if: matrix.node-version != env.NODE_VERSION || steps.cache.outputs.cache-hit != 'true'
         run: npm ci
 
       - name: Run tests with coverage
@@ -253,10 +269,17 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
+      - id: cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
         with:
           path: server/node_modules
           key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
+
+      # Fallback: if the install job's cache wasn't restorable (eviction, key
+      # change race), install here so this job never runs against absent deps.
+      - name: Install dependencies (cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: npm ci
 
       - name: Audit production dependencies
         run: |
@@ -419,7 +442,9 @@ jobs:
   # ── E2E tests ──────────────────────────────────────────────────────────
   e2e:
     name: E2E Tests
-    needs: build
+    # Depends on install (for the node_modules cache) and builds its own dist/
+    # below — it no longer consumes build's output, so it need not wait on build.
+    needs: install
     runs-on: ubuntu-latest
     # E2E is intentionally non-blocking (see the CI Passed gate, which omits it
     # from `needs`). Without continue-on-error a flaky E2E failure would still flip
@@ -442,17 +467,24 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
+      - id: cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
         with:
           path: server/node_modules
           key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
 
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
-        with:
-          path: |
-            server/dist
-            server/public/js/modules
-          key: build-${{ github.sha }}
+      # Fallback: if the install job's cache wasn't restorable (eviction, key
+      # change race), install here so this job never runs against absent deps.
+      - name: Install dependencies (cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: npm ci
+
+      # Build the exact app this job runs against. Passing build output between
+      # jobs via actions/cache is not guaranteed within a single run (that was the
+      # real cause of the historical "server failed to start" failures: dist/ never
+      # restored, so `node dist/index.js` was MODULE_NOT_FOUND), so build here.
+      - name: Build app
+        run: npm run build
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
@@ -464,7 +496,7 @@ jobs:
 
       - name: Start server
         run: |
-          node dist/index.js &
+          node dist/index.js > /tmp/server.log 2>&1 &
           echo $! > /tmp/server.pid
         env:
           NODE_ENV: test
@@ -478,14 +510,24 @@ jobs:
 
       - name: Wait for server
         run: |
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:3000/health > /dev/null 2>&1; then
+          # Poll readiness (Redis-aware, like the build job) with a wider window
+          # than the old flat 30s, exit early if the process dies, and dump the
+          # server log on failure so a real problem is diagnosable rather than a
+          # bare "failed to start".
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3000/health/ready > /dev/null 2>&1; then
               echo "Server ready after ${i}s"
               exit 0
             fi
+            if [ -f /tmp/server.pid ] && ! kill -0 "$(cat /tmp/server.pid)" 2>/dev/null; then
+              echo "::error::Server process exited before becoming ready"
+              cat /tmp/server.log || true
+              exit 1
+            fi
             sleep 1
           done
-          echo "::error::Server failed to start within 30s"
+          echo "::error::Server failed to become ready within 60s"
+          cat /tmp/server.log || true
           exit 1
 
       # E2E is non-blocking (see the CI Passed gate). --max-failures bounds the
