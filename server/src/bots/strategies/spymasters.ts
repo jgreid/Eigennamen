@@ -157,18 +157,33 @@ function evaluateClue(clue: string, groups: BoardGroups, backend: SemanticBacken
 
 /**
  * Last-resort scoring when no clue links an own card safely (e.g. a custom word
- * list the backend barely covers): pick the legal clue most related to any own
- * card, but never one whose closest card is the assassin. Board-derived, so it
+ * list the backend barely covers). Every clue here is a gamble, so pick the
+ * LEAST-bad legal clue: above all never let the assassin be the clicker's most
+ * related card (instant loss), and among assassin-safe clues prefer the one whose
+ * single closest board card is actually OURS (so a number-1 guess lands on own).
+ * Always returns a clue when `pool` is non-empty — the caller only needs a
+ * deeper fallback when there is no legal candidate at all. Board-derived, so it
  * varies by game rather than emitting a constant placeholder.
  */
-function pickBestEffort(legalVocab: readonly string[], groups: BoardGroups, backend: SemanticBackend): string | null {
-    let best: { word: string; topOwn: number } | null = null;
-    for (const clue of legalVocab) {
-        const topOwn = groups.own.length > 0 ? Math.max(...groups.own.map((w) => backend.relatedness(clue, w))) : 0;
-        const topAssassin =
-            groups.assassin.length > 0 ? Math.max(...groups.assassin.map((w) => backend.relatedness(clue, w))) : 0;
-        if (topAssassin >= topOwn) continue; // don't point the clicker at the assassin
-        if (!best || topOwn > best.topOwn) best = { word: clue, topOwn };
+function pickBestEffort(pool: readonly string[], groups: BoardGroups, backend: SemanticBackend): string | null {
+    const maxRel = (words: readonly string[], clue: string): number =>
+        words.length > 0 ? Math.max(...words.map((w) => backend.relatedness(clue, w))) : 0;
+    const nonOwn = [...groups.opponent, ...groups.neutral, ...groups.assassin];
+
+    let best: { word: string; ownGap: number; assassinSafe: boolean } | null = null;
+    for (const clue of pool) {
+        const topOwn = maxRel(groups.own, clue);
+        const assassinMax = maxRel(groups.assassin, clue);
+        // assassinSafe: some own card out-ranks every assassin, so the clicker's
+        // global argmax can't be the assassin. ownGap > 0: an own card is the
+        // global argmax, so a number-1 guess lands on ours rather than an opponent.
+        const assassinSafe = topOwn > assassinMax;
+        const ownGap = topOwn - maxRel(nonOwn, clue);
+        const better =
+            !best ||
+            (assassinSafe && !best.assassinSafe) ||
+            (assassinSafe === best.assassinSafe && ownGap > best.ownGap);
+        if (better) best = { word: clue, ownGap, assassinSafe };
     }
     return best ? best.word : null;
 }
@@ -208,15 +223,18 @@ export function makeEmbeddingSpymaster(
                 }
             }
 
-            // Nothing leads safely: best-effort related clue, then a legal placeholder.
-            const word = best?.word ?? pickBestEffort(legalVocab, groups, backend);
+            // Nothing leads safely: fall back to the least-bad legal clue, which
+            // still refuses to make the assassin the clicker's top pick. Try the
+            // backend vocab first, then the built-in abstract words, so even a board
+            // the backend can't cover at all gets an assassin-safe placeholder
+            // rather than a random one.
+            const legalBuiltins = CLUE_VOCAB.filter((w) => isClueLegalForBoard(w, view.words as string[]));
+            const word =
+                best?.word ??
+                pickBestEffort(legalVocab, groups, backend) ??
+                pickBestEffort(legalBuiltins, groups, backend);
             if (!word) {
-                const pool =
-                    legalVocab.length > 0
-                        ? legalVocab
-                        : CLUE_VOCAB.filter((w) => isClueLegalForBoard(w, view.words as string[]));
-                const fallback = (pool.length > 0 ? pool[ctx.rng.int(pool.length)] : pickFallbackClue(view)) as string;
-                return { kind: 'clue', word: fallback, number: 1 };
+                return { kind: 'clue', word: pickFallbackClue(view), number: 1 };
             }
 
             const number = Math.max(1, Math.min(best?.leadOwn ?? 1, MAX_CLUE_NUMBER));
