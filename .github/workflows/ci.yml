@@ -59,10 +59,17 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
+      - id: cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
         with:
           path: server/node_modules
           key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
+
+      # Fallback: if the install job's cache wasn't restorable (eviction, key
+      # change race), install here so this job never runs against absent deps.
+      - name: Install dependencies (cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: npm ci
 
       - name: Run ESLint
         run: npm run lint
@@ -85,10 +92,17 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
+      - id: cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
         with:
           path: server/node_modules
           key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
+
+      # Fallback: if the install job's cache wasn't restorable (eviction, key
+      # change race), install here so this job never runs against absent deps.
+      - name: Install dependencies (cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: npm ci
 
       - name: Run TypeScript type checking
         run: npm run typecheck
@@ -111,10 +125,17 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
+      - id: cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
         with:
           path: server/node_modules
           key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
+
+      # Fallback: if the install job's cache wasn't restorable (eviction, key
+      # change race), install here so this job never runs against absent deps.
+      - name: Install dependencies (cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: npm ci
 
       - name: Build production artifacts
         run: npm run build
@@ -184,14 +205,17 @@ jobs:
 
       # For the primary version, restore the cached node_modules.
       # For other versions, run npm ci since native modules may differ.
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
+      - id: cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
         if: matrix.node-version == env.NODE_VERSION
         with:
           path: server/node_modules
           key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
 
+      # Install for the non-primary version (no restore attempted), and as a
+      # fallback for the primary version if the cache wasn't restorable.
       - name: Install dependencies
-        if: matrix.node-version != env.NODE_VERSION
+        if: matrix.node-version != env.NODE_VERSION || steps.cache.outputs.cache-hit != 'true'
         run: npm ci
 
       - name: Run tests with coverage
@@ -245,10 +269,17 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
+      - id: cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
         with:
           path: server/node_modules
           key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
+
+      # Fallback: if the install job's cache wasn't restorable (eviction, key
+      # change race), install here so this job never runs against absent deps.
+      - name: Install dependencies (cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: npm ci
 
       - name: Audit production dependencies
         run: |
@@ -436,10 +467,17 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
+      - id: cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
         with:
           path: server/node_modules
           key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
+
+      # Fallback: if the install job's cache wasn't restorable (eviction, key
+      # change race), install here so this job never runs against absent deps.
+      - name: Install dependencies (cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: npm ci
 
       # Build the exact app this job runs against. Passing build output between
       # jobs via actions/cache is not guaranteed within a single run (that was the
