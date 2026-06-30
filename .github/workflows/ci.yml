@@ -163,14 +163,6 @@ jobs:
             echo "::warning::Total gzipped JS (${TOTAL_GZIP_KB}KB) exceeds ${MAX_GZIP_KB}KB threshold"
           fi
 
-      # Cache the build output for E2E and other jobs
-      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
-        with:
-          path: |
-            server/dist
-            server/public/js/modules
-          key: build-${{ github.sha }}
-
   # ── Unit & integration tests ───────────────────────────────────────────
   test:
     name: Test (Node ${{ matrix.node-version }})
@@ -419,7 +411,9 @@ jobs:
   # ── E2E tests ──────────────────────────────────────────────────────────
   e2e:
     name: E2E Tests
-    needs: build
+    # Depends on install (for the node_modules cache) and builds its own dist/
+    # below — it no longer consumes build's output, so it need not wait on build.
+    needs: install
     runs-on: ubuntu-latest
     # E2E is intentionally non-blocking (see the CI Passed gate, which omits it
     # from `needs`). Without continue-on-error a flaky E2E failure would still flip
@@ -447,22 +441,12 @@ jobs:
           path: server/node_modules
           key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
 
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
-        with:
-          path: |
-            server/dist
-            server/public/js/modules
-          key: build-${{ github.sha }}
-
-      # Fallback if the build cache didn't restore dist/ (the actual cause of the
-      # historical "server failed to start" flakes — node dist/index.js was
-      # MODULE_NOT_FOUND). Build locally so E2E never depends on a cache hit.
-      - name: Ensure build output
-        run: |
-          if [ ! -f dist/index.js ]; then
-            echo "::warning::build cache miss — building backend + frontend for E2E"
-            npm run build
-          fi
+      # Build the exact app this job runs against. Passing build output between
+      # jobs via actions/cache is not guaranteed within a single run (that was the
+      # real cause of the historical "server failed to start" failures: dist/ never
+      # restored, so `node dist/index.js` was MODULE_NOT_FOUND), so build here.
+      - name: Build app
+        run: npm run build
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
@@ -485,8 +469,6 @@ jobs:
           # above the production default (10) so the multiplayer specs aren't
           # rejected with "Too many connections from this IP".
           MAX_CONNECTIONS_PER_IP: '500'
-          # Give the embedded redis-server room to start on slow CI runners.
-          EMBEDDED_REDIS_TIMEOUT_MS: '15000'
 
       - name: Wait for server
         run: |
