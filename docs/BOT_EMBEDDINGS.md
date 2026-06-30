@@ -23,7 +23,29 @@ The choice is made once, lazily, in `selectBackend.ts` (`getSemanticBackend()`),
 so importing the strategy registry never touches the filesystem and tests with
 no env var keep getting the deterministic table backend.
 
+## Quick local playtest (one command)
+
+For laptop / offline bot playtesting, `scripts/dev-bots.sh` does the whole setup in
+one step: it downloads a model **once** (idempotent — reused on later runs, so it
+works offline after the first download), exports `BOT_EMBEDDINGS_PATH`, and starts
+`npm run dev`.
+
+```bash
+npm run dev:bots                          # from server/ — fetch-if-missing, then run
+BOT_MODEL=numberbatch npm run dev:bots    # stronger word-association model
+npm run bots:embeddings                   # only prepare the model, don't start the server
+```
+
+Knobs: `BOT_MODEL` (`glove` default | `fasttext` | `numberbatch`) and `BOT_TRIM`
+(keep the first N vectors to save disk; default `100000`). The first download is
+large (GloVe ~830 MB zip); after that the git-ignored `server/src/bots/data/` file
+is reused with no network access. Run `npm run setup` first if you haven't installed
+deps / created `.env`.
+
 ## Enabling embeddings
+
+> The manual steps below are what `npm run dev:bots` automates — use them if you
+> want finer control or a custom model file.
 
 1. Fetch a model (large; stored under the git-ignored `server/src/bots/data/`):
 

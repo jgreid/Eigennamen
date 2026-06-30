@@ -23,6 +23,7 @@ npm install                    # Install dependencies
 
 # Development
 npm run dev                    # Start dev server (uses REDIS_URL env, defaults to memory mode)
+npm run dev:bots               # Dev server with embedding-backed bots (fetches model once, then offline)
 docker compose up -d --build   # Start with Docker (Redis + app)
 
 # Quality gates (all four must pass before submitting a PR)
@@ -48,6 +49,7 @@ npm run redis:inspect          # Inspect Redis state
 npm run health                 # Health check
 npm run bots:train             # Headless bot self-play harness (strategy tuning)
 npm run bots:parity            # Verify bot engine vs Lua game-op parity
+npm run bots:embeddings        # Download bot word-embedding model only (no server start)
 ```
 
 ## Directory Structure
