@@ -49,43 +49,45 @@ const socketClientConfig = {
 };
 
 /**
- * Update the SRI integrity hash AND cache-bust version in index.html
- * for socket-client.js. This prevents two recurring bugs:
- * 1. A rebuild changes the file but the hardcoded hash becomes stale,
- *    blocking the browser from loading the script.
- * 2. The version query parameter stays the same across deploys, so
- *    browsers serve a cached old JS file that fails the new SRI check.
+ * Update the content-hash ?v= cache-bust for a same-origin <script> in index.html.
  *
- * The version is derived from the content hash so it changes automatically
- * whenever the bundle output changes.
+ * These are first-party scripts loaded under script-src 'self', so they carry no
+ * SRI integrity attribute (an integrity hash that drifts from a browser/SW-cached
+ * copy would hard-block the script and break the whole app — a recurring failure).
+ * Freshness is handled purely by this query string: it is derived from the file
+ * contents, so the URL changes whenever — and only when — the bytes change. A
+ * content change therefore always misses the HTTP cache and fetches the new file,
+ * while unchanged files keep a stable URL and stay cacheable.
+ *
+ * @param {string} scriptPath  absolute path to the built/vendored asset on disk
+ * @param {string} urlPath     the script's src path in index.html (without the query)
  */
-function updateSriHash() {
-    const scriptPath = socketClientConfig.outfile;
+function updateScriptVersion(scriptPath, urlPath) {
     // index.html is a real file served from server/public/ (same in local dev and
     // the Docker build, where esbuild.config.js sits next to public/).
     const indexPath = path.join(__dirname, 'public/index.html');
 
     if (!fs.existsSync(scriptPath) || !fs.existsSync(indexPath)) {
-        console.warn('SRI update skipped: missing socket-client.js or index.html');
+        console.warn(`Cache-bust update skipped: missing ${path.basename(scriptPath)} or index.html`);
         return;
     }
 
     const fileContents = fs.readFileSync(scriptPath);
-    const hash = crypto.createHash('sha384').update(fileContents).digest('base64');
-    const newIntegrity = `sha384-${hash}`;
-    // Use first 8 hex chars of the hash as a content-based cache-bust version
+    // First 8 hex chars of the content hash — stable per content, changes on edit.
     const contentVersion = crypto.createHash('sha384').update(fileContents).digest('hex').slice(0, 8);
 
     let html = fs.readFileSync(indexPath, 'utf8');
-    const pattern = /(socket-client\.js\?v=)[A-Za-z0-9]+("\s+integrity=")sha384-[A-Za-z0-9+/=]+(")/;
+    const escaped = urlPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Match the src with or without an existing ?v= parameter.
+    const pattern = new RegExp(`(${escaped})(\\?v=[A-Za-z0-9]+)?(")`);
     if (!pattern.test(html)) {
-        console.warn('SRI update skipped: could not find socket-client.js integrity attribute in index.html');
+        console.warn(`Cache-bust update skipped: could not find ${urlPath} in index.html`);
         return;
     }
 
-    html = html.replace(pattern, `$1${contentVersion}$2${newIntegrity}$3`);
+    html = html.replace(pattern, `$1?v=${contentVersion}$3`);
     fs.writeFileSync(indexPath, html, 'utf8');
-    console.log(`Updated socket-client.js: version=${contentVersion}, integrity=${newIntegrity}`);
+    console.log(`Updated ${urlPath}: version=${contentVersion}`);
 }
 
 /**
@@ -155,7 +157,8 @@ async function build() {
             esbuild.build({ ...appConfig, metafile: isAnalyze }),
             esbuild.build({ ...socketClientConfig, metafile: isAnalyze }),
         ]);
-        updateSriHash();
+        updateScriptVersion(socketClientConfig.outfile, '/js/socket-client.js');
+        updateScriptVersion(path.join(__dirname, 'public/js/socket.io.min.js'), '/js/socket.io.min.js');
         updateAppJsVersion();
         updateServiceWorkerVersion();
         if (isAnalyze) {
