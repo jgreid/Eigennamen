@@ -86,48 +86,123 @@ function depsInstalled() {
     return existsSync(join(SERVER_DIR, 'node_modules', 'typescript')) && existsSync(join(SERVER_DIR, 'node_modules', 'ts-node-dev'));
 }
 
-/** GET with redirect following, into `dest`. Resolves on completion. */
-function download(url, dest, redirects = 0) {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+const TRANSIENT_CODES = new Set([
+    'ECONNRESET',
+    'ETIMEDOUT',
+    'ECONNREFUSED',
+    'EPIPE',
+    'EAI_AGAIN',
+    'ENETUNREACH',
+    'ENOTFOUND',
+    'UND_ERR_SOCKET',
+]);
+function isTransient(err) {
+    if (!err) return false;
+    if (err.code && TRANSIENT_CODES.has(err.code)) return true;
+    return /socket hang up|econnreset|timeout|network|aborted|incomplete/i.test(err.message || '');
+}
+
+/**
+ * One GET attempt (following redirects). When `startByte > 0` it requests a byte
+ * range and appends, so a resumed download continues from disk instead of restarting.
+ */
+function downloadOnce(url, dest, startByte, redirects = 0) {
     return new Promise((resolve, reject) => {
         if (redirects > 5) return reject(new Error('Too many redirects'));
         const mod = url.startsWith('http:') ? http : https;
-        const req = mod.get(url, (res) => {
+        const headers = startByte > 0 ? { Range: `bytes=${startByte}-` } : {};
+        const req = mod.get(url, { headers }, (res) => {
             const status = res.statusCode ?? 0;
             if ([301, 302, 303, 307, 308].includes(status) && res.headers.location) {
                 res.resume();
                 const next = new URL(res.headers.location, url).toString();
-                return resolve(download(next, dest, redirects + 1));
+                return resolve(downloadOnce(next, dest, startByte, redirects + 1));
             }
-            if (status !== 200) {
+            if (status === 416) {
+                // Range not satisfiable — the file is already complete.
                 res.resume();
-                return reject(new Error(`HTTP ${status} for ${url}`));
+                return resolve();
             }
-            const total = Number(res.headers['content-length'] || 0);
+            if (status !== 200 && status !== 206) {
+                res.resume();
+                return reject(Object.assign(new Error(`HTTP ${status} for ${url}`), { fatal: true }));
+            }
+
+            const append = status === 206; // server honored the range request
+            const base = append ? startByte : 0;
+            let total = 0;
+            const range = res.headers['content-range'];
+            if (append && range) {
+                const m = /\/(\d+)\s*$/.exec(range);
+                total = m ? Number(m[1]) : 0;
+            } else if (res.headers['content-length']) {
+                total = Number(res.headers['content-length']);
+            }
+
+            const file = createWriteStream(dest, { flags: append ? 'a' : 'w' });
             let got = 0;
             let lastPct = -1;
-            const file = createWriteStream(dest);
+            const fail = (err) => {
+                file.destroy();
+                reject(err);
+            };
             res.on('data', (chunk) => {
                 got += chunk.length;
                 if (total > 0) {
-                    const pct = Math.floor((got / total) * 100);
+                    const pct = Math.floor(((base + got) / total) * 100);
                     if (pct !== lastPct && pct % 5 === 0) {
                         lastPct = pct;
-                        process.stdout.write(`\r   downloading… ${pct}% (${(got / 1e6).toFixed(0)}/${(total / 1e6).toFixed(0)} MB)`);
+                        const mb = (n) => (n / 1e6).toFixed(0);
+                        process.stdout.write(`\r   downloading… ${pct}% (${mb(base + got)}/${mb(total)} MB)`);
                     }
                 }
             });
+            res.on('error', fail);
+            res.on('aborted', () => fail(Object.assign(new Error('connection aborted'), { code: 'ECONNRESET' })));
+            file.on('error', fail);
             res.pipe(file);
             file.on('finish', () => {
+                // A clean end short of the known total means a silent truncation —
+                // reject so the caller resumes rather than extracting a partial file.
+                if (total > 0 && base + got < total) {
+                    return reject(Object.assign(new Error('incomplete response'), { code: 'ECONNRESET' }));
+                }
                 process.stdout.write('\n');
                 file.close(() => resolve());
-            });
-            file.on('error', (err) => {
-                rmSync(dest, { force: true });
-                reject(err);
             });
         });
         req.on('error', reject);
     });
+}
+
+/**
+ * Download `url` to `dest` with resume + retry. Big models (GloVe is ~860 MB) over
+ * flaky links drop mid-transfer; this resumes from whatever is already on disk and
+ * retries transient failures with exponential backoff instead of restarting.
+ */
+async function download(url, dest) {
+    const MAX_ATTEMPTS = 6;
+    let lastErr;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        const startByte = fileSize(dest); // resume from bytes already fetched
+        try {
+            await downloadOnce(url, dest, startByte);
+            return;
+        } catch (err) {
+            lastErr = err;
+            if (err.fatal || !isTransient(err) || attempt === MAX_ATTEMPTS) break;
+            const waitMs = Math.min(16000, 1000 * 2 ** (attempt - 1));
+            const have = fileSize(dest);
+            process.stdout.write('\n');
+            console.warn(
+                `   ⚠ download interrupted (${err.code || err.message}); retrying in ${Math.round(waitMs / 1000)}s — have ${(have / 1e6).toFixed(0)} MB…`
+            );
+            await sleep(waitMs);
+        }
+    }
+    throw lastErr ?? new Error(`download failed: ${url}`);
 }
 
 /** Extract `member` from a zip into `destDir`, trying unzip then tar (Win10+ has tar.exe). */
@@ -259,7 +334,13 @@ async function main() {
     child.on('exit', (code) => process.exit(code ?? 0));
 }
 
-main().catch((err) => {
-    console.error(`\n❌ ${err instanceof Error ? err.message : String(err)}`);
-    process.exit(1);
-});
+// Exported for tests; downloads use resume + retry.
+export { download, isTransient };
+
+// Run only when invoked directly (guarded so the module can be imported in tests).
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+    main().catch((err) => {
+        console.error(`\n❌ ${err instanceof Error ? err.message : String(err)}`);
+        process.exit(1);
+    });
+}
