@@ -40,7 +40,19 @@ docker --version
 docker compose version
 ```
 
-#### Step 2: Start the Server
+#### Step 2: Create the `.env` file
+
+Docker Compose reads secrets from a `.env` file in the **repository root** (next to `docker-compose.yml`). Without it, the build fails with `required variable REDIS_PASSWORD is missing a value`. From the repository root:
+
+```bash
+cp .env.example .env
+```
+
+Then edit `.env` and set `REDIS_PASSWORD` (letters and numbers only — it is embedded in a URL) and `JWT_SECRET` (at least 32 characters).
+
+> **Windows shortcut:** if you start via `start-server.bat`, you can skip this step — the script auto-generates a `.env` with random secrets when one is missing.
+
+#### Step 3: Start the Server
 
 **Windows users:** Simply double-click `start-server.bat` in the server folder!
 
@@ -54,7 +66,7 @@ This command:
 - Creates and starts all containers in the background (`-d` = detached mode)
 - Sets up networking between containers automatically
 
-#### Step 3: Verify It's Running
+#### Step 4: Verify It's Running
 
 Check that all containers are up:
 ```bash
@@ -70,7 +82,7 @@ docker compose logs -f api
 
 Press `Ctrl+C` to stop following logs.
 
-#### Step 4: Test the Server
+#### Step 5: Test the Server
 
 Open your browser and go to:
 - `http://localhost:3000/health` - Should show `{"status":"ok",...}`
@@ -206,6 +218,7 @@ Once the server is running:
 | `spawn redis-server ENOENT` (with `REDIS_URL=memory`) | Memory mode needs a `redis-server` binary on PATH. Install Redis (`brew install redis` / `apt install redis-server`), or — on **Windows** — use Docker (Option 1) or point `REDIS_URL` at Memurai/WSL2 Redis. |
 | `'REDIS_URL=memory' is not recognized` (PowerShell) | `VAR=value command` is Bash-only. Use `$env:REDIS_URL="memory"; npm run dev` in PowerShell (see the shell table in Step 4). |
 | `Could not read package.json` from `npm install` | Run it from the `server/` directory (`cd server` first) — there is no `package.json` at the repo root. |
+| `required variable REDIS_PASSWORD is missing a value` (Docker) | Create a `.env` in the repo root: `cp .env.example .env`, then set `REDIS_PASSWORD` and `JWT_SECRET`. On Windows, `start-server.bat` auto-creates it. |
 | "Redis connection refused" | Make sure Redis is running: `redis-cli ping` (or use `REDIS_URL=memory`) |
 | "Port 3000 already in use" | Change `PORT` in `.env` or stop the other process using that port |
 | "CORS error in browser" | Set `CORS_ORIGIN` in `.env` to your client's URL |

@@ -54,13 +54,16 @@ For true real-time synchronization without URL sharing, run the multiplayer serv
 
 #### Recommended: Docker (same on every OS, no Redis to install)
 
-Docker brings its own Redis, so this is the most reliable path — especially on Windows. From the **repository root**:
+Docker brings its own Redis, so this is the most reliable path — especially on Windows. First create the `.env` Docker reads its secrets from, then start. From the **repository root**:
 
 ```bash
+cp .env.example .env      # then edit .env: set REDIS_PASSWORD + JWT_SECRET (32+ chars)
 docker compose up -d --build
 ```
 
-> **Windows:** just double-click `server/start-server.bat` — it starts Docker and the server for you. See the [Windows Setup Guide](docs/WINDOWS_SETUP.md).
+> Without the `.env`, the build stops with `required variable REDIS_PASSWORD is missing a value`.
+>
+> **Windows:** just double-click `server/start-server.bat` — it auto-creates `.env` with random secrets, starts Docker, and launches the server. See the [Windows Setup Guide](docs/WINDOWS_SETUP.md).
 
 #### Without Docker (Node.js 22+ and a Redis binary)
 

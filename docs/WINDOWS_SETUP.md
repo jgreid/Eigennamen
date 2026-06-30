@@ -150,7 +150,20 @@ If it worked, you'll see the path appear before the cursor, like:
 C:\Users\YourName\Downloads\Eigennamen-main\server>
 ```
 
-#### Step 3: Start the Server
+#### Step 3: Create the `.env` file (one time)
+
+Docker needs a small `.env` file (in the repository root, next to `docker-compose.yml`) holding a Redis password and a sign-in secret. Create it by copying the template and editing the two values:
+
+```
+copy .env.example .env
+notepad .env
+```
+
+In Notepad, set `REDIS_PASSWORD` to any letters-and-numbers password (no symbols) and `JWT_SECRET` to at least 32 random characters, then save.
+
+> **Using the easy way (`start-server.bat`)?** You can skip this step — the script now creates a `.env` with random secrets automatically if one doesn't exist.
+
+#### Step 4: Start the Server
 
 Now type this command exactly as shown and press **Enter**:
 
@@ -164,7 +177,7 @@ docker compose up -d --build
 - It might take 2-5 minutes depending on your internet speed
 - When it's done, you'll see something like "Container server-api-1 Started"
 
-#### Step 4: Make Sure It's Working
+#### Step 5: Make Sure It's Working
 
 Type this command and press **Enter**:
 
@@ -291,6 +304,12 @@ If you want to shut down the server (maybe you're done playing or want to turn o
 **What it means:** The `REDIS_URL=memory npm run dev` form only works in Bash (macOS/Linux/Git Bash). PowerShell sets variables differently.
 
 **How to fix it:** In PowerShell, run `$env:REDIS_URL="memory"; npm run dev`. In the old Command Prompt (cmd.exe), run `set REDIS_URL=memory && npm run dev`. (But on Windows, Docker is still the easier path — see above.)
+
+### "required variable REDIS_PASSWORD is missing a value: Set REDIS_PASSWORD in .env"
+
+**What it means:** Docker Compose needs a `.env` file (in the repository root) that defines `REDIS_PASSWORD` and `JWT_SECRET`, and it couldn't find one.
+
+**How to fix it:** Double-click **`start-server.bat`** — it now creates a `.env` with random secrets automatically. If you're running `docker compose` by hand instead, create the file first: from the repository root run `copy .env.example .env`, then open `.env` in Notepad and set `REDIS_PASSWORD` (letters and numbers only) and `JWT_SECRET` (32+ characters), and run the command again.
 
 ---
 
