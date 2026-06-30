@@ -6,6 +6,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import path from 'path';
+import { existsSync, statSync } from 'fs';
 
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { apiLimiter, strictLimiter } from './middleware/rateLimit';
@@ -19,6 +20,27 @@ import { setupSwagger } from './config/swagger';
 import { getAllMetrics, setGauge, METRIC_NAMES } from './utils/metrics';
 import { SOCKET } from './config/constants';
 import { isProduction, parseCorsOrigins } from './config/env';
+
+/**
+ * Resolve the real index.html to serve. The repo keeps a single source-of-truth
+ * index.html at the project root; server/public/index.html is a symlink to it
+ * (and the Docker build copies the root file into public). On Windows, git checks
+ * that symlink out as a tiny text stub containing the link target ("../../index.html"),
+ * which must never be served as the page — so prefer whichever path resolves to the
+ * real file. statSync follows symlinks, so a valid symlink reports the real size.
+ */
+function resolveIndexHtml(): string {
+    const publicIndex = path.join(__dirname, '../public/index.html');
+    const rootIndex = path.join(__dirname, '../../index.html');
+    try {
+        if (statSync(publicIndex).size > 100) return publicIndex;
+    } catch {
+        // public/index.html missing — fall through to the root copy.
+    }
+    return existsSync(rootIndex) ? rootIndex : publicIndex;
+}
+
+const INDEX_HTML = resolveIndexHtml();
 
 /**
  * Extended Express Application with custom properties
@@ -221,9 +243,14 @@ app.get('{/*path}.html', (_req: Request, res: Response, next: NextFunction) => {
     res.set('Cache-Control', 'no-cache');
     next();
 });
-app.get('/', (_req: Request, res: Response, next: NextFunction) => {
+app.get('/', (_req: Request, res: Response) => {
     res.set('Cache-Control', 'no-cache');
-    next();
+    res.sendFile(INDEX_HTML);
+});
+// Explicit /index.html route so the real file wins over a Windows symlink stub in public/.
+app.get('/index.html', (_req: Request, res: Response) => {
+    res.set('Cache-Control', 'no-cache');
+    res.sendFile(INDEX_HTML);
 });
 
 // Serve static files (the game client) with caching headers
@@ -346,7 +373,7 @@ app.get('/{*splat}', (req: Request, res: Response, next: NextFunction) => {
         return next();
     }
     res.set('Cache-Control', 'no-cache');
-    res.sendFile(path.join(__dirname, '../public/index.html'));
+    res.sendFile(INDEX_HTML);
 });
 
 // Error handling
