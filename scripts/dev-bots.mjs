@@ -31,7 +31,7 @@ import { createReadStream, createWriteStream, existsSync, mkdirSync, rmSync, ren
 import { spawn, spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative, sep } from 'node:path';
 import https from 'node:https';
 import http from 'node:http';
 
@@ -58,11 +58,19 @@ const MODELS = {
 };
 
 function parseArgs(argv) {
-    const opts = { model: process.env.BOT_MODEL || 'glove', trim: Number(process.env.BOT_TRIM || 100000), run: true };
+    const opts = {
+        model: process.env.BOT_MODEL || 'glove',
+        trim: Number(process.env.BOT_TRIM || 100000),
+        run: true,
+        dataDir: null, // override the output directory (used by the Docker bake)
+        out: null, // override the output filename (used by the Docker bake)
+    };
     for (const arg of argv) {
         if (arg === '--no-run' || arg === '--setup-only') opts.run = false;
         else if (arg.startsWith('--model=')) opts.model = arg.slice('--model='.length);
         else if (arg.startsWith('--trim=')) opts.trim = Number(arg.slice('--trim='.length));
+        else if (arg.startsWith('--data-dir=')) opts.dataDir = arg.slice('--data-dir='.length);
+        else if (arg.startsWith('--out=')) opts.out = arg.slice('--out='.length);
         else if (arg === '-h' || arg === '--help') opts.help = true;
         else {
             console.error(`Unknown option: ${arg}`);
@@ -164,7 +172,8 @@ async function trimToLines(path, n) {
     renameSync(tmp, path);
 }
 
-async function ensureModel(model, trim) {
+async function ensureModel(opts) {
+    const { model, trim } = opts;
     const spec = MODELS[model];
     if (!spec) {
         console.error(`Unknown model: ${model}. Supported here: ${Object.keys(MODELS).join(', ')}.`);
@@ -172,20 +181,22 @@ async function ensureModel(model, trim) {
         process.exit(2);
     }
 
-    mkdirSync(DATA_DIR, { recursive: true });
-    const outPath = join(DATA_DIR, spec.out);
+    const dataDir = opts.dataDir || DATA_DIR;
+    const outName = opts.out || spec.out;
+    mkdirSync(dataDir, { recursive: true });
+    const outPath = join(dataDir, outName);
 
     if (existsSync(outPath) && fileSize(outPath) > 1_048_576) {
         console.log(`✓ Reusing existing embeddings: ${outPath}`);
-        return spec.out;
+        return outPath;
     }
 
     console.log(`📥 Fetching '${model}' embeddings (one-time; subsequent runs are offline)…`);
-    const archivePath = join(DATA_DIR, spec.archive);
+    const archivePath = join(dataDir, spec.archive);
     await download(spec.url, archivePath);
 
     console.log('   extracting…');
-    const tool = extractZip(archivePath, spec.member, DATA_DIR);
+    const tool = extractZip(archivePath, spec.member, dataDir);
     if (!tool) {
         rmSync(archivePath, { force: true });
         console.error('\n❌ Could not extract the archive: neither `unzip` nor `tar` is available.');
@@ -194,7 +205,7 @@ async function ensureModel(model, trim) {
         process.exit(1);
     }
 
-    const memberPath = join(DATA_DIR, spec.member);
+    const memberPath = join(dataDir, spec.member);
     if (memberPath !== outPath) {
         rmSync(outPath, { force: true });
         renameSync(memberPath, outPath);
@@ -213,7 +224,13 @@ async function ensureModel(model, trim) {
         await trimToLines(outPath, trim);
     }
     console.log(`✓ Embeddings ready: ${outPath}`);
-    return spec.out;
+    return outPath;
+}
+
+/** Path the server reads: relative to server/ when under it, else absolute. */
+function serverRelative(absPath) {
+    const rel = relative(SERVER_DIR, absPath).split(sep).join('/');
+    return rel && !rel.startsWith('..') ? rel : absPath;
 }
 
 async function main() {
@@ -231,8 +248,8 @@ async function main() {
         process.exit(1);
     }
 
-    const outName = await ensureModel(opts.model, opts.trim);
-    const relPath = `src/bots/data/${outName}`; // relative to server/ (the dev server's cwd)
+    const outPath = await ensureModel(opts);
+    const relPath = serverRelative(outPath); // what the dev server (cwd = server/) should read
     console.log(`✓ BOT_EMBEDDINGS_PATH=${relPath}`);
 
     if (!opts.run) {

@@ -4,6 +4,11 @@ services:
     build:
       context: .
       dockerfile: server/Dockerfile
+      args:
+        # Optional smart-bot embeddings. Default empty = unchanged build. To enable:
+        #   BOT_EMBEDDINGS_MODEL=glove BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec docker compose up -d --build
+        BOT_EMBEDDINGS_MODEL: ${BOT_EMBEDDINGS_MODEL:-}
+        BOT_EMBEDDINGS_TRIM: ${BOT_EMBEDDINGS_TRIM:-100000}
     ports:
       - "3000:3000"
     deploy:
@@ -24,6 +29,8 @@ services:
       - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env}
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
       - LOG_LEVEL=debug
+      # Set to /app/embeddings/vectors.vec (and build with BOT_EMBEDDINGS_MODEL) for smart bots.
+      - BOT_EMBEDDINGS_PATH=${BOT_EMBEDDINGS_PATH:-}
     depends_on:
       redis:
         condition: service_healthy
