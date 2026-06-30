@@ -1,12 +1,12 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: Codenames Server - Windows Startup Script
+:: Eigennamen Server - Windows Startup Script
 :: This script will start all Docker services needed to run the game
 
 echo.
 echo ========================================
-echo   Codenames Server - Starting Up
+echo   Eigennamen Server - Starting Up
 echo ========================================
 echo.
 
@@ -64,6 +64,20 @@ cd /d "%~dp0.."
 if not exist "docker-compose.yml" (
     echo ERROR: docker-compose.yml not found.
     echo Please make sure this script is located in the 'server' folder of the repository.
+    pause
+    exit /b 1
+)
+
+:: Docker Compose requires a root .env with REDIS_PASSWORD and JWT_SECRET.
+:: Auto-create one with random local-dev secrets if it is missing, so the build
+:: does not fail with "required variable REDIS_PASSWORD is missing a value".
+if not exist ".env" (
+    echo No .env file found - generating one with random local secrets...
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "$c=(48..57)+(65..90)+(97..122); $pw=-join ($c | Get-Random -Count 24 | ForEach-Object {[char]$_}); $jwt=-join ($c | Get-Random -Count 48 | ForEach-Object {[char]$_}); Set-Content -Path '.env' -Value @(('REDIS_PASSWORD=' + $pw), ('JWT_SECRET=' + $jwt))"
+)
+if not exist ".env" (
+    echo ERROR: Could not create a .env file automatically.
+    echo Please copy .env.example to .env, set REDIS_PASSWORD and JWT_SECRET, then re-run.
     pause
     exit /b 1
 )

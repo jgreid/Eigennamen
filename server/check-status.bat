@@ -1,11 +1,11 @@
 @echo off
 
-:: Codenames Server - Status Check Script
+:: Eigennamen Server - Status Check Script
 :: Shows the status of all Docker services
 
 echo.
 echo ========================================
-echo   Codenames Server - Status
+echo   Eigennamen Server - Status
 echo ========================================
 echo.
 

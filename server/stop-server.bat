@@ -1,11 +1,11 @@
 @echo off
 
-:: Codenames Server - Windows Stop Script
+:: Eigennamen Server - Windows Stop Script
 :: This script will stop all Docker services
 
 echo.
 echo ========================================
-echo   Codenames Server - Stopping
+echo   Eigennamen Server - Stopping
 echo ========================================
 echo.
 
