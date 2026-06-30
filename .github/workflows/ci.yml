@@ -454,6 +454,16 @@ jobs:
             server/public/js/modules
           key: build-${{ github.sha }}
 
+      # Fallback if the build cache didn't restore dist/ (the actual cause of the
+      # historical "server failed to start" flakes — node dist/index.js was
+      # MODULE_NOT_FOUND). Build locally so E2E never depends on a cache hit.
+      - name: Ensure build output
+        run: |
+          if [ ! -f dist/index.js ]; then
+            echo "::warning::build cache miss — building backend + frontend for E2E"
+            npm run build
+          fi
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
