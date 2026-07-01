@@ -4,6 +4,7 @@
 import { tableBackend } from '../../bots/semantics/tableBackend';
 import { ASSOCIATIONS } from '../../bots/semantics/associations';
 import { makeEmbeddingSpymaster } from '../../bots/strategies/spymasters';
+import { makeGreedyClicker } from '../../bots/strategies/clickers';
 import { resolveClicker } from '../../bots/strategies/registry';
 import { resolveSkill } from '../../bots/presets';
 import { makeRng } from '../../bots/rng';
@@ -169,5 +170,109 @@ describe('greedyClicker via registry uses the table backend', () => {
         };
         const action = clicker.chooseGuess(view, ctx(3));
         expect(action).toEqual({ kind: 'reveal', index: 1 }); // BEAR (ANIMAL-linked)
+    });
+});
+
+/** Stub backend: hand-set relatedness + a fixed vocabulary, for precise scoring. */
+function scoringStub(rel: Record<string, Record<string, number>>): SemanticBackend {
+    return {
+        id: 'stub',
+        relatedness: (a: string, b: string) => rel[a]?.[b.toUpperCase()] ?? rel[b]?.[a.toUpperCase()] ?? 0,
+        vocabulary: () => Object.keys(rel),
+    };
+}
+
+describe('spymaster multi-factor scoring', () => {
+    // Board words chosen so no candidate clue is a substring of one (which would
+    // make it an illegal clue and get filtered before scoring).
+    const OWN2: ['red', 'red', 'blue', 'assassin'] = ['red', 'red', 'blue', 'assassin'];
+
+    it('plays defense: prefers a clue that does not also point at the opponent', () => {
+        // CLEAN and LEAKY both safely cover the two own cards, but LEAKY also
+        // relates to the opponent card — a cautious expert avoids arming them.
+        const view = spymasterView(['OWNA', 'OWNB', 'OPPO', 'ASSN'], OWN2);
+        const backend = scoringStub({
+            CLEAN: { OWNA: 0.9, OWNB: 0.85, OPPO: 0.1, ASSN: 0.1 },
+            LEAKY: { OWNA: 0.9, OWNB: 0.85, OPPO: 0.6, ASSN: 0.1 },
+        });
+        const action = makeEmbeddingSpymaster(resolveSkill('expert', 2), backend).chooseClue(view, ctx(2));
+        expect(action).toMatchObject({ kind: 'clue', word: 'CLEAN' });
+    });
+
+    it('grades assassin proximity: prefers the clue that stays further from the assassin', () => {
+        const view = spymasterView(['OWNX', 'NEUT', 'ASSN'], ['red', 'neutral', 'assassin']);
+        const backend = scoringStub({
+            FARAWAY: { OWNX: 0.9, NEUT: 0.1, ASSN: 0.1 },
+            NEARBY: { OWNX: 0.9, NEUT: 0.1, ASSN: 0.5 },
+        });
+        const action = makeEmbeddingSpymaster(resolveSkill('expert', 4), backend).chooseClue(view, ctx(4));
+        expect(action).toMatchObject({ kind: 'clue', word: 'FARAWAY' });
+    });
+
+    it('salvages a real number from the best-effort path (no more constant 1)', () => {
+        // No clue clears the safety margin (so scoring returns no candidate), but
+        // the salvage clue still out-ranks the danger cards on TWO own cards.
+        const view = spymasterView(['OWNA', 'OWNB', 'OPPO', 'ASSN'], OWN2);
+        const backend = scoringStub({ SALVAGE: { OWNA: 0.4, OWNB: 0.35, OPPO: 0.3, ASSN: 0.1 } });
+        const action = makeEmbeddingSpymaster(resolveSkill('expert', 1), backend).chooseClue(view, ctx(1));
+        expect(action).toEqual({ kind: 'clue', word: 'SALVAGE', number: 2 });
+    });
+
+    it('temperature 0 (expert) is a deterministic argmax across seeds', () => {
+        const view = spymasterView(['OWNA', 'OWNB', 'OPPO', 'ASSN'], OWN2);
+        const backend = scoringStub({
+            STRONG: { OWNA: 0.95, OWNB: 0.9, OPPO: 0.1, ASSN: 0.1 },
+            WEAKER: { OWNA: 0.7, OWNB: 0.1, OPPO: 0.1, ASSN: 0.1 },
+        });
+        const w1 = makeEmbeddingSpymaster(resolveSkill('expert', 1), backend).chooseClue(view, ctx(1));
+        const w2 = makeEmbeddingSpymaster(resolveSkill('expert', 99), backend).chooseClue(view, ctx(99, 'expert'));
+        expect(w1).toMatchObject({ word: 'STRONG' });
+        expect(w2).toMatchObject({ word: 'STRONG' });
+    });
+
+    it('high temperature (novice) explores real alternatives, not only the argmax', () => {
+        // Three equally-good clues: a novice's softmax + blunder should not always
+        // land on the same one.
+        const view = spymasterView(['OWNA', 'OWNB', 'OPPO', 'ASSN'], OWN2);
+        const eq = { OWNA: 0.9, OWNB: 0.85, OPPO: 0.1, ASSN: 0.1 };
+        const backend = scoringStub({ ONE: eq, TWO: eq, THREE: eq });
+        const chosen = new Set<string>();
+        for (let s = 0; s < 24; s++) {
+            const a = makeEmbeddingSpymaster(resolveSkill('novice', s), backend).chooseClue(view, ctx(s, 'novice'));
+            if (a.kind === 'clue') chosen.add(a.word);
+        }
+        expect(chosen.size).toBeGreaterThan(1);
+    });
+});
+
+describe('greedyClicker temperature scales guess accuracy', () => {
+    const backend = scoringStub({ CLUE: { GOOD: 0.9, MEH: 0.5, BAD: 0.4 } });
+    const view = (): BotClickerView => ({
+        role: 'clicker',
+        team: 'red',
+        gameMode: 'classic',
+        words: ['GOOD', 'MEH', 'BAD'],
+        revealed: [false, false, false],
+        types: [null, null, null],
+        currentTurn: 'red',
+        currentClue: { word: 'CLUE', number: 3, team: 'red' },
+        guessesUsed: 0,
+        guessesAllowed: 3,
+    });
+
+    it('expert (temperature 0) always takes the best-fitting card', () => {
+        const clicker = makeGreedyClicker(resolveSkill('expert', 1), backend);
+        for (let s = 0; s < 10; s++) {
+            expect(clicker.chooseGuess(view(), ctx(s, 'expert'))).toEqual({ kind: 'reveal', index: 0 });
+        }
+    });
+
+    it('novice sometimes takes a plausible-but-wrong card', () => {
+        const chosen = new Set<number>();
+        for (let s = 0; s < 24; s++) {
+            const a = makeGreedyClicker(resolveSkill('novice', s), backend).chooseGuess(view(), ctx(s, 'novice'));
+            if (a.kind === 'reveal') chosen.add(a.index);
+        }
+        expect(chosen.size).toBeGreaterThan(1);
     });
 });

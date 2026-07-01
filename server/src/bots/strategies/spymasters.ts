@@ -1,13 +1,21 @@
 /**
- * Spymaster strategies (Phase 1).
+ * Spymaster strategies.
  *
  *  - randomSpymaster: emits an arbitrary LEGAL clue word from a small built-in
  *    vocabulary plus a small number. It carries no semantic signal — it exists
  *    so a bot can occupy a spymaster seat and a bot-only game runs end to end
- *    with NO external assets. Semantic spymasters (embedding/MCTS) arrive in
- *    Phase 3 behind the same contract.
+ *    with NO external assets.
+ *  - embeddingSpymaster: the real semantic spymaster. It scores every legal
+ *    candidate clue with a multi-factor model (coverage, clarity, a graded
+ *    assassin penalty, and a defensive "don't arm the opponent" penalty), then
+ *    selects among the candidates with a temperature-controlled softmax. That
+ *    single strategy spans the whole difficulty range: at temperature 0 it plays
+ *    the argmax ("scary good"); at higher temperatures it samples plausible-but-
+ *    suboptimal clues ("off-kilter but sensible"). riskAversion drives caution
+ *    (safety margin + how hard it avoids the assassin and helping the opponent);
+ *    blunderRate injects the occasional outright-random clue.
  */
-import type { BotAction, BotSpymasterView, BotContext, SpymasterStrategy, SkillParams } from './types';
+import type { BotAction, BotSpymasterView, BotContext, SpymasterStrategy, SkillParams, SeededRng } from './types';
 import type { SemanticBackend } from '../semantics/backend';
 import { defaultSemanticBackend } from '../semantics/backend';
 import { isClueLegalForBoard } from '../../shared/gameRules';
@@ -108,34 +116,55 @@ function groupBoard(view: BotSpymasterView): BoardGroups {
 
 const MAX_CLUE_NUMBER = 4;
 
+// Scoring weights. leadOwn (an integer card count) is the dominant term; the
+// rest are sub-unit adjustments so coverage always wins between comparably-safe
+// clues, while the penalties still break ties toward safer / less-helpful clues.
+const CLARITY_WEIGHT = 0.4;
+const ASSASSIN_WEIGHT = 1.5;
+const OPPONENT_WEIGHT = 0.8;
+
 /** Result of scoring a candidate clue against the board. */
 interface ClueEval {
+    word: string;
     /** Own cards the clicker would take before crossing onto any non-own card. */
     leadOwn: number;
-    /** Sort key: leadOwn, tie-broken by how clear (safe) the clue is. */
+    /** Ranking key: leadOwn, adjusted for clarity, assassin risk, and defense. */
     score: number;
 }
 
+/** Highest relatedness of `clue` to any word in `words` (0 if the group is empty). */
+function maxRel(words: readonly string[], clue: string, backend: SemanticBackend): number {
+    return words.length > 0 ? Math.max(...words.map((w) => backend.relatedness(clue, w))) : 0;
+}
+
 /**
- * Score a candidate clue the way the CLICKER will actually act on it: a clicker
- * reveals the highest-relatedness unrevealed card. So a clue is worth exactly the
- * number of the spymaster's OWN cards that out-rank EVERY non-own card by a safety
- * margin — those are the ones the clicker takes before it would cross onto a
- * neutral / opponent / (worst of all) the assassin.
+ * Score a candidate clue the way the CLICKER will actually act on it (it reveals
+ * the highest-relatedness unrevealed card), then shade the raw coverage by three
+ * strategic factors:
  *
- * This relative ranking replaces an absolute relatedness threshold, so it works
- * the same for the asset-free lexical floor, the baked table, and real
- * embeddings (whose cosine scale differs). It inherently avoids the assassin
- * (own cards must beat it), with an extra margin near the assassin since touching
- * it loses instantly. Returns null when no own card leads safely.
+ *  - clarity: the gap between the weakest intended own card and the best non-own
+ *    card — a wider gap is a clue the clicker is less likely to misread.
+ *  - assassin penalty (graded): the closer the clue sits to the assassin, the
+ *    worse, scaled by caution. The old hard filter is kept as a floor, but this
+ *    adds the missing gradient so a clue that merely flirts with the assassin
+ *    loses to an equally-covering clue that stays well clear.
+ *  - opponent penalty (defensive, "don't arm them"): a clue that also lights up
+ *    the opponent's cards teaches their clicker something, so it is penalised —
+ *    scaled by caution, so a cautious/expert bot prefers clues that leave the
+ *    opponent's board dark while a reckless bot barely cares.
+ *
+ * `caution` is riskAversion in [0,1]; the safety margin widens with it. Returns
+ * null when no own card leads safely.
  */
-function evaluateClue(clue: string, groups: BoardGroups, backend: SemanticBackend, margin: number): ClueEval | null {
+function scoreClue(clue: string, groups: BoardGroups, backend: SemanticBackend, caution: number): ClueEval | null {
     if (groups.own.length === 0) return null;
+    const margin = 0.05 + 0.1 * caution;
+
     const own = groups.own.map((w) => backend.relatedness(clue, w)).sort((a, b) => b - a);
-    const nonOwn = [...groups.opponent, ...groups.neutral, ...groups.assassin].map((w) => backend.relatedness(clue, w));
-    const maxNonOwn = nonOwn.length > 0 ? Math.max(...nonOwn) : 0;
-    const assassinMax =
-        groups.assassin.length > 0 ? Math.max(...groups.assassin.map((w) => backend.relatedness(clue, w))) : 0;
+    const maxOpp = maxRel(groups.opponent, clue, backend);
+    const maxNeu = maxRel(groups.neutral, clue, backend);
+    const maxAss = maxRel(groups.assassin, clue, backend);
+    const maxNonOwn = Math.max(maxOpp, maxNeu, maxAss);
 
     // Count own cards that clear every non-own card by the safety margin.
     let leadOwn = 0;
@@ -147,53 +176,97 @@ function evaluateClue(clue: string, groups: BoardGroups, backend: SemanticBacken
 
     // The assassin is catastrophic, so demand a wider berth: drop any intended
     // card that doesn't clear the closest assassin by twice the margin.
-    while (leadOwn > 0 && (own[leadOwn - 1] as number) - assassinMax < margin * 2) leadOwn--;
+    while (leadOwn > 0 && (own[leadOwn - 1] as number) - maxAss < margin * 2) leadOwn--;
     if (leadOwn === 0) return null;
 
-    // Prefer covering more cards; tie-break toward a clearer (wider-margin) clue.
-    const safety = Math.min(0.999, Math.max(0, (own[leadOwn - 1] as number) - maxNonOwn));
-    return { leadOwn, score: leadOwn + safety };
+    const weakestIntended = own[leadOwn - 1] as number;
+    const clarity = Math.min(0.999, Math.max(0, weakestIntended - maxNonOwn));
+    // Graded, caution-scaled penalties. Absolute maxAss / maxOpp are fine here:
+    // between two clues that both cover the same cards, the one that stays
+    // further from the assassin / the opponent's cards wins.
+    const assassinPenalty = caution * ASSASSIN_WEIGHT * maxAss;
+    const opponentPenalty = caution * OPPONENT_WEIGHT * maxOpp;
+
+    const score = leadOwn + CLARITY_WEIGHT * clarity - assassinPenalty - opponentPenalty;
+    return { word: clue, leadOwn, score };
 }
 
 /**
- * Last-resort scoring when no clue links an own card safely (e.g. a custom word
+ * Choose one candidate by its score, controlled by temperature:
+ *  - temperature <= 0: deterministic argmax (strongest play). Ties resolve to the
+ *    first candidate, matching the previous strict-greater selection.
+ *  - temperature > 0: softmax sample over scores, so weaker-but-sensible clues
+ *    get picked in proportion to how good they are. Higher temperature = flatter
+ *    distribution = more "off-kilter". All randomness flows through ctx.rng.
+ */
+function selectByTemperature(candidates: ClueEval[], temperature: number, rng: SeededRng): ClueEval {
+    let best = candidates[0] as ClueEval;
+    if (temperature <= 0 || candidates.length === 1) {
+        for (const c of candidates) if (c.score > best.score) best = c;
+        return best;
+    }
+    for (const c of candidates) if (c.score > best.score) best = c;
+    const maxScore = best.score;
+    const weights = candidates.map((c) => Math.exp((c.score - maxScore) / temperature));
+    const total = weights.reduce((a, w) => a + w, 0);
+    let r = rng.next() * total;
+    for (let i = 0; i < candidates.length; i++) {
+        r -= weights[i] as number;
+        if (r <= 0) return candidates[i] as ClueEval;
+    }
+    return best;
+}
+
+/**
+ * Last-resort clue when no clue links an own card safely (e.g. a custom word
  * list the backend barely covers). Every clue here is a gamble, so pick the
  * LEAST-bad legal clue: above all never let the assassin be the clicker's most
  * related card (instant loss), and among assassin-safe clues prefer the one whose
- * single closest board card is actually OURS (so a number-1 guess lands on own).
- * Always returns a clue when `pool` is non-empty — the caller only needs a
- * deeper fallback when there is no legal candidate at all. Board-derived, so it
- * varies by game rather than emitting a constant placeholder.
+ * single closest board card is actually OURS. Returns the chosen word plus a
+ * board-derived number (how many own cards out-rank every opponent/assassin
+ * card), so a salvageable best-effort clue no longer collapses to a constant 1.
  */
-function pickBestEffort(pool: readonly string[], groups: BoardGroups, backend: SemanticBackend): string | null {
-    const maxRel = (words: readonly string[], clue: string): number =>
-        words.length > 0 ? Math.max(...words.map((w) => backend.relatedness(clue, w))) : 0;
-    const nonOwn = [...groups.opponent, ...groups.neutral, ...groups.assassin];
+function pickBestEffort(
+    pool: readonly string[],
+    groups: BoardGroups,
+    backend: SemanticBackend
+): { word: string; number: number } | null {
+    const dangerous = [...groups.opponent, ...groups.assassin];
 
     let best: { word: string; ownGap: number; assassinSafe: boolean } | null = null;
     for (const clue of pool) {
-        const topOwn = maxRel(groups.own, clue);
-        const assassinMax = maxRel(groups.assassin, clue);
+        const topOwn = maxRel(groups.own, clue, backend);
+        const assassinMax = maxRel(groups.assassin, clue, backend);
         // assassinSafe: some own card out-ranks every assassin, so the clicker's
         // global argmax can't be the assassin. ownGap > 0: an own card is the
         // global argmax, so a number-1 guess lands on ours rather than an opponent.
         const assassinSafe = topOwn > assassinMax;
-        const ownGap = topOwn - maxRel(nonOwn, clue);
+        const ownGap = topOwn - maxRel([...groups.opponent, ...groups.neutral, ...groups.assassin], clue, backend);
         const better =
             !best ||
             (assassinSafe && !best.assassinSafe) ||
             (assassinSafe === best.assassinSafe && ownGap > best.ownGap);
         if (better) best = { word: clue, ownGap, assassinSafe };
     }
-    return best ? best.word : null;
+    if (!best) return null;
+    const chosenWord = best.word;
+
+    // Number: own cards that safely out-rank every dangerous (opponent/assassin)
+    // card by a hair, so the clicker's first guesses land on ours.
+    const dangerMax = maxRel(dangerous, chosenWord, backend);
+    const ownAheadOfDanger = groups.own.filter((w) => backend.relatedness(chosenWord, w) > dangerMax).length;
+    const number = Math.max(1, Math.min(MAX_CLUE_NUMBER, ownAheadOfDanger));
+    return { word: chosenWord, number };
 }
 
 /**
- * Semantic spymaster: scans the backend's clue vocabulary and picks the clue that
- * lets the clicker safely take the most own cards (see evaluateClue). Uses the
- * table backend by default; a real embedding backend drops in unchanged and makes
- * it markedly stronger. With only the lexical floor it degrades gracefully to a
- * best-effort, board-derived clue rather than a constant placeholder.
+ * Semantic spymaster: scores every legal candidate clue with the multi-factor
+ * model above, then selects with a temperature-controlled softmax so a single
+ * strategy spans "scary good" (temperature 0) to "off-kilter but sensible"
+ * (high temperature). Uses the table backend by default; a real embedding
+ * backend drops in unchanged and makes it markedly stronger. When the backend
+ * covers the board too poorly for any clue to lead safely, it degrades to a
+ * board-derived, assassin-safe best-effort clue rather than a constant placeholder.
  */
 export function makeEmbeddingSpymaster(
     skill: SkillParams,
@@ -212,33 +285,30 @@ export function makeEmbeddingSpymaster(
                 return { kind: 'clue', word, number: 1 };
             }
 
-            // A larger safety margin = more cautious (fewer, safer cards per clue).
-            const margin = 0.05 + 0.1 * skill.riskAversion;
-
-            let best: { word: string; leadOwn: number; score: number } | null = null;
+            // Score every legal candidate, then pick one via temperature.
+            const candidates: ClueEval[] = [];
             for (const clue of legalVocab) {
-                const ev = evaluateClue(clue, groups, backend, margin);
-                if (ev && (!best || ev.score > best.score)) {
-                    best = { word: clue, leadOwn: ev.leadOwn, score: ev.score };
-                }
+                const ev = scoreClue(clue, groups, backend, skill.riskAversion);
+                if (ev) candidates.push(ev);
+            }
+
+            if (candidates.length > 0) {
+                const chosen = selectByTemperature(candidates, skill.temperature, ctx.rng);
+                const number = Math.max(1, Math.min(chosen.leadOwn, MAX_CLUE_NUMBER));
+                return { kind: 'clue', word: chosen.word, number };
             }
 
             // Nothing leads safely: fall back to the least-bad legal clue, which
             // still refuses to make the assassin the clicker's top pick. Try the
             // backend vocab first, then the built-in abstract words, so even a board
-            // the backend can't cover at all gets an assassin-safe placeholder
-            // rather than a random one.
+            // the backend can't cover at all gets an assassin-safe placeholder.
             const legalBuiltins = CLUE_VOCAB.filter((w) => isClueLegalForBoard(w, view.words as string[]));
-            const word =
-                best?.word ??
-                pickBestEffort(legalVocab, groups, backend) ??
-                pickBestEffort(legalBuiltins, groups, backend);
-            if (!word) {
+            const fallback =
+                pickBestEffort(legalVocab, groups, backend) ?? pickBestEffort(legalBuiltins, groups, backend);
+            if (!fallback) {
                 return { kind: 'clue', word: pickFallbackClue(view), number: 1 };
             }
-
-            const number = Math.max(1, Math.min(best?.leadOwn ?? 1, MAX_CLUE_NUMBER));
-            return { kind: 'clue', word, number };
+            return { kind: 'clue', word: fallback.word, number: fallback.number };
         },
     };
 }

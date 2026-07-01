@@ -1,14 +1,16 @@
 /**
- * Clicker strategies (Phase 1 — no external assets required).
+ * Clicker strategies.
  *
  *  - randomClicker: uniform random over legal unrevealed cards. Baseline.
  *  - cautiousClicker: random pick, but stops after the clue's intended count
  *    (models a careful human who doesn't spend the bonus guess).
  *  - greedyClicker: ranks unrevealed cards by a SemanticBackend's relatedness to
- *    the clue word and reveals the best, up to the clue count. With the default
- *    lexical backend it is weak; swapping in embeddings (Phase 3) makes it smart.
+ *    the clue word and reveals one, up to the clue count. Selection is
+ *    temperature-controlled: at temperature 0 it takes the best card (a "scary
+ *    good" clicker that reliably reads its spymaster); at higher temperatures it
+ *    samples among plausible cards, so a weaker bot makes believable mistakes.
  */
-import type { BotAction, BotClickerView, BotContext, ClickerStrategy, SkillParams } from './types';
+import type { BotAction, BotClickerView, BotContext, ClickerStrategy, SkillParams, SeededRng } from './types';
 import type { SemanticBackend } from '../semantics/backend';
 import { defaultSemanticBackend } from '../semantics/backend';
 
@@ -24,6 +26,30 @@ function unrevealedIndices(view: BotClickerView): number[] {
 function intendedGuesses(view: BotClickerView): number {
     const n = view.currentClue ? view.currentClue.number : 0;
     return n > 0 ? n : 1; // unlimited clue -> a cautious bot still commits to ≥1
+}
+
+/**
+ * Pick one candidate index by its relatedness score, controlled by temperature:
+ *  - temperature <= 0: argmax (the card the clue fits best).
+ *  - temperature > 0: softmax sample, so a weaker bot sometimes takes the
+ *    second- or third-best card. All randomness flows through the seeded rng.
+ */
+function selectIndexByTemperature(
+    scored: { index: number; score: number }[],
+    temperature: number,
+    rng: SeededRng
+): number {
+    let best = scored[0] as { index: number; score: number };
+    for (const c of scored) if (c.score > best.score) best = c;
+    if (temperature <= 0 || scored.length === 1) return best.index;
+    const weights = scored.map((c) => Math.exp((c.score - best.score) / temperature));
+    const total = weights.reduce((a, w) => a + w, 0);
+    let r = rng.next() * total;
+    for (let i = 0; i < scored.length; i++) {
+        r -= weights[i] as number;
+        if (r <= 0) return (scored[i] as { index: number; score: number }).index;
+    }
+    return best.index;
 }
 
 export function makeRandomClicker(skill: SkillParams): ClickerStrategy {
@@ -82,22 +108,20 @@ export function makeGreedyClicker(
 
             // Rank unrevealed cards by relatedness to the clue word.
             const clueWord = view.currentClue.word;
-            let bestIdx = choices[0] as number;
-            let bestScore = -Infinity;
-            for (const i of choices) {
-                const score = backend.relatedness(view.words[i] as string, clueWord);
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestIdx = i;
-                }
-            }
+            const scored = choices.map((index) => ({
+                index,
+                score: backend.relatedness(view.words[index] as string, clueWord),
+            }));
+            const bestScore = scored.reduce((m, c) => (c.score > m ? c.score : m), -Infinity);
 
             // After the first guess, a risk-averse bot stops if nothing looks related.
             const confidenceFloor = skill.riskAversion * 0.2;
             if (view.guessesUsed >= 1 && bestScore < confidenceFloor) {
                 return { kind: 'endTurn' };
             }
-            return { kind: 'reveal', index: bestIdx };
+
+            const index = selectIndexByTemperature(scored, skill.temperature, ctx.rng);
+            return { kind: 'reveal', index };
         },
     };
 }
