@@ -23,7 +23,7 @@ import type { BotConfig } from '../bots/strategies/types';
 
 export interface AddBotOptions {
     team: Team;
-    role: Extract<Role, 'spymaster' | 'clicker'>;
+    role: Extract<Role, 'spymaster' | 'clicker' | 'advisor'>;
     strategyId: string;
     skillPreset: string;
     nickname?: string;

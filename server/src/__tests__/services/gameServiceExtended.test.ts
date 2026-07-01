@@ -685,6 +685,23 @@ describe('getGameStateForPlayer', () => {
         expect(state.types).toEqual(mockGame.types);
     });
 
+    test('observer sees all types like a spymaster (full unmasked board)', () => {
+        const game = { ...mockGame, revealed: [true, false, false, ...Array(22).fill(false)] };
+        const player = { role: 'observer', team: null };
+        const state = getGameStateForPlayer(game, player);
+
+        expect(state.types).toEqual(mockGame.types); // unmasked, even unrevealed
+    });
+
+    test('advisor only sees revealed types (masked, like a clicker)', () => {
+        const game = { ...mockGame, revealed: [true, false, false, ...Array(22).fill(false)] };
+        const player = { role: 'advisor', team: 'red' };
+        const state = getGameStateForPlayer(game, player);
+
+        expect(state.types[0]).toBe('red'); // revealed card shows type
+        expect(state.types[1]).toBeNull(); // unrevealed hidden — advisor guesses like a clicker
+    });
+
     describe('match mode cardScores visibility', () => {
         const matchGame = {
             ...mockGame,

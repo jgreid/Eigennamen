@@ -27,7 +27,7 @@ interface PlayerRoleInput {
 
 interface PlayerTeamRoleInput {
     team: Team;
-    role: 'spymaster' | 'clicker';
+    role: 'spymaster' | 'clicker' | 'advisor';
 }
 
 interface ChangePermission {

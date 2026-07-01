@@ -7,7 +7,7 @@ local now = tonumber(ARGV[4])
 
 -- Defense-in-depth: Validate role is one of allowed values
 -- JS already validates via Zod schema, but Lua should also check
-local allowedRoles = {spymaster = true, clicker = true, spectator = true}
+local allowedRoles = {spymaster = true, clicker = true, advisor = true, observer = true, spectator = true}
 if not allowedRoles[newRole] then
     return cjson.encode({success = false, reason = 'INVALID_ROLE'})
 end
@@ -23,8 +23,9 @@ if not ok then
     return cjson.encode({success = false, reason = 'CORRUPTED_DATA'})
 end
 
--- For spymaster/clicker roles, require team and check for existing role holder
-if newRole == 'spymaster' or newRole == 'clicker' then
+-- For team-bound seats (spymaster/clicker/advisor), require a team and enforce
+-- one holder per team. observer/spectator are teamless and unrestricted.
+if newRole == 'spymaster' or newRole == 'clicker' or newRole == 'advisor' then
     if not player.team or player.team == cjson.null then
         return cjson.encode({success = false, reason = 'NO_TEAM'})
     end

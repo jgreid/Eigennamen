@@ -17,9 +17,16 @@ export type CardType = 'red' | 'blue' | 'neutral' | 'assassin';
 export type Team = 'red' | 'blue';
 
 /**
- * Player roles in the game
+ * Player roles in the game.
+ *  - spymaster: gives clues; sees the unmasked board.
+ *  - clicker: selects/reveals cards for their team.
+ *  - advisor: sees the clicker's (masked) board + clue and suggests guesses, but
+ *    can never reveal/clue/end-turn — it only advises the human clicker.
+ *  - observer: sees the unmasked board like a spymaster but never participates
+ *    (for watching games / testing bots).
+ *  - spectator: limited-visibility onlooker (existing approval-gated flow).
  */
-export type Role = 'spymaster' | 'clicker' | 'spectator';
+export type Role = 'spymaster' | 'clicker' | 'advisor' | 'observer' | 'spectator';
 
 /**
  * Individual card on the board

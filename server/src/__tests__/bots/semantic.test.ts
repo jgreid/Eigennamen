@@ -5,6 +5,7 @@ import { tableBackend } from '../../bots/semantics/tableBackend';
 import { ASSOCIATIONS } from '../../bots/semantics/associations';
 import { makeEmbeddingSpymaster } from '../../bots/strategies/spymasters';
 import { makeGreedyClicker } from '../../bots/strategies/clickers';
+import { suggestGuesses } from '../../bots/strategies/advisor';
 import { resolveClicker } from '../../bots/strategies/registry';
 import { resolveSkill } from '../../bots/presets';
 import { makeRng } from '../../bots/rng';
@@ -270,6 +271,41 @@ describe('embeddingSpymaster generates board-specific clues via nearest()', () =
         );
         const action = makeEmbeddingSpymaster(resolveSkill('expert', 7), backend).chooseClue(view, ctx(7));
         expect(action).toEqual({ kind: 'clue', word: 'PREDATOR', number: 2 });
+    });
+});
+
+describe('advisor suggestGuesses', () => {
+    const view = (overrides: Partial<BotClickerView> = {}): BotClickerView => ({
+        role: 'clicker',
+        team: 'red',
+        gameMode: 'classic',
+        words: ['BEAR', 'LION', 'APPLE', 'CAR'],
+        revealed: [false, false, false, false],
+        types: [null, null, null, null],
+        currentTurn: 'red',
+        currentClue: { word: 'ANIMAL', number: 2, team: 'red' },
+        guessesUsed: 0,
+        guessesAllowed: 0,
+        ...overrides,
+    });
+
+    it('ranks the clue-fitting cards, bounded by the clue number', () => {
+        const out = suggestGuesses(view(), tableBackend, 3);
+        // ANIMAL fits BEAR and LION (indices 0,1); number 2 caps the list at 2.
+        expect(out.length).toBe(2);
+        expect(out.map((s) => s.index).sort()).toEqual([0, 1]);
+        expect(out.every((s) => s.confidence > 0 && s.confidence <= 1)).toBe(true);
+        expect(out[0]!.reason).toContain('ANIMAL');
+    });
+
+    it('returns nothing when there is no active clue', () => {
+        expect(suggestGuesses(view({ currentClue: null }), tableBackend)).toEqual([]);
+    });
+
+    it('skips already-revealed cards', () => {
+        const out = suggestGuesses(view({ revealed: [true, false, false, false] }), tableBackend, 3);
+        expect(out.map((s) => s.index)).not.toContain(0); // BEAR already revealed
+        expect(out.map((s) => s.index)).toContain(1); // LION still suggestable
     });
 });
 

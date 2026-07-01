@@ -198,9 +198,15 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 const teamClicker = teamMembers.find((p: Player) => p.role === 'clicker');
                 const clickerDisconnected = !teamClicker || !teamClicker.connected;
 
-                // Bug #3 fix: Spymasters can never reveal cards, even if clicker is disconnected
-                if (ctx.player.role === 'spymaster') {
-                    throw new ValidationError('Spymasters cannot reveal cards - they can only give clues');
+                // Spymasters, advisors and observers can NEVER reveal cards, even
+                // if the clicker is disconnected — only the clicker (or a fallback
+                // teammate) acts. Advisors only suggest; observers only watch.
+                if (
+                    ctx.player.role === 'spymaster' ||
+                    ctx.player.role === 'advisor' ||
+                    ctx.player.role === 'observer'
+                ) {
+                    throw new ValidationError('Only the clicker can reveal cards');
                 }
 
                 if (ctx.player.role !== 'clicker' && !clickerDisconnected) {
@@ -317,9 +323,10 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                     : null;
             const clickerDisconnected = !teamClicker || !teamClicker.connected;
 
-            // Bug #3 fix: Spymasters can never end turns, even if clicker is disconnected
-            if (ctx.player.role === 'spymaster') {
-                throw new ValidationError('Spymasters cannot end turns - only clickers can');
+            // Spymasters, advisors and observers can never end turns, even if the
+            // clicker is disconnected — only the clicker (or a fallback teammate).
+            if (ctx.player.role === 'spymaster' || ctx.player.role === 'advisor' || ctx.player.role === 'observer') {
+                throw new ValidationError('Only the clicker can end the turn');
             }
 
             if (ctx.player.role !== 'clicker' && !clickerDisconnected) {
