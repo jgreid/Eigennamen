@@ -8,6 +8,23 @@ events. Sections below preserve the original design narrative; where they
 described future work that has since shipped, this is flagged inline. **For the
 current state, the code in `server/src/bots/` is authoritative.**
 
+**Shipped since the original spec (see `server/src/bots/`):**
+- **Multi-factor clue scoring** (`strategies/spymasters.ts` `scoreClue`): coverage
+  + clarity + a graded assassin penalty + a defensive "don't arm the opponent"
+  penalty + (match mode) a card-value bonus. The `temperature` knob is now wired
+  as a softmax over candidates, so one strategy spans "scary good" (temp 0) →
+  "off-kilter but sensible" (high temp); the `novice`/`intermediate`/`expert`
+  presets are a real self-play-verified ladder.
+- **Embedding-backed clue GENERATION**: `SemanticBackend.nearest()` lets the
+  spymaster generate board-specific candidates (nearest own-card neighbours),
+  not just score a fixed vocabulary. Enabled via `BOT_EMBEDDINGS_PATH` (opt-in in
+  prod; graceful table fallback).
+- **New roles**: `advisor` (suggests ranked guesses to a human clicker via
+  `game:botSuggestion`, never acts) and `observer` (watches the unmasked board,
+  never participates). Bots can be seated as advisors; the advisor honours its
+  skill preset.
+- **Live "thinking" pace** between bot actions (controller only; zero in tests).
+
 **Scope:** Add AI-controlled players ("bots") to Eigennamen for two purposes:
 
 1. **Solo playtesting** — a human (or no human at all) plays a real game with bots filling the empty seats, in a normal multiplayer room.

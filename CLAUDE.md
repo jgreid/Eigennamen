@@ -9,7 +9,7 @@ Web-based multiplayer implementation of the board game "Eigennamen" (GPL v3.0).
 - **Standalone mode**: Offline single-page app. Game state is encoded entirely in the URL, so no *backend* is required. The entry document is `server/public/index.html`; it loads its JS/CSS by absolute path (`/js/...`, `/css/...`), so serve the `server/public/` directory statically (e.g. `cd server/public && python -m http.server`) — opening `index.html` straight off the filesystem (`file://`) fails because those absolute paths don't resolve.
 - **Multiplayer mode**: Real-time synchronized gameplay via Node.js + Express 5 + Socket.io + Redis. Supports multiple concurrent rooms, reconnection, spectators, game history/replays, AI bot opponents, and an admin dashboard.
 - **Three game modes**: Classic (competitive), Duet (2-player cooperative), Match (multi-round competitive scoring)
-- **AI bots**: Optional bot players (host-managed via `bot:add`/`bot:remove`) that occupy spymaster/clicker seats and play through the same game ops as humans. Strategies range from random to a semantic spymaster backed by an offline association table or optional word embeddings. See `server/src/bots/` and [docs/INTELLIGENT_BOTS_SPEC.md](docs/INTELLIGENT_BOTS_SPEC.md).
+- **AI bots**: Optional bot players (host-managed via `bot:add`/`bot:remove`) that occupy spymaster/clicker/advisor seats and play through the same game ops as humans. The semantic spymaster *generates* board-specific clues (offline association table, or optional word embeddings for nearest-neighbour candidate generation), plays defensively (avoids arming the opponent), keeps a graded assassin berth, is match-value-aware, and spans a real difficulty ladder novice→expert via `temperature`/`blunderRate`/`riskAversion`. An **advisor** bot suggests ranked guesses to a human clicker without ever acting; an **observer** role watches the unmasked board without participating. See `server/src/bots/` and [docs/INTELLIGENT_BOTS_SPEC.md](docs/INTELLIGENT_BOTS_SPEC.md).
 - **Four languages**: English, German, Spanish, French — with localized word lists
 - **PWA**: Installable as a Progressive Web App with service worker
 
@@ -458,12 +458,16 @@ All event names defined in `config/socketConfig.ts`. Format: `domain:action` (cl
 | `game:getHistory` | `game:historyResult` |
 | `game:getReplay` | `game:replayData` |
 | `game:clearHistory` | `game:historyCleared` |
-| | `game:readyStatus`, `game:error` |
+| | `game:readyStatus`, `game:botSuggestion`, `game:error` |
+
+`game:botSuggestion` is emitted by an advisor bot: ranked guess suggestions
+(`{index, confidence, reason}`) for the current clue that the human clicker may
+act on. Advisory only — it never reveals.
 
 ### Bot Events
 | Client → Server | Server → Client |
 |-----------------|-----------------|
-| `bot:add` (host) | (room/player broadcasts; `bot:error` on failure) |
+| `bot:add` (host; seat = spymaster/clicker/advisor) | (room/player broadcasts; `bot:error` on failure) |
 | `bot:remove` (host) | (room/player broadcasts; `bot:error` on failure) |
 
 ### Player Events
