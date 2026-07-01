@@ -156,7 +156,12 @@ async function emitAdvisorSuggestions(
         guessesUsed: game.guessesUsed ?? 0,
         guessesAllowed: game.guessesAllowed ?? 0,
     };
-    const suggestions = suggestGuesses(view, getSemanticBackend(), 3);
+    // Honour the advisor bot's configured skill: a strong advisor gives confident,
+    // best-fit picks; a weaker one gives loose, lower-confidence hints.
+    const cfg = await botService.getBotConfig(advisor.sessionId);
+    const seed = hashString(`${cfg?.seed ?? 0}:${game.seed}:${game.stateVersion ?? 0}`);
+    const skill = cfg ? resolveSkill(cfg.skillPreset, seed) : undefined;
+    const suggestions = suggestGuesses(view, getSemanticBackend(), 3, skill, makeRng(seed));
     if (suggestions.length === 0) return;
 
     suggestionKeys.set(roomCode, key);

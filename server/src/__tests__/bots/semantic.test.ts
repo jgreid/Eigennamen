@@ -307,6 +307,32 @@ describe('advisor suggestGuesses', () => {
         expect(out.map((s) => s.index)).not.toContain(0); // BEAR already revealed
         expect(out.map((s) => s.index)).toContain(1); // LION still suggestable
     });
+
+    it('honours skill: expert is deterministic + confident, novice hedges + varies', () => {
+        // Three equally-fitting animals (BEAR/LION/HORSE), clue number 2 → pick 2.
+        const animalView = (): BotClickerView =>
+            view({ words: ['BEAR', 'LION', 'HORSE', 'APPLE'], revealed: [false, false, false, false] });
+
+        const expertSkill = resolveSkill('expert', 1);
+        const a = suggestGuesses(animalView(), tableBackend, 3, expertSkill, makeRng(1));
+        const b = suggestGuesses(animalView(), tableBackend, 3, expertSkill, makeRng(2));
+        expect(a).toEqual(b); // temperature 0 → deterministic regardless of rng
+        expect(a.length).toBe(2);
+        expect(a.every((s) => s.confidence === 1)).toBe(true); // full confidence
+
+        const noviceSets = new Set<string>();
+        for (let s = 0; s < 24; s++) {
+            const out = suggestGuesses(animalView(), tableBackend, 3, resolveSkill('novice', s), makeRng(s));
+            noviceSets.add(
+                out
+                    .map((x) => x.index)
+                    .sort()
+                    .join(',')
+            );
+            expect(out.every((x) => x.confidence < 1)).toBe(true); // dampened confidence
+        }
+        expect(noviceSets.size).toBeGreaterThan(1); // samples among plausible cards
+    });
 });
 
 describe('greedyClicker temperature scales guess accuracy', () => {

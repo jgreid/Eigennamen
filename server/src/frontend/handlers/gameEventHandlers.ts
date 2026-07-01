@@ -188,6 +188,10 @@ export function registerGameHandlers(): void {
     EigennamenClient.on('botSuggestion', (data: BotSuggestionData) => {
         if (state.resyncInProgress) return;
         if (!data || !Array.isArray(data.suggestions)) return;
+        // Only surface suggestions to the advised team and watchers (observers /
+        // spectators). The opposing team shouldn't see the other side's hints.
+        const relevant = state.isObserver || !state.playerTeam || state.playerTeam === data.team;
+        if (!relevant) return;
         state.botSuggestions = data.suggestions;
         state.botSuggestionAdvisor = data.advisor?.nickname ?? null;
         renderBotSuggestions();
@@ -262,6 +266,10 @@ export function registerGameHandlers(): void {
         let changed = false;
         if (data.types && Array.isArray(data.types)) {
             state.gameState.types = data.types;
+            changed = true;
+        }
+        if (data.duetTypes && Array.isArray(data.duetTypes)) {
+            state.gameState.duetTypes = data.duetTypes;
             changed = true;
         }
         if (data.cardScores && Array.isArray(data.cardScores)) {

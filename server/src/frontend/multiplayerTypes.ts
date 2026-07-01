@@ -236,6 +236,7 @@ export interface ReadyStatusData {
 
 export interface SpymasterViewData {
     types?: string[];
+    duetTypes?: string[];
     cardScores?: number[];
 }
 
