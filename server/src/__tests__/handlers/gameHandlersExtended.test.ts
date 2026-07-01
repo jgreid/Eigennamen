@@ -190,7 +190,7 @@ describe('Extended Game Handlers Tests', () => {
             expect(mockSocket.emit).toHaveBeenCalledWith(
                 'game:error',
                 expect.objectContaining({
-                    message: expect.stringContaining('Spymasters cannot reveal'),
+                    message: expect.stringContaining('Only the clicker can reveal'),
                 })
             );
             expect(gameService.revealCard).not.toHaveBeenCalled();
@@ -522,7 +522,7 @@ describe('Extended Game Handlers Tests', () => {
             expect(mockSocket.emit).toHaveBeenCalledWith(
                 'game:error',
                 expect.objectContaining({
-                    message: expect.stringContaining('Spymasters cannot end turns'),
+                    message: expect.stringContaining('Only the clicker can end the turn'),
                 })
             );
             expect(gameService.endTurn).not.toHaveBeenCalled();

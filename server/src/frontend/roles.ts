@@ -229,6 +229,14 @@ export function updateControls(): void {
         }
     }
 
+    // Observer toggle: reflects whether the local player is currently observing.
+    const observerBtn = document.getElementById('btn-observer') as HTMLButtonElement | null;
+    if (observerBtn) {
+        observerBtn.classList.toggle('active', state.isObserver);
+        observerBtn.setAttribute('aria-pressed', state.isObserver.toString());
+        observerBtn.title = state.isObserver ? t('roles.observing') : t('roles.observe');
+    }
+
     // Role hint removed — players are oriented via quickstart guide
     if (roleHint) {
         roleHint.classList.add('hidden');
@@ -458,4 +466,36 @@ export function setClickerCurrent(): void {
         return;
     }
     setClicker(state.playerTeam);
+}
+
+/**
+ * Toggle the observer role: an observer watches the whole board (like a
+ * spymaster) but never participates — handy for spectating bot games. Toggling
+ * off returns to a plain spectator. The server drives the authoritative state
+ * (PLAYER_UPDATED + spymasterView); standalone mode toggles locally.
+ */
+export function toggleObserver(): void {
+    const becomingObserver = !state.isObserver;
+    const targetRole = becomingObserver ? 'observer' : 'spectator';
+
+    if (state.isMultiplayerMode && isClientConnected()) {
+        if (!EigennamenClient.isInRoom()) {
+            showToast(t('multiplayer.waitJoiningRoom'), 'info');
+            return;
+        }
+        EigennamenClient.setRole(targetRole, (ack: AckResult) => {
+            if (ack && ack.error) {
+                showToast(getErrorMessage(ack.error), 'error');
+            }
+        });
+        return;
+    }
+
+    // Standalone: toggle locally (no server round-trip).
+    state.isObserver = becomingObserver;
+    if (becomingObserver) {
+        state.spymasterTeam = null;
+        state.clickerTeam = null;
+    }
+    refreshRoleUI();
 }

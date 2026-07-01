@@ -17,6 +17,14 @@ export interface SemanticBackend {
     /** Candidate clue words this backend knows about (spymaster vocabulary).
      *  Optional — backends without a fixed vocabulary (e.g. lexical) omit it. */
     vocabulary?(): string[];
+    /**
+     * Candidate clue words nearest the centroid of `words`, best first. This is
+     * what lets a spymaster GENERATE board-specific clues (words near its own
+     * cards) rather than only scoring a fixed vocabulary — the key to strong,
+     * creative clues. Optional: backends without a vector space (table, lexical)
+     * omit it, and the spymaster falls back to scanning vocabulary().
+     */
+    nearest?(words: string[], k: number): Array<{ word: string; score: number }>;
 }
 
 /** Character bigrams of an uppercased word (e.g. "FRUIT" -> FR,RU,UI,IT). */

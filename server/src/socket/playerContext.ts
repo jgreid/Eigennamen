@@ -281,6 +281,17 @@ function canChangeTeamOrRole(
         };
     }
 
+    // Observers have seen the FULL unmasked board, so they cannot join the game as
+    // a playing role mid-game (that would be cheating). They may only remain an
+    // observer or step down to a plain spectator.
+    if (player.role === 'observer' && targetRole && targetRole !== 'observer' && targetRole !== 'spectator') {
+        return {
+            allowed: false,
+            reason: 'Cannot join an active game as an observer — you have seen the whole board',
+            code: ERROR_CODES.SPYMASTER_CANNOT_CHANGE_TEAM,
+        };
+    }
+
     if (player.role === 'spymaster' || player.role === 'clicker') {
         if (game.currentTurn === player.team) {
             // Allow switching between active roles on the same team (clicker <-> spymaster)

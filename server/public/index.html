@@ -38,7 +38,7 @@
          the whole app. Freshness is handled instead by the content-hash ?v= cache-bust
          below, which esbuild keeps in sync with the file contents on every build. -->
     <script defer src="/js/socket.io.min.js?v=9336af8f"></script>
-    <script defer src="/js/socket-client.js?v=e256e7f4"></script>
+    <script defer src="/js/socket-client.js?v=a3a2bf87"></script>
     <link rel="stylesheet" href="/css/variables.css" />
     <link rel="stylesheet" href="/css/layout.css" />
     <link rel="stylesheet" href="/css/components.css" />
@@ -464,6 +464,7 @@
                     <select id="bot-seat-select" data-testid="bot-seat-select" aria-label="Bot seat">
                       <option value="spymaster" data-i18n="roles.spymaster">Spymaster</option>
                       <option value="clicker" data-i18n="roles.clicker">Clicker</option>
+                      <option value="advisor" data-i18n="roles.advisor">Advisor</option>
                     </select>
                   </label>
                   <label class="bots-field">
@@ -477,8 +478,8 @@
                   <label class="bots-field">
                     <span data-i18n="bots.skill">Skill</span>
                     <select id="bot-skill-select" data-testid="bot-skill-select" aria-label="Bot skill">
+                      <option value="intermediate" data-i18n="bots.skillIntermediate" selected>Intermediate</option>
                       <option value="expert" data-i18n="bots.skillExpert">Expert</option>
-                      <option value="intermediate" data-i18n="bots.skillIntermediate">Intermediate</option>
                       <option value="novice" data-i18n="bots.skillNovice">Novice</option>
                     </select>
                   </label>
@@ -546,6 +547,17 @@
                 data-i18n="roles.clicker"
               >
                 Clicker
+              </button>
+              <button
+                type="button"
+                class="btn-observer"
+                id="btn-observer"
+                data-testid="observer-btn"
+                data-action="toggle-observer"
+                data-i18n="roles.observe"
+                title="Watch the whole board without playing"
+              >
+                Observe
               </button>
             </div>
             <div class="role-hint" id="role-hint"></div>
@@ -1737,7 +1749,7 @@
       </div>
     </div>
 
-    <script type="module" src="/js/modules/app.js?v=69242839"></script>
+    <script type="module" src="/js/modules/app.js?v=66d3ee2e"></script>
     <!-- Fallback: detect if the ES module failed to load + service worker registration -->
     <script src="/js/app-fallback.js"></script>
   </body>

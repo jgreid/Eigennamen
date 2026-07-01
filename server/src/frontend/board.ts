@@ -318,6 +318,9 @@ export function renderBoard(): void {
         // Shrink font on any single-word cards that overflow their container
         fitCardText(board);
 
+        // Re-apply any active advisor suggestions after a full rebuild.
+        renderBotSuggestions();
+
         state.boardInitialized = true;
         renderingInProgress = false;
         initBoardEventDelegation();
@@ -341,6 +344,40 @@ export function renderBoard(): void {
         errorDiv.textContent = t('board.renderError');
         board.appendChild(errorDiv);
     }
+}
+
+/**
+ * Overlay advisor-bot guess suggestions on the board: a highlight ring + a
+ * confidence badge (reason as tooltip) on each suggested card. Advisory only —
+ * the human clicker still clicks to reveal.
+ */
+export function renderBotSuggestions(): void {
+    const board = state.cachedElements.board || document.getElementById('board');
+    if (!board) return;
+    board.querySelectorAll('.card.suggested').forEach((c) => {
+        c.classList.remove('suggested');
+        c.removeAttribute('data-confidence');
+        c.querySelector('.suggestion-badge')?.remove();
+    });
+    for (const s of state.botSuggestions) {
+        const card = board.querySelector(`.card[data-index="${s.index}"]`);
+        if (!card || card.classList.contains('revealed')) continue;
+        const pct = Math.round(Math.max(0, Math.min(1, s.confidence)) * 100);
+        card.classList.add('suggested');
+        card.setAttribute('data-confidence', String(pct));
+        const badge = document.createElement('span');
+        badge.className = 'suggestion-badge';
+        badge.textContent = `${pct}%`;
+        badge.title = state.botSuggestionAdvisor ? `${state.botSuggestionAdvisor}: ${s.reason}` : s.reason;
+        card.appendChild(badge);
+    }
+}
+
+/** Clear all advisor suggestions and their board decorations. */
+export function clearBotSuggestions(): void {
+    state.botSuggestions = [];
+    state.botSuggestionAdvisor = null;
+    renderBotSuggestions();
 }
 
 // Incremental update - only update changed cards (much faster)

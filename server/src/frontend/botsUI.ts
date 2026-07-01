@@ -33,7 +33,7 @@ export function addBotFromForm(): void {
     const team = selectValue('bot-team-select', 'red');
     const seat = selectValue('bot-seat-select', 'clicker');
     const style = selectValue('bot-style-select', 'smart');
-    const skill = selectValue('bot-skill-select', 'expert');
+    const skill = selectValue('bot-skill-select', 'intermediate');
 
     EigennamenClient.addBot(team, seat, strategyFor(seat, style), skill);
     showToast(t('bots.added'), 'success', 2000);

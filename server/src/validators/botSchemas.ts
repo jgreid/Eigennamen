@@ -16,7 +16,7 @@ const botConfigSchema = z.object({
 // bot:add — host adds a bot to a seat.
 const botAddSchema = z.object({
     team: z.enum(['red', 'blue']),
-    role: z.enum(['spymaster', 'clicker']),
+    role: z.enum(['spymaster', 'clicker', 'advisor']),
     strategyId: z.string().refine((v: string) => isStrategyId(v), 'Unknown strategy'),
     skillPreset: z.string().refine((v: string) => isSkillPreset(v), 'Unknown skill preset'),
     nickname: z

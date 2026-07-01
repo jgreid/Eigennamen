@@ -297,6 +297,10 @@ export function getGameStateForPlayer(game: GameState | null, player: Player | n
     };
 
     const isSpymaster = player && player.role === 'spymaster';
+    // Observers watch the game with full visibility (like a spymaster) but never
+    // participate, so they see the unmasked board on both sides.
+    const isObserver = player && player.role === 'observer';
+    const fullBoardView = isSpymaster || isObserver || game.gameOver;
     const playerTeam = player?.team;
 
     // Defence-in-depth: verify array lengths match before mapping.
@@ -314,7 +318,8 @@ export function getGameStateForPlayer(game: GameState | null, player: Player | n
     }
 
     if (isDuet) {
-        if (game.gameOver) {
+        if (game.gameOver || isObserver) {
+            // Observers (and everyone after game over) see both sides fully.
             state.types = game.types;
             state.duetTypes = game.duetTypes;
         } else if (isSpymaster && playerTeam === 'red') {
@@ -328,7 +333,7 @@ export function getGameStateForPlayer(game: GameState | null, player: Player | n
             state.duetTypes = game.duetTypes?.map((type, i) => (game.revealed[i] ? type : null));
         }
     } else {
-        if (isSpymaster || game.gameOver) {
+        if (fullBoardView) {
             state.types = game.types;
         } else {
             state.types = game.types.map((type, i) => (game.revealed[i] ? type : null));
@@ -337,7 +342,7 @@ export function getGameStateForPlayer(game: GameState | null, player: Player | n
 
     // Match mode: card scores visibility
     if (isMatch && game.cardScores) {
-        if (isSpymaster || game.gameOver) {
+        if (fullBoardView) {
             // Spymasters see all card scores; everyone sees all after game over
             state.cardScores = game.cardScores;
         } else {

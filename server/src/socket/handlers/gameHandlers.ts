@@ -116,8 +116,10 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                         gameMode,
                     });
 
-                    // Reset all player roles to spectator for the new game
-                    // Team membership is preserved, but roles must be re-chosen
+                    // Prepare roles for the new game: seats are PRESERVED (humans
+                    // and bots keep their team + role), so a player who set up as
+                    // clicker/spymaster stays seated instead of being bumped to
+                    // spectator and having to re-claim every game.
                     const players: Player[] = await playerService.resetRolesForNewGame(ctx.roomCode);
 
                     return { game, room, players };
@@ -134,11 +136,11 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                     gameMode,
                 }));
 
-                // Broadcast role resets so all clients clear spymaster/clicker state.
-                // Humans were reset to spectator; bots keep their seat role
-                // (resetRolesForNewGame skips them), so broadcast the ACTUAL role
-                // rather than a hardcoded 'spectator' — otherwise clients show a bot
-                // as a spectator while the controller still plays its real role.
+                // Broadcast each player's role so all clients re-sync spymaster/
+                // clicker state for the new game. Seats are preserved, so broadcast
+                // the ACTUAL role rather than a hardcoded 'spectator' — otherwise
+                // clients would show seated players (and bots) as spectators while
+                // the server still treats them as their real role.
                 for (const p of players) {
                     safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
                         sessionId: p.sessionId,
@@ -196,9 +198,15 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 const teamClicker = teamMembers.find((p: Player) => p.role === 'clicker');
                 const clickerDisconnected = !teamClicker || !teamClicker.connected;
 
-                // Bug #3 fix: Spymasters can never reveal cards, even if clicker is disconnected
-                if (ctx.player.role === 'spymaster') {
-                    throw new ValidationError('Spymasters cannot reveal cards - they can only give clues');
+                // Spymasters, advisors and observers can NEVER reveal cards, even
+                // if the clicker is disconnected — only the clicker (or a fallback
+                // teammate) acts. Advisors only suggest; observers only watch.
+                if (
+                    ctx.player.role === 'spymaster' ||
+                    ctx.player.role === 'advisor' ||
+                    ctx.player.role === 'observer'
+                ) {
+                    throw new ValidationError('Only the clicker can reveal cards');
                 }
 
                 if (ctx.player.role !== 'clicker' && !clickerDisconnected) {
@@ -315,9 +323,10 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                     : null;
             const clickerDisconnected = !teamClicker || !teamClicker.connected;
 
-            // Bug #3 fix: Spymasters can never end turns, even if clicker is disconnected
-            if (ctx.player.role === 'spymaster') {
-                throw new ValidationError('Spymasters cannot end turns - only clickers can');
+            // Spymasters, advisors and observers can never end turns, even if the
+            // clicker is disconnected — only the clicker (or a fallback teammate).
+            if (ctx.player.role === 'spymaster' || ctx.player.role === 'advisor' || ctx.player.role === 'observer') {
+                throw new ValidationError('Only the clicker can end the turn');
             }
 
             if (ctx.player.role !== 'clicker' && !clickerDisconnected) {
@@ -416,7 +425,8 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 wordList: ctx.game.words,
             });
 
-            // Reset all roles to spectator — players choose roles each round
+            // Preserve seats across the round (see resetRolesForNewGame): humans
+            // and bots keep their team + role instead of dropping to spectator.
             const players: Player[] = await playerService.resetRolesForNewGame(ctx.roomCode);
 
             // Send game state to each player (all roles are now spectator)
@@ -426,10 +436,10 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 isNextRound: true,
             }));
 
-            // Broadcast role resets so all clients clear spymaster/clicker state.
-            // Bots keep their seat role across rounds (resetRolesForNewGame skips
-            // them), so broadcast the actual role rather than a hardcoded
-            // 'spectator' to keep client rosters consistent with server state.
+            // Broadcast each player's role so all clients re-sync for the round.
+            // Seats are preserved across rounds, so broadcast the actual role
+            // rather than a hardcoded 'spectator' to keep client rosters
+            // consistent with server state.
             for (const p of players) {
                 safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
                     sessionId: p.sessionId,

@@ -63,6 +63,9 @@ export const SOCKET_EVENTS = {
     GAME_HISTORY_CLEARED: 'game:historyCleared',
     GAME_ABANDON: 'game:abandon',
     GAME_SPYMASTER_VIEW: 'game:spymasterView',
+    // Advisor bot → room: ranked guess suggestions for the current clue. Advisory
+    // only; the human clicker still makes every reveal.
+    GAME_BOT_SUGGESTION: 'game:botSuggestion',
     GAME_NEXT_ROUND: 'game:nextRound',
     GAME_ROUND_ENDED: 'game:roundEnded',
     GAME_MATCH_OVER: 'game:matchOver',

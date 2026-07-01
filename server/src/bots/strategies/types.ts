@@ -55,6 +55,8 @@ export interface BotSpymasterView {
     readonly revealed: readonly boolean[];
     readonly types: readonly CardType[]; // unmasked
     readonly currentTurn: Team;
+    /** Match mode only: per-card point values (unmasked for the spymaster). */
+    readonly cardScores?: readonly (number | null)[];
 }
 
 /** Clicker's view: types[] masked to null for unrevealed cards. */

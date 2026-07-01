@@ -61,6 +61,13 @@ export interface ClueGivenData {
     spymaster?: { sessionId: string; nickname: string };
 }
 
+export interface BotSuggestionData {
+    team: string;
+    clue: { word: string; number: number };
+    advisor: { sessionId: string; nickname: string };
+    suggestions: { index: number; confidence: number; reason: string }[];
+}
+
 export interface JoinCreateResult {
     room?: ServerRoomData;
     player?: ServerPlayerData;
@@ -229,6 +236,7 @@ export interface ReadyStatusData {
 
 export interface SpymasterViewData {
     types?: string[];
+    duetTypes?: string[];
     cardScores?: number[];
 }
 

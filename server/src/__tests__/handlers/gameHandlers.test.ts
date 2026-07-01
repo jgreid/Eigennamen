@@ -148,10 +148,11 @@ describe('Game Handlers', () => {
             gameService.createGame.mockResolvedValue({ id: 'game-1', currentTurn: 'red', redTotal: 9, blueTotal: 8 });
             gameService.getGameStateForPlayer.mockReturnValue({ id: 'game-1' });
             roomService.getRoom.mockResolvedValue({ settings: { gameMode: 'classic' } });
-            // resetRolesForNewGame keeps bot roles; humans become spectator.
+            // resetRolesForNewGame preserves every seat: the bot keeps spymaster
+            // and the human keeps the clicker seat it set up (vs bot spymasters).
             playerService.resetRolesForNewGame.mockResolvedValue([
                 { sessionId: 'bot-1', team: 'red', role: 'spymaster', isBot: true },
-                { sessionId: 'session-456', team: 'red', role: 'spectator' },
+                { sessionId: 'session-456', team: 'red', role: 'clicker' },
             ]);
 
             const handlers = mockSocket.on.mock.calls;
@@ -166,12 +167,12 @@ describe('Game Handlers', () => {
                     changes: expect.objectContaining({ role: 'spymaster', team: 'red' }),
                 })
             );
-            // The human is still reset to spectator.
+            // The human keeps their clicker seat rather than being reset to spectator.
             expect(mockIo.emit).toHaveBeenCalledWith(
                 'player:updated',
                 expect.objectContaining({
                     sessionId: 'session-456',
-                    changes: expect.objectContaining({ role: 'spectator' }),
+                    changes: expect.objectContaining({ role: 'clicker', team: 'red' }),
                 })
             );
         });

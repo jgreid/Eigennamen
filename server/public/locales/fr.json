@@ -19,7 +19,8 @@
         "giveClue": "Donner un indice",
         "give": "Donner",
         "errorEmpty": "Saisir un indice",
-        "errorSingleWord": "L'indice doit être un seul mot"
+        "errorSingleWord": "L'indice doit être un seul mot",
+        "errorIllegal": "Cet indice ne peut pas correspondre à un mot du plateau ni en dériver — essayez-en un autre"
     },
     "bots": {
         "addTitle": "Ajouter un bot",
@@ -39,11 +40,16 @@
         "badge": "🤖 BOT",
         "remove": "Retirer",
         "added": "Bot ajouté",
-        "hostOnly": "Seul l'hôte peut ajouter des bots"
+        "hostOnly": "Seul l'hôte peut ajouter des bots",
+        "advisorSuggests": "{{advisor}} suggère {{count}} carte(s)"
     },
     "roles": {
         "spymaster": "Maître-espion",
         "clicker": "Agent de terrain",
+        "advisor": "Conseiller",
+        "observer": "Observateur",
+        "observe": "Observer",
+        "observing": "En observation",
         "spectator": "Spectateur",
         "endTurnTitle": "Terminer le tour de votre équipe",
         "onlyClickerCanEndTurn": "Seul l'Agent de terrain peut terminer le tour",

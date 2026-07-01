@@ -23,7 +23,7 @@ export type GameMode = (typeof GAME_MODES)[number];
 
 // Teams and roles
 export const TEAMS = ['red', 'blue'] as const;
-export const ROLES = ['spymaster', 'clicker', 'spectator'] as const;
+export const ROLES = ['spymaster', 'clicker', 'advisor', 'observer', 'spectator'] as const;
 
 // ---- Card Scoring (Match Mode) ----
 

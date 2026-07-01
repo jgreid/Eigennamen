@@ -40,6 +40,8 @@ function buildSpymasterView(game: GameState, team: 'red' | 'blue'): BotSpymaster
         revealed: game.revealed,
         types,
         currentTurn: game.currentTurn,
+        // Spymasters see the full board, including match-mode point values.
+        cardScores: game.cardScores,
     };
 }
 

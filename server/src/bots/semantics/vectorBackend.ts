@@ -205,6 +205,18 @@ export function makeVectorBackend(options: VectorBackendOptions): SemanticBacken
     const { vecs, vocab } = loaded;
     const fallback = opts.fallback;
 
+    // Vector dimensionality (all vectors share it) and the full set of
+    // clue-suitable words that HAVE a vector — the search space for nearest().
+    // Unlike vocabulary() (capped for a fixed scan), this spans the whole loaded
+    // model so the spymaster can generate clues from its entire vocabulary.
+    const dim = vecs.size > 0 ? (vecs.values().next().value as Float32Array).length : 0;
+    const candidateKeys: string[] = [];
+    for (const key of vecs.keys()) {
+        if (key.length >= opts.minLen && key.length <= opts.maxLen && /^[A-ZÀ-ÖØ-Þ]+$/.test(key)) {
+            candidateKeys.push(key);
+        }
+    }
+
     // Clue candidates = embedding vocab ∪ the curated table vocab, capped. Even a
     // small model thus widens the spymaster's clue space beyond the baked table.
     const tableVocab = fallback.vocabulary ? fallback.vocabulary() : [];
@@ -243,6 +255,40 @@ export function makeVectorBackend(options: VectorBackendOptions): SemanticBacken
         },
         vocabulary(): string[] {
             return merged;
+        },
+        nearest(words: string[], k: number): Array<{ word: string; score: number }> {
+            if (dim === 0 || k <= 0) return [];
+            // Centroid of the input words' vectors (those we have), then L2-normalise
+            // so scores are cosine similarities in [0, 1].
+            const centroid = new Float32Array(dim);
+            let n = 0;
+            const inputSet = new Set<string>();
+            for (const w of words) {
+                const key = normalizeClueWord(w);
+                inputSet.add(key);
+                const v = vecs.get(key);
+                if (!v) continue;
+                for (let i = 0; i < dim; i++) centroid[i] = (centroid[i] as number) + (v[i] as number);
+                n++;
+            }
+            if (n === 0) return [];
+            let norm = 0;
+            for (let i = 0; i < dim; i++) norm += (centroid[i] as number) ** 2;
+            if (norm === 0) return [];
+            const inv = 1 / Math.sqrt(norm);
+            for (let i = 0; i < dim; i++) centroid[i] = (centroid[i] as number) * inv;
+
+            const scored: Array<{ word: string; score: number }> = [];
+            for (const cand of candidateKeys) {
+                if (inputSet.has(cand)) continue; // never suggest an input word itself
+                const cv = vecs.get(cand) as Float32Array;
+                let dot = 0;
+                for (let i = 0; i < dim; i++) dot += (centroid[i] as number) * (cv[i] as number);
+                if (dot > 0) scored.push({ word: cand, score: Math.min(1, dot) });
+            }
+            // Deterministic order: score desc, then word asc as a stable tiebreak.
+            scored.sort((a, b) => b.score - a.score || (a.word < b.word ? -1 : 1));
+            return scored.slice(0, k);
         },
     };
 }

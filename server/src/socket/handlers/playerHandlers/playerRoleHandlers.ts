@@ -27,7 +27,7 @@ interface PlayerRoleInput {
 
 interface PlayerTeamRoleInput {
     team: Team;
-    role: 'spymaster' | 'clicker';
+    role: 'spymaster' | 'clicker' | 'advisor';
 }
 
 interface ChangePermission {
@@ -170,8 +170,9 @@ export default function playerRoleHandlers(io: Server, socket: GameSocket): void
                         const roomStats: RoomStats = await playerService.getRoomStats(ctx.roomCode);
                         safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
 
-                        // If becoming spymaster, re-fetch game state to avoid stale context
-                        if (player.role === 'spymaster') {
+                        // If becoming a full-board role (spymaster/observer), re-fetch
+                        // game state to avoid stale context and push the unmasked board.
+                        if (player.role === 'spymaster' || player.role === 'observer') {
                             const spymasterGame: GameState | null = await gameService.getGame(ctx.roomCode);
                             await sendSpymasterViewIfNeeded(socket, player, spymasterGame, ctx.roomCode);
                         }

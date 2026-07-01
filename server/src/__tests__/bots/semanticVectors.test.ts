@@ -91,6 +91,16 @@ describe('makeVectorBackend', () => {
         // the (default table→lexical) fallback rather than a real cosine.
         expect(b.relatedness('king', 'queen')).toBeGreaterThan(0.5);
     });
+
+    it('nearest() generates candidates ranked by similarity to the input words', () => {
+        const b = makeVectorBackend({ path: vecPath }) as SemanticBackend;
+        const words = b.nearest!(['KING'], 2).map((n) => n.word);
+        // In this toy space KING sits next to MAN and QUEEN, far from APPLE.
+        expect(words).toEqual(expect.arrayContaining(['MAN', 'QUEEN']));
+        expect(words).not.toContain('KING'); // never suggests the input word itself
+        expect(words).not.toContain('APPLE');
+        expect(b.nearest!(['KING'], 2).every((n) => n.score >= 0 && n.score <= 1)).toBe(true);
+    });
 });
 
 describe('getSemanticBackend', () => {

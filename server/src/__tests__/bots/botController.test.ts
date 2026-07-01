@@ -15,12 +15,14 @@ jest.mock('../../socket/handlers/gameActions', () => ({
 jest.mock('../../services/gameService', () => ({ getGame: jest.fn() }));
 jest.mock('../../services/playerService', () => ({ getTeamMembers: jest.fn(), updatePlayer: jest.fn() }));
 jest.mock('../../services/botService', () => ({ getBotConfig: jest.fn() }));
+jest.mock('../../socket/safeEmit', () => ({ safeEmitToRoom: jest.fn() }));
 jest.mock('../../utils/logger', () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() }));
 
 const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
 const botService = require('../../services/botService');
 const gameActions = require('../../socket/handlers/gameActions');
+const { safeEmitToRoom } = require('../../socket/safeEmit');
 const logger = require('../../utils/logger');
 const { initBotController, stopBotController, tickRoom } = require('../../bots/botController');
 
@@ -93,6 +95,38 @@ describe('botController.tickRoom', () => {
         expect(gameActions.applyClue).not.toHaveBeenCalled();
         expect(gameActions.applyReveal).not.toHaveBeenCalled();
         expect(gameActions.applyEndTurn).not.toHaveBeenCalled();
+    });
+
+    it('emits advisor suggestions for a human clicker but never reveals', async () => {
+        // A live clue, a HUMAN clicker, and an advisor BOT on the team: the advisor
+        // should surface ranked suggestions (game:botSuggestion) and take no action.
+        const advisorGame = {
+            ...gameNoClue,
+            words: ['BEAR', 'RIVER', 'TIGER', 'MOUNTAIN'],
+            currentClue: { team: 'red', word: 'ANIMAL', number: 2 },
+            guessesUsed: 0,
+            stateVersion: 3,
+        };
+        gameService.getGame.mockResolvedValue(advisorGame);
+        playerService.getTeamMembers.mockResolvedValue([
+            { sessionId: 'human-1', nickname: 'Human', team: 'red', role: 'clicker', isBot: false, connected: true },
+            { sessionId: 'adv-1', nickname: 'AdviceBot', team: 'red', role: 'advisor', isBot: true, connected: true },
+        ]);
+
+        await tickRoom('ROOM01');
+
+        expect(gameActions.applyReveal).not.toHaveBeenCalled();
+        expect(gameActions.applyEndTurn).not.toHaveBeenCalled();
+        expect(safeEmitToRoom).toHaveBeenCalledWith(
+            mockIo,
+            'ROOM01',
+            'game:botSuggestion',
+            expect.objectContaining({
+                team: 'red',
+                advisor: expect.objectContaining({ sessionId: 'adv-1' }),
+                suggestions: expect.arrayContaining([expect.objectContaining({ index: 0 })]), // BEAR fits ANIMAL
+            })
+        );
     });
 
     it('does nothing when the game is over', async () => {

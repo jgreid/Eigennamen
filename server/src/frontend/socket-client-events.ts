@@ -40,6 +40,7 @@ import type {
     SpectatorChatData,
     ServerErrorData,
     ReadyStatusData,
+    BotSuggestionData,
 } from './multiplayerTypes.js';
 
 /** Callback signature for registering a socket listener with tracking. */
@@ -244,6 +245,10 @@ export function registerAllEventListeners(register: RegisterFn, emit: EmitFn, cl
 
     register('game:readyStatus', (raw: unknown) => {
         emit('game:readyStatus', raw as ReadyStatusData);
+    });
+
+    register('game:botSuggestion', (raw: unknown) => {
+        emit('botSuggestion', raw as BotSuggestionData);
     });
 
     register('game:error', (raw: unknown) => {
