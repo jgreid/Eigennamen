@@ -101,13 +101,19 @@ interface BoardGroups {
 
 function groupBoard(view: BotSpymasterView): BoardGroups {
     const other = view.team === 'red' ? 'blue' : 'red';
+    const isMatch = view.gameMode === 'match';
     const g: BoardGroups = { own: [], assassin: [], opponent: [], neutral: [] };
     for (let i = 0; i < view.types.length; i++) {
         if (view.revealed[i]) continue;
         const w = view.words[i] as string;
         const t = view.types[i];
-        if (t === view.team) g.own.push(w);
-        else if (t === 'assassin') g.assassin.push(w);
+        if (t === view.team) {
+            // Match mode: an OWN card with negative value (a trap) costs points if
+            // revealed, so never steer the clicker toward it — treat it as avoid.
+            const value = isMatch ? (view.cardScores?.[i] ?? 0) : 1;
+            if (isMatch && value < 0) g.neutral.push(w);
+            else g.own.push(w);
+        } else if (t === 'assassin') g.assassin.push(w);
         else if (t === other) g.opponent.push(w);
         else g.neutral.push(w);
     }
@@ -122,6 +128,9 @@ const MAX_CLUE_NUMBER = 4;
 const CLARITY_WEIGHT = 0.4;
 const ASSASSIN_WEIGHT = 1.5;
 const OPPONENT_WEIGHT = 0.8;
+// Match mode: bonus per extra point of value the covered own cards carry beyond
+// one-per-card. Zero effect outside match, where every card's value() is 1.
+const VALUE_WEIGHT = 0.3;
 
 /** Result of scoring a candidate clue against the board. */
 interface ClueEval {
@@ -156,11 +165,22 @@ function maxRel(words: readonly string[], clue: string, backend: SemanticBackend
  * `caution` is riskAversion in [0,1]; the safety margin widens with it. Returns
  * null when no own card leads safely.
  */
-function scoreClue(clue: string, groups: BoardGroups, backend: SemanticBackend, caution: number): ClueEval | null {
+function scoreClue(
+    clue: string,
+    groups: BoardGroups,
+    backend: SemanticBackend,
+    caution: number,
+    valueOf: (word: string) => number
+): ClueEval | null {
     if (groups.own.length === 0) return null;
     const margin = 0.05 + 0.1 * caution;
 
-    const own = groups.own.map((w) => backend.relatedness(clue, w)).sort((a, b) => b - a);
+    // Keep each own card's value alongside its relatedness so the intended set
+    // (the top-leadOwn by relatedness) can be scored by total value in match mode.
+    const ownScored = groups.own
+        .map((w) => ({ rel: backend.relatedness(clue, w), value: valueOf(w) }))
+        .sort((a, b) => b.rel - a.rel);
+    const own = ownScored.map((o) => o.rel);
     const maxOpp = maxRel(groups.opponent, clue, backend);
     const maxNeu = maxRel(groups.neutral, clue, backend);
     const maxAss = maxRel(groups.assassin, clue, backend);
@@ -186,8 +206,12 @@ function scoreClue(clue: string, groups: BoardGroups, backend: SemanticBackend, 
     // further from the assassin / the opponent's cards wins.
     const assassinPenalty = caution * ASSASSIN_WEIGHT * maxAss;
     const opponentPenalty = caution * OPPONENT_WEIGHT * maxOpp;
+    // Match value-awareness: reward covering higher-value own cards. In non-match
+    // every value() is 1, so coveredValue === leadOwn and the bonus is exactly 0.
+    const coveredValue = ownScored.slice(0, leadOwn).reduce((s, c) => s + c.value, 0);
+    const valueBonus = VALUE_WEIGHT * (coveredValue - leadOwn);
 
-    const score = leadOwn + CLARITY_WEIGHT * clarity - assassinPenalty - opponentPenalty;
+    const score = leadOwn + CLARITY_WEIGHT * clarity - assassinPenalty - opponentPenalty + valueBonus;
     return { word: clue, leadOwn, score };
 }
 
@@ -307,6 +331,18 @@ export function makeEmbeddingSpymaster(
             const groups = groupBoard(view);
             const legalCandidates = generateClueCandidates(view, groups, backend);
 
+            // Match mode: value each own card by its point value so the scorer can
+            // prefer clues that cover the most valuable cards. Every value is 1
+            // outside match, making the value term a no-op there.
+            const isMatch = view.gameMode === 'match';
+            const values = new Map<string, number>();
+            if (isMatch && view.cardScores) {
+                for (let i = 0; i < view.words.length; i++) {
+                    values.set(view.words[i] as string, view.cardScores[i] ?? 0);
+                }
+            }
+            const valueOf = (w: string): number => (isMatch ? (values.get(w) ?? 0) : 1);
+
             // Occasional blunder: a random legal clue (weak-player model).
             if (legalCandidates.length > 0 && ctx.rng.next() < skill.blunderRate) {
                 const word = legalCandidates[ctx.rng.int(legalCandidates.length)] as string;
@@ -316,7 +352,7 @@ export function makeEmbeddingSpymaster(
             // Score every legal candidate, then pick one via temperature.
             const scored: ClueEval[] = [];
             for (const clue of legalCandidates) {
-                const ev = scoreClue(clue, groups, backend, skill.riskAversion);
+                const ev = scoreClue(clue, groups, backend, skill.riskAversion, valueOf);
                 if (ev) scored.push(ev);
             }
 

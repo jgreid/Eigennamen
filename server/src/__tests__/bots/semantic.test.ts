@@ -246,6 +246,47 @@ describe('spymaster multi-factor scoring', () => {
     });
 });
 
+describe('match-mode value awareness', () => {
+    function matchView(
+        words: string[],
+        types: ('red' | 'blue' | 'neutral' | 'assassin')[],
+        cardScores: number[]
+    ): BotSpymasterView {
+        return {
+            role: 'spymaster',
+            team: 'red',
+            gameMode: 'match',
+            words,
+            revealed: words.map(() => false),
+            types,
+            currentTurn: 'red',
+            cardScores,
+        };
+    }
+
+    it('never clues an own trap (negative-value own card)', () => {
+        const view = matchView(['GOODW', 'TRAPW', 'OPPW', 'ASSW'], ['red', 'red', 'blue', 'assassin'], [2, -1, 1, -2]);
+        const backend = scoringStub({
+            GOODFIT: { GOODW: 0.9, TRAPW: 0.1, OPPW: 0.1, ASSW: 0.1 },
+            TRAPFIT: { GOODW: 0.1, TRAPW: 0.9, OPPW: 0.1, ASSW: 0.1 },
+        });
+        // TRAPFIT's top card is the own trap (reclassified as avoid), so it can't
+        // lead safely — the spymaster must clue the +2 card instead.
+        const action = makeEmbeddingSpymaster(resolveSkill('expert', 3), backend).chooseClue(view, ctx(3));
+        expect(action).toMatchObject({ kind: 'clue', word: 'GOODFIT' });
+    });
+
+    it('prefers the clue covering the higher-value own card', () => {
+        const view = matchView(['HIGHW', 'LOWW', 'OPPW', 'ASSW'], ['red', 'red', 'blue', 'assassin'], [3, 1, 1, -2]);
+        const backend = scoringStub({
+            HIGHFIT: { HIGHW: 0.9, LOWW: 0.1, OPPW: 0.1, ASSW: 0.1 },
+            LOWFIT: { HIGHW: 0.1, LOWW: 0.9, OPPW: 0.1, ASSW: 0.1 },
+        });
+        const action = makeEmbeddingSpymaster(resolveSkill('expert', 5), backend).chooseClue(view, ctx(5));
+        expect(action).toMatchObject({ kind: 'clue', word: 'HIGHFIT' });
+    });
+});
+
 describe('embeddingSpymaster generates board-specific clues via nearest()', () => {
     it('clues a word produced by nearest(), not limited to a fixed vocabulary', () => {
         // vocabulary() is empty, so ONLY nearest() can supply candidates — proving
