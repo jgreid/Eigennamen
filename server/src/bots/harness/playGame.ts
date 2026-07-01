@@ -2,7 +2,7 @@
  * Run one bot-vs-bot game on the pure engine via the shared playOneAction
  * chokepoint. Deterministic given (seed, entrants).
  */
-import type { Player, Team, Role, GameMode } from '../../types';
+import type { Player, Team, Role, GameMode, GameState, RevealResult } from '../../types';
 import type { Entrant, MatchResult, SeatSpec } from './types';
 
 import { hashString } from '../../services/game/boardGenerator';
@@ -13,6 +13,17 @@ import { playOneAction } from '../playOneAction';
 import type { SkillParams, SpymasterStrategy, ClickerStrategy } from '../strategies/types';
 import { createEngineGame, applyEngineClue, applyEngineReveal, applyEngineEndTurn } from '../engine';
 
+/**
+ * A move as it happened, emitted to an optional observer so the diagnostics
+ * harness can reconstruct per-clue outcomes without duplicating the game loop.
+ * The `game` handed to the callback is the live state right AFTER the move is
+ * applied (do not mutate it).
+ */
+export type GameEvent =
+    | { kind: 'clue'; team: Team; word: string; number: number }
+    | { kind: 'reveal'; team: Team; index: number; result: RevealResult }
+    | { kind: 'endTurn'; team: Team };
+
 export interface PlayGameOptions {
     seed: string;
     gameMode: GameMode;
@@ -21,6 +32,8 @@ export interface PlayGameOptions {
     words?: string[];
     /** Safety bound on total actions (a real game uses far fewer). */
     maxActions?: number;
+    /** Optional instrumentation hook — invoked after each applied move. */
+    onEvent?: (ev: GameEvent, game: GameState) => void;
 }
 
 interface SeatBinding {
@@ -83,13 +96,16 @@ export function playEngineGame(opts: PlayGameOptions): MatchResult {
         if (action.kind === 'clue') {
             applyEngineClue(game, team, action.word, action.number);
             clues++;
+            opts.onEvent?.({ kind: 'clue', team, word: action.word, number: action.number }, game);
         } else if (action.kind === 'reveal') {
             const result = applyEngineReveal(game, action.index);
             endReason = result.endReason ?? endReason;
             reveals++;
+            opts.onEvent?.({ kind: 'reveal', team, index: action.index, result }, game);
         } else if (action.kind === 'endTurn') {
             applyEngineEndTurn(game);
             turns++;
+            opts.onEvent?.({ kind: 'endTurn', team }, game);
         } else {
             break; // noop — should not happen with role-correct strategies
         }

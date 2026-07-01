@@ -11,6 +11,16 @@ describe('botAddSchema', () => {
         expect(r.success).toBe(true);
     });
 
+    it('accepts a persona id as the skill preset', () => {
+        const r = botAddSchema.safeParse({
+            team: 'blue',
+            role: 'spymaster',
+            strategyId: 'embeddingSpymaster',
+            skillPreset: 'strategist',
+        });
+        expect(r.success).toBe(true);
+    });
+
     it('rejects an unknown strategy', () => {
         expect(
             botAddSchema.safeParse({ team: 'red', role: 'clicker', strategyId: 'nope', skillPreset: 'expert' }).success

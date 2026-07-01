@@ -3,7 +3,7 @@ import type { z as ZodType } from 'zod';
 import { z } from 'zod';
 import { removeControlChars } from '../utils/sanitize';
 import { isStrategyId } from '../bots/strategies/registry';
-import { isSkillPreset } from '../bots/presets';
+import { isSkillOrPersona } from '../bots/presets';
 
 // Validates a persisted bot config (bot:{sessionId}:cfg). Lenient on enums so a
 // stored config from an older strategy set still parses (controller falls back).
@@ -18,7 +18,8 @@ const botAddSchema = z.object({
     team: z.enum(['red', 'blue']),
     role: z.enum(['spymaster', 'clicker', 'advisor']),
     strategyId: z.string().refine((v: string) => isStrategyId(v), 'Unknown strategy'),
-    skillPreset: z.string().refine((v: string) => isSkillPreset(v), 'Unknown skill preset'),
+    // Accepts a difficulty preset (novice/intermediate/expert) or a persona id.
+    skillPreset: z.string().refine((v: string) => isSkillOrPersona(v), 'Unknown skill preset or persona'),
     nickname: z
         .string()
         .max(30)

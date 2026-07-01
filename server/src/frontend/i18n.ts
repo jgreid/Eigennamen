@@ -188,6 +188,18 @@ export function translatePage(): void {
             (el as HTMLElement).title = translated;
         }
     });
+
+    // Handle data-i18n-label for <optgroup> labels
+    const labels = document.querySelectorAll('[data-i18n-label]');
+    labels.forEach((el) => {
+        const key = el.getAttribute('data-i18n-label');
+        if (!key) return;
+
+        const translated = t(key);
+        if (translated !== key) {
+            (el as HTMLOptGroupElement).label = translated;
+        }
+    });
 }
 
 /**

@@ -30,6 +30,39 @@ export interface SkillParams {
     riskAversion: number;
     /** seeds the per-bot SeededRng. */
     seed: number;
+
+    // --- Style knobs (personae). All optional; when omitted they default to the
+    //     neutral value below, so a plain difficulty preset behaves exactly as it
+    //     did before personae existed. They shape *how* a bot of a given strength
+    //     plays (its personality) rather than how strong it is. ---
+    /** Multiplier on the defensive "don't arm the opponent" penalty. 1 = neutral,
+     *  >1 = actively avoids clues that also light up the opponent's cards
+     *  (a wall), <1 = barely cares. Default 1. */
+    defenseBias?: number;
+    /** How hard the spymaster stretches for a bigger number: 0 = play the tightest
+     *  safe clue (small, reliable numbers), 1 = shrink the safety margin and reward
+     *  coverage so more own cards ride one clue (bold, high-ceiling). Default 0. */
+    aggression?: number;
+    /** Multiplier on the assassin penalty *and* the assassin safety berth. 1 =
+     *  neutral, >1 = gives the assassin a wider wall, <1 = flirts closer. Never
+     *  lets the assassin become the clicker's top pick regardless. Default 1. */
+    assassinCaution?: number;
+}
+
+/** The resolved, defaulted style knobs a spymaster scores with. */
+export interface StyleParams {
+    readonly defenseBias: number;
+    readonly aggression: number;
+    readonly assassinCaution: number;
+}
+
+/** Fill in neutral defaults for any style knob a preset leaves unset. */
+export function resolveStyle(skill: SkillParams): StyleParams {
+    return {
+        defenseBias: skill.defenseBias ?? 1,
+        aggression: skill.aggression ?? 0,
+        assassinCaution: skill.assassinCaution ?? 1,
+    };
 }
 
 /** Immutable context passed to every decision. */

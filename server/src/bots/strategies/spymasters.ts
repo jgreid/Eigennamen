@@ -15,7 +15,16 @@
  *    (safety margin + how hard it avoids the assassin and helping the opponent);
  *    blunderRate injects the occasional outright-random clue.
  */
-import type { BotAction, BotSpymasterView, BotContext, SpymasterStrategy, SkillParams, SeededRng } from './types';
+import type {
+    BotAction,
+    BotSpymasterView,
+    BotContext,
+    SpymasterStrategy,
+    SkillParams,
+    SeededRng,
+    StyleParams,
+} from './types';
+import { resolveStyle } from './types';
 import type { SemanticBackend } from '../semantics/backend';
 import { defaultSemanticBackend } from '../semantics/backend';
 import { isClueLegalForBoard } from '../../shared/gameRules';
@@ -162,18 +171,24 @@ function maxRel(words: readonly string[], clue: string, backend: SemanticBackend
  *    scaled by caution, so a cautious/expert bot prefers clues that leave the
  *    opponent's board dark while a reckless bot barely cares.
  *
- * `caution` is riskAversion in [0,1]; the safety margin widens with it. Returns
- * null when no own card leads safely.
+ * `caution` is riskAversion in [0,1]; the safety margin widens with it. `style`
+ * are the persona knobs: `aggression` shrinks the margin (bigger, bolder numbers),
+ * `defenseBias` scales the opponent penalty, `assassinCaution` scales both the
+ * assassin penalty and its berth. Returns null when no own card leads safely.
  */
 function scoreClue(
     clue: string,
     groups: BoardGroups,
     backend: SemanticBackend,
     caution: number,
-    valueOf: (word: string) => number
+    valueOf: (word: string) => number,
+    style: StyleParams
 ): ClueEval | null {
     if (groups.own.length === 0) return null;
-    const margin = 0.05 + 0.1 * caution;
+    // Aggression shrinks the safety margin (down to half) so more own cards clear
+    // the non-own field on one clue — the persona lever that turns a stream of
+    // 1-clues into gutsy 2s and 3s. The floor keeps even a bold clue above chance.
+    const margin = (0.05 + 0.1 * caution) * (1 - 0.5 * style.aggression);
 
     // Keep each own card's value alongside its relatedness so the intended set
     // (the top-leadOwn by relatedness) can be scored by total value in match mode.
@@ -195,23 +210,31 @@ function scoreClue(
     if (leadOwn === 0) return null;
 
     // The assassin is catastrophic, so demand a wider berth: drop any intended
-    // card that doesn't clear the closest assassin by twice the margin.
-    while (leadOwn > 0 && (own[leadOwn - 1] as number) - maxAss < margin * 2) leadOwn--;
+    // card that doesn't clear the closest assassin by twice the margin (scaled by
+    // the persona's assassinCaution — a Guardian widens the wall, a Daredevil
+    // trims it, but the base `margin` floor above still bars the assassin from
+    // ever being the clicker's top card).
+    const berth = margin * 2 * style.assassinCaution;
+    while (leadOwn > 0 && (own[leadOwn - 1] as number) - maxAss < berth) leadOwn--;
     if (leadOwn === 0) return null;
 
     const weakestIntended = own[leadOwn - 1] as number;
     const clarity = Math.min(0.999, Math.max(0, weakestIntended - maxNonOwn));
     // Graded, caution-scaled penalties. Absolute maxAss / maxOpp are fine here:
     // between two clues that both cover the same cards, the one that stays
-    // further from the assassin / the opponent's cards wins.
-    const assassinPenalty = caution * ASSASSIN_WEIGHT * maxAss;
-    const opponentPenalty = caution * OPPONENT_WEIGHT * maxOpp;
+    // further from the assassin / the opponent's cards wins. defenseBias and
+    // assassinCaution are the persona multipliers on those two instincts.
+    const assassinPenalty = caution * ASSASSIN_WEIGHT * style.assassinCaution * maxAss;
+    const opponentPenalty = caution * OPPONENT_WEIGHT * style.defenseBias * maxOpp;
     // Match value-awareness: reward covering higher-value own cards. In non-match
     // every value() is 1, so coveredValue === leadOwn and the bonus is exactly 0.
     const coveredValue = ownScored.slice(0, leadOwn).reduce((s, c) => s + c.value, 0);
     const valueBonus = VALUE_WEIGHT * (coveredValue - leadOwn);
+    // Aggression also tips near-ties toward the wider-covering clue, so a bold
+    // persona reaches for the bigger number even when a tighter clue scores alike.
+    const coverageBonus = style.aggression * 0.25 * leadOwn;
 
-    const score = leadOwn + CLARITY_WEIGHT * clarity - assassinPenalty - opponentPenalty + valueBonus;
+    const score = leadOwn + CLARITY_WEIGHT * clarity - assassinPenalty - opponentPenalty + valueBonus + coverageBonus;
     return { word: clue, leadOwn, score };
 }
 
@@ -330,6 +353,7 @@ export function makeEmbeddingSpymaster(
         chooseClue(view: BotSpymasterView, ctx: BotContext): BotAction {
             const groups = groupBoard(view);
             const legalCandidates = generateClueCandidates(view, groups, backend);
+            const style = resolveStyle(skill);
 
             // Match mode: value each own card by its point value so the scorer can
             // prefer clues that cover the most valuable cards. Every value is 1
@@ -352,7 +376,7 @@ export function makeEmbeddingSpymaster(
             // Score every legal candidate, then pick one via temperature.
             const scored: ClueEval[] = [];
             for (const clue of legalCandidates) {
-                const ev = scoreClue(clue, groups, backend, skill.riskAversion, valueOf);
+                const ev = scoreClue(clue, groups, backend, skill.riskAversion, valueOf, style);
                 if (ev) scored.push(ev);
             }
 
