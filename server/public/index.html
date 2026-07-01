@@ -477,10 +477,32 @@
                   </label>
                   <label class="bots-field">
                     <span data-i18n="bots.skill">Skill</span>
-                    <select id="bot-skill-select" data-testid="bot-skill-select" aria-label="Bot skill">
-                      <option value="intermediate" data-i18n="bots.skillIntermediate" selected>Intermediate</option>
-                      <option value="expert" data-i18n="bots.skillExpert">Expert</option>
-                      <option value="novice" data-i18n="bots.skillNovice">Novice</option>
+                    <select id="bot-skill-select" data-testid="bot-skill-select" aria-label="Bot skill or persona">
+                      <optgroup label="Difficulty" data-i18n-label="bots.difficultyGroup">
+                        <option value="intermediate" data-i18n="bots.skillIntermediate" selected>Intermediate</option>
+                        <option value="expert" data-i18n="bots.skillExpert">Expert</option>
+                        <option value="novice" data-i18n="bots.skillNovice">Novice</option>
+                      </optgroup>
+                      <optgroup label="Personas" data-i18n-label="bots.personaGroup">
+                        <option value="strategist" title="Scary-good all-rounder: strong coverage, real defense, wide assassin berth.">
+                          The Strategist
+                        </option>
+                        <option value="sharpshooter" title="Precise and low-variance: small, unmistakable clues that almost never misfire.">
+                          The Sharpshooter
+                        </option>
+                        <option value="guardian" title="Defensive wall: refuses to hand the opponent a clue, even at coverage cost.">
+                          The Guardian
+                        </option>
+                        <option value="daredevil" title="High-roller: swings for big numbers on thin margins — huge upside, real risk.">
+                          The Daredevil
+                        </option>
+                        <option value="maverick" title="Creative and off-kilter: surprising associations, sometimes brilliant, sometimes odd.">
+                          The Maverick
+                        </option>
+                        <option value="apprentice" title="Learning the ropes: wobbly reads, frequent blunders, an easy warm-up opponent.">
+                          The Apprentice
+                        </option>
+                      </optgroup>
                     </select>
                   </label>
                 </div>
@@ -1749,7 +1771,7 @@
       </div>
     </div>
 
-    <script type="module" src="/js/modules/app.js?v=66d3ee2e"></script>
+    <script type="module" src="/js/modules/app.js?v=3dae11ce"></script>
     <!-- Fallback: detect if the ES module failed to load + service worker registration -->
     <script src="/js/app-fallback.js"></script>
   </body>

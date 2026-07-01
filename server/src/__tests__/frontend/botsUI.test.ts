@@ -23,7 +23,7 @@ function setupDom(): void {
           <select id="bot-team-select"><option value="red">Red</option><option value="blue">Blue</option></select>
           <select id="bot-seat-select"><option value="spymaster">Spy</option><option value="clicker">Clicker</option></select>
           <select id="bot-style-select"><option value="smart">Smart</option><option value="cautious">Cautious</option><option value="random">Random</option></select>
-          <select id="bot-skill-select"><option value="expert">Expert</option></select>
+          <select id="bot-skill-select"><option value="expert">Expert</option><option value="strategist">The Strategist</option></select>
         </div>`;
 }
 
@@ -52,6 +52,14 @@ describe('addBotFromForm', () => {
         (document.getElementById('bot-style-select') as HTMLSelectElement).value = 'smart';
         addBotFromForm();
         expect(EigennamenClient.addBot).toHaveBeenCalledWith('blue', 'spymaster', 'embeddingSpymaster', 'expert');
+    });
+
+    it('passes a selected persona through as the skill preset', () => {
+        (document.getElementById('bot-seat-select') as HTMLSelectElement).value = 'spymaster';
+        (document.getElementById('bot-style-select') as HTMLSelectElement).value = 'smart';
+        (document.getElementById('bot-skill-select') as HTMLSelectElement).value = 'strategist';
+        addBotFromForm();
+        expect(EigennamenClient.addBot).toHaveBeenCalledWith('red', 'spymaster', 'embeddingSpymaster', 'strategist');
     });
 
     it('refuses when the local player is not the host', () => {

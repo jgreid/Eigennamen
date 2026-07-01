@@ -36,6 +36,8 @@
         "skillExpert": "Experto",
         "skillIntermediate": "Intermedio",
         "skillNovice": "Novato",
+        "difficultyGroup": "Dificultad",
+        "personaGroup": "Personajes",
         "add": "Añadir bot",
         "badge": "🤖 BOT",
         "remove": "Quitar",

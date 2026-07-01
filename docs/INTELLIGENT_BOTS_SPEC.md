@@ -466,6 +466,43 @@ Added one registry entry at a time. The catalogue grows; the interface does not.
   `SeededRng` (Mulberry32). A solo playtester can reproduce an exact buggy game;
   a tournament regression is a byte-diff in the NDJSON results.
 
+### 11.1 Style knobs and personae (the "meaningfully different playstyles")
+
+Difficulty alone (temperature/blunder/risk) makes a bot *stronger or weaker* but
+not *different in character*. Three optional **style knobs** on `SkillParams`
+shape how a bot of a given strength plays — its personality — independently of
+how strong it is:
+
+| Knob | Effect in `scoreClue` | Low | High |
+|------|-----------------------|-----|------|
+| `aggression` (0–1) | Shrinks the safety margin (down to ½) and adds a coverage bonus, so more own cards ride one clue | tight, reliable small numbers | gutsy 2s/3s/4s on thin margins |
+| `defenseBias` (×) | Multiplies the "don't arm the opponent" penalty | ignores the opponent's board | refuses to hand them a clue |
+| `assassinCaution` (×) | Multiplies the assassin penalty **and** its safety berth | flirts closer to the assassin | wide assassin wall |
+
+All default to neutral (aggression 0, defenseBias 1, assassinCaution 1) via
+`resolveStyle`, so a plain difficulty preset behaves exactly as before. The base
+`margin` floor is applied regardless, so even the boldest persona can never make
+the assassin the clicker's top card.
+
+**Personae** (`server/src/bots/personas.ts`) bundle a difficulty with a
+playstyle into a named, user-facing identity. They live in the same namespace as
+the difficulty presets — `resolveSkill` checks personae first — so a persona id
+is a drop-in for any `skillPreset` (Add-Bot UI, bot config, harness spec):
+
+| Persona | Tier | Character |
+|---------|------|-----------|
+| **The Strategist** | expert | Scary-good all-rounder: strong coverage, real defense, wide assassin berth |
+| **The Sharpshooter** | expert | Precise, low-variance: small, unmistakable clues that almost never misfire |
+| **The Guardian** | expert | Defensive wall: refuses to arm the opponent, even at coverage cost |
+| **The Daredevil** | expert | High-roller: big numbers on thin margins — huge upside, real risk |
+| **The Maverick** | intermediate | Creative, off-kilter: surprising associations, sometimes brilliant/odd |
+| **The Apprentice** | novice | Beginner: wobbly reads, frequent blunders, an easy warm-up |
+
+The knob values were tuned against the diagnostics harness (§12.1) so each
+persona shows a distinct clue-number distribution, leak rate, and assassin
+exposure — verified in `__tests__/bots/personas.test.ts` and the persona
+strength ladder.
+
 ---
 
 ## 12. The training ground (headless harness)
@@ -520,6 +557,38 @@ Added one registry entry at a time. The catalogue grows; the interface does not.
 - Tweak a strategy/preset → re-run with the same `baseSeed` → diff
   `leaderboard.json`. Seeded + deterministic ⇒ a regression is a byte-diff.
 
+### 12.1 Clue diagnostics harness (`npm run bots:analyze`)
+
+`bots:train` tells you **who wins**; the diagnostics harness
+(`server/src/bots/harness/analyze.ts`) tells you **why a spymaster's clues are
+weak**, so personae and scoring weights can be tuned against real numbers.
+
+It reuses the same self-play loop via a new `onEvent` hook on `playEngineGame`
+(no second game loop), reconstructs each clue's outcome, and compares the clue
+number the bot actually gave against the board's **theoretical safe ceiling**
+(computed with the configured backend at a fixed `REF_MARGIN` yardstick, so every
+persona is judged alike). Per clue it records: own cards landed, opponent leaks,
+neutral misfires, assassin grazes, the turn-end reason, and whether the
+spymaster had *no* safe lead (a best-effort/OOV fallback).
+
+Aggregated per persona it reports clue-number distribution, delivery rate
+(`ownGained / intendedNumber`), **ambition** (`avgNumber / avgSafeLead`), and
+leak / misfire / assassin / fallback rates, then flags concrete **strategy
+gaps** via thresholds:
+
+- *under-cluing* — numbers below the board's safe ceiling (only when `ambition`
+  shows real headroom, so a coarse-backend low ceiling isn't a false positive);
+- *poor delivery* — the clicker takes < 55% of intended cards;
+- *leaky* / *imprecise* — clues also point at the opponent / a neutral too often;
+- *assassin exposure* — hits the assassin > 2% of clues;
+- *weak coverage* — > 25% of clues have no safe lead (backend covers the board
+  poorly — the signal to enable embeddings, see [BOT_EMBEDDINGS.md](BOT_EMBEDDINGS.md)).
+
+Output is a console table + `results/analysis-<stamp>.json`. The pure functions
+(`referenceLead`, `aggregate`, `detectGaps`, `analyzeGames`) are deterministic
+and unit-tested in `__tests__/bots/analyze.test.ts`. Flags:
+`--mode classic|duet|match`, `--games <perPair>`, `--seed <baseSeed>`.
+
 ---
 
 ## 13. Socket events (SHIPPED)
@@ -554,9 +623,10 @@ server/src/bots/
 ├── rng.ts                  # Mulberry32-based per-bot SeededRng
 ├── playOneAction.ts        # pure shared decision helper (live + harness)
 ├── botController.ts        # singleton; onGameMutation subscriber, tickRoom, reentrancy guard, lastSeen refresh
-├── presets.ts              # named SkillParams presets (novice/intermediate/expert)
+├── presets.ts              # named SkillParams presets (novice/intermediate/expert); routes persona ids
+├── personas.ts             # persona registry (difficulty + style knobs) → SkillParams; resolvePersona/isPersona
 ├── strategies/
-│   ├── types.ts            # BotAction, Spymaster/ClickerStrategy, views, SeededRng, SkillParams, BotContext, BotConfig
+│   ├── types.ts            # BotAction, Spymaster/ClickerStrategy, views, SeededRng, SkillParams (+ style knobs), StyleParams/resolveStyle, BotContext, BotConfig
 │   ├── registry.ts         # strategyId → StrategyFactory; one entry per type
 │   ├── clickers.ts         # clicker strategies (random/greedy/cautious/duet/match-aware)
 │   └── spymasters.ts       # spymaster strategies (random/numberOnly/embedding/mctsLite/match-aware)
@@ -568,7 +638,8 @@ server/src/bots/
 │   └── associations.ts     # baked clue→board-word table for the default list (generated; see §20)
 └── harness/
     ├── runMatches.ts       # headless tournament runner
-    ├── playGame.ts         # single-game self-play loop
+    ├── playGame.ts         # single-game self-play loop (+ onEvent instrumentation hook)
+    ├── analyze.ts          # clue diagnostics harness (bots:analyze); per-persona gap report (§12.1)
     ├── parity.ts           # Lua-vs-TS parity harness (see §15)
     ├── scoring.ts          # Elo/TrueSkill + mode-specific fitness + Wilson interval
     └── types.ts            # MatchResult, TournamentSpec, harness types

@@ -9,7 +9,7 @@ Web-based multiplayer implementation of the board game "Eigennamen" (GPL v3.0).
 - **Standalone mode**: Offline single-page app. Game state is encoded entirely in the URL, so no *backend* is required. The entry document is `server/public/index.html`; it loads its JS/CSS by absolute path (`/js/...`, `/css/...`), so serve the `server/public/` directory statically (e.g. `cd server/public && python -m http.server`) — opening `index.html` straight off the filesystem (`file://`) fails because those absolute paths don't resolve.
 - **Multiplayer mode**: Real-time synchronized gameplay via Node.js + Express 5 + Socket.io + Redis. Supports multiple concurrent rooms, reconnection, spectators, game history/replays, AI bot opponents, and an admin dashboard.
 - **Three game modes**: Classic (competitive), Duet (2-player cooperative), Match (multi-round competitive scoring)
-- **AI bots**: Optional bot players (host-managed via `bot:add`/`bot:remove`) that occupy spymaster/clicker/advisor seats and play through the same game ops as humans. The semantic spymaster *generates* board-specific clues (offline association table, or optional word embeddings for nearest-neighbour candidate generation), plays defensively (avoids arming the opponent), keeps a graded assassin berth, is match-value-aware, and spans a real difficulty ladder novice→expert via `temperature`/`blunderRate`/`riskAversion`. An **advisor** bot suggests ranked guesses to a human clicker without ever acting; an **observer** role watches the unmasked board without participating. See `server/src/bots/` and [docs/INTELLIGENT_BOTS_SPEC.md](docs/INTELLIGENT_BOTS_SPEC.md).
+- **AI bots**: Optional bot players (host-managed via `bot:add`/`bot:remove`) that occupy spymaster/clicker/advisor seats and play through the same game ops as humans. The semantic spymaster *generates* board-specific clues (offline association table, or optional word embeddings for nearest-neighbour candidate generation), plays defensively (avoids arming the opponent), keeps a graded assassin berth, is match-value-aware, and spans a real difficulty ladder novice→expert via `temperature`/`blunderRate`/`riskAversion`. **Personae** (`server/src/bots/personas.ts`) layer *playstyle* on top of difficulty via the style knobs `defenseBias`/`aggression`/`assassinCaution` — e.g. The Strategist (scary-good all-rounder), The Sharpshooter (precise, low-variance), The Guardian (defensive wall), The Daredevil (big numbers, thin margins), The Maverick (creative/off-kilter), The Apprentice (beginner). A persona id is a drop-in for a `skillPreset`. Tune and audit them with the clue diagnostics harness (`npm run bots:analyze`), which reports per-persona clue-number distribution, delivery, leak/misfire/assassin rates, and flagged strategy gaps. An **advisor** bot suggests ranked guesses to a human clicker without ever acting; an **observer** role watches the unmasked board without participating. See `server/src/bots/` and [docs/INTELLIGENT_BOTS_SPEC.md](docs/INTELLIGENT_BOTS_SPEC.md).
 - **Four languages**: English, German, Spanish, French — with localized word lists
 - **PWA**: Installable as a Progressive Web App with service worker
 
@@ -50,6 +50,7 @@ npm run loadtest:memory        # Memory leak test
 npm run redis:inspect          # Inspect Redis state
 npm run health                 # Health check
 npm run bots:train             # Headless bot self-play harness (strategy tuning)
+npm run bots:analyze           # Clue-giving diagnostics: per-persona gap report (--mode/--games/--seed)
 npm run bots:parity            # Verify bot engine vs Lua game-op parity
 npm run bots:embeddings        # Download bot word-embedding model only (no server start)
 npm run bots:associations      # Regenerate the offline bot association table (semantics fallback)
@@ -126,11 +127,12 @@ Eigennamen/
         │   ├── botController.ts # Live bot driver singleton — subscribes to onGameMutation, defers reactions (queueMicrotask), per-room in-flight guard
         │   ├── engine.ts       # Pure, deterministic bot game model (no Redis/socket deps)
         │   ├── playOneAction.ts # Shared move computation (builds bot view → strategy → action)
-        │   ├── presets.ts      # Skill-preset resolution (novice/expert → SkillParams)
+        │   ├── presets.ts      # Skill-preset resolution (novice/expert → SkillParams); routes persona ids
+        │   ├── personas.ts     # Persona registry (playstyle = difficulty + style knobs) → SkillParams
         │   ├── rng.ts          # Seeded RNG for reproducible bot decisions
-        │   ├── strategies/     # spymasters, clickers, registry, types
+        │   ├── strategies/     # spymasters, clickers, registry, types (SkillParams style knobs)
         │   ├── semantics/      # Clue semantics: association table + optional embedding backends
-        │   └── harness/        # Headless self-play (runMatches, parity, playGame, scoring)
+        │   └── harness/        # Headless self-play (runMatches, analyze, parity, playGame, scoring)
         ├── config/             # Configuration modules (13 files)
         │   ├── constants.ts    # Barrel — re-exports version, gameConfig, errorCodes, roomConfig, socketConfig, securityConfig, rateLimits
         │   ├── version.ts     # APP_VERSION + APP_MAJOR_VERSION (reads from package.json — single source of truth)

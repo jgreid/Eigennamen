@@ -4,8 +4,13 @@
  *
  * The `seed` here is a base; the controller derives a per-decision seed from it
  * together with the game seed and state version so play stays reproducible.
+ *
+ * A `skillPreset` value may also name a *persona* (personas.ts), which bundles a
+ * difficulty with a playstyle. resolveSkill checks personae first, so a persona
+ * id is a drop-in replacement for a plain preset everywhere the field is used.
  */
 import type { SkillParams } from './strategies/types';
+import { resolvePersona, isPersona } from './personas';
 
 export const SKILL_PRESETS = ['novice', 'intermediate', 'expert'] as const;
 export type SkillPreset = (typeof SKILL_PRESETS)[number];
@@ -28,6 +33,14 @@ export function isSkillPreset(value: string): value is SkillPreset {
 }
 
 export function resolveSkill(preset: string, seed: number): SkillParams {
+    // Personae take precedence — they carry a difficulty AND a playstyle.
+    const persona = resolvePersona(preset, seed);
+    if (persona) return persona;
     const base = PRESETS[(isSkillPreset(preset) ? preset : 'intermediate') as SkillPreset];
     return { ...base, seed };
+}
+
+/** True for any value resolveSkill understands — a plain preset or a persona. */
+export function isSkillOrPersona(value: string): boolean {
+    return isSkillPreset(value) || isPersona(value);
 }
