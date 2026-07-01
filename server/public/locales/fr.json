@@ -19,7 +19,8 @@
         "giveClue": "Donner un indice",
         "give": "Donner",
         "errorEmpty": "Saisir un indice",
-        "errorSingleWord": "L'indice doit être un seul mot"
+        "errorSingleWord": "L'indice doit être un seul mot",
+        "errorIllegal": "Cet indice ne peut pas correspondre à un mot du plateau ni en dériver — essayez-en un autre"
     },
     "bots": {
         "addTitle": "Ajouter un bot",

@@ -7,6 +7,14 @@ export function getErrorMessage(error: ServerErrorData): string {
     const code = error.code || '';
     const message = error.message || '';
 
+    // Illegal-clue rejections arrive under the generic INVALID_INPUT code but
+    // carry a specific server message (e.g. "Clue cannot match or derive from a
+    // word on the board"). Surface a clear reason instead of the generic
+    // INVALID_INPUT fallback below, which would otherwise swallow the "why".
+    if (/clue/i.test(message) && /board/i.test(message)) {
+        return 'That clue can’t match or relate to a word on the board — try another word';
+    }
+
     // Common error code mappings with actionable recovery hints
     const errorMessages: Record<string, string> = {
         RATE_LIMITED: 'Too many requests \u2014 wait a few seconds and try again',

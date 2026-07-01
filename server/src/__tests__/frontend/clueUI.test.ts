@@ -102,6 +102,31 @@ describe('submitClueFromForm', () => {
         expect(EigennamenClient.submitClue).not.toHaveBeenCalled();
     });
 
+    it('rejects a clue that matches a board word with a specific reason', () => {
+        (state as any).gameState = {
+            gameOver: false,
+            currentTurn: 'red',
+            currentClue: null,
+            words: ['APPLE', 'BEAR', 'CAR'],
+        };
+        (document.getElementById('clue-word-input') as HTMLInputElement).value = 'apple';
+        submitClueFromForm();
+        expect(EigennamenClient.submitClue).not.toHaveBeenCalled();
+        expect(mockShowToast).toHaveBeenCalledWith('clue.errorIllegal', 'warning');
+    });
+
+    it('allows a legal clue when the board is known', () => {
+        (state as any).gameState = {
+            gameOver: false,
+            currentTurn: 'red',
+            currentClue: null,
+            words: ['APPLE', 'BEAR', 'CAR'],
+        };
+        (document.getElementById('clue-word-input') as HTMLInputElement).value = 'fruit';
+        submitClueFromForm();
+        expect(EigennamenClient.submitClue).toHaveBeenCalledWith('fruit', 1);
+    });
+
     it('submits on form submit after initClueUI', () => {
         initClueUI();
         (document.getElementById('clue-word-input') as HTMLInputElement).value = 'animal';

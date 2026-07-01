@@ -107,4 +107,16 @@ describe('getErrorMessage', () => {
             expect(result).toBe('Server error \u2014 please try again in a moment');
         });
     });
+
+    describe('illegal clue reason', () => {
+        test('surfaces the specific reason instead of the generic INVALID_INPUT message', () => {
+            const result = getErrorMessage({
+                code: 'INVALID_INPUT',
+                message: 'Clue cannot match or derive from a word on the board',
+            });
+            // Must explain the "why" rather than fall back to "Invalid request\u2026".
+            expect(result).toContain('board');
+            expect(result).not.toBe('Invalid request \u2014 please check your input and try again');
+        });
+    });
 });

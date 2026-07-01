@@ -19,7 +19,8 @@
         "giveClue": "Hinweis geben",
         "give": "Geben",
         "errorEmpty": "Hinweiswort eingeben",
-        "errorSingleWord": "Hinweis muss ein einzelnes Wort sein"
+        "errorSingleWord": "Hinweis muss ein einzelnes Wort sein",
+        "errorIllegal": "Dieser Hinweis darf kein Wort auf dem Spielfeld sein oder davon abgeleitet sein — versuch ein anderes"
     },
     "bots": {
         "addTitle": "Bot hinzufügen",

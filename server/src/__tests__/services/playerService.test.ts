@@ -1310,7 +1310,7 @@ describe('Player Service', () => {
     });
 
     describe('resetRolesForNewGame', () => {
-        test('resets non-spectator roles to spectator', async () => {
+        test("preserves each player's team and role for the new game", async () => {
             const players = [
                 mockPlayer({ sessionId: 's1', role: 'spymaster', team: 'red' }),
                 mockPlayer({ sessionId: 's2', role: 'clicker', team: 'blue' }),
@@ -1319,20 +1319,15 @@ describe('Player Service', () => {
 
             mockRedis.sMembers.mockResolvedValue(['s1', 's2', 's3']);
             mockRedis.mGet.mockResolvedValue(players.map((p) => JSON.stringify(p)));
-            mockRedis.eval.mockImplementation(async (_script: any, opts: any) => {
-                // Simulate Lua update returning updated player
-                const key = opts.keys[0];
-                const sessionId = key.replace('player:', '');
-                const updates = JSON.parse(opts.arguments[0]);
-                const player = players.find((p) => p.sessionId === sessionId);
-                return JSON.stringify({ ...player, ...updates, lastSeen: Date.now() });
-            });
 
             const result = await playerService.resetRolesForNewGame('ABC123');
 
             expect(result).toHaveLength(3);
-            // s1 and s2 should have been updated; s3 should be unchanged
-            expect(mockRedis.eval).toHaveBeenCalledTimes(2);
+            // Seats are preserved — no role-mutating writes happen, so a seated
+            // player (e.g. a lone human clicker vs bot spymasters) stays seated.
+            expect(mockRedis.eval).not.toHaveBeenCalled();
+            expect(result.find((p) => p.sessionId === 's1')?.role).toBe('spymaster');
+            expect(result.find((p) => p.sessionId === 's2')?.role).toBe('clicker');
         });
 
         test('returns empty array when no players in room', async () => {

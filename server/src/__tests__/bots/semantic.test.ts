@@ -35,6 +35,28 @@ describe('tableBackend', () => {
         expect(s).toBeGreaterThanOrEqual(0);
         expect(s).toBeLessThan(1);
     });
+
+    it('grades two board words by shared concept groups (human-clue interpretation)', () => {
+        // Neither BEAR nor LION is a table key, but they co-occur in ANIMAL /
+        // MAMMAL / WILD, so a clicker interpreting a human clue like BEAR should
+        // relate LION strongly — well above lexical noise, but below a direct hit.
+        const s = tableBackend.relatedness('BEAR', 'LION');
+        expect(s).toBeGreaterThan(0.5);
+        expect(s).toBeLessThan(1);
+    });
+
+    it('ranks more shared concepts above fewer', () => {
+        const strong = tableBackend.relatedness('BEAR', 'LION'); // ANIMAL, MAMMAL, WILD
+        const weak = tableBackend.relatedness('BEAR', 'DUCK'); // ANIMAL only
+        expect(strong).toBeGreaterThan(weak);
+        expect(weak).toBeGreaterThan(0); // still a real signal, not lexical zero
+    });
+
+    it('keeps direct clue→word entries at a perfect score', () => {
+        // Co-membership grading must never demote the intended clue signal.
+        expect(tableBackend.relatedness('ANIMAL', 'BEAR')).toBe(1);
+        expect(tableBackend.relatedness('OCEAN', 'WHALE')).toBe(1);
+    });
 });
 
 function spymasterView(words: string[], types: ('red' | 'blue' | 'neutral' | 'assassin')[]): BotSpymasterView {

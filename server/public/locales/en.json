@@ -19,7 +19,8 @@
         "giveClue": "Give a clue",
         "give": "Give",
         "errorEmpty": "Enter a clue word",
-        "errorSingleWord": "Clue must be a single word"
+        "errorSingleWord": "Clue must be a single word",
+        "errorIllegal": "That clue can’t match or relate to a word on the board — try another"
     },
     "bots": {
         "addTitle": "Add a bot",

@@ -19,7 +19,8 @@
         "giveClue": "Dar una pista",
         "give": "Dar",
         "errorEmpty": "Escribe una pista",
-        "errorSingleWord": "La pista debe ser una sola palabra"
+        "errorSingleWord": "La pista debe ser una sola palabra",
+        "errorIllegal": "Esa pista no puede coincidir ni derivar de una palabra del tablero — prueba con otra"
     },
     "bots": {
         "addTitle": "Añadir un bot",

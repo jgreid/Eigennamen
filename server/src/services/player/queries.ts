@@ -224,32 +224,21 @@ export async function getIdlePlayers(roomCode: string, thresholdMs: number = 180
 }
 
 /**
- * Reset all players' roles to 'spectator' for a new game while preserving teams.
- * This ensures spymaster/clicker roles are re-chosen each game.
- * Acquires each player's mutation lock to prevent races with in-flight
- * setRole/setTeam operations that could restore a stale role after the reset.
+ * Prepare player roles for a new game while preserving teams.
+ *
+ * Players — human and bot alike — KEEP their team + role across a new game, so a
+ * seated player stays seated. Previously humans were reset to 'spectator' to
+ * force a re-pick each game; that stranded anyone who had deliberately taken a
+ * seat (most visibly the lone human clicker playing against bot spymasters) as a
+ * spectator on every start, with no obvious cue to re-claim the seat. Preserving
+ * seats is safe: the one-spymaster/one-clicker-per-team invariant held before the
+ * new game, so keeping each role can't create a contested seat. Spectators stay
+ * spectators; players can still change roles freely once the game begins.
+ *
+ * Returns the current roster so callers can broadcast per-player state.
  */
 export async function resetRolesForNewGame(roomCode: string): Promise<Player[]> {
-    const players = await getPlayersInRoom(roomCode);
-
-    const results = await Promise.all(
-        players.map((player) => {
-            // Bots keep their committed seat role across a new game; only humans
-            // are reset to spectator to re-pick each game.
-            if (!player.isBot && player.role && player.role !== 'spectator') {
-                return withLock(
-                    `player-mutation:${player.sessionId}`,
-                    async () => {
-                        return updatePlayer(player.sessionId, { role: 'spectator' as Role });
-                    },
-                    { lockTimeout: 3000, maxRetries: 5 }
-                );
-            }
-            return Promise.resolve(player);
-        })
-    );
-
-    return results;
+    return getPlayersInRoom(roomCode);
 }
 
 /**

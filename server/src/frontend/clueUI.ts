@@ -7,6 +7,7 @@ import { state } from './state.js';
 import { t } from './i18n.js';
 import { showToast } from './ui.js';
 import { isClientConnected } from './clientAccessor.js';
+import { isClueLegalForBoard } from '../shared/index.js';
 
 /** True when the local player is the current-turn spymaster and no clue is active. */
 function localIsActiveSpymaster(): boolean {
@@ -60,6 +61,15 @@ export function submitClueFromForm(): void {
     }
     if (/\s/.test(word)) {
         showToast(t('clue.errorSingleWord'), 'warning');
+        return;
+    }
+    // Pre-validate legality against the local board so the spymaster gets an
+    // immediate, specific reason (the server also enforces this, but its
+    // rejection surfaces only as a generic INVALID_INPUT toast). Board words are
+    // the same on client and server for the game's lifetime, so this is reliable.
+    const boardWords = state.gameState?.words ?? [];
+    if (boardWords.length > 0 && !isClueLegalForBoard(word, boardWords as string[])) {
+        showToast(t('clue.errorIllegal'), 'warning');
         return;
     }
     if (!isClientConnected()) return;
