@@ -34,7 +34,10 @@ export async function sendSpymasterViewIfNeeded(
     game: GameState | null,
     _roomCode: string
 ): Promise<void> {
-    if (player.role === 'spymaster' && game && !game.gameOver && game.types) {
+    // Spymasters and observers both see the unmasked board. (Observers are
+    // teamless, so they get the base `types` perspective.)
+    const wantsFullBoard = player.role === 'spymaster' || player.role === 'observer';
+    if (wantsFullBoard && game && !game.gameOver && game.types) {
         // In Duet mode, Blue spymasters see duetTypes (their perspective),
         // not types (Red's perspective). Red spymasters always see types.
         const isDuetBlue = game.gameMode === 'duet' && player.team === 'blue' && game.duetTypes;

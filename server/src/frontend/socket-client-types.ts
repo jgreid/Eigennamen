@@ -35,6 +35,7 @@ import type {
     ReplayData,
     JoinCreateResult,
     ReadyStatusData,
+    BotSuggestionData,
 } from './multiplayerTypes.js';
 
 // Event payload types for server-to-client events (adapter's internal bus)
@@ -102,6 +103,7 @@ export interface ClientEventMap {
     'game:roundEnded': RoundEndedData;
     'game:matchOver': MatchOverData;
     spymasterView: SpymasterViewData;
+    botSuggestion: BotSuggestionData;
     historyResult: HistoryResultData;
     replayData: ReplayData;
     historyCleared: { deletedCount: number };

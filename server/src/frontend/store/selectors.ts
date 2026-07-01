@@ -74,7 +74,7 @@ export function isTeamOnTurn(): boolean {
  * Replaces: `state.spymasterTeam || state.gameState.gameOver`
  */
 export function showSpymasterView(): boolean {
-    return state.spymasterTeam !== null || state.gameState.gameOver;
+    return state.spymasterTeam !== null || state.isObserver || state.gameState.gameOver;
 }
 
 /**

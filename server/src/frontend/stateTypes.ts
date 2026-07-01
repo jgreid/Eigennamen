@@ -159,7 +159,14 @@ export interface AppState {
     spymasterTeam: string | null;
     clickerTeam: string | null;
     playerTeam: string | null;
+    /** True when the local player is an observer (full board, no participation). */
+    isObserver: boolean;
     roleChange: RoleChangeState;
+
+    /** Advisor-bot guess suggestions for the current clue (advisory only). */
+    botSuggestions: { index: number; confidence: number; reason: string }[];
+    /** Nickname of the advisor bot behind the current suggestions, if any. */
+    botSuggestionAdvisor: string | null;
 
     // Game state
     gameState: GameState;

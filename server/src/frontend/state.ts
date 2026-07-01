@@ -90,7 +90,10 @@ const _rawState: AppState = {
     spymasterTeam: null,
     clickerTeam: null,
     playerTeam: null,
+    isObserver: false,
     roleChange: { phase: 'idle' },
+    botSuggestions: [],
+    botSuggestionAdvisor: null,
 
     gameState: {
         words: [],

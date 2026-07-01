@@ -40,11 +40,16 @@
         "badge": "🤖 BOT",
         "remove": "Quitar",
         "added": "Bot añadido",
-        "hostOnly": "Solo el anfitrión puede añadir bots"
+        "hostOnly": "Solo el anfitrión puede añadir bots",
+        "advisorSuggests": "{{advisor}} sugiere {{count}} carta(s)"
     },
     "roles": {
         "spymaster": "Jefe de espías",
         "clicker": "Agente de campo",
+        "advisor": "Asesor",
+        "observer": "Observador",
+        "observe": "Observar",
+        "observing": "Observando",
         "spectator": "Espectador",
         "endTurnTitle": "Terminar el turno de tu equipo",
         "onlyClickerCanEndTurn": "Solo el Agente de campo puede terminar el turno",

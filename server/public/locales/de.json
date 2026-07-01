@@ -40,11 +40,16 @@
         "badge": "🤖 BOT",
         "remove": "Entfernen",
         "added": "Bot hinzugefügt",
-        "hostOnly": "Nur der Host kann Bots hinzufügen"
+        "hostOnly": "Nur der Host kann Bots hinzufügen",
+        "advisorSuggests": "{{advisor}} schlägt {{count}} Karte(n) vor"
     },
     "roles": {
         "spymaster": "Geheimdienstchef",
         "clicker": "Ermittler",
+        "advisor": "Berater",
+        "observer": "Beobachter",
+        "observe": "Beobachten",
+        "observing": "Beobachtet",
         "spectator": "Zuschauer",
         "endTurnTitle": "Beende den Zug deines Teams",
         "onlyClickerCanEndTurn": "Nur der Ermittler kann den Zug beenden",

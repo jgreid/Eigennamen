@@ -40,11 +40,16 @@
         "badge": "🤖 BOT",
         "remove": "Remove",
         "added": "Bot added",
-        "hostOnly": "Only the host can add bots"
+        "hostOnly": "Only the host can add bots",
+        "advisorSuggests": "{{advisor}} suggests {{count}} card(s)"
     },
     "roles": {
         "spymaster": "Spymaster",
         "clicker": "Clicker",
+        "advisor": "Advisor",
+        "observer": "Observer",
+        "observe": "Observe",
+        "observing": "Observing",
         "spectator": "Spectator",
         "endTurnTitle": "End your team's turn",
         "onlyClickerCanEndTurn": "Only the Clicker can end the turn",

@@ -24,6 +24,7 @@ import {
     setClicker,
     setSpymasterCurrent,
     setClickerCurrent,
+    toggleObserver,
 } from './roles.js';
 import {
     openMultiplayer,
@@ -178,6 +179,9 @@ function setupEventListeners(): void {
                 break;
             case 'set-clicker-current':
                 setClickerCurrent();
+                break;
+            case 'toggle-observer':
+                toggleObserver();
                 break;
             case 'open-settings':
                 openSettings();

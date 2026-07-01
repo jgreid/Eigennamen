@@ -4,11 +4,11 @@ import { logger } from './logger.js';
 // ---- Type guards ----
 
 export type ValidTeam = 'red' | 'blue';
-export type ValidRole = 'spymaster' | 'clicker' | 'spectator';
+export type ValidRole = 'spymaster' | 'clicker' | 'advisor' | 'observer' | 'spectator';
 export type ValidGameMode = 'classic' | 'duet' | 'match';
 
 const VALID_TEAMS = new Set<string>(['red', 'blue']);
-const VALID_ROLES = new Set<string>(['spymaster', 'clicker', 'spectator']);
+const VALID_ROLES = new Set<string>(['spymaster', 'clicker', 'advisor', 'observer', 'spectator']);
 const VALID_GAME_MODES = new Set<string>(['classic', 'duet', 'match']);
 
 export function isValidTeam(value: unknown): value is ValidTeam {
@@ -34,6 +34,8 @@ export function setPlayerRole(role: string | null, team: string | null): void {
     const validatedTeam = isValidTeam(team) ? team : null;
 
     state.playerTeam = validatedTeam;
+    // Observers see the full board (like a spymaster) but never participate.
+    state.isObserver = role === 'observer';
 
     if (role === 'spymaster' && validatedTeam) {
         state.spymasterTeam = validatedTeam;
@@ -54,6 +56,7 @@ export function clearPlayerRole(): void {
     state.playerTeam = null;
     state.spymasterTeam = null;
     state.clickerTeam = null;
+    state.isObserver = false;
 }
 
 /**

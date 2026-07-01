@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { showToast, announceToScreenReader, closeModal } from '../ui.js';
 import { t } from '../i18n.js';
-import { renderBoard } from '../board.js';
+import { renderBoard, renderBotSuggestions, clearBotSuggestions } from '../board.js';
 import {
     revealCardFromServer,
     showGameOver,
@@ -25,6 +25,7 @@ import type {
     RoundEndedData,
     MatchOverData,
     ReadyStatusData,
+    BotSuggestionData,
 } from '../multiplayerTypes.js';
 
 export function registerGameHandlers(): void {
@@ -145,6 +146,10 @@ export function registerGameHandlers(): void {
         if (state.resyncInProgress) return;
         if (!data || !data.word) return;
 
+        // A new clue invalidates any prior advisor suggestions; fresh ones (if the
+        // team has an advisor bot) arrive on the game:botSuggestion event below.
+        clearBotSuggestions();
+
         // Reflect the clue in game state so clue-aware UI (and guess limiting)
         // stays in sync. guessesAllowed of 0 means unlimited.
         state.gameState.currentClue = {
@@ -178,6 +183,20 @@ export function registerGameHandlers(): void {
         logClue(data.team, data.word, data.number);
     });
 
+    // Advisor bot → ranked guess suggestions for the current clue (advisory only;
+    // the human clicker still reveals). Server sends to the whole room.
+    EigennamenClient.on('botSuggestion', (data: BotSuggestionData) => {
+        if (state.resyncInProgress) return;
+        if (!data || !Array.isArray(data.suggestions)) return;
+        state.botSuggestions = data.suggestions;
+        state.botSuggestionAdvisor = data.advisor?.nickname ?? null;
+        renderBotSuggestions();
+        if (data.suggestions.length > 0) {
+            const who = data.advisor?.nickname || 'Advisor';
+            announceToScreenReader(t('bots.advisorSuggests', { advisor: who, count: String(data.suggestions.length) }));
+        }
+    });
+
     EigennamenClient.on('turnEnded', (data: TurnEndedData) => {
         if (state.resyncInProgress) return;
         if (data.currentTurn) {
@@ -189,6 +208,7 @@ export function registerGameHandlers(): void {
             state.gameState.currentClue = null;
             state.gameState.guessesUsed = 0;
             state.gameState.guessesAllowed = 0;
+            clearBotSuggestions();
 
             updateTurnIndicator();
             updateRoleBanner();
@@ -229,6 +249,7 @@ export function registerGameHandlers(): void {
         }
         setTabNotification(false);
         playNotificationSound('gameOver');
+        clearBotSuggestions();
         updateForfeitButton();
         // A game can end while the local spymaster's clue form is open (opponent
         // forfeit, assassin reveal, timer/duet-token expiry). Recompute so the
