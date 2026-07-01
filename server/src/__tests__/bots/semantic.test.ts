@@ -245,6 +245,34 @@ describe('spymaster multi-factor scoring', () => {
     });
 });
 
+describe('embeddingSpymaster generates board-specific clues via nearest()', () => {
+    it('clues a word produced by nearest(), not limited to a fixed vocabulary', () => {
+        // vocabulary() is empty, so ONLY nearest() can supply candidates — proving
+        // the spymaster generates clues from the board rather than scanning a list.
+        // PREDATOR covers both own animals cleanly; MAMMAL also relates to the
+        // opponent card, so the defensive penalty should make PREDATOR win.
+        const rel: Record<string, Record<string, number>> = {
+            PREDATOR: { LION: 0.9, BEAR: 0.85, APPLE: 0.1, CAR: 0.1, DEATH: 0.1 },
+            MAMMAL: { LION: 0.9, BEAR: 0.85, APPLE: 0.6, CAR: 0.1, DEATH: 0.1 },
+        };
+        const backend: SemanticBackend = {
+            id: 'vec-stub',
+            relatedness: (a: string, b: string) => rel[a]?.[b.toUpperCase()] ?? rel[b]?.[a.toUpperCase()] ?? 0,
+            vocabulary: () => [],
+            nearest: () => [
+                { word: 'PREDATOR', score: 0.9 },
+                { word: 'MAMMAL', score: 0.85 },
+            ],
+        };
+        const view = spymasterView(
+            ['LION', 'BEAR', 'APPLE', 'CAR', 'DEATH'],
+            ['red', 'red', 'blue', 'neutral', 'assassin']
+        );
+        const action = makeEmbeddingSpymaster(resolveSkill('expert', 7), backend).chooseClue(view, ctx(7));
+        expect(action).toEqual({ kind: 'clue', word: 'PREDATOR', number: 2 });
+    });
+});
+
 describe('greedyClicker temperature scales guess accuracy', () => {
     const backend = scoringStub({ CLUE: { GOOD: 0.9, MEH: 0.5, BAD: 0.4 } });
     const view = (): BotClickerView => ({

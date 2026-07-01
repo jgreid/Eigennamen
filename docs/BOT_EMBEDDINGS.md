@@ -13,7 +13,12 @@ Relatedness resolves through a fallback chain, strongest first:
 
 1. **Vector embeddings** (`vectorBackend.ts`) — cosine similarity of pre-trained
    word vectors. Enabled only when `BOT_EMBEDDINGS_PATH` is set and the file
-   loads. Out-of-vocabulary words drop to ↓.
+   loads. Out-of-vocabulary words drop to ↓. Only this tier implements
+   `nearest(words, k)`, which lets the spymaster **generate** board-specific
+   candidate clues from the whole model vocabulary (words near its own cards)
+   instead of merely scoring a fixed list — the main reason embeddings produce
+   much stronger, more creative clues. Table/lexical backends omit `nearest()`,
+   so the spymaster falls back to scanning the fixed `vocabulary()` there.
 2. **Baked association table** (`tableBackend.ts`) — a curated clue→words map.
    Unknown pairs drop to ↓.
 3. **Lexical** (`backend.ts`) — Sørensen–Dice over character bigrams. Always

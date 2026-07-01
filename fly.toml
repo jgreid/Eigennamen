@@ -15,14 +15,36 @@ primary_region = "iad"
 [build]
   dockerfile = "server/Dockerfile"
 
+  # --- Strong ("scary good") bots via word embeddings (OPT-IN) ---
+  # The bots run fine on the offline association table with NO asset. To give the
+  # top difficulty tier genuinely strong, GENERATED clues, bake a word-vectors
+  # model into the image and point BOT_EMBEDDINGS_PATH at it (see [env] below).
+  # Uncomment to enable — it downloads ~300 MB at build time and needs a larger
+  # VM (see the memory note below). If the file is ever missing/unusable the
+  # server safely falls back to the offline table, so this can't break a game.
+  # [build.args]
+  #   BOT_EMBEDDINGS_MODEL = "numberbatch"   # glove | fasttext | numberbatch
+  #   BOT_EMBEDDINGS_TRIM = "100000"
+
 [deploy]
   strategy = "immediate"
   # The game works fully with just in-memory storage (REDIS_URL=memory)
+
+# Embeddings need more RAM than the 256 MB default. When enabling the bake above,
+# also give the machine ~1 GB and cap the loaded vector count:
+#   fly scale memory 1024
+# [[vm]]
+#   memory = "1gb"
 
 [env]
   NODE_ENV = "production"
   PORT = "3000"
   LOG_LEVEL = "info"
+
+  # Strong-bot embeddings (opt-in; see [build] above). Uncomment BOTH lines after
+  # baking a model into the image. BOT_EMBEDDINGS_MAX_WORDS bounds memory use.
+  # BOT_EMBEDDINGS_PATH = "/app/embeddings/vectors.vec"
+  # BOT_EMBEDDINGS_MAX_WORDS = "60000"
 
   # CORS origin - set to your Fly app domain
   # Override with: fly secrets set CORS_ORIGIN=https://yourdomain.com

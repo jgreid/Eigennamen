@@ -259,52 +259,80 @@ function pickBestEffort(
     return { word: chosenWord, number };
 }
 
+// Candidate-generation breadth. A broad set drawn near the whole own-card
+// centroid surfaces clues that cover many own cards; per-card neighbours surface
+// specific, safe single-card clues. Only used when the backend supports nearest().
+const CENTROID_NEIGHBOURS = 40;
+const PER_CARD_NEIGHBOURS = 8;
+
 /**
- * Semantic spymaster: scores every legal candidate clue with the multi-factor
- * model above, then selects with a temperature-controlled softmax so a single
- * strategy spans "scary good" (temperature 0) to "off-kilter but sensible"
- * (high temperature). Uses the table backend by default; a real embedding
- * backend drops in unchanged and makes it markedly stronger. When the backend
- * covers the board too poorly for any clue to lead safely, it degrades to a
- * board-derived, assassin-safe best-effort clue rather than a constant placeholder.
+ * The legal clue words to consider for a board. With an embedding backend that
+ * supports nearest(), this GENERATES board-specific candidates from the whole
+ * model vocabulary — words near the own cards — which is what produces strong,
+ * creative clues. With a table/lexical backend (no nearest) it degrades to
+ * scanning the fixed vocabulary(), so those backends behave exactly as before.
+ */
+function generateClueCandidates(view: BotSpymasterView, groups: BoardGroups, backend: SemanticBackend): string[] {
+    const legal = (words: string[]): string[] => words.filter((c) => isClueLegalForBoard(c, view.words as string[]));
+
+    if (backend.nearest && groups.own.length > 0) {
+        const pool = new Set<string>();
+        for (const c of backend.nearest(groups.own, CENTROID_NEIGHBOURS)) pool.add(c.word);
+        for (const w of groups.own) {
+            for (const c of backend.nearest([w], PER_CARD_NEIGHBOURS)) pool.add(c.word);
+        }
+        const legalPool = legal([...pool]);
+        if (legalPool.length > 0) return legalPool;
+    }
+
+    return legal(backend.vocabulary ? backend.vocabulary() : []);
+}
+
+/**
+ * Semantic spymaster: GENERATES board-specific candidate clues (via the backend's
+ * nearest() when available, else a fixed-vocabulary scan), scores each with the
+ * multi-factor model above, then selects with a temperature-controlled softmax —
+ * so a single strategy spans "scary good" (temperature 0, embeddings) to
+ * "off-kilter but sensible" (high temperature). When the backend covers the board
+ * too poorly for any clue to lead safely, it degrades to a board-derived,
+ * assassin-safe best-effort clue rather than a constant placeholder.
  */
 export function makeEmbeddingSpymaster(
     skill: SkillParams,
     backend: SemanticBackend = defaultSemanticBackend
 ): SpymasterStrategy {
-    const vocab = backend.vocabulary ? backend.vocabulary() : [];
     return {
         strategyId: 'embeddingSpymaster',
         chooseClue(view: BotSpymasterView, ctx: BotContext): BotAction {
             const groups = groupBoard(view);
-            const legalVocab = vocab.filter((c) => isClueLegalForBoard(c, view.words as string[]));
+            const legalCandidates = generateClueCandidates(view, groups, backend);
 
             // Occasional blunder: a random legal clue (weak-player model).
-            if (legalVocab.length > 0 && ctx.rng.next() < skill.blunderRate) {
-                const word = legalVocab[ctx.rng.int(legalVocab.length)] as string;
+            if (legalCandidates.length > 0 && ctx.rng.next() < skill.blunderRate) {
+                const word = legalCandidates[ctx.rng.int(legalCandidates.length)] as string;
                 return { kind: 'clue', word, number: 1 };
             }
 
             // Score every legal candidate, then pick one via temperature.
-            const candidates: ClueEval[] = [];
-            for (const clue of legalVocab) {
+            const scored: ClueEval[] = [];
+            for (const clue of legalCandidates) {
                 const ev = scoreClue(clue, groups, backend, skill.riskAversion);
-                if (ev) candidates.push(ev);
+                if (ev) scored.push(ev);
             }
 
-            if (candidates.length > 0) {
-                const chosen = selectByTemperature(candidates, skill.temperature, ctx.rng);
+            if (scored.length > 0) {
+                const chosen = selectByTemperature(scored, skill.temperature, ctx.rng);
                 const number = Math.max(1, Math.min(chosen.leadOwn, MAX_CLUE_NUMBER));
                 return { kind: 'clue', word: chosen.word, number };
             }
 
             // Nothing leads safely: fall back to the least-bad legal clue, which
             // still refuses to make the assassin the clicker's top pick. Try the
-            // backend vocab first, then the built-in abstract words, so even a board
-            // the backend can't cover at all gets an assassin-safe placeholder.
+            // generated candidates first, then the built-in abstract words, so even
+            // a board the backend can't cover at all gets an assassin-safe placeholder.
             const legalBuiltins = CLUE_VOCAB.filter((w) => isClueLegalForBoard(w, view.words as string[]));
             const fallback =
-                pickBestEffort(legalVocab, groups, backend) ?? pickBestEffort(legalBuiltins, groups, backend);
+                pickBestEffort(legalCandidates, groups, backend) ?? pickBestEffort(legalBuiltins, groups, backend);
             if (!fallback) {
                 return { kind: 'clue', word: pickFallbackClue(view), number: 1 };
             }
