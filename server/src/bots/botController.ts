@@ -40,6 +40,26 @@ import { applyClue, applyReveal, applyEndTurn } from '../socket/handlers/gameAct
  *  re-emitting identical suggestions on every unrelated mutation). */
 const suggestionKeys = new Map<string, string>();
 
+/**
+ * Live "thinking" pace between bot actions so a whole cascade (clue → guess →
+ * guess → turn flip) doesn't land in a single instant and feel robotic. Disabled
+ * in tests so the deterministic unit/harness suites stay synchronous.
+ */
+const ACTION_PACE_MS = process.env.NODE_ENV === 'test' ? 0 : 350;
+
+/** A small, state-derived jitter on top of the base pace so it isn't metronomic. */
+function paceDelayMs(stateVersion: number): number {
+    if (ACTION_PACE_MS <= 0) return 0;
+    return ACTION_PACE_MS + (Math.abs(stateVersion) % 5) * 70; // 350–630ms
+}
+
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => {
+        const t = setTimeout(resolve, ms);
+        if (typeof t.unref === 'function') t.unref();
+    });
+}
+
 /** Safety bound on consecutive bot actions in a single tick. */
 const MAX_ACTIONS_PER_TICK = 200;
 /**
@@ -232,6 +252,10 @@ export async function tickRoom(roomCode: string): Promise<void> {
             await playerService.updatePlayer(seat.sessionId, { lastSeen: Date.now() }).catch(() => {
                 /* non-critical */
             });
+
+            // A brief, human-like pause before the move lands (live play only).
+            const pace = paceDelayMs(game.stateVersion ?? 0);
+            if (pace > 0) await sleep(pace);
 
             const actor = { sessionId: seat.sessionId, nickname: seat.nickname, team, role: seat.role };
             try {
