@@ -32,20 +32,25 @@ export default function roomSyncHandlers(_io: unknown, socket: GameSocket): void
                     throw RoomError.notFound(ctx.roomCode);
                 }
 
-                let gameState: PlayerGameState | null = null;
-                if (ctx.game) {
-                    gameState = gameService.getGameStateForPlayer(ctx.game, ctx.player);
-                }
-
-                return { room, players, gameState };
+                return { room, players };
             })();
 
-            const { room, players, gameState } = await withTimeout(statePromise, TIMEOUTS.RECONNECT, 'room:resync');
+            const { room, players } = await withTimeout(statePromise, TIMEOUTS.RECONNECT, 'room:resync');
 
             const roomStats: RoomStats = await playerService.getRoomStats(ctx.roomCode).catch((err: Error) => {
                 logger.warn(`Failed to get room stats during resync: ${err.message}`);
                 return computeFallbackStats(players);
             });
+
+            // Re-read the game immediately before emitting rather than using the
+            // ctx.game snapshot captured at context resolution. A reveal/endTurn that
+            // committed (and broadcast game:cardRevealed) while we gathered room/
+            // players/stats above would otherwise be reverted on the client by this
+            // stale resync snapshot, leaving a revealed card visually unrevealed.
+            const freshGame = await gameService.getGame(ctx.roomCode);
+            const gameState: PlayerGameState | null = freshGame
+                ? gameService.getGameStateForPlayer(freshGame, ctx.player)
+                : null;
 
             socket.emit(SOCKET_EVENTS.ROOM_RESYNCED, {
                 room,
@@ -56,7 +61,7 @@ export default function roomSyncHandlers(_io: unknown, socket: GameSocket): void
             });
 
             await Promise.all([
-                sendSpymasterViewIfNeeded(socket, ctx.player, ctx.game, ctx.roomCode),
+                sendSpymasterViewIfNeeded(socket, ctx.player, freshGame, ctx.roomCode),
                 sendTimerStatus(socket, ctx.roomCode, 'resync'),
             ]);
 

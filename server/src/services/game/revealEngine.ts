@@ -274,9 +274,11 @@ export function getGameStateForPlayer(game: GameState | null, player: Player | n
         clues: game.clues || [],
         history: game.history || [],
         types: [],
+        // Always send the mode so clients render the right UI. Classic games
+        // historically omitted it, which the client defaulted to 'match'.
+        gameMode: game.gameMode ?? 'classic',
         ...(isDuet
             ? {
-                  gameMode: game.gameMode,
                   timerTokens: game.timerTokens,
                   greenFound: game.greenFound,
                   greenTotal: game.greenTotal,
@@ -284,7 +286,6 @@ export function getGameStateForPlayer(game: GameState | null, player: Player | n
             : {}),
         ...(isMatch
             ? {
-                  gameMode: game.gameMode,
                   matchRound: game.matchRound,
                   redMatchScore: game.redMatchScore ?? 0,
                   blueMatchScore: game.blueMatchScore ?? 0,

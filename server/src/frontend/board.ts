@@ -3,37 +3,11 @@ import { showSpymasterView, isMatchMode } from './store/selectors.js';
 import { getCardFontClass, fitCardText } from './utils.js';
 import { t } from './i18n.js';
 import { logger } from './logger.js';
-
-/**
- * Announce a message to screen readers via the sr-announcements live region.
- * Uses aria-atomic="true" and a timeout-based clearing strategy for reliable
- * detection across screen readers (NVDA, VoiceOver, JAWS).
- */
-let srClearTimeout: ReturnType<typeof setTimeout> | null = null;
-function announceToScreenReader(message: string): void {
-    const el = document.getElementById('sr-announcements');
-    if (!el) return;
-    // Ensure aria-atomic is set for reliable re-announcement
-    if (!el.hasAttribute('aria-atomic')) {
-        el.setAttribute('aria-atomic', 'true');
-    }
-    // Clear any pending clear timeout
-    if (srClearTimeout) {
-        clearTimeout(srClearTimeout);
-        srClearTimeout = null;
-    }
-    el.textContent = '';
-    // Use a short timeout (vs requestAnimationFrame) for more reliable
-    // detection — rAF can be batched, causing screen readers to miss changes
-    setTimeout(() => {
-        el.textContent = message;
-        // Clear after 3 seconds so subsequent identical messages are re-announced
-        srClearTimeout = setTimeout(() => {
-            el.textContent = '';
-            srClearTimeout = null;
-        }, 3000);
-    }, 50);
-}
+// Use the single shared screen-reader announcer. board.ts previously had its own
+// copy that wrote to the same #sr-announcements region with an independent clear
+// timer; two uncoordinated writers could double-announce or wipe each other's
+// message. One implementation, one timer.
+import { announceToScreenReader } from './ui.js';
 
 // Callback for card clicks - set via setCardClickHandler
 let cardClickHandler: ((index: number) => void) | null = null;

@@ -29,7 +29,7 @@ npm run redis:down             # Stop the managed Redis container
 docker compose up -d --build   # Start with Docker (Redis + app)
 
 # Quality gates (all four must pass before submitting a PR)
-npm test                       # All tests (backend + frontend, 156 suites)
+npm test                       # All tests (backend + frontend, 160 suites)
 npm run lint                   # ESLint
 npm run format:check           # Prettier check
 npm run typecheck              # TypeScript check
@@ -321,7 +321,7 @@ Eigennamen/
         ├── scripts/            # Redis Lua scripts (29 atomic operations)
         │   ├── index.ts        # Barrel export with documented KEYS/ARGV/Returns headers
         │   └── atomicRateLimit.lua # Extracted rate-limit Lua script
-        └── __tests__/          # Jest tests (136 suites)
+        └── __tests__/          # Jest tests (105 backend suites)
             ├── helpers/        # Test utilities + mock factories (mocks.ts ~721 lines)
             ├── integration/    # Integration tests
             └── frontend/       # Frontend unit tests
@@ -576,6 +576,18 @@ Run `npm run format` to auto-format, `npm run format:check` to verify.
 - **Lua script nil guards**: All `tonumber(ARGV[])` calls in Lua scripts include fallback defaults to prevent runtime errors on malformed input
 - **Lua TTL safety**: `hostTransfer.lua` falls back to 24h TTL when a room key has no expiry, preventing indefinite Redis persistence
 - **Board render queueing**: When `renderBoard()` is called during an in-progress render, a pending flag ensures the next call forces a full rebuild instead of silently skipping
+- **Role enum single source**: The Redis-read `playerSchema` (`services/player/schemas.ts`) role enum MUST stay in sync with `setRole.lua`, `validators/playerSchemas.ts`, and the `Role` type — it lists all five roles (spymaster, clicker, advisor, observer, spectator). A missing role would make `getPlayer()` treat those records as corrupted and delete them. `safeTeamSwitch.lua` likewise demotes all team-bound roles (spymaster/clicker/advisor) on a team switch.
+- **gameMode always populated**: `buildGameState` stamps `gameMode` for every mode (including `'classic'`) and `getGameStateForPlayer` always emits it (defaulting legacy games to `'classic'`), so the client never has to infer the mode.
+- **Match word-pool reuse**: The full resolved word pool is persisted on the game as `wordPool`; `startNextRound` draws each new round's board from that pool (falling back to the board words for pre-`wordPool` games) so rounds don't reshuffle the same 25 words. The alternated starting team is forced into `generateBoardLayout` (via `forceFirstTeam`) so the 9/8 card counts stay consistent with `firstTeam`.
+- **Paused-state Lua guards**: `revealCard.lua`, `endTurn.lua`, and `submitClue.lua` all reject mutations on a paused game atomically (returning `GAME_PAUSED`), independent of the handler's cached-state check. `pauseGame`/`resumeGame` emit `notifyGameMutation` so bots and clients react to pause/resume.
+- **Timer-expiry turn guard**: The timer-expiry callback passes the observed `currentTurn` as the expected-team guard to `endTurn`, so a stale expiry that races a reveal/endTurn no-ops (NOT_YOUR_TURN) instead of double-flipping and skipping a turn.
+- **Host transfer prefers humans**: Disconnect-driven host transfer excludes bots when a human candidate remains connected — a bot cannot run host-only functions, so handing it host would lock the room.
+- **Observer role is locked during an active game**: `canChangeTeamOrRole` blocks an observer from changing into ANY other role (including plain spectator) while a game is live — an observer has seen the whole board, and allowing the step-down opened an `observer → spectator → clicker` laundering path. Role changes are free again once the game is over.
+- **Zombie-socket disconnect guard**: `handleDisconnect` no-ops when a newer socket already owns the session (`getSocketId(sessionId) !== socket.id`), so a lingering old socket's late disconnect can't mark an actively-reconnected player disconnected, transfer host away from them, or schedule their removal.
+- **Mutation-notifier listener isolation**: `notifyGameMutation` runs each `onGameMutation` listener in its own try/catch — it fires synchronously inside game write paths, so a throwing listener must not abort the others or poison the committed mutation's result.
+- **Bot notification coalescing**: `botController` records mutations that arrive while a tick is in flight (`pending`) and re-ticks once it finishes, so a notification landing between a tick's final state read and its exit isn't dropped (which would stall the bot). It also re-verifies the seat after its "thinking" pause so a removed/kicked bot can't land one last move.
+- **Bot-only room cleanup**: `leaveRoom` tears the room down when no humans remain (bots are first-class players that never disconnect, so a bots-only room would otherwise linger until TTL).
+- **addBot seat serialization**: `addBot` runs its seat-occupancy check and join under a per-room `bot-manage:` lock so two simultaneous `bot:add` calls can't both seat the same team+role.
 
 ## Key Services
 
@@ -630,7 +642,7 @@ See [docs/ADDING_A_FEATURE.md](docs/ADDING_A_FEATURE.md) for a full worked examp
 
 ### Structure
 
-- **Backend unit/integration**: Jest, 136 suites in `server/src/__tests__/`
+- **Backend unit/integration**: Jest, 105 suites in `server/src/__tests__/`
 - **Frontend unit**: Jest with jsdom, in `server/src/__tests__/frontend/`
 - **E2E**: Playwright, 13 specs in `server/e2e/`
 - **Load testing**: Custom scripts in `server/loadtest/`

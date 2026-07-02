@@ -35,6 +35,13 @@ if game.gameOver then
     return cjson.encode({error = 'GAME_OVER'})
 end
 
+-- Reject reveals on a paused game atomically (defense in depth). The handler's
+-- paused check reads a cached game and can be stale; submitClue.lua guards this
+-- too. Prevents a bot or a racing client from acting while the game is paused.
+if game.paused then
+    return cjson.encode({error = 'GAME_PAUSED'})
+end
+
 -- Bug #4 fix: Re-validate turn in Lua script (defense in depth)
 if playerTeam and playerTeam ~= '' and game.currentTurn ~= playerTeam then
     return cjson.encode({error = 'NOT_YOUR_TURN'})

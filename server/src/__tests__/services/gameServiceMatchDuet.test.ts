@@ -52,6 +52,7 @@ const {
     finalizeRound,
     finalizeMatchRound,
     startNextRound,
+    getGameStateForPlayer,
 } = require('../../services/gameService');
 
 /** Helper: creates a standard room setup for createGame */
@@ -621,6 +622,14 @@ describe('startNextRound', () => {
         mockRedis.set.mockResolvedValue('OK');
         mockRedis.eval.mockResolvedValue(1);
         mockRedis.expire.mockResolvedValue(1);
+        // startNextRound now re-reads the game under the lock (to reject a
+        // duplicate concurrent nextRound). Return null for the :game key so the
+        // re-read falls back to the caller-supplied currentGame these tests pass.
+        mockRedis.get.mockImplementation((key: string) => {
+            if (key.includes(':game')) return Promise.resolve(null);
+            if (key.startsWith('room:')) return Promise.resolve(JSON.stringify({ code: 'TEST', status: 'waiting' }));
+            return Promise.resolve(null);
+        });
     });
 
     test('creates next round with carried-over match state', async () => {
@@ -743,5 +752,67 @@ describe('startNextRound', () => {
         for (const word of nextRound.words) {
             expect(DEFAULT_WORDS.map((w: string) => w.toLocaleUpperCase('en-US'))).toContain(word);
         }
+    });
+
+    test('draws a fresh board from the persisted word pool, not just the 25 board words', async () => {
+        // Regression: previously the next round reused only ctx.game.words (the 25
+        // board words), so every match round reshuffled the identical 25 words.
+        // A 60-word pool with the first 25 as the board words proves the fresh
+        // board is drawn from the full pool.
+        const pool = Array.from({ length: 60 }, (_, i) => `POOLWORD${i}`);
+        const currentGame = createMatchGameState({
+            gameOver: true,
+            matchRound: 1,
+            firstTeamHistory: ['red'],
+            words: pool.slice(0, BOARD_SIZE),
+            wordPool: pool,
+        });
+
+        const nextRound = await startNextRound('MATCHPOOL', currentGame, { gameMode: 'match' });
+
+        // Every board word comes from the full pool...
+        for (const word of nextRound.words) {
+            expect(pool).toContain(word);
+        }
+        // ...and the selection reaches beyond the previous round's 25 board words.
+        const backHalf = pool.slice(BOARD_SIZE);
+        expect(nextRound.words.some((w: string) => backHalf.includes(w))).toBe(true);
+        // The pool is carried forward so subsequent rounds keep drawing fresh boards.
+        expect(nextRound.wordPool).toEqual(pool);
+    });
+});
+
+describe('v2.2 fixes — classic gameMode is always populated', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        setupRoomMocks();
+    });
+
+    test('createGame stamps gameMode="classic" and persists a wordPool', async () => {
+        const game = await createGame('CLASSIC1', { gameMode: 'classic' });
+
+        // Classic games previously left gameMode undefined, which the client
+        // mistook for match mode (showing the match scoreboard, breaking New Game).
+        expect(game.gameMode).toBe('classic');
+        expect(Array.isArray(game.wordPool)).toBe(true);
+        expect((game.wordPool as string[]).length).toBeGreaterThanOrEqual(BOARD_SIZE);
+    });
+
+    test('getGameStateForPlayer emits gameMode for a classic game', () => {
+        const classicGame = createMatchGameState({ gameMode: 'classic' });
+        const player = { sessionId: 's1', team: 'red', role: 'clicker' };
+
+        const view = getGameStateForPlayer(classicGame, player);
+
+        expect(view.gameMode).toBe('classic');
+    });
+
+    test('getGameStateForPlayer defaults a legacy game with no gameMode to classic', () => {
+        const legacyGame = createMatchGameState({ gameMode: undefined });
+        const player = { sessionId: 's1', team: 'blue', role: 'clicker' };
+
+        const view = getGameStateForPlayer(legacyGame, player);
+
+        expect(view.gameMode).toBe('classic');
     });
 });

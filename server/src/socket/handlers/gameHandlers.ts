@@ -422,7 +422,9 @@ function gameHandlers(io: Server, socket: GameSocket): void {
             const game: GameState = await gameService.startNextRound(ctx.roomCode, ctx.game, {
                 gameMode: 'match',
                 wordListId: room?.settings?.wordListId ?? undefined,
-                wordList: ctx.game.words,
+                // Prefer the full pool; fall back to the board words for pre-existing
+                // games that predate wordPool persistence.
+                wordList: ctx.game.wordPool ?? ctx.game.words,
             });
 
             // Preserve seats across the round (see resetRolesForNewGame): humans

@@ -116,6 +116,23 @@ describe('unsubscribe', () => {
         unsub();
         expect(() => unsub()).not.toThrow();
     });
+
+    // Regression (finding 56): a stale unsubscribe called after a new subscriber
+    // registered under the same (previously emptied) topic must not detach the
+    // newer subscriber by pruning the topic's current list.
+    test('stale double-unsubscribe does not detach a newer subscriber on the same topic', () => {
+        const cbA = jest.fn();
+        const unsubA = subscribe('playerTeam', cbA);
+        unsubA(); // empties + prunes the 'playerTeam' key
+
+        const cbB = jest.fn();
+        subscribe('playerTeam', cbB); // registers a fresh list under the same key
+
+        unsubA(); // stale: must be a no-op, not clobber cbB's list
+
+        emit({ path: 'playerTeam', oldValue: null, newValue: 'blue' });
+        expect(cbB).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe('clearAllListeners', () => {

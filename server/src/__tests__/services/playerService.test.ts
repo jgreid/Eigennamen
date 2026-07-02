@@ -197,6 +197,23 @@ describe('Player Service', () => {
             await expect(playerService.getPlayer('session-123')).rejects.toThrow('Corrupted player data');
             expect(mockRedis.del).toHaveBeenCalledWith('player:session-123');
         });
+
+        // Regression: the playerSchema role enum previously omitted 'advisor' and
+        // 'observer', so getPlayer treated advisor bots / human observers as
+        // corrupted and DELETED their record. These roles must round-trip intact.
+        test.each(['advisor', 'observer'])(
+            'accepts and preserves role=%s without deleting the record',
+            async (role) => {
+                const playerData = mockPlayer({ role });
+                mockRedis.get.mockResolvedValue(JSON.stringify(playerData));
+
+                const player = await playerService.getPlayer('session-123');
+
+                expect(player).not.toBeNull();
+                expect(player.role).toBe(role);
+                expect(mockRedis.del).not.toHaveBeenCalled();
+            }
+        );
     });
 
     describe('updatePlayer', () => {

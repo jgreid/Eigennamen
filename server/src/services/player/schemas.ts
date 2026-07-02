@@ -10,7 +10,10 @@ export const playerSchema = z.object({
     roomCode: z.string(),
     nickname: z.string(),
     team: z.enum(['red', 'blue']).nullable(),
-    role: z.enum(['spymaster', 'clicker', 'spectator']),
+    // Must stay in sync with setRole.lua, validators/playerSchemas.ts and the Role
+    // type. Omitting 'advisor'/'observer' here made getPlayer() treat those records
+    // as corrupted and delete them (breaking advisor bots and human observers).
+    role: z.enum(['spymaster', 'clicker', 'advisor', 'observer', 'spectator']),
     isHost: z.boolean(),
     connected: z.boolean(),
     lastSeen: z.number(),

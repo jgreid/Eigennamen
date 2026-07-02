@@ -125,11 +125,21 @@ export interface BoardLayout {
 }
 
 /**
- * Generate a complete board layout given a seed and game mode
+ * Generate a complete board layout given a seed and game mode.
+ *
+ * @param forceFirstTeam - When provided, this team goes first (and receives the
+ *   extra FIRST_TEAM_CARDS card) instead of the seed-derived team. Match mode
+ *   alternates the starting team each round; forcing it here keeps the card
+ *   counts and the types array consistent with firstTeam, which a post-hoc
+ *   `layout.firstTeam = ...` override would silently desync.
  */
-export function generateBoardLayout(numericSeed: number, isDuet: boolean): BoardLayout {
+export function generateBoardLayout(
+    numericSeed: number,
+    isDuet: boolean,
+    forceFirstTeam?: 'red' | 'blue'
+): BoardLayout {
     const firstTeam: 'red' | 'blue' =
-        seededRandom(numericSeed + GAME_INTERNALS.FIRST_TEAM_SEED_OFFSET) > 0.5 ? 'red' : 'blue';
+        forceFirstTeam ?? (seededRandom(numericSeed + GAME_INTERNALS.FIRST_TEAM_SEED_OFFSET) > 0.5 ? 'red' : 'blue');
 
     if (isDuet) {
         const duetBoard = generateDuetBoard(numericSeed + GAME_INTERNALS.TYPES_SHUFFLE_SEED_OFFSET);

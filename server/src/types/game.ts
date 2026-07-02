@@ -165,6 +165,8 @@ export interface GameState {
     wordListId: string | null;
     /** The 25 words on the board */
     words: string[];
+    /** Full word pool the board was drawn from; match rounds reuse it for a fresh board */
+    wordPool?: string[];
     /** The card types (hidden from non-spymasters) */
     types: CardType[];
     /** Which cards have been revealed */

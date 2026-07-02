@@ -79,6 +79,14 @@ const REARM_MAX_DELAY_MS = 2000;
 let ioRef: Server | null = null;
 let unsubscribe: (() => void) | null = null;
 const inFlight = new Set<string>();
+/**
+ * Rooms that received a mutation notification while a tick was already running.
+ * The in-flight guard drops those notifications; without coalescing, a mutation
+ * that lands between a tick's final state read and its exit would be lost and the
+ * bot would stall until some unrelated mutation arrived. We record it and re-tick
+ * once the current tick finishes.
+ */
+const pending = new Set<string>();
 /** Per-room consecutive-failure count, used to back off and bound re-arming. */
 const failureStreak = new Map<string, number>();
 /** Per-room pending re-arm timer (at most one in flight). */
@@ -133,6 +141,7 @@ export function stopBotController(): void {
         unsubscribe = null;
     }
     inFlight.clear();
+    pending.clear();
     for (const timer of reArmTimers.values()) clearTimeout(timer);
     reArmTimers.clear();
     failureStreak.clear();
@@ -205,8 +214,15 @@ async function emitAdvisorSuggestions(
 export async function tickRoom(roomCode: string): Promise<void> {
     const io = ioRef;
     if (!io) return;
-    if (inFlight.has(roomCode)) return;
+    if (inFlight.has(roomCode)) {
+        // A tick is already running for this room. Record that new state arrived
+        // so we re-tick once it finishes, instead of dropping the notification.
+        pending.add(roomCode);
+        return;
+    }
     inFlight.add(roomCode);
+    // This tick will observe current state, so drop any coalesced marker for it.
+    pending.delete(roomCode);
 
     // Whether the tick ended because an action failed (vs. a clean stop: game
     // over/paused, a human's seat, or no move to make). A failure re-arms a
@@ -255,7 +271,22 @@ export async function tickRoom(roomCode: string): Promise<void> {
 
             // A brief, human-like pause before the move lands (live play only).
             const pace = paceDelayMs(game.stateVersion ?? 0);
-            if (pace > 0) await sleep(pace);
+            if (pace > 0) {
+                await sleep(pace);
+                // The bot could have been removed/kicked/reseated during the pause.
+                // Re-verify the seat still holds before acting so a removed bot
+                // can't land one last move. (getPlayer returns null if removed.)
+                const stillSeated = await playerService.getPlayer(seat.sessionId).catch(() => null);
+                if (
+                    !stillSeated ||
+                    !stillSeated.isBot ||
+                    !stillSeated.connected ||
+                    stillSeated.team !== team ||
+                    stillSeated.role !== role
+                ) {
+                    break;
+                }
+            }
 
             const actor = { sessionId: seat.sessionId, nickname: seat.nickname, team, role: seat.role };
             try {
@@ -287,6 +318,17 @@ export async function tickRoom(roomCode: string): Promise<void> {
         actionFailed = true;
     } finally {
         inFlight.delete(roomCode);
+    }
+
+    if (pending.has(roomCode)) {
+        // A mutation arrived while this tick was running. Re-tick so the bot reacts
+        // to it now rather than stalling until the next unrelated mutation. This
+        // supersedes failure re-arm (the fresh state may itself resolve the failure).
+        pending.delete(roomCode);
+        queueMicrotask(() => {
+            void tickRoom(roomCode);
+        });
+        return;
     }
 
     if (actionFailed) {

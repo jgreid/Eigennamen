@@ -10,6 +10,8 @@
  * `gameService` (which writes) and `playerContext` (which caches reads).
  */
 
+import logger from '../utils/logger';
+
 type MutationListener = (roomCode: string) => void;
 
 const listeners: MutationListener[] = [];
@@ -30,6 +32,13 @@ export function notifyGameMutation(roomCode: string): void {
     // Snapshot the array so removals during iteration don't skip callbacks.
     const snapshot = [...listeners];
     for (const listener of snapshot) {
-        listener(roomCode);
+        // Isolate each listener: notifyGameMutation runs synchronously inside game
+        // write paths, so a throwing listener must not abort the remaining ones or
+        // propagate into the committed mutation's result path.
+        try {
+            listener(roomCode);
+        } catch (err) {
+            logger.error(`onGameMutation listener failed for room ${roomCode}:`, err);
+        }
     }
 }
