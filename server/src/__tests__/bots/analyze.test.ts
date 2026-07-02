@@ -76,6 +76,23 @@ describe('referenceLead', () => {
         expect(ref.safeLead).toBe(0); // nothing leads safely
         expect(ref.assassinArgmax).toBe(true);
     });
+
+    it('reports the halo heat and whether the brightest spillover is lethal', () => {
+        // Best non-own is the OPPONENT card (0.3 > assassin 0.1, no neutral on
+        // this board) — the clue's misfire loses material, not just a guess.
+        const backend = stub({ LINK: { OWNA: 0.9, OWNB: 0.8, OPPO: 0.3, ASSN: 0.1 } });
+        const ref = referenceLead('LINK', boardGroupsFor(g, 'red'), backend);
+        expect(ref.heat).toBeCloseTo(0.3);
+        expect(ref.dangerNext).toBe(true);
+    });
+
+    it('does not mark dangerNext when a harmless neutral is the brightest spillover', () => {
+        const gn = game(['OWNA', 'NEUT', 'OPPO', 'ASSN'], ['red', 'neutral', 'blue', 'assassin']);
+        const backend = stub({ SOFT: { OWNA: 0.9, NEUT: 0.5, OPPO: 0.1, ASSN: 0.05 } });
+        const ref = referenceLead('SOFT', boardGroupsFor(gn, 'red'), backend);
+        expect(ref.heat).toBeCloseTo(0.5);
+        expect(ref.dangerNext).toBe(false);
+    });
 });
 
 describe('aggregate + detectGaps', () => {
@@ -88,6 +105,9 @@ describe('aggregate + detectGaps', () => {
         safeLead: 1,
         clarity: 0.3,
         assassinArgmax: false,
+        dangerNext: false,
+        heat: 0.2,
+        commonness: 1,
         fallback: false,
         ownGained: 1,
         oppGiven: 0,
@@ -131,6 +151,55 @@ describe('aggregate + detectGaps', () => {
         const records = Array.from({ length: 10 }, () => rec({ number: 1, safeLead: 1, ownGained: 1 }));
         const gaps = detectGaps(aggregate(records)[0] as ClueDiagnostics);
         expect(gaps.join(' ')).not.toMatch(/under-cluing/);
+    });
+
+    it('computes dangerNextRate, robustness and overReachRate', () => {
+        const [d] = aggregate([
+            rec({ dangerNext: true, heat: 0.4, commonness: 0.8 }),
+            rec({ dangerNext: false, heat: 0.2, commonness: 1, ownGained: 1, neutralHit: 1, endReason: 'wrongGuess' }),
+        ]);
+        const diag = d as ClueDiagnostics;
+        expect(diag.dangerNextRate).toBeCloseTo(0.5);
+        // Per-record robustness = (commonness + (1 - heat)) / 2: (0.7 + 0.9) / 2.
+        expect(diag.robustness).toBeCloseTo(0.8);
+        // Only the second record pressed past a banked core and missed.
+        expect(diag.overReachRate).toBeCloseTo(0.5);
+    });
+
+    it('overreach requires a banked core: a first-guess miss is a misread, not a stretch', () => {
+        const [d] = aggregate([
+            rec({ ownGained: 0, oppGiven: 1, endReason: 'wrongGuess' }),
+            rec({ ownGained: 1, assassinHit: true, endReason: 'assassin' }),
+        ]);
+        expect((d as ClueDiagnostics).overReachRate).toBeCloseTo(0.5);
+    });
+
+    it('overreach catches a press-on that hands the opponent their winning card (endReason gameWon)', () => {
+        const [d] = aggregate([rec({ ownGained: 2, oppGiven: 1, reveals: 3, endReason: 'gameWon' })]);
+        expect((d as ClueDiagnostics).overReachRate).toBeCloseTo(1);
+    });
+
+    it('flags dangerous halos, idiosyncratic clues and over-reach', () => {
+        const records = Array.from({ length: 10 }, () =>
+            rec({
+                dangerNext: true, // 100% lethal spillover
+                heat: 0.9, // hot halo …
+                commonness: 0.1, // … on a rare clue word → low robustness
+                ownGained: 1,
+                oppGiven: 1, // pressed past the core and missed
+                endReason: 'wrongGuess',
+            })
+        );
+        const gaps = detectGaps(aggregate(records)[0] as ClueDiagnostics);
+        expect(gaps.join(' ')).toMatch(/dangerous halos/);
+        expect(gaps.join(' ')).toMatch(/idiosyncratic/);
+        expect(gaps.join(' ')).toMatch(/over-reach/);
+    });
+
+    it('does not flag a robust, safe entrant on the new metrics', () => {
+        const records = Array.from({ length: 10 }, () => rec({}));
+        const gaps = detectGaps(aggregate(records)[0] as ClueDiagnostics);
+        expect(gaps.join(' ')).not.toMatch(/dangerous halos|idiosyncratic|over-reach/);
     });
 });
 

@@ -60,6 +60,14 @@ function stripConceptNet(token: string): string {
 interface LoadedVectors {
     vecs: Map<string, Float32Array>;
     vocab: string[];
+    /** True when any token carried a ConceptNet "/c/<lang>/" prefix. Numberbatch
+     *  files are ALPHABETICALLY ordered, so file rank is not a frequency prior. */
+    conceptNet: boolean;
+    /** True when the file's tokens arrived in lexicographic order — the tell of
+     *  an alphabetically-sorted export (e.g. the bare-token English-only
+     *  Numberbatch file, which carries NO /c/ prefix), where file rank is
+     *  alphabetical position, not frequency. */
+    alphabetical: boolean;
 }
 
 /**
@@ -70,6 +78,9 @@ function loadVectors(opts: Required<VectorBackendOptions>): LoadedVectors {
     const vecs = new Map<string, Float32Array>();
     const vocab: string[] = [];
     const seenVocab = new Set<string>();
+    let conceptNet = false;
+    let sortedSoFar = true;
+    let prevToken: string | null = null;
 
     const fd = openSync(opts.path, 'r');
     try {
@@ -97,7 +108,13 @@ function loadVectors(opts: Required<VectorBackendOptions>): LoadedVectors {
             if (parts.length < 3) return true; // not a valid vector row
             const rawToken = parts[0];
             if (rawToken === undefined) return true;
+            // Ordering probe for the frequency prior: compare RAW tokens (the
+            // file's own sort key) across every data row, including rows later
+            // skipped as phrases, so the verdict reflects the file's true order.
+            if (sortedSoFar && prevToken !== null && rawToken < prevToken) sortedSoFar = false;
+            prevToken = rawToken;
             const token = stripConceptNet(rawToken);
+            if (token !== rawToken) conceptNet = true;
             if (token.includes('_')) return true; // skip multi-word phrases
             const key = normalizeClueWord(token);
             if (!key || /\s/.test(key)) return true;
@@ -162,7 +179,7 @@ function loadVectors(opts: Required<VectorBackendOptions>): LoadedVectors {
         closeSync(fd);
     }
 
-    return { vecs, vocab };
+    return { vecs, vocab, conceptNet, alphabetical: sortedSoFar && vecs.size >= 2 };
 }
 
 /**
@@ -205,6 +222,19 @@ export function makeVectorBackend(options: VectorBackendOptions): SemanticBacken
     const { vecs, vocab } = loaded;
     const fallback = opts.fallback;
 
+    // File-rank frequency prior: word2vec/GloVe/fastText files list vectors most-
+    // frequent-first, so a word's position is a real commonness signal (rank 0 =
+    // everyday word). ConceptNet Numberbatch is alphabetical — rank would call
+    // AARDVARK common and ZEBRA obscure — so the prior is disabled for it. The
+    // multilingual export is caught by its /c/<lang>/ prefixes; the English-only
+    // export has BARE tokens, so sorted-order detection is what catches it (and
+    // any other alphabetized file). A frequency-ordered file is never sorted.
+    const ranks: Map<string, number> | null = loaded.conceptNet || loaded.alphabetical ? null : new Map();
+    if (ranks) {
+        let i = 0;
+        for (const key of vecs.keys()) ranks.set(key, i++);
+    }
+
     // Vector dimensionality (all vectors share it) and the full set of
     // clue-suitable words that HAVE a vector — the search space for nearest().
     // Unlike vocabulary() (capped for a fixed scan), this spans the whole loaded
@@ -233,6 +263,16 @@ export function makeVectorBackend(options: VectorBackendOptions): SemanticBacken
 
     logger.info(`Bot embeddings loaded: ${vecs.size} vectors, ${merged.length} clue candidates from ${opts.path}`);
 
+    // nearest() is a pure, deterministic function of (input word set, k) over the
+    // fixed loaded vectors, and the spymaster re-issues the same per-card and
+    // pair-centroid queries on every clue decision of a game (board words never
+    // change; the own set only shrinks) — so results are memoised. Each miss
+    // costs a synchronous O(candidates × dim) scan on the live server's event
+    // loop; a hit is free. Bounded FIFO keeps a long-lived server from growing
+    // it without limit. Cached arrays are shared — callers must not mutate them.
+    const NEAREST_CACHE_MAX = 4096;
+    const nearestCache = new Map<string, Array<{ word: string; score: number }>>();
+
     return {
         id: 'vectors',
         relatedness(a: string, b: string): number {
@@ -256,16 +296,25 @@ export function makeVectorBackend(options: VectorBackendOptions): SemanticBacken
         vocabulary(): string[] {
             return merged;
         },
+        commonness(word: string): number {
+            const key = normalizeClueWord(word);
+            const rank = ranks?.get(key);
+            if (rank === undefined) return fallback.commonness?.(word) ?? 1;
+            return 1 - rank / vecs.size;
+        },
         nearest(words: string[], k: number): Array<{ word: string; score: number }> {
             if (dim === 0 || k <= 0) return [];
+            const inputSet = new Set<string>();
+            for (const w of words) inputSet.add(normalizeClueWord(w));
+            const cacheKey = `${k}|${[...inputSet].sort().join(' ')}`;
+            const cached = nearestCache.get(cacheKey);
+            if (cached) return cached;
+
             // Centroid of the input words' vectors (those we have), then L2-normalise
             // so scores are cosine similarities in [0, 1].
             const centroid = new Float32Array(dim);
             let n = 0;
-            const inputSet = new Set<string>();
-            for (const w of words) {
-                const key = normalizeClueWord(w);
-                inputSet.add(key);
+            for (const key of inputSet) {
                 const v = vecs.get(key);
                 if (!v) continue;
                 for (let i = 0; i < dim; i++) centroid[i] = (centroid[i] as number) + (v[i] as number);
@@ -278,17 +327,39 @@ export function makeVectorBackend(options: VectorBackendOptions): SemanticBacken
             const inv = 1 / Math.sqrt(norm);
             for (let i = 0; i < dim; i++) centroid[i] = (centroid[i] as number) * inv;
 
-            const scored: Array<{ word: string; score: number }> = [];
+            // Bounded top-k selection under the total order (score desc, word asc
+            // tiebreak) — identical results to sorting every positive-scoring
+            // candidate, without materialising and sorting ~half the vocabulary
+            // per call (which measurably dominates the cost beyond the
+            // unavoidable O(candidates × dim) scan).
+            const better = (a: { word: string; score: number }, b: { word: string; score: number }): boolean =>
+                a.score > b.score || (a.score === b.score && a.word < b.word);
+            const top: Array<{ word: string; score: number }> = [];
             for (const cand of candidateKeys) {
                 if (inputSet.has(cand)) continue; // never suggest an input word itself
                 const cv = vecs.get(cand) as Float32Array;
                 let dot = 0;
                 for (let i = 0; i < dim; i++) dot += (centroid[i] as number) * (cv[i] as number);
-                if (dot > 0) scored.push({ word: cand, score: Math.min(1, dot) });
+                if (dot <= 0) continue;
+                const entry = { word: cand, score: Math.min(1, dot) };
+                if (top.length === k && !better(entry, top[k - 1] as { word: string; score: number })) continue;
+                let lo = 0;
+                let hi = top.length;
+                while (lo < hi) {
+                    const mid = (lo + hi) >> 1;
+                    if (better(entry, top[mid] as { word: string; score: number })) hi = mid;
+                    else lo = mid + 1;
+                }
+                top.splice(lo, 0, entry);
+                if (top.length > k) top.pop();
             }
-            // Deterministic order: score desc, then word asc as a stable tiebreak.
-            scored.sort((a, b) => b.score - a.score || (a.word < b.word ? -1 : 1));
-            return scored.slice(0, k);
+
+            if (nearestCache.size >= NEAREST_CACHE_MAX) {
+                const oldest = nearestCache.keys().next().value;
+                if (oldest !== undefined) nearestCache.delete(oldest);
+            }
+            nearestCache.set(cacheKey, top);
+            return top;
         },
     };
 }

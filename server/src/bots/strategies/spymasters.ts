@@ -140,6 +140,21 @@ const OPPONENT_WEIGHT = 0.8;
 // Match mode: bonus per extra point of value the covered own cards carry beyond
 // one-per-card. Zero effect outside match, where every card's value() is 1.
 const VALUE_WEIGHT = 0.3;
+// Hard, persona-independent assassin berth: the weakest intended card must clear
+// the closest assassin by at least this, no matter how reckless the persona.
+// A clue is only as good as its worst plausible misfire, and the worst misfire
+// is the assassin — style knobs tune the *number*, never this gate. Matches the
+// diagnostics yardstick's berth (2 × REF_MARGIN in harness/analyze.ts).
+const ASSASSIN_BERTH_FLOOR = 0.1;
+// Robustness (anti-idiosyncrasy) weights, both scaled by style.commonnessBias.
+// Ambiguity: a clue whose best non-own relatedness runs hot is one misread away
+// from a misfire even when the margin clears — the model's salience ranking is
+// not the guesser's, so hot halos are where that gap bites. Rarity: an obscure
+// clue word anchors on a niche association a human may not share; prefer clues
+// that live in common knowledge (only applies when the backend has a
+// frequency prior — see SemanticBackend.commonness).
+const AMBIGUITY_WEIGHT = 0.3;
+const RARITY_WEIGHT = 0.25;
 
 /** Result of scoring a candidate clue against the board. */
 interface ClueEval {
@@ -170,6 +185,10 @@ function maxRel(words: readonly string[], clue: string, backend: SemanticBackend
  *    the opponent's cards teaches their clicker something, so it is penalised —
  *    scaled by caution, so a cautious/expert bot prefers clues that leave the
  *    opponent's board dark while a reckless bot barely cares.
+ *  - robustness (anti-idiosyncrasy): penalises hot halos (high absolute best
+ *    non-own relatedness even when the margin clears) and rare/obscure clue
+ *    words, both scaled by the persona's commonnessBias — robust clues live in
+ *    shared knowledge, not the model's private sense of salience.
  *
  * `caution` is riskAversion in [0,1]; the safety margin widens with it. `style`
  * are the persona knobs: `aggression` shrinks the margin (bigger, bolder numbers),
@@ -211,10 +230,11 @@ function scoreClue(
 
     // The assassin is catastrophic, so demand a wider berth: drop any intended
     // card that doesn't clear the closest assassin by twice the margin (scaled by
-    // the persona's assassinCaution — a Guardian widens the wall, a Daredevil
-    // trims it, but the base `margin` floor above still bars the assassin from
-    // ever being the clicker's top card).
-    const berth = margin * 2 * style.assassinCaution;
+    // the persona's assassinCaution — a Guardian widens the wall further). The
+    // ASSASSIN_BERTH_FLOOR is the hard, persona-independent part: a Daredevil may
+    // trim the soft berth, but never below the floor — recklessness buys bigger
+    // numbers, not a thinner assassin wall.
+    const berth = Math.max(ASSASSIN_BERTH_FLOOR, margin * 2 * style.assassinCaution);
     while (leadOwn > 0 && (own[leadOwn - 1] as number) - maxAss < berth) leadOwn--;
     if (leadOwn === 0) return null;
 
@@ -233,8 +253,22 @@ function scoreClue(
     // Aggression also tips near-ties toward the wider-covering clue, so a bold
     // persona reaches for the bigger number even when a tighter clue scores alike.
     const coverageBonus = style.aggression * 0.25 * leadOwn;
+    // Robustness: prefer clues a HUMAN would read the same way the model does.
+    // Ambiguity punishes a hot halo (high absolute maxNonOwn, even with the
+    // margin cleared); rarity punishes obscure clue words when the backend
+    // carries a frequency prior (absent one, commonness defaults to 1 = no-op).
+    const ambiguityPenalty = AMBIGUITY_WEIGHT * style.commonnessBias * maxNonOwn;
+    const rarityPenalty = RARITY_WEIGHT * style.commonnessBias * (1 - (backend.commonness?.(clue) ?? 1));
 
-    const score = leadOwn + CLARITY_WEIGHT * clarity - assassinPenalty - opponentPenalty + valueBonus + coverageBonus;
+    const score =
+        leadOwn +
+        CLARITY_WEIGHT * clarity -
+        assassinPenalty -
+        opponentPenalty -
+        ambiguityPenalty -
+        rarityPenalty +
+        valueBonus +
+        coverageBonus;
     return { word: clue, leadOwn, score };
 }
 
@@ -308,16 +342,26 @@ function pickBestEffort(
 
 // Candidate-generation breadth. A broad set drawn near the whole own-card
 // centroid surfaces clues that cover many own cards; per-card neighbours surface
-// specific, safe single-card clues. Only used when the backend supports nearest().
+// specific, safe single-card clues; pair centroids surface cross-domain BRIDGES —
+// a word sitting between two own cards in different silos (penguin + maestro =
+// TUXEDO), which the full centroid misses because it is dominated by the largest
+// own cluster. Pairs are bounded to the densest own cards because every
+// first-time nearest() call is a synchronous full-vocabulary scan on the live
+// server's event loop: worst case is 1 centroid + 9 per-card + C(4,2) = 16
+// calls per clue decision (the vector backend memoises repeats across turns,
+// so only a game's first decision pays full price).
 const CENTROID_NEIGHBOURS = 40;
 const PER_CARD_NEIGHBOURS = 8;
+const PAIR_TOP_CARDS = 4;
+const PAIR_NEIGHBOURS = 6;
 
 /**
  * The legal clue words to consider for a board. With an embedding backend that
  * supports nearest(), this GENERATES board-specific candidates from the whole
- * model vocabulary — words near the own cards — which is what produces strong,
- * creative clues. With a table/lexical backend (no nearest) it degrades to
- * scanning the fixed vocabulary(), so those backends behave exactly as before.
+ * model vocabulary — words near the full own-card centroid, near each own card,
+ * and near each pair centroid of the densest own cards (2-card bridge clues).
+ * With a table/lexical backend (no nearest) it degrades to scanning the fixed
+ * vocabulary(), so those backends behave exactly as before.
  */
 function generateClueCandidates(view: BotSpymasterView, groups: BoardGroups, backend: SemanticBackend): string[] {
     const legal = (words: string[]): string[] => words.filter((c) => isClueLegalForBoard(c, view.words as string[]));
@@ -327,6 +371,27 @@ function generateClueCandidates(view: BotSpymasterView, groups: BoardGroups, bac
         for (const c of backend.nearest(groups.own, CENTROID_NEIGHBOURS)) pool.add(c.word);
         for (const w of groups.own) {
             for (const c of backend.nearest([w], PER_CARD_NEIGHBOURS)) pool.add(c.word);
+        }
+        // Pair-centroid bridges. Skipped below three own cards: with two, the
+        // full centroid above IS the pair centroid. Density (total relatedness
+        // to the other own cards) picks which cards get paired, keeping the
+        // extra nearest() calls bounded at C(PAIR_TOP_CARDS, 2).
+        if (groups.own.length > 2) {
+            const density = new Map<string, number>();
+            for (const w of groups.own) {
+                let d = 0;
+                for (const o of groups.own) if (o !== w) d += backend.relatedness(w, o);
+                density.set(w, d);
+            }
+            const top = [...groups.own]
+                .sort((a, b) => (density.get(b) ?? 0) - (density.get(a) ?? 0))
+                .slice(0, PAIR_TOP_CARDS);
+            for (let i = 0; i < top.length; i++) {
+                for (let j = i + 1; j < top.length; j++) {
+                    const pair = [top[i] as string, top[j] as string];
+                    for (const c of backend.nearest(pair, PAIR_NEIGHBOURS)) pool.add(c.word);
+                }
+            }
         }
         const legalPool = legal([...pool]);
         if (legalPool.length > 0) return legalPool;

@@ -469,20 +469,24 @@ Added one registry entry at a time. The catalogue grows; the interface does not.
 ### 11.1 Style knobs and personae (the "meaningfully different playstyles")
 
 Difficulty alone (temperature/blunder/risk) makes a bot *stronger or weaker* but
-not *different in character*. Three optional **style knobs** on `SkillParams`
+not *different in character*. Four optional **style knobs** on `SkillParams`
 shape how a bot of a given strength plays — its personality — independently of
 how strong it is:
 
 | Knob | Effect in `scoreClue` | Low | High |
 |------|-----------------------|-----|------|
-| `aggression` (0–1) | Shrinks the safety margin (down to ½) and adds a coverage bonus, so more own cards ride one clue | tight, reliable small numbers | gutsy 2s/3s/4s on thin margins |
+| `aggression` (0–1) | Shrinks the safety margin (down to ½) and adds a coverage bonus, so more own cards ride one clue; on the clicker it loosens the stop-cliff and unlocks the disciplined `number+1` bonus guess | tight, reliable small numbers | gutsy 2s/3s/4s on thin margins |
 | `defenseBias` (×) | Multiplies the "don't arm the opponent" penalty | ignores the opponent's board | refuses to hand them a clue |
-| `assassinCaution` (×) | Multiplies the assassin penalty **and** its safety berth | flirts closer to the assassin | wide assassin wall |
+| `assassinCaution` (×) | Multiplies the assassin penalty **and** its soft safety berth | flirts closer to the assassin | wide assassin wall |
+| `commonnessBias` (×) | Multiplies the robustness penalties: hot halos (high best non-own relatedness) and rare clue words (via the backend's optional `commonness()` frequency prior) | happily off-kilter, obscure associations | insists on legible, common-knowledge clues |
 
-All default to neutral (aggression 0, defenseBias 1, assassinCaution 1) via
-`resolveStyle`, so a plain difficulty preset behaves exactly as before. The base
-`margin` floor is applied regardless, so even the boldest persona can never make
-the assassin the clicker's top card.
+All default to neutral (aggression 0, defenseBias 1, assassinCaution 1,
+commonnessBias 1) via `resolveStyle`, so a plain difficulty preset behaves as
+before. The base `margin` floor is applied regardless, and the assassin berth
+additionally has a **hard, persona-independent floor** (`ASSASSIN_BERTH_FLOOR`):
+recklessness buys bigger numbers, never a thinner assassin wall — even the
+boldest persona can never make the assassin the clicker's top card nor let an
+intended card hug it.
 
 **Personae** (`server/src/bots/personas.ts`) bundle a difficulty with a
 playstyle into a named, user-facing identity. They live in the same namespace as

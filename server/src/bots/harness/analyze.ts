@@ -8,8 +8,9 @@
  * assassin), and compares the clue number the bot actually gave against the
  * board's theoretical safe ceiling. Aggregated per entrant, it surfaces concrete
  * clue-strategy GAPS (under-cluing, poor delivery, leakiness, assassin exposure,
- * weak backend coverage) so the personae and scoring weights can be tuned against
- * real numbers rather than vibes.
+ * weak backend coverage, lethal spillover, idiosyncratic clue words, guessing
+ * over-reach) so the personae and scoring weights can be tuned against real
+ * numbers rather than vibes.
  *
  * The pure functions (referenceLead, aggregate, detectGaps, analyzeGames) are
  * deterministic and unit-tested; only main() touches the filesystem.
@@ -51,6 +52,13 @@ export interface ClueRecord {
     clarity: number;
     /** The assassin was the single most clue-related unrevealed card (danger). */
     assassinArgmax: boolean;
+    /** The clue's BEST non-own card is an opponent/assassin — the brightest
+     *  spillover is lethal rather than a merely-wasteful neutral. */
+    dangerNext: boolean;
+    /** Best non-own relatedness (the clue's halo heat, 0 = perfectly cool). */
+    heat: number;
+    /** Frequency prior of the clue word ([0,1], 1 when the backend has none). */
+    commonness: number;
     /** No own card led safely — the spymaster fell back to a best-effort clue. */
     fallback: boolean;
     ownGained: number;
@@ -79,6 +87,17 @@ export interface ClueDiagnostics {
     assassinRate: number;
     fallbackRate: number;
     wrongGuessRate: number;
+    /** Fraction of clues whose best non-own card is an opponent/assassin — how
+     *  often the brightest spillover is lethal rather than merely wasteful. */
+    dangerNextRate: number;
+    /** Avg of commonness and halo coolness (1 - heat), in [0, 1]. Low values
+     *  mean idiosyncratic clues: rare words and/or hot, ambiguous halos. */
+    robustness: number;
+    /** Fraction of clues where the clicker banked ≥ 1 own card, pressed on, and
+     *  the streak ended on a miss — a neutral, an opponent card (including
+     *  handing them their game-winning last card), or the assassin. Guessing
+     *  past the safe core. */
+    overReachRate: number;
     gaps: string[];
 }
 
@@ -134,7 +153,7 @@ export function referenceLead(
     word: string,
     g: BoardGroups,
     backend: SemanticBackend
-): { safeLead: number; clarity: number; assassinArgmax: boolean } {
+): { safeLead: number; clarity: number; assassinArgmax: boolean; dangerNext: boolean; heat: number } {
     const ownRel = g.own.map((w) => backend.relatedness(word, w)).sort((a, b) => b - a);
     const maxOpp = maxRel(g.opp, word, backend);
     const maxNeu = maxRel(g.neutral, word, backend);
@@ -151,7 +170,13 @@ export function referenceLead(
     const clarity = lead > 0 ? Math.max(0, (ownRel[lead - 1] as number) - maxNonOwn) : 0;
     const maxOwn = ownRel.length > 0 ? (ownRel[0] as number) : 0;
     const assassinArgmax = g.assassin.length > 0 && maxAss >= Math.max(maxOwn, maxOpp, maxNeu);
-    return { safeLead: lead, clarity, assassinArgmax };
+    // The failure-mode split: a clue always spills SOMEWHERE, but spilling onto
+    // an opponent/assassin card loses material while a neutral only wastes the
+    // guess. dangerNext marks the former (ties count — a shared brightest
+    // non-own card is one coin-flip from lethal).
+    const maxDanger = Math.max(maxOpp, maxAss);
+    const dangerNext = maxDanger > 0 && maxDanger >= maxNeu;
+    return { safeLead: lead, clarity, assassinArgmax, dangerNext, heat: maxNonOwn };
 }
 
 /** Reduce a terminal reveal into the reason a clue's guessing phase ended. */
@@ -193,6 +218,9 @@ function collectGameRecords(
                 safeLead: ref.safeLead,
                 clarity: ref.clarity,
                 assassinArgmax: ref.assassinArgmax,
+                dangerNext: ref.dangerNext,
+                heat: ref.heat,
+                commonness: backend.commonness?.(ev.word) ?? 1,
                 fallback: ref.safeLead === 0,
                 ownGained: 0,
                 oppGiven: 0,
@@ -256,6 +284,14 @@ export function aggregate(records: ClueRecord[]): ClueDiagnostics[] {
             assassinRate: frac((r) => r.assassinHit),
             fallbackRate: frac((r) => r.fallback),
             wrongGuessRate: frac((r) => r.endReason === 'wrongGuess'),
+            dangerNextRate: frac((r) => r.dangerNext),
+            robustness: sum((r) => (r.commonness + (1 - r.heat)) / 2) / clues,
+            // A miss can occur at most once per clue (it ends the turn), so any
+            // non-own reveal on a record with a banked core is the press-on that
+            // failed. Checking the reveal counters — not endReason — also catches
+            // the worst case: a press-on that reveals the OPPONENT's final card
+            // ends the game and is recorded as 'gameWon' (by them).
+            overReachRate: frac((r) => r.ownGained >= 1 && (r.oppGiven > 0 || r.neutralHit > 0 || r.assassinHit)),
             gaps: [],
         };
         d.gaps = detectGaps(d);
@@ -280,6 +316,11 @@ export function detectGaps(d: ClueDiagnostics): string[] {
     if (d.assassinRate > 0.02) gaps.push('assassin exposure: hits the assassin > 2% of clues');
     if (d.fallbackRate > 0.25) gaps.push('weak coverage: > 25% of clues have no safe lead (OOV/best-effort)');
     if (d.wrongGuessRate > 0.35) gaps.push('high wrong-guess rate: turns end early on a bad guess');
+    if (d.dangerNextRate > 0.45) {
+        gaps.push('dangerous halos: > 45% of clues spill brightest onto an opponent/assassin card');
+    }
+    if (d.robustness < 0.6) gaps.push('idiosyncratic: clue words run rare and/or their halos run hot');
+    if (d.overReachRate > 0.15) gaps.push('over-reach: > 15% of clues end with a miss past a banked core');
     return gaps;
 }
 
@@ -353,6 +394,9 @@ async function main(): Promise<void> {
             misfire: `${(d.misfireRate * 100).toFixed(0)}%`,
             assassin: `${(d.assassinRate * 100).toFixed(1)}%`,
             fallback: `${(d.fallbackRate * 100).toFixed(0)}%`,
+            dangerNext: `${(d.dangerNextRate * 100).toFixed(0)}%`,
+            robust: d.robustness.toFixed(2),
+            overreach: `${(d.overReachRate * 100).toFixed(0)}%`,
         }))
     );
 

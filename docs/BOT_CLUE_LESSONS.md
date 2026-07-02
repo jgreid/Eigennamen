@@ -56,7 +56,7 @@ survive contact:
 
 ### Spymaster — [`strategies/spymasters.ts`](../server/src/bots/strategies/spymasters.ts)
 
-**2.1 Assassin halo → persona-independent hard floor. 🟡**
+**2.1 Assassin halo → persona-independent hard floor. 🟢 (implemented: `ASSASSIN_BERTH_FLOOR`)**
 `scoreClue` already drops intended cards within
 `berth = margin * 2 * style.assassinCaution` of the assassin, and `leadOwn`
 requires each intended card to clear `maxNonOwn + margin` (which includes
@@ -67,7 +67,7 @@ the weakest intended card sit within a fixed ε of `maxAss`, plus (b) the existi
 *soft, tunable* `assassinPenalty`. Aggression/recklessness tunes the *number*,
 never the assassin gate.
 
-**2.2 Robustness / anti-idiosyncrasy term. 🔴 (the failure-A fix)**
+**2.2 Robustness / anti-idiosyncrasy term. 🟢 (implemented: `AMBIGUITY_WEIGHT` + `RARITY_WEIGHT` × `commonnessBias`; frequency prior via `SemanticBackend.commonness`)**
 Add a term to `score` in `scoreClue` that penalizes clues which are (a)
 rare/obscure (a word-frequency prior — downweight deep cuts) and (b) *ambiguous*
 — near many **unrelated** board words. A cheap proxy for (b) from values already
@@ -76,7 +76,7 @@ a clue whose halo is "hot." Expose as a `commonnessBias` knob in `StyleParams`;
 experts / The Sharpshooter weight it high (legible clues), The Maverick low
 (off-kilter).
 
-**2.3 Cross-domain bridge generation. 🟡 (the failure-C fix)**
+**2.3 Cross-domain bridge generation. 🟢 (implemented: pair-centroid `nearest()` queries over the top-`PAIR_TOP_CARDS` densest own cards)**
 `generateClueCandidates` draws `nearest()` from the *full-own centroid* plus
 per-card neighbours. The full centroid is dominated by the largest own-cluster
 and misses 2-card bridges across silos. **Change:** also generate candidates near
@@ -86,13 +86,18 @@ different domains. Raises `avgNumber` / `deliveryRate` without leaking.
 
 ### Clicker — [`strategies/clickers.ts`](../server/src/bots/strategies/clickers.ts)
 
-**2.4 Confidence-gap stopping (core + stretch). 🟡**
+**2.4 Confidence-gap stopping (core + stretch). 🟢 (implemented: `CLIFF_*` constants)**
 `makeGreedyClicker` stops at the clue `number` or when
 `bestScore < confidenceFloor`. Add a **relative cliff**: stop when the next
 card's score falls more than a fraction δ below the *last taken* card's score —
 "tap the confident core, stop before the stretch" (lesson #2, guessing side).
+*Calibration learned in self-play:* the raw relative test eats genuinely-intended
+tail cards on cold boards (a margin-sound spymaster's third card can score ~0.3
+absolute yet be near-certain), so the shipped cliff fires only when the next card
+is **steep** below the last take AND **weak** in absolute terms AND **blurred**
+into its alternatives — the no-information state a clue never promised.
 
-**2.5 Opportunistic bonus — the disciplined "+1". 🔴**
+**2.5 Opportunistic bonus — the disciplined "+1". 🟢 (implemented: `BONUS_*` constants, gated by `aggression`)**
 Neither greedy nor cautious ever takes the `number + 1` bonus guess. Add it *only*
 when the top remaining card clears both a high absolute floor and the field by a
 wide margin, gated by `aggression`. This is the calibrated version of a human
@@ -102,7 +107,7 @@ stretch: take the bonus when it is *tighter than the core*, not merely plausible
 
 ### Semantics — [`semantics/`](../server/src/bots/semantics) (highest leverage)
 
-**2.7 Human-association-calibrated backend. 🔴/🟡**
+**2.7 Human-association-calibrated backend. 🟡 (partial: rank-based `commonness()` frequency prior in the vector backend, disabled for alphabetical Numberbatch files; the offline human-association eval remains open)**
 Failures (A) and (B) are ultimately *"backend relatedness ≠ human salience."*
 The default `lexicalBackend` (character-bigram overlap) is semantically blind.
 Plan: (a) ensure the embedding backend prefers **ConceptNet Numberbatch** (see
@@ -117,14 +122,15 @@ symptom.
 The harness already tracks `assassinRate`, `leakRate`, `misfireRate`, `ambition`,
 `clarity`, `assassinArgmax`, `deliveryRate` and an under-cluing gap. Add:
 
-- **`dangerNextRate` 🔴** — fraction of clues whose *best non-own* card is an
+- **`dangerNextRate` 🟢** — fraction of clues whose *best non-own* card is an
   **opponent/assassin** (not a harmless neutral). The failure-(A) metric: how
   often the brightest spillover is lethal rather than merely wasteful.
-- **`robustness` 🔴** — average frequency/ambiguity of chosen clue words (from
-  2.2), to catch idiosyncratic clues.
-- **`overReachRate` 🔴** (guessing side) — how often the clicker guessed beyond
-  the safe core and missed (validates 2.4 / 2.5).
-- **New `detectGaps` flags** for the above thresholds, surfaced by
+- **`robustness` 🟢** — average frequency/ambiguity of chosen clue words (from
+  2.2), to catch idiosyncratic clues. Per clue: `(commonness + (1 − heat)) / 2`.
+- **`overReachRate` 🟢** (guessing side) — how often the clicker guessed beyond
+  the safe core and missed (validates 2.4 / 2.5). A miss on the *first* guess is
+  a misread, not over-reach — the record must have a banked core.
+- **New `detectGaps` flags 🟢** for the above thresholds, surfaced by
   `npm run bots:analyze` alongside the existing per-persona flags.
 
 ---

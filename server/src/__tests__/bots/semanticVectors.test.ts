@@ -103,6 +103,61 @@ describe('makeVectorBackend', () => {
     });
 });
 
+describe('commonness (file-rank frequency prior)', () => {
+    it('ranks earlier (more frequent) words as more common in a frequency-ordered file', () => {
+        const freqPath = join(dir, 'freq.vec');
+        writeFileSync(freqPath, ['the 1 0 0', 'castle 0.5 0.5 0', 'zyzzyva 0 1 0', ''].join('\n'));
+        const b = makeVectorBackend({ path: freqPath }) as SemanticBackend;
+        const common = b.commonness!('the');
+        const rare = b.commonness!('zyzzyva');
+        expect(common).toBe(1); // rank 0 of a frequency-ordered file
+        expect(rare).toBeLessThan(common);
+        expect(rare).toBeGreaterThan(0);
+        expect(b.commonness!('castle')).toBeGreaterThan(rare);
+    });
+
+    it('is disabled (neutral 1) for ConceptNet files, whose order is alphabetical', () => {
+        const cnPath = join(dir, 'numberbatch.vec');
+        writeFileSync(cnPath, ['/c/en/aardvark 1 0 0', '/c/en/zebra 0 1 0', ''].join('\n'));
+        const b = makeVectorBackend({ path: cnPath }) as SemanticBackend;
+        // Rank would call AARDVARK common and ZEBRA obscure — both must be neutral.
+        expect(b.commonness!('aardvark')).toBe(1);
+        expect(b.commonness!('zebra')).toBe(1);
+    });
+
+    it('is disabled for the bare-token English-only Numberbatch format (alphabetical, no /c/ prefix)', () => {
+        const enPath = join(dir, 'numberbatch-en.vec');
+        writeFileSync(
+            enPath,
+            ['4 3', 'aardvark 1 0 0', 'apple 0.5 0.5 0', 'yacht 0.2 0.8 0', 'zebra 0 1 0', ''].join('\n')
+        );
+        const b = makeVectorBackend({ path: enPath }) as SemanticBackend;
+        // No prefix to strip — the sorted token order is the only tell.
+        expect(b.commonness!('aardvark')).toBe(1);
+        expect(b.commonness!('apple')).toBe(1);
+        expect(b.commonness!('zebra')).toBe(1);
+    });
+
+    it('memoises nearest() results for repeated queries (same set, any order)', () => {
+        const b = makeVectorBackend({ path: vecPath }) as SemanticBackend;
+        const first = b.nearest!(['KING', 'MAN'], 3);
+        expect(b.nearest!(['MAN', 'KING'], 3)).toBe(first); // cache hit: same array instance
+        expect(b.nearest!(['KING', 'MAN'], 2)).not.toBe(first); // different k: distinct entry
+    });
+
+    it('defers to the fallback prior for out-of-vocabulary words', () => {
+        const freqPath = join(dir, 'freq.vec');
+        writeFileSync(freqPath, ['the 1 0 0', 'castle 0.5 0.5 0', ''].join('\n'));
+        const fallback: SemanticBackend = {
+            id: 'stub',
+            relatedness: () => 0,
+            commonness: () => 0.42,
+        };
+        const b = makeVectorBackend({ path: freqPath, fallback }) as SemanticBackend;
+        expect(b.commonness!('zebra')).toBe(0.42);
+    });
+});
+
 describe('getSemanticBackend', () => {
     const prev = process.env.BOT_EMBEDDINGS_PATH;
 

@@ -11,7 +11,7 @@ import { resolveSkill } from '../../bots/presets';
 import { makeRng } from '../../bots/rng';
 import type { SemanticBackend } from '../../bots/semantics/backend';
 import { DEFAULT_WORDS } from '../../shared/gameRules';
-import type { BotSpymasterView, BotClickerView, BotContext } from '../../bots/strategies/types';
+import type { BotSpymasterView, BotClickerView, BotContext, SkillParams } from '../../bots/strategies/types';
 
 function ctx(seed = 1, preset = 'expert'): BotContext {
     return { gameMode: 'classic', skill: resolveSkill(preset, seed), rng: makeRng(seed) };
@@ -246,6 +246,93 @@ describe('spymaster multi-factor scoring', () => {
     });
 });
 
+describe('hard assassin berth floor (persona-independent)', () => {
+    it('a reckless persona still refuses an intended card that hugs the assassin', () => {
+        // RISKY's second intended card (OWNB 0.8) sits only 0.07 above the
+        // assassin (ASSN 0.73) — outside the soft berth a maximally reckless
+        // persona would demand (~0.06) but inside the hard floor (0.1). SAFE
+        // covers one card far from everything. Before the floor, recklessness
+        // bought RISKY as a 2; now aggression tunes the number, never the gate.
+        const view = spymasterView(['OWNA', 'OWNB', 'OPPO', 'ASSN'], ['red', 'red', 'blue', 'assassin']);
+        const backend = scoringStub({
+            RISKY: { OWNA: 0.95, OWNB: 0.8, OPPO: 0.1, ASSN: 0.73 },
+            SAFE: { OWNA: 0.9, OWNB: 0.1, OPPO: 0.1, ASSN: 0.05 },
+        });
+        const reckless: SkillParams = {
+            temperature: 0,
+            blunderRate: 0,
+            riskAversion: 0.3,
+            seed: 1,
+            aggression: 0.95,
+            assassinCaution: 0.7,
+        };
+        const action = makeEmbeddingSpymaster(reckless, backend).chooseClue(view, {
+            gameMode: 'classic',
+            skill: reckless,
+            rng: makeRng(1),
+        });
+        expect(action).toMatchObject({ kind: 'clue', word: 'SAFE' });
+    });
+});
+
+describe('robustness (anti-idiosyncrasy) scoring', () => {
+    it('prefers a cool halo over an equally-clear hot one', () => {
+        // HOT and COLD cover the same two own cards with IDENTICAL clarity
+        // (weakest-intended minus best-non-own = 0.35 for both), so the old
+        // scorer tied and took the first candidate. The ambiguity term now
+        // prefers COLD, whose halo is absolutely cooler — a hot halo is one
+        // misread from a misfire even when the margin clears.
+        const view = spymasterView(['OWNA', 'OWNB', 'NEUT'], ['red', 'red', 'neutral']);
+        const backend = scoringStub({
+            HOT: { OWNA: 0.95, OWNB: 0.9, NEUT: 0.55 },
+            COLD: { OWNA: 0.7, OWNB: 0.65, NEUT: 0.3 },
+        });
+        const action = makeEmbeddingSpymaster(resolveSkill('expert', 2), backend).chooseClue(view, ctx(2));
+        expect(action).toMatchObject({ kind: 'clue', word: 'COLD', number: 2 });
+    });
+
+    it('prefers a common clue word over a rare one, all else equal', () => {
+        const view = spymasterView(['OWNA', 'NEUT'], ['red', 'neutral']);
+        const rels = { OWNA: 0.9, NEUT: 0.1 };
+        const backend: SemanticBackend = {
+            ...scoringStub({ RARE: rels, COMMON: rels }),
+            commonness: (w: string) => (w === 'RARE' ? 0.2 : 1),
+        };
+        const action = makeEmbeddingSpymaster(resolveSkill('expert', 3), backend).chooseClue(view, ctx(3));
+        expect(action).toMatchObject({ kind: 'clue', word: 'COMMON' });
+    });
+});
+
+describe('pair-centroid bridge candidate generation', () => {
+    it('surfaces a clue bridging two own cards from different domains', () => {
+        // vocabulary() is empty and nearest() yields TUXEDO ONLY for the exact
+        // [PENGUIN, MAESTRO] pair query — the full-own centroid and per-card
+        // queries return weak single-card words. Only the pair-centroid pass can
+        // surface the 2-card cross-domain bridge, which then wins on coverage.
+        const rel: Record<string, Record<string, number>> = {
+            TUXEDO: { PENGUIN: 0.85, MAESTRO: 0.8, SNOW: 0.1, APPLE: 0.1, DEATH: 0.05 },
+            ICY: { PENGUIN: 0.1, MAESTRO: 0.0, SNOW: 0.7, APPLE: 0.1, DEATH: 0.05 },
+        };
+        const backend: SemanticBackend = {
+            id: 'vec-stub',
+            relatedness: (a: string, b: string) => rel[a]?.[b.toUpperCase()] ?? rel[b]?.[a.toUpperCase()] ?? 0,
+            vocabulary: () => [],
+            nearest: (words: string[]) => {
+                if (words.length === 2 && words.includes('PENGUIN') && words.includes('MAESTRO')) {
+                    return [{ word: 'TUXEDO', score: 0.85 }];
+                }
+                return [{ word: 'ICY', score: 0.5 }];
+            },
+        };
+        const view = spymasterView(
+            ['PENGUIN', 'MAESTRO', 'SNOW', 'APPLE', 'DEATH'],
+            ['red', 'red', 'red', 'blue', 'assassin']
+        );
+        const action = makeEmbeddingSpymaster(resolveSkill('expert', 4), backend).chooseClue(view, ctx(4));
+        expect(action).toEqual({ kind: 'clue', word: 'TUXEDO', number: 2 });
+    });
+});
+
 describe('match-mode value awareness', () => {
     function matchView(
         words: string[],
@@ -373,6 +460,102 @@ describe('advisor suggestGuesses', () => {
             expect(out.every((x) => x.confidence < 1)).toBe(true); // dampened confidence
         }
         expect(noviceSets.size).toBeGreaterThan(1); // samples among plausible cards
+    });
+});
+
+describe('greedyClicker core+stretch discipline', () => {
+    // One own card already taken this clue (revealed + unmasked as ours), two
+    // cards left. The clue promised 3, so the old clicker always pressed on.
+    const cliffView = (words: string[], scoresTaken: boolean, over: Partial<BotClickerView> = {}): BotClickerView => ({
+        role: 'clicker',
+        team: 'red',
+        gameMode: 'classic',
+        words,
+        revealed: [scoresTaken, false, false],
+        types: [scoresTaken ? 'red' : null, null, null],
+        currentTurn: 'red',
+        currentClue: { word: 'CLUE', number: 3, team: 'red' },
+        guessesUsed: scoresTaken ? 1 : 0,
+        guessesAllowed: 4,
+        ...over,
+    });
+
+    it('banks the turn when the remaining field is a weak, undifferentiated blob', () => {
+        // Took a 0.9 fit; what's left is 0.20/0.18 — steep below the take, weak in
+        // absolute terms, and blurred into each other. A guess here is a coin-flip
+        // the clue never promised, even though the clue number says continue.
+        const backend = scoringStub({ CLUE: { TAKEN: 0.9, NOISEA: 0.2, NOISEB: 0.18 } });
+        const clicker = makeGreedyClicker(resolveSkill('expert', 1), backend);
+        const action = clicker.chooseGuess(cliffView(['TAKEN', 'NOISEA', 'NOISEB'], true), ctx(1));
+        expect(action).toEqual({ kind: 'endTurn' });
+    });
+
+    it('presses on when the next card clearly separates from the field', () => {
+        // 0.25 is far below the 0.9 take, but it stands clear of the 0.1 field by
+        // more than any spymaster margin — exactly what an intended card looks
+        // like on a cold board, so the cliff must not eat it.
+        const backend = scoringStub({ CLUE: { TAKEN: 0.9, SEPAR: 0.25, NOISEB: 0.1 } });
+        const clicker = makeGreedyClicker(resolveSkill('expert', 1), backend);
+        const action = clicker.chooseGuess(cliffView(['TAKEN', 'SEPAR', 'NOISEB'], true), ctx(1));
+        expect(action).toEqual({ kind: 'reveal', index: 1 });
+    });
+
+    it('presses on for an absolutely-strong card even after a steep drop', () => {
+        // A direct-hit 1.0 followed by a 0.5 association: a >50% relative drop,
+        // but 0.5 is a real signal (e.g. table co-membership) the clue promised.
+        const backend = scoringStub({ CLUE: { TAKEN: 1.0, SOLID: 0.5, NOISEB: 0.45 } });
+        const clicker = makeGreedyClicker(resolveSkill('expert', 1), backend);
+        const action = clicker.chooseGuess(cliffView(['TAKEN', 'SOLID', 'NOISEB'], true), ctx(1));
+        expect(action).toEqual({ kind: 'reveal', index: 1 });
+    });
+});
+
+describe('greedyClicker disciplined bonus guess ("+1")', () => {
+    const bonusView = (over: Partial<BotClickerView> = {}): BotClickerView => ({
+        role: 'clicker',
+        team: 'red',
+        gameMode: 'classic',
+        words: ['TAKEN', 'HOT', 'MEH'],
+        revealed: [true, false, false],
+        types: ['red', null, null],
+        currentTurn: 'red',
+        currentClue: { word: 'CLUE', number: 1, team: 'red' },
+        guessesUsed: 1, // the intended guess landed; the engine allows one more
+        guessesAllowed: 2,
+        ...over,
+    });
+    const aggressive: SkillParams = { temperature: 0, blunderRate: 0, riskAversion: 0.3, seed: 1, aggression: 0.9 };
+    const actx = (seed = 1): BotContext => ({ gameMode: 'classic', skill: aggressive, rng: makeRng(seed) });
+
+    it('an aggressive persona takes the bonus when the top leftover is tighter than the core', () => {
+        const backend = scoringStub({ CLUE: { TAKEN: 1.0, HOT: 0.9, MEH: 0.3 } });
+        const action = makeGreedyClicker(aggressive, backend).chooseGuess(bonusView(), actx());
+        expect(action).toEqual({ kind: 'reveal', index: 1 });
+    });
+
+    it('a plain preset (no aggression) never spends the bonus', () => {
+        const backend = scoringStub({ CLUE: { TAKEN: 1.0, HOT: 0.9, MEH: 0.3 } });
+        const action = makeGreedyClicker(resolveSkill('expert', 1), backend).chooseGuess(bonusView(), ctx(1));
+        expect(action).toEqual({ kind: 'endTurn' });
+    });
+
+    it('declines the bonus when the field is tight (merely plausible, not clear)', () => {
+        const backend = scoringStub({ CLUE: { TAKEN: 1.0, HOT: 0.9, MEH: 0.75 } });
+        const action = makeGreedyClicker(aggressive, backend).chooseGuess(bonusView(), actx());
+        expect(action).toEqual({ kind: 'endTurn' });
+    });
+
+    it('declines the bonus when the top leftover is below the floor', () => {
+        const backend = scoringStub({ CLUE: { TAKEN: 1.0, HOT: 0.5, MEH: 0.1 } });
+        const action = makeGreedyClicker(aggressive, backend).chooseGuess(bonusView(), actx());
+        expect(action).toEqual({ kind: 'endTurn' });
+    });
+
+    it('respects the engine budget: no reveal once guessesAllowed is spent', () => {
+        const backend = scoringStub({ CLUE: { TAKEN: 1.0, HOT: 0.9, MEH: 0.3 } });
+        const view = bonusView({ guessesUsed: 2 });
+        const action = makeGreedyClicker(aggressive, backend).chooseGuess(view, actx());
+        expect(action).toEqual({ kind: 'endTurn' });
     });
 });
 

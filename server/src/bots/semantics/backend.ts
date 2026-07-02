@@ -25,6 +25,15 @@ export interface SemanticBackend {
      * omit it, and the spymaster falls back to scanning vocabulary().
      */
     nearest?(words: string[], k: number): Array<{ word: string; score: number }>;
+    /**
+     * Prior in [0, 1] for how common/recognizable a word is (1 = everyday word,
+     * → 0 = deep cut). The spymaster uses it to prefer clues anchored in SHARED
+     * knowledge over idiosyncratic sub-associations — a rare clue word that the
+     * model relates strongly may light up something entirely different in a
+     * human guesser's head. Optional: backends without a frequency signal omit
+     * it and the rarity penalty is skipped (treated as commonness 1).
+     */
+    commonness?(word: string): number;
 }
 
 /** Character bigrams of an uppercased word (e.g. "FRUIT" -> FR,RU,UI,IT). */
