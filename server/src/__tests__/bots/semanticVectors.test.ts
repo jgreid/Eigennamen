@@ -158,6 +158,21 @@ describe('commonness (file-rank frequency prior)', () => {
     });
 });
 
+describe('proper-noun case signal through the vector backend', () => {
+    it('a mixed-case reference clue takes the curated proper reading when it is stronger', () => {
+        // WONKA has no vector, and even if it did, embeddings conflate senses —
+        // the default fallback chain ends at the proper table, which knows the
+        // reference outright.
+        const b = makeVectorBackend({ path: vecPath }) as SemanticBackend;
+        expect(b.relatedness('Wonka', 'CHOCOLATE')).toBe(1);
+    });
+
+    it('prefers the curated fame prior over file rank for reference clues', () => {
+        const b = makeVectorBackend({ path: vecPath }) as SemanticBackend;
+        expect(b.commonness!('Zelda')).toBe(0.7);
+    });
+});
+
 describe('getSemanticBackend', () => {
     const prev = process.env.BOT_EMBEDDINGS_PATH;
 

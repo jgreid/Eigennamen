@@ -1,0 +1,172 @@
+/**
+ * Proper-noun (pop-culture) associations — the "capital-A Alien" table.
+ *
+ * House-rule convention this implements: the CASE of a clue word carries
+ * meaning. A mixed-case clue ("Alien", "iPhone") denotes the specific proper
+ * noun — the film, the product, the character — while an all-lowercase clue
+ * ("alien") explicitly denotes the common-noun sense. Legacy ALL-CAPS clues
+ * carry no signal and are read both ways. This gives spymasters far more
+ * granular clues ("Cinderella" bundles GLASS + PRINCESS + BALL in one image)
+ * at the cost of a trap the fame ratings below guard against: a reference is
+ * only a good clue if the guessers actually know it.
+ *
+ * Curation rules:
+ *  - Keys are stored in their DISPLAY case ("Cinderella", "iPhone", "UFO") —
+ *    the spymaster emits them verbatim, which is itself the signal.
+ *  - Every target MUST be a word from the default board list (guarded by a
+ *    test); the table is useless for words that never appear on a board.
+ *  - A key may collide with a board word — as a substring ("Rocky" vs ROCK)
+ *    or even exactly ("Alien" vs ALIEN, which is in the default pool):
+ *    isClueLegalForBoard rejects it on exactly the boards where the colliding
+ *    word was drawn, so such keys simply don't fire there — never list the
+ *    colliding word itself as a target (it would only be reachable when
+ *    illegal).
+ *  - FAME rates how widely known the reference is (1 = everyone knows it).
+ *    It feeds SemanticBackend.commonness(), so the spymaster's rarity penalty
+ *    (scaled by the persona's commonnessBias) naturally implements "only clue
+ *    culture references the guessers are going to know": a Sharpshooter
+ *    (commonnessBias 1.5) sticks to the household names, a Maverick (0.4)
+ *    happily reaches for the deep cuts.
+ */
+
+/** Proper-noun reference → board words it evokes. Keys in display case. */
+export const PROPER_ASSOCIATIONS: Record<string, string[]> = {
+    // Film & TV
+    Alien: ['SPACE', 'SHIP', 'ROBOT', 'SCIENTIST'],
+    Avatar: ['ALIEN', 'FILM', 'FOREST'],
+    Batman: ['KNIGHT', 'SUPERHERO', 'SHADOW'],
+    Bollywood: ['FILM', 'INDIA', 'DANCE'],
+    Cinderella: ['GLASS', 'PRINCESS', 'BALL'],
+    Disney: ['MOUSE', 'PRINCESS', 'FILM'],
+    Dracula: ['BAT', 'NIGHT', 'DEATH'],
+    ET: ['ALIEN', 'MOON', 'KID'],
+    Frankenstein: ['BOLT', 'SCIENTIST', 'LAB'],
+    Frozen: ['ICE', 'SNOW', 'SNOWMAN', 'PRINCESS', 'QUEEN'],
+    Godzilla: ['DINOSAUR', 'TOKYO', 'GIANT'],
+    Gotham: ['BAT', 'NIGHT', 'SUPERHERO'],
+    Halloween: ['WITCH', 'GHOST', 'PUMPKIN', 'NIGHT'],
+    Hogwarts: ['WITCH', 'SPELL', 'SCHOOL', 'DRAGON', 'GHOST'],
+    Jaws: ['SHARK', 'BEACH', 'FISH', 'WATER'],
+    Jedi: ['FORCE', 'KNIGHT', 'SPACE'],
+    Kong: ['GIANT', 'SKYSCRAPER'],
+    Krypton: ['SUPERHERO', 'SPACE'],
+    Matrix: ['CODE', 'AGENT', 'ROBOT'],
+    Moby: ['WHALE', 'SHIP'],
+    Mulan: ['CHINA', 'SOLDIER', 'PRINCESS'],
+    Nemo: ['FISH', 'SHARK', 'WATER'],
+    Pixar: ['FILM', 'ROBOT', 'FISH'],
+    Rocky: ['FIGHTER', 'RING'],
+    Sherlock: ['PIPE', 'LONDON', 'DOCTOR'],
+    Shrek: ['GREEN', 'DRAGON', 'PRINCESS'],
+    Spiderman: ['WEB', 'SUPERHERO'],
+    Superman: ['SUPERHERO', 'FLY'],
+    Terminator: ['ROBOT', 'TIME'],
+    Titanic: ['SHIP', 'ICE', 'DIAMOND', 'WATER'],
+    Vader: ['FORCE', 'DEATH', 'SPACE'],
+    Wonka: ['CHOCOLATE', 'GOLD'],
+
+    // Stories, myth & legend
+    Camelot: ['KING', 'KNIGHT', 'COURT'],
+    Excalibur: ['KING', 'KNIGHT'],
+    Hercules: ['LION', 'GREECE'],
+    Hobbit: ['DWARF', 'DRAGON', 'RING'],
+    Merlin: ['SPELL', 'KING', 'KNIGHT'],
+    Neverland: ['HOOK', 'PIRATE', 'FLY', 'KID'],
+    Poseidon: ['WATER', 'GREECE'],
+    Rapunzel: ['PRINCESS', 'TOWER'],
+    Trojan: ['HORSE', 'WAR', 'GREECE'],
+    Zeus: ['GREECE', 'BOLT', 'KING'],
+
+    // Games & tech
+    iPhone: ['APPLE', 'SCREEN', 'TABLET'],
+    Lego: ['BLOCK', 'PLASTIC'],
+    Mario: ['PIPE', 'PRINCESS', 'STAR'],
+    Minecraft: ['BLOCK', 'DIAMOND'],
+    Pikachu: ['MOUSE', 'BOLT'],
+    Pokemon: ['MOUSE', 'BALL'],
+    Tetris: ['BLOCK', 'SQUARE', 'LINE'],
+    Zelda: ['LINK', 'PRINCESS'],
+
+    // People & music
+    Beatles: ['BAND', 'ENGLAND', 'LONDON'],
+    Beethoven: ['PIANO', 'CONCERT', 'NOTE'],
+    Caesar: ['ROME', 'KING'],
+    Cleopatra: ['EGYPT', 'QUEEN', 'PYRAMID'],
+    Einstein: ['GENIUS', 'SCIENTIST'],
+    Elvis: ['KING', 'ROCK', 'STAR'],
+    Houdini: ['LOCK', 'SPELL'],
+    Jordan: ['AIR', 'BALL', 'STAR'],
+    Mozart: ['PIANO', 'OPERA', 'CONCERT', 'NOTE'],
+    Napoleon: ['FRANCE', 'WAR', 'REVOLUTION'],
+    Newton: ['APPLE', 'SCIENTIST', 'GENIUS'],
+
+    // Places, events & things
+    Apollo: ['MOON', 'SPACE', 'GREECE'],
+    Broadway: ['PLAY', 'NEW YORK', 'DANCE'],
+    Christmas: ['ANGEL', 'BELL', 'SNOWMAN', 'STAR'],
+    Easter: ['RABBIT', 'CHURCH'],
+    Eiffel: ['TOWER', 'FRANCE'],
+    Everest: ['MOUNT', 'HIMALAYAS', 'SNOW'],
+    Ferrari: ['CAR', 'HORSE'],
+    Liberty: ['TORCH', 'NEW YORK', 'CROWN'],
+    Mars: ['SPACE', 'WAR', 'CHOCOLATE'],
+    NASA: ['SPACE', 'MOON', 'SATELLITE'],
+    Neptune: ['WATER', 'SPACE'],
+    Nike: ['SHOE', 'GREECE'],
+    Nile: ['EGYPT', 'WATER'],
+    Olympics: ['GAME', 'GOLD', 'GREECE', 'TORCH'],
+    Pompeii: ['VOLCANO', 'ROME'],
+    Roswell: ['ALIEN', 'SPACE'],
+    Sparta: ['WAR', 'GREECE', 'SOLDIER'],
+    Sputnik: ['SATELLITE', 'SPACE', 'MOSCOW'],
+    Thanksgiving: ['TURKEY', 'FALL'],
+    Thor: ['SUPERHERO', 'BOLT'],
+    UFO: ['ALIEN', 'SPACE', 'FLY'],
+    Vegas: ['CASINO', 'ROULETTE', 'DICE'],
+    Viking: ['SHIP', 'HORN'],
+    Wimbledon: ['RACKET', 'GRASS', 'ENGLAND'],
+};
+
+/** Everyone-knows-it default; override below for the deeper cuts. */
+export const DEFAULT_PROPER_FAME = 0.9;
+
+/** How widely known each reference is, in (0, 1]. Only exceptions listed. */
+export const PROPER_FAME: Record<string, number> = {
+    Bollywood: 0.75,
+    Camelot: 0.7,
+    Excalibur: 0.75,
+    Gotham: 0.75,
+    Hercules: 0.8,
+    Houdini: 0.75,
+    Jordan: 0.85,
+    Kong: 0.85,
+    Krypton: 0.75,
+    Merlin: 0.75,
+    Moby: 0.8,
+    Neptune: 0.75,
+    Pixar: 0.8,
+    Pompeii: 0.75,
+    Poseidon: 0.7,
+    Roswell: 0.65,
+    Sparta: 0.8,
+    Sputnik: 0.7,
+    Trojan: 0.8,
+    Viking: 0.85,
+    Wimbledon: 0.7,
+    Zelda: 0.7,
+};
+
+/**
+ * The case-signal a word carries under the house-rule convention:
+ *  - 'proper': mixed case ("Alien", "iPhone") — the specific reference.
+ *  - 'common': all lowercase ("alien") — explicitly the common-noun sense.
+ *  - 'neutral': no lowercase letters (ALL CAPS, digits, legacy clients,
+ *    board words) — no signal; read it both ways.
+ */
+export type CaseSignal = 'proper' | 'common' | 'neutral';
+
+export function caseSignal(word: string): CaseSignal {
+    const hasLower = /\p{Ll}/u.test(word);
+    if (!hasLower) return 'neutral';
+    return /\p{Lu}/u.test(word) ? 'proper' : 'common';
+}

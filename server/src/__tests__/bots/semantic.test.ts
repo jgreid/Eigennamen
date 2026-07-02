@@ -139,6 +139,98 @@ describe('embeddingSpymaster best-effort fallback is assassin-safe', () => {
     });
 });
 
+describe('tableBackend case signal (proper-noun references)', () => {
+    it('a mixed-case clue reads the proper reference: hits score full, misses go quiet', () => {
+        // "Cinderella" = glass slipper + princess + royal ball…
+        expect(tableBackend.relatedness('Cinderella', 'GLASS')).toBe(1);
+        expect(tableBackend.relatedness('Cinderella', 'PRINCESS')).toBe(1);
+        expect(tableBackend.relatedness('Cinderella', 'BALL')).toBe(1);
+        // …and deliberately NOT unrelated words: the reference sense excludes
+        // the common sense, so a miss is dampened below lexical noise.
+        expect(tableBackend.relatedness('Cinderella', 'CAR')).toBeLessThan(0.3);
+    });
+
+    it('a lowercase clue explicitly means the common sense — never the reference', () => {
+        expect(tableBackend.relatedness('cinderella', 'GLASS')).toBeLessThan(1);
+    });
+
+    it('a legacy ALL-CAPS clue carries no signal and takes the best of both readings', () => {
+        expect(tableBackend.relatedness('CINDERELLA', 'GLASS')).toBe(1);
+        // Common concepts are unaffected by the proper table.
+        expect(tableBackend.relatedness('ANIMAL', 'BEAR')).toBe(1);
+    });
+
+    it('an unknown reference degrades to the common reading (like a human would)', () => {
+        expect(tableBackend.relatedness('Zorblax', 'GLASS')).toBe(tableBackend.relatedness('zorblax', 'GLASS'));
+    });
+
+    it('exposes fame as the commonness prior — but never judges a lowercase word as a reference', () => {
+        expect(tableBackend.commonness!('Cinderella')).toBe(0.9);
+        expect(tableBackend.commonness!('Zelda')).toBe(0.7); // deeper cut
+        expect(tableBackend.commonness!('zelda')).toBe(1); // common sense, not the reference
+        expect(tableBackend.commonness!('ANIMAL')).toBe(1);
+    });
+
+    it('vocabulary offers proper references in display case (the emitted signal)', () => {
+        const vocab = tableBackend.vocabulary!();
+        expect(vocab).toContain('Cinderella');
+        expect(vocab).toContain('ANIMAL');
+    });
+});
+
+describe('spymaster gives proper-noun reference clues with the case signal', () => {
+    it('bundles three own cards under one reference and emits it mixed-case', () => {
+        // GLASS + PRINCESS + BALL share no common concept, but one vivid scene
+        // covers all three — and taking them wins the board.
+        const view = spymasterView(
+            ['GLASS', 'PRINCESS', 'BALL', 'CAR', 'DOG', 'DEATH'],
+            ['red', 'red', 'red', 'blue', 'blue', 'assassin']
+        );
+        const action = makeEmbeddingSpymaster(resolveSkill('expert', 11), tableBackend).chooseClue(view, ctx(11));
+        expect(action).toEqual({ kind: 'clue', word: 'Cinderella', number: 3 });
+    });
+});
+
+describe('clicker reads the case signal', () => {
+    it('a mixed-case clue steers guesses to the reference targets', () => {
+        const clicker = makeGreedyClicker(resolveSkill('expert', 12), tableBackend);
+        const view: BotClickerView = {
+            role: 'clicker',
+            team: 'red',
+            gameMode: 'classic',
+            words: ['BAT', 'NIGHT', 'APPLE', 'CAR'],
+            revealed: [false, false, false, false],
+            types: [null, null, null, null],
+            currentTurn: 'red',
+            currentClue: { word: 'Gotham', number: 2, team: 'red' },
+            guessesUsed: 0,
+            guessesAllowed: 3,
+        };
+        const action = clicker.chooseGuess(view, ctx(12));
+        // Gotham → BAT/NIGHT (the reference), never the fruit.
+        expect(action).toEqual({ kind: 'reveal', index: 0 });
+    });
+
+    it('the advisor labels reference readings for its human clicker', () => {
+        const view: BotClickerView = {
+            role: 'clicker',
+            team: 'red',
+            gameMode: 'classic',
+            words: ['BAT', 'NIGHT', 'APPLE', 'CAR'],
+            revealed: [false, false, false, false],
+            types: [null, null, null, null],
+            currentTurn: 'red',
+            currentClue: { word: 'Gotham', number: 2, team: 'red' },
+            guessesUsed: 0,
+            guessesAllowed: 3,
+        };
+        const out = suggestGuesses(view, tableBackend, 2);
+        expect(out.length).toBeGreaterThan(0);
+        expect(out[0]!.reason).toContain('the reference');
+        expect(out.map((s) => s.index).sort()).toEqual([0, 1]); // BAT + NIGHT
+    });
+});
+
 describe('baked association table coverage', () => {
     it('covers most of the default board words (so default games get real clues)', () => {
         // Every table target is a board word by construction; this guards that the

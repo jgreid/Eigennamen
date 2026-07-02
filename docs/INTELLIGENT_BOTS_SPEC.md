@@ -880,6 +880,33 @@ not covered, so custom word lists still degrade gracefully.
   curated / numberbatch / fasttext / llm interchangeable; `BotConfig` records
   which backend + asset hash a result depended on.
 
+### The clue-capitalization signal (SHIPPED)
+
+A house rule the whole stack speaks (`semantics/properAssociations.ts`): the
+CASE of a clue word carries meaning.
+
+- **Mixed case ("Alien", "iPhone") = the specific proper-noun reference.** The
+  curated `PROPER_ASSOCIATIONS` table maps ~80 widely-known references (films,
+  characters, myths, brands, places, events) onto default-list board words —
+  "Cinderella" → GLASS + PRINCESS + BALL. On a proper-signal clue the table
+  backend scores associated words 1 and dampens everything else to lexical
+  noise: the reference sense deliberately *excludes* the common sense.
+- **All lowercase ("alien") = explicitly the common sense** — the proper table
+  is never consulted.
+- **ALL CAPS = no signal** (legacy clients, bot concept clues): the best of
+  both readings is used, so groups that ignore the rule lose nothing.
+
+The clue's case is preserved end-to-end (validation, Lua storage, broadcast,
+replay were already case-faithful; the display CSS no longer uppercases), so a
+bot spymaster EMITS references in display case — the emission is the signal —
+and human or bot guessers can read it. Each reference carries a **fame**
+rating exposed through `SemanticBackend.commonness()`, so the spymaster's
+rarity penalty × `commonnessBias` implements "only clue culture references
+the guessers are going to know": a Sharpshooter (1.5) sticks to household
+names, a Maverick (0.4) reaches for the deep cuts. The vector backend blends
+the curated proper reading with cosine (max) for proper-signal clues, since
+embeddings conflate every sense of a token under one vector.
+
 ### Practical notes
 
 - **Multi-word board entries** ("NEW YORK", "Marie Curie") → average token

@@ -839,7 +839,10 @@
 .clue-display .clue-word {
     font-weight: 800;
     letter-spacing: 0.04em;
-    text-transform: uppercase;
+    /* No text-transform: the clue's CASE is a signal (house rule) — a
+       mixed-case clue ("Alien") denotes the specific proper-noun reference,
+       lowercase ("alien") the common sense. Display it as the spymaster
+       typed it. */
     color: var(--color-text-primary);
 }
 .clue-display .clue-number {
@@ -913,7 +916,8 @@
     color: var(--color-text-primary);
     font-size: var(--font-size-lg);
     letter-spacing: 0.03em;
-    text-transform: uppercase;
+    /* No text-transform: the spymaster must SEE the case they are about to
+       submit — capitalization carries the proper-noun signal (house rule). */
 }
 .clue-number-input {
     width: 52px;

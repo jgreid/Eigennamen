@@ -25,6 +25,7 @@
 import { openSync, readSync, closeSync, existsSync } from 'fs';
 import type { SemanticBackend } from './backend';
 import { tableBackend } from './tableBackend';
+import { caseSignal } from './properAssociations';
 import { normalizeClueWord } from '../../shared/gameRules';
 import logger from '../../utils/logger';
 
@@ -281,6 +282,7 @@ export function makeVectorBackend(options: VectorBackendOptions): SemanticBacken
             if (A === B) return 1;
             const va = vecs.get(A);
             const vb = vecs.get(B);
+            let cosine: number | null = null;
             if (va && vb) {
                 let dot = 0;
                 for (let i = 0; i < va.length; i++) {
@@ -288,8 +290,16 @@ export function makeVectorBackend(options: VectorBackendOptions): SemanticBacken
                     const y = vb[i];
                     if (x !== undefined && y !== undefined) dot += x * y;
                 }
-                return dot > 0 ? Math.min(1, dot) : 0;
+                cosine = dot > 0 ? Math.min(1, dot) : 0;
             }
+            // House-rule case signal: a mixed-case clue names a specific
+            // reference. Embeddings conflate every sense of a token under one
+            // vector, so the curated proper table's explicit reading (via the
+            // fallback chain) can only sharpen the score — take the max.
+            if (caseSignal(a) === 'proper' || caseSignal(b) === 'proper') {
+                return Math.max(cosine ?? 0, fallback.relatedness(a, b));
+            }
+            if (cosine !== null) return cosine;
             // One or both OOV: defer to the fallback chain (table → lexical).
             return fallback.relatedness(a, b);
         },
@@ -297,6 +307,13 @@ export function makeVectorBackend(options: VectorBackendOptions): SemanticBacken
             return merged;
         },
         commonness(word: string): number {
+            // For a proper-cased reference, the curated fame rating (via the
+            // fallback chain) is a better "will the guessers know it?" prior
+            // than the file rank of the sense-conflated token.
+            if (caseSignal(word) === 'proper') {
+                const fame = fallback.commonness?.(word);
+                if (fame !== undefined && fame < 1) return fame;
+            }
             const key = normalizeClueWord(word);
             const rank = ranks?.get(key);
             if (rank === undefined) return fallback.commonness?.(word) ?? 1;
