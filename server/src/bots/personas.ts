@@ -49,6 +49,7 @@ export const PERSONAS: readonly PersonaDef[] = [
             defenseBias: 1.3,
             aggression: 0.4,
             assassinCaution: 1.15,
+            commonnessBias: 1.2,
         },
     },
     {
@@ -65,6 +66,7 @@ export const PERSONAS: readonly PersonaDef[] = [
             defenseBias: 1.0,
             aggression: 0.1,
             assassinCaution: 1.3,
+            commonnessBias: 1.5,
         },
     },
     {
@@ -82,6 +84,7 @@ export const PERSONAS: readonly PersonaDef[] = [
             defenseBias: 2.0,
             aggression: 0.15,
             assassinCaution: 1.4,
+            commonnessBias: 1.2,
         },
     },
     {
@@ -99,6 +102,7 @@ export const PERSONAS: readonly PersonaDef[] = [
             defenseBias: 0.4,
             aggression: 0.95,
             assassinCaution: 0.7,
+            commonnessBias: 0.7,
         },
     },
     {
@@ -116,6 +120,7 @@ export const PERSONAS: readonly PersonaDef[] = [
             defenseBias: 0.8,
             aggression: 0.55,
             assassinCaution: 1.0,
+            commonnessBias: 0.4,
         },
     },
     {
@@ -132,6 +137,7 @@ export const PERSONAS: readonly PersonaDef[] = [
             defenseBias: 0.5,
             aggression: 0.3,
             assassinCaution: 0.9,
+            commonnessBias: 0.8,
         },
     },
 ];

@@ -14,6 +14,7 @@
 import type { BotClickerView, SkillParams, SeededRng } from './types';
 import type { SemanticBackend } from '../semantics/backend';
 import { defaultSemanticBackend } from '../semantics/backend';
+import { referenceSignal } from '../semantics/properAssociations';
 
 export interface GuessSuggestion {
     /** Board index of the suggested card. */
@@ -90,11 +91,15 @@ export function suggestGuesses(
             ? sampleWithoutReplacement(positive, limit, temperature, rng)
             : positive.slice(0, limit);
 
-    // A less confident advisor visibly hedges its confidence.
+    // A less confident advisor visibly hedges its confidence. A mixed-case clue
+    // carries the house-rule proper-noun signal, so the advisor says which
+    // reading its suggestions follow.
     const damp = 1 - Math.min(0.5, temperature * 0.25);
+    const reason =
+        referenceSignal(clue.word) === 'proper' ? `fits “${clue.word}” (the reference)` : `fits “${clue.word}”`;
     return picks.map((s) => ({
         index: s.index,
         confidence: Math.round(Math.min(1, s.score) * damp * 100) / 100,
-        reason: `fits “${clue.word}”`,
+        reason,
     }));
 }

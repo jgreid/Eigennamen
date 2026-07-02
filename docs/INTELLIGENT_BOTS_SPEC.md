@@ -469,20 +469,38 @@ Added one registry entry at a time. The catalogue grows; the interface does not.
 ### 11.1 Style knobs and personae (the "meaningfully different playstyles")
 
 Difficulty alone (temperature/blunder/risk) makes a bot *stronger or weaker* but
-not *different in character*. Three optional **style knobs** on `SkillParams`
+not *different in character*. Four optional **style knobs** on `SkillParams`
 shape how a bot of a given strength plays — its personality — independently of
 how strong it is:
 
 | Knob | Effect in `scoreClue` | Low | High |
 |------|-----------------------|-----|------|
-| `aggression` (0–1) | Shrinks the safety margin (down to ½) and adds a coverage bonus, so more own cards ride one clue | tight, reliable small numbers | gutsy 2s/3s/4s on thin margins |
+| `aggression` (0–1) | Shrinks the safety margin (down to ½) and adds a coverage bonus, so more own cards ride one clue; on the clicker it loosens the stop-cliff and unlocks the disciplined `number+1` bonus guess | tight, reliable small numbers | gutsy 2s/3s/4s on thin margins |
 | `defenseBias` (×) | Multiplies the "don't arm the opponent" penalty | ignores the opponent's board | refuses to hand them a clue |
-| `assassinCaution` (×) | Multiplies the assassin penalty **and** its safety berth | flirts closer to the assassin | wide assassin wall |
+| `assassinCaution` (×) | Multiplies the assassin penalty **and** its soft safety berth | flirts closer to the assassin | wide assassin wall |
+| `commonnessBias` (×) | Multiplies the robustness penalties: hot halos (high best non-own relatedness) and rare clue words (via the backend's optional `commonness()` frequency prior) | happily off-kilter, obscure associations | insists on legible, common-knowledge clues |
 
-All default to neutral (aggression 0, defenseBias 1, assassinCaution 1) via
-`resolveStyle`, so a plain difficulty preset behaves exactly as before. The base
-`margin` floor is applied regardless, so even the boldest persona can never make
-the assassin the clicker's top card.
+All default to neutral (aggression 0, defenseBias 1, assassinCaution 1,
+commonnessBias 1) via `resolveStyle`, so a plain difficulty preset behaves as
+before. The base `margin` floor is applied regardless, and the assassin berth
+additionally has a **hard, persona-independent floor** (`ASSASSIN_BERTH_FLOOR`):
+recklessness buys bigger numbers, never a thinner assassin wall — even the
+boldest persona can never make the assassin the clicker's top card nor let an
+intended card hug it. (The berth only applies while an assassin remains
+unrevealed — with none left there is nothing to steer clear of.)
+
+**Turn economy** (persona-independent, shared by every spymaster): a clue that
+safely covers *every* remaining own card wins the board this turn, is decisively
+preferred (`WIN_BONUS`), and may carry its true count past the normal
+`MAX_CLUE_NUMBER` cap of 4 (up to the server-wide `CLUE_NUMBER_MAX` of 9); when
+the opponent is one card from winning, safety margins shrink hard
+(`DESPERATION_MARGIN_FACTOR`) because banking a safe single forfeits the game —
+the assassin floor is never relaxed; and among partial clues, ones that strand
+leftover own cards away from any related partner pay `STRAND_WEIGHT` per
+stranded card for the future single-card turns they create. (A graded
+race-aware margin — thinner whenever trailing the card count — was tried and
+measurably REGRESSED mirror-match turn counts; only the binary last-stand
+trigger earned its keep.)
 
 **Personae** (`server/src/bots/personas.ts`) bundle a difficulty with a
 playstyle into a named, user-facing identity. They live in the same namespace as
@@ -848,6 +866,29 @@ regenerate with `npm run bots:associations` (currently 91 clue concepts / 704
 verified pairs). The `tableBackend` falls back to lexical similarity for any pair
 not covered, so custom word lists still degrade gracefully.
 
+### Custom semantic maps (SHIPPED — the prepared-list path)
+
+The "give the bots the list in advance" primitive is live: `npm run bots:map`
+(scripts/build-semantic-map.mjs) sends a custom word list to Claude in batches
+and curates the same two structures the default list ships with — concept
+groups and fame-rated proper-noun references (canonical case, honouring the
+clue-capitalization signal) — into a JSON **semantic map**
+(`semantics/mapBackend.ts`). At runtime every map in `BOT_SEMANTIC_MAPS_DIR`
+(default `src/bots/data/semantic-maps`) is merged into one overlay in the
+backend chain:
+
+```
+vectors? → custom maps → baked table → lexical
+```
+
+Merged (rather than hash-keyed per list) because associations are pairwise
+facts that only fire when their words are on the board — one directory serves
+any number of lists, and unprepared lists degrade to lexical exactly as
+before. The overlay reuses the baked table's scoring machinery
+(`semantics/associationIndex.ts`) so both grade identically, and per-key
+commonness/fame from the map feeds the spymaster's rarity penalty. See
+[BOT_SEMANTIC_MAPS.md](BOT_SEMANTIC_MAPS.md).
+
 ### Backend choice, updated
 
 - **ConceptNet Numberbatch stays the strong default** and is *more* justified
@@ -861,6 +902,33 @@ not covered, so custom word lists still degrade gracefully.
 - A `SemanticBackend` interface (`relatedness(a, b)`, `vectorize(word)`) makes
   curated / numberbatch / fasttext / llm interchangeable; `BotConfig` records
   which backend + asset hash a result depended on.
+
+### The clue-capitalization signal (SHIPPED)
+
+A house rule the whole stack speaks (`semantics/properAssociations.ts`): the
+CASE of a clue word carries meaning.
+
+- **Mixed case ("Alien", "iPhone") = the specific proper-noun reference.** The
+  curated `PROPER_ASSOCIATIONS` table maps ~80 widely-known references (films,
+  characters, myths, brands, places, events) onto default-list board words —
+  "Cinderella" → GLASS + PRINCESS + BALL. On a proper-signal clue the table
+  backend scores associated words 1 and dampens everything else to lexical
+  noise: the reference sense deliberately *excludes* the common sense.
+- **All lowercase ("alien") = explicitly the common sense** — the proper table
+  is never consulted.
+- **ALL CAPS = no signal** (legacy clients, bot concept clues): the best of
+  both readings is used, so groups that ignore the rule lose nothing.
+
+The clue's case is preserved end-to-end (validation, Lua storage, broadcast,
+replay were already case-faithful; the display CSS no longer uppercases), so a
+bot spymaster EMITS references in display case — the emission is the signal —
+and human or bot guessers can read it. Each reference carries a **fame**
+rating exposed through `SemanticBackend.commonness()`, so the spymaster's
+rarity penalty × `commonnessBias` implements "only clue culture references
+the guessers are going to know": a Sharpshooter (1.5) sticks to household
+names, a Maverick (0.4) reaches for the deep cuts. The vector backend blends
+the curated proper reading with cosine (max) for proper-signal clues, since
+embeddings conflate every sense of a token under one vector.
 
 ### Practical notes
 

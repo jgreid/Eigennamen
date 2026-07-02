@@ -47,6 +47,12 @@ export interface SkillParams {
      *  neutral, >1 = gives the assassin a wider wall, <1 = flirts closer. Never
      *  lets the assassin become the clicker's top pick regardless. Default 1. */
     assassinCaution?: number;
+    /** Multiplier on the robustness (anti-idiosyncrasy) penalties: how hard the
+     *  spymaster prefers LEGIBLE clues — common words with a cool halo — over
+     *  deep cuts whose spillover runs hot across the board. >1 = insists on
+     *  universally-readable clues (a Sharpshooter), <1 = happily plays off-kilter
+     *  associations (a Maverick). Default 1. */
+    commonnessBias?: number;
 }
 
 /** The resolved, defaulted style knobs a spymaster scores with. */
@@ -54,6 +60,7 @@ export interface StyleParams {
     readonly defenseBias: number;
     readonly aggression: number;
     readonly assassinCaution: number;
+    readonly commonnessBias: number;
 }
 
 /** Fill in neutral defaults for any style knob a preset leaves unset. */
@@ -62,6 +69,7 @@ export function resolveStyle(skill: SkillParams): StyleParams {
         defenseBias: skill.defenseBias ?? 1,
         aggression: skill.aggression ?? 0,
         assassinCaution: skill.assassinCaution ?? 1,
+        commonnessBias: skill.commonnessBias ?? 1,
     };
 }
 

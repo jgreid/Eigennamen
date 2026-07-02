@@ -1268,7 +1268,9 @@ button:focus-visible,
 }
 
 .gamelog-word {
-    text-transform: uppercase;
+    /* No text-transform: clue words keep their submitted case (the
+       capitalization house-rule signal); board/guess words are stored
+       uppercase already. */
     letter-spacing: 0.02em;
     font-weight: 700;
 }

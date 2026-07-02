@@ -145,6 +145,26 @@ Players first join a team, then pick a role:
 - The number tells your team how many cards relate to the clue
 - Say "unlimited" if you want them to keep guessing without a specific count
 
+### Clue Capitalization (house rule)
+
+The capitalization of your clue is preserved exactly as you type it, which
+enables a popular house rule: **capitalize a clue to mean the specific proper
+noun, lowercase it to mean the common sense**.
+
+- `Alien` → the movie *Alien* (space, the ship, the crew…)
+- `alien` → anything foreign or otherworldly
+- `Cinderella` → glass slipper + princess + royal ball, all in one image
+
+This makes clues far more specific and granular, especially for pop-culture
+references — just remember a reference is only a good clue if your guessers
+actually know it. The AI bots understand and play the convention: bot
+spymasters will give capitalized reference clues (curated for widely-known
+references — the cautious personae stick to household names, The Maverick
+reaches deeper), and bot clickers/advisors read a capitalized clue as the
+reference and a lowercase clue as the common sense. All-caps clues carry no
+signal and are read both ways, so nothing changes if your group ignores the
+rule.
+
 ## Custom Word Lists
 
 ### Using the Settings Menu
@@ -176,6 +196,23 @@ FROZEN
 - Minimum **25 words** (the game needs exactly 25 for each board)
 - Recommended **50+ words** for better variety between games
 - Words are automatically converted to uppercase
+
+### Playing with AI bots on a custom list
+
+Out of the box, the AI bots only carry semantic knowledge for the default word
+list — on a custom list their clues degrade to letter-pattern similarity. To
+get full-strength bots, prepare the list in advance by building a **semantic
+map** for it (an LLM curates concept groups and pop-culture references over
+your exact words):
+
+```bash
+cd server
+npm run bots:map -- --words path/to/my-list.txt
+```
+
+Drop-in and restart — see [docs/BOT_SEMANTIC_MAPS.md](docs/BOT_SEMANTIC_MAPS.md)
+for details. Unprepared lists still work; the bots just play far below their
+potential on them.
 
 ## Customizing Team Names
 

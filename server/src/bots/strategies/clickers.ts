@@ -9,6 +9,11 @@
  *    temperature-controlled: at temperature 0 it takes the best card (a "scary
  *    good" clicker that reliably reads its spymaster); at higher temperatures it
  *    samples among plausible cards, so a weaker bot makes believable mistakes.
+ *    Two discipline layers model the human "core + stretch" instinct: it stops
+ *    early when the next card's fit CLIFFS relative to what it already took
+ *    (tap the confident core, skip the stretch), and it spends the engine's
+ *    number+1 bonus guess only when the top leftover fits tighter than a core
+ *    card would — a calibrated stretch, gated by the persona's aggression.
  */
 import type { BotAction, BotClickerView, BotContext, ClickerStrategy, SkillParams, SeededRng } from './types';
 import type { SemanticBackend } from '../semantics/backend';
@@ -87,6 +92,67 @@ export function makeCautiousClicker(skill: SkillParams): ClickerStrategy {
     };
 }
 
+// Relative-cliff stopping ("tap the confident core, stop before the stretch").
+// The next guess is treated as a blind stretch — and the turn banked — only when
+// ALL THREE hold, because each alone still describes a card the spymaster may
+// well have intended:
+//  - steep: the score drops more than the tolerated fraction below the last
+//    taken card (aggression loosens it — a bold persona rides the curve down);
+//  - weak: the card is low in ABSOLUTE terms (a strong absolute fit is worth
+//    pressing for even after a big drop from a perfect first take);
+//  - blurred: the card barely separates from the next-best alternative. This is
+//    the decisive tell: a genuinely-intended card stands clear of the field by
+//    the spymaster's own safety margin even when the whole board runs cold, so
+//    "far below the core AND indistinguishable from its alternatives" is the
+//    no-information state where a guess is a coin-flip the clue never promised.
+// Calibration note: a margin-sound bot spymaster's intended tail card can score
+// as low as ~0.3 (pure lexical signal on a cold board) while still clearing the
+// field by its safety margin (>= ~0.04 even for the boldest persona), so the
+// ceiling sits just below that level and the separation just below that margin —
+// against a sound clue the cliff is a near-no-op, and the delivery it protects
+// is real (self-play delivery drops measurably with looser settings).
+const CLIFF_BASE_DELTA = 0.55;
+const CLIFF_AGGRESSION_SLACK = 0.25;
+const CLIFF_ABS_CEILING = 0.3;
+const CLIFF_SEPARATION = 0.035;
+
+// The disciplined "+1": thresholds for spending the engine's number+1 bonus
+// guess. The top leftover must clear a high absolute floor (higher still for a
+// timid persona) AND clear the next-best card by a wide margin — take the bonus
+// when it is TIGHTER than the core, not merely plausible.
+const BONUS_FLOOR_BASE = 0.6;
+const BONUS_FLOOR_TIMIDITY = 0.2;
+const BONUS_FIELD_GAP = 0.2;
+
+/**
+ * Estimate the score (vs the current clue) of the LAST card this clicker took
+ * under this clue. Strategies are stateless, but within a turn ONLY this
+ * clicker reveals cards, so everything it took this clue is now a revealed
+ * own-team card. Which revealed own cards belong to THIS clue isn't recorded,
+ * so take the guessesUsed-th highest clue-relatedness among all revealed own
+ * cards: a superset's order statistic never underestimates the true value, and
+ * own cards revealed in earlier turns were argmax picks for OTHER clues, so
+ * they rarely outscore this clue's actual takes. The bias direction (≥ truth)
+ * only makes the cliff stop EARLIER — it errs toward discipline, never toward
+ * an extra reckless guess. Returns null when the reconstruction is unreliable:
+ * fewer revealed own cards than guesses used, or duet — a duet clicker's masked
+ * types[] is always the side-A key (which never contains 'blue'), so team
+ * attribution works for one seat and not the other; the cliff is disabled there
+ * outright so both duet seats guess with identical discipline.
+ */
+function lastTakenScoreEstimate(view: BotClickerView, clueWord: string, backend: SemanticBackend): number | null {
+    if (view.guessesUsed === 0 || view.gameMode === 'duet') return null;
+    const ownRevealed: number[] = [];
+    for (let i = 0; i < view.revealed.length; i++) {
+        if (view.revealed[i] && view.types[i] === view.team) {
+            ownRevealed.push(backend.relatedness(view.words[i] as string, clueWord));
+        }
+    }
+    if (ownRevealed.length < view.guessesUsed) return null;
+    ownRevealed.sort((a, b) => b - a);
+    return ownRevealed[view.guessesUsed - 1] as number;
+}
+
 export function makeGreedyClicker(
     skill: SkillParams,
     backend: SemanticBackend = defaultSemanticBackend
@@ -97,8 +163,45 @@ export function makeGreedyClicker(
             const choices = unrevealedIndices(view);
             if (choices.length === 0 || !view.currentClue) return { kind: 'endTurn' };
 
+            // Rank unrevealed cards by relatedness to the clue word.
+            const clueWord = view.currentClue.word;
+            const scored = choices.map((index) => ({
+                index,
+                score: backend.relatedness(view.words[index] as string, clueWord),
+            }));
+            let best = scored[0] as { index: number; score: number };
+            let second = -Infinity;
+            for (let i = 1; i < scored.length; i++) {
+                const c = scored[i] as { index: number; score: number };
+                if (c.score > best.score) {
+                    second = best.score;
+                    best = c;
+                } else if (c.score > second) {
+                    second = c.score;
+                }
+            }
+            const aggression = skill.aggression ?? 0;
+
             const target = view.currentClue.number > 0 ? view.currentClue.number : choices.length;
-            if (view.guessesUsed >= target) return { kind: 'endTurn' };
+            if (view.guessesUsed >= target) {
+                // Opportunistic bonus ("+1"): the engine grants number+1 guesses,
+                // and reaching here with the turn alive means every intended guess
+                // landed. Spend the extra one only when the top leftover clears the
+                // bonus floor AND the rest of the field by a wide margin — and only
+                // for a persona with real aggression (plain presets never stretch).
+                // Deliberate stretch = deterministic argmax, no temperature.
+                const engineAllows = view.guessesAllowed === 0 || view.guessesUsed < view.guessesAllowed;
+                const bonusFloor = BONUS_FLOOR_BASE + BONUS_FLOOR_TIMIDITY * (1 - aggression);
+                if (
+                    engineAllows &&
+                    aggression > 0 &&
+                    best.score >= bonusFloor &&
+                    best.score - Math.max(second, 0) >= BONUS_FIELD_GAP
+                ) {
+                    return { kind: 'reveal', index: best.index };
+                }
+                return { kind: 'endTurn' };
+            }
 
             // Blunder model: an occasional outright random guess.
             if (ctx.rng.next() < skill.blunderRate) {
@@ -106,18 +209,23 @@ export function makeGreedyClicker(
                 return { kind: 'reveal', index: idx };
             }
 
-            // Rank unrevealed cards by relatedness to the clue word.
-            const clueWord = view.currentClue.word;
-            const scored = choices.map((index) => ({
-                index,
-                score: backend.relatedness(view.words[index] as string, clueWord),
-            }));
-            const bestScore = scored.reduce((m, c) => (c.score > m ? c.score : m), -Infinity);
-
             // After the first guess, a risk-averse bot stops if nothing looks related.
             const confidenceFloor = skill.riskAversion * 0.2;
-            if (view.guessesUsed >= 1 && bestScore < confidenceFloor) {
+            if (view.guessesUsed >= 1 && best.score < confidenceFloor) {
                 return { kind: 'endTurn' };
+            }
+
+            // Relative cliff ("core + stretch"): even above the absolute floor,
+            // stop when the next card is steep-below the last take, weak in
+            // absolute terms, AND blurred into its alternatives (see the
+            // three-condition rationale at the CLIFF_* constants above).
+            const blurred = best.score - Math.max(second, 0) < CLIFF_SEPARATION;
+            if (view.guessesUsed >= 1 && best.score < CLIFF_ABS_CEILING && blurred) {
+                const lastTaken = lastTakenScoreEstimate(view, clueWord, backend);
+                const delta = Math.min(0.9, CLIFF_BASE_DELTA + CLIFF_AGGRESSION_SLACK * aggression);
+                if (lastTaken !== null && best.score < lastTaken * (1 - delta)) {
+                    return { kind: 'endTurn' };
+                }
             }
 
             const index = selectIndexByTemperature(scored, skill.temperature, ctx.rng);
