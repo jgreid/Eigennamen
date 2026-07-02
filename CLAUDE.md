@@ -739,5 +739,6 @@ Key env vars (see `server/.env.example` for full list):
 | [docs/BACKUP_AND_DR.md](docs/BACKUP_AND_DR.md) | Backup strategy + disaster recovery |
 | [docs/INTELLIGENT_BOTS_SPEC.md](docs/INTELLIGENT_BOTS_SPEC.md) | AI bot design spec (engine, strategies, semantics, harness) |
 | [docs/BOT_EMBEDDINGS.md](docs/BOT_EMBEDDINGS.md) | Optional word-embedding backend for the semantic bot spymaster |
+| [docs/BOT_CLUE_LESSONS.md](docs/BOT_CLUE_LESSONS.md) | Human-play lessons → prioritized plan for improving bot clue-giving and guessing |
 | [docs/SETUP_SCREEN_GUIDE.md](docs/SETUP_SCREEN_GUIDE.md) | User-facing setup screen walkthrough |
 | [docs/WINDOWS_SETUP.md](docs/WINDOWS_SETUP.md) | Windows development setup |
