@@ -486,7 +486,21 @@ before. The base `margin` floor is applied regardless, and the assassin berth
 additionally has a **hard, persona-independent floor** (`ASSASSIN_BERTH_FLOOR`):
 recklessness buys bigger numbers, never a thinner assassin wall — even the
 boldest persona can never make the assassin the clicker's top card nor let an
-intended card hug it.
+intended card hug it. (The berth only applies while an assassin remains
+unrevealed — with none left there is nothing to steer clear of.)
+
+**Turn economy** (persona-independent, shared by every spymaster): a clue that
+safely covers *every* remaining own card wins the board this turn, is decisively
+preferred (`WIN_BONUS`), and may carry its true count past the normal
+`MAX_CLUE_NUMBER` cap of 4 (up to the server-wide `CLUE_NUMBER_MAX` of 9); when
+the opponent is one card from winning, safety margins shrink hard
+(`DESPERATION_MARGIN_FACTOR`) because banking a safe single forfeits the game —
+the assassin floor is never relaxed; and among partial clues, ones that strand
+leftover own cards away from any related partner pay `STRAND_WEIGHT` per
+stranded card for the future single-card turns they create. (A graded
+race-aware margin — thinner whenever trailing the card count — was tried and
+measurably REGRESSED mirror-match turn counts; only the binary last-stand
+trigger earned its keep.)
 
 **Personae** (`server/src/bots/personas.ts`) bundle a difficulty with a
 playstyle into a named, user-facing identity. They live in the same namespace as

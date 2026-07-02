@@ -27,7 +27,7 @@ import type {
 import { resolveStyle } from './types';
 import type { SemanticBackend } from '../semantics/backend';
 import { defaultSemanticBackend } from '../semantics/backend';
-import { isClueLegalForBoard } from '../../shared/gameRules';
+import { isClueLegalForBoard, CLUE_NUMBER_MAX } from '../../shared/gameRules';
 
 /** Abstract words unlikely to collide with a Codenames board; filtered for
  *  legality at runtime so a collision is simply skipped. */
@@ -155,14 +155,49 @@ const ASSASSIN_BERTH_FLOOR = 0.1;
 // frequency prior — see SemanticBackend.commonness).
 const AMBIGUITY_WEIGHT = 0.3;
 const RARITY_WEIGHT = 0.25;
+// Endgame terms. WIN_BONUS decisively prefers a clue that safely covers EVERY
+// remaining own card — converting the game this turn beats any partial clue —
+// and only such clues may exceed MAX_CLUE_NUMBER (up to the server-wide
+// CLUE_NUMBER_MAX). DESPERATION_MARGIN_FACTOR shrinks the safety margin when
+// the opponent is one card from winning: banking a safe single forfeits the
+// game anyway, so a clue too thin for normal play becomes the right gamble.
+// The hard assassin floor is NOT relaxed — desperation buys thinner margins,
+// never a thinner assassin wall.
+const WIN_BONUS = 1.0;
+const DESPERATION_MARGIN_FACTOR = 0.4;
+const DESPERATION_MARGIN_MIN = 0.02;
+// Cohesion: each own card a clue leaves behind with NO related partner among
+// the other leftovers is likely a future single-card turn, so a clue that
+// strands cards pays now for the turns it creates later. The threshold sits
+// between real association levels and lexical noise.
+const STRAND_THRESHOLD = 0.4;
+const STRAND_WEIGHT = 0.15;
 
 /** Result of scoring a candidate clue against the board. */
 interface ClueEval {
     word: string;
-    /** Own cards the clicker would take before crossing onto any non-own card. */
+    /** Own cards the clicker would take before crossing onto any non-own card,
+     *  capped at what a single clue number can actually ask for. */
     leadOwn: number;
+    /** The clue safely covers EVERY remaining own card — taking it wins the
+     *  board this turn, so its number may exceed the normal cap. */
+    coversAll: boolean;
     /** Ranking key: leadOwn, adjusted for clarity, assassin risk, and defense. */
     score: number;
+}
+
+/** Per-decision board context for scoring, computed once in chooseClue. */
+interface ScoreContext {
+    /** The opponent is one card from winning: safe play forfeits the game, so
+     *  margins relax (never the assassin gate) and denial stops mattering.
+     *  (A graded race-aware margin — thinner when trailing by cards — was
+     *  measured in mirror self-play and REGRESSED turn counts: the trailing
+     *  side's extra misfires outweigh the tempo it buys. Only this binary
+     *  last-stand trigger survived the data.) */
+    desperate: boolean;
+    /** Cost of the own cards a clue would leave behind, by how clue-able they
+     *  remain together (stranded singles cost future turns). */
+    strandPenalty: (residual: readonly string[]) => number;
 }
 
 /** Highest relatedness of `clue` to any word in `words` (0 if the group is empty). */
@@ -189,6 +224,13 @@ function maxRel(words: readonly string[], clue: string, backend: SemanticBackend
  *    non-own relatedness even when the margin clears) and rare/obscure clue
  *    words, both scaled by the persona's commonnessBias — robust clues live in
  *    shared knowledge, not the model's private sense of salience.
+ *  - turn economy (endgame + cohesion): a clue that safely covers every
+ *    remaining own card wins the board and is decisively preferred (and may
+ *    exceed the normal number cap); among partial clues, ones that strand
+ *    leftover own cards away from any related partner pay for the future
+ *    single-card turns they create. Under desperation (opponent one card from
+ *    winning) margins shrink so more cards ride the clue — the hard assassin
+ *    floor never does.
  *
  * `caution` is riskAversion in [0,1]; the safety margin widens with it. `style`
  * are the persona knobs: `aggression` shrinks the margin (bigger, bolder numbers),
@@ -201,18 +243,26 @@ function scoreClue(
     backend: SemanticBackend,
     caution: number,
     valueOf: (word: string) => number,
-    style: StyleParams
+    style: StyleParams,
+    ctx: ScoreContext
 ): ClueEval | null {
     if (groups.own.length === 0) return null;
     // Aggression shrinks the safety margin (down to half) so more own cards clear
     // the non-own field on one clue — the persona lever that turns a stream of
     // 1-clues into gutsy 2s and 3s. The floor keeps even a bold clue above chance.
-    const margin = (0.05 + 0.1 * caution) * (1 - 0.5 * style.aggression);
+    // Desperation shrinks it much further: with the opponent one card from
+    // winning, a thin multi-card clue dominates a safe single that hands them
+    // the game on the next turn.
+    const baseMargin = (0.05 + 0.1 * caution) * (1 - 0.5 * style.aggression);
+    const margin = ctx.desperate
+        ? Math.max(DESPERATION_MARGIN_MIN, baseMargin * DESPERATION_MARGIN_FACTOR)
+        : baseMargin;
 
-    // Keep each own card's value alongside its relatedness so the intended set
-    // (the top-leadOwn by relatedness) can be scored by total value in match mode.
+    // Keep each own card's word and value alongside its relatedness so the
+    // intended set (the top cards by relatedness) can be scored by total value
+    // in match mode, and the residual set fed to the cohesion term.
     const ownScored = groups.own
-        .map((w) => ({ rel: backend.relatedness(clue, w), value: valueOf(w) }))
+        .map((w) => ({ word: w, rel: backend.relatedness(clue, w), value: valueOf(w) }))
         .sort((a, b) => b.rel - a.rel);
     const own = ownScored.map((o) => o.rel);
     const maxOpp = maxRel(groups.opponent, clue, backend);
@@ -233,43 +283,65 @@ function scoreClue(
     // the persona's assassinCaution — a Guardian widens the wall further). The
     // ASSASSIN_BERTH_FLOOR is the hard, persona-independent part: a Daredevil may
     // trim the soft berth, but never below the floor — recklessness buys bigger
-    // numbers, not a thinner assassin wall.
-    const berth = Math.max(ASSASSIN_BERTH_FLOOR, margin * 2 * style.assassinCaution);
-    while (leadOwn > 0 && (own[leadOwn - 1] as number) - maxAss < berth) leadOwn--;
-    if (leadOwn === 0) return null;
+    // numbers, not a thinner assassin wall. Skipped entirely when no assassin
+    // remains unrevealed: with maxAss = 0 the floor would demand an absolute
+    // relatedness of 0.1 from every intended card, silently trimming perfectly
+    // safe low-signal cards on a board with nothing to steer clear of.
+    if (groups.assassin.length > 0) {
+        const berth = Math.max(ASSASSIN_BERTH_FLOOR, margin * 2 * style.assassinCaution);
+        while (leadOwn > 0 && (own[leadOwn - 1] as number) - maxAss < berth) leadOwn--;
+        if (leadOwn === 0) return null;
+    }
 
-    const weakestIntended = own[leadOwn - 1] as number;
+    // A clue that safely covers EVERYTHING left wins the board this turn and may
+    // carry its true count (the clicker chases all of it); otherwise the intended
+    // set is capped at the normal clue-number ceiling, and everything downstream
+    // (clarity, value, coverage) is computed on the cards the clicker will
+    // actually be asked to take — not on a lead the number can't express.
+    const coversAll = leadOwn === groups.own.length;
+    const intended = coversAll ? leadOwn : Math.min(leadOwn, MAX_CLUE_NUMBER);
+
+    const weakestIntended = own[intended - 1] as number;
     const clarity = Math.min(0.999, Math.max(0, weakestIntended - maxNonOwn));
     // Graded, caution-scaled penalties. Absolute maxAss / maxOpp are fine here:
     // between two clues that both cover the same cards, the one that stays
     // further from the assassin / the opponent's cards wins. defenseBias and
-    // assassinCaution are the persona multipliers on those two instincts.
+    // assassinCaution are the persona multipliers on those two instincts. The
+    // opponent penalty vanishes under desperation — teaching their clicker
+    // something is irrelevant when they win next turn unless we clear the board.
     const assassinPenalty = caution * ASSASSIN_WEIGHT * style.assassinCaution * maxAss;
-    const opponentPenalty = caution * OPPONENT_WEIGHT * style.defenseBias * maxOpp;
+    const opponentPenalty = ctx.desperate ? 0 : caution * OPPONENT_WEIGHT * style.defenseBias * maxOpp;
     // Match value-awareness: reward covering higher-value own cards. In non-match
-    // every value() is 1, so coveredValue === leadOwn and the bonus is exactly 0.
-    const coveredValue = ownScored.slice(0, leadOwn).reduce((s, c) => s + c.value, 0);
-    const valueBonus = VALUE_WEIGHT * (coveredValue - leadOwn);
+    // every value() is 1, so coveredValue === intended and the bonus is exactly 0.
+    const coveredValue = ownScored.slice(0, intended).reduce((s, c) => s + c.value, 0);
+    const valueBonus = VALUE_WEIGHT * (coveredValue - intended);
     // Aggression also tips near-ties toward the wider-covering clue, so a bold
     // persona reaches for the bigger number even when a tighter clue scores alike.
-    const coverageBonus = style.aggression * 0.25 * leadOwn;
+    const coverageBonus = style.aggression * 0.25 * intended;
     // Robustness: prefer clues a HUMAN would read the same way the model does.
     // Ambiguity punishes a hot halo (high absolute maxNonOwn, even with the
     // margin cleared); rarity punishes obscure clue words when the backend
     // carries a frequency prior (absent one, commonness defaults to 1 = no-op).
     const ambiguityPenalty = AMBIGUITY_WEIGHT * style.commonnessBias * maxNonOwn;
     const rarityPenalty = RARITY_WEIGHT * style.commonnessBias * (1 - (backend.commonness?.(clue) ?? 1));
+    // Turn economy: winning now beats any partial clue, and among partial clues
+    // prefer the one whose leftovers still clue well together — a stranded own
+    // card is a whole future turn spent on a single-card clue.
+    const winBonus = coversAll ? WIN_BONUS : 0;
+    const strandPenalty = ctx.strandPenalty(ownScored.slice(intended).map((o) => o.word));
 
     const score =
-        leadOwn +
+        intended +
         CLARITY_WEIGHT * clarity -
         assassinPenalty -
         opponentPenalty -
         ambiguityPenalty -
         rarityPenalty +
         valueBonus +
-        coverageBonus;
-    return { word: clue, leadOwn, score };
+        coverageBonus +
+        winBonus -
+        strandPenalty;
+    return { word: clue, leadOwn: intended, coversAll, score };
 }
 
 /**
@@ -438,16 +510,50 @@ export function makeEmbeddingSpymaster(
                 return { kind: 'clue', word, number: 1 };
             }
 
+            // Per-decision board context. desperate: exactly one opponent card
+            // left (zero would mean the game is over; duet has no opponent group,
+            // so it never triggers there). The own-pair relatedness matrix is
+            // computed once so the cohesion term costs each candidate only map
+            // lookups over its residual set.
+            const desperate = groups.opponent.length === 1;
+            const pairRel = new Map<string, number>();
+            for (let i = 0; i < groups.own.length; i++) {
+                for (let j = i + 1; j < groups.own.length; j++) {
+                    const a = groups.own[i] as string;
+                    const b = groups.own[j] as string;
+                    const r = backend.relatedness(a, b);
+                    pairRel.set(`${a}|${b}`, r);
+                    pairRel.set(`${b}|${a}`, r);
+                }
+            }
+            const strandPenalty = (residual: readonly string[]): number => {
+                let stranded = 0;
+                for (const w of residual) {
+                    let best = 0;
+                    for (const o of residual) {
+                        if (o === w) continue;
+                        const r = pairRel.get(`${w}|${o}`) ?? 0;
+                        if (r > best) best = r;
+                    }
+                    if (best < STRAND_THRESHOLD) stranded++;
+                }
+                return STRAND_WEIGHT * stranded;
+            };
+            const scoreCtx: ScoreContext = { desperate, strandPenalty };
+
             // Score every legal candidate, then pick one via temperature.
             const scored: ClueEval[] = [];
             for (const clue of legalCandidates) {
-                const ev = scoreClue(clue, groups, backend, skill.riskAversion, valueOf, style);
+                const ev = scoreClue(clue, groups, backend, skill.riskAversion, valueOf, style, scoreCtx);
                 if (ev) scored.push(ev);
             }
 
             if (scored.length > 0) {
                 const chosen = selectByTemperature(scored, skill.temperature, ctx.rng);
-                const number = Math.max(1, Math.min(chosen.leadOwn, MAX_CLUE_NUMBER));
+                // A board-winning clue carries its true count (the server allows
+                // up to CLUE_NUMBER_MAX); everything else keeps the normal cap.
+                const cap = chosen.coversAll ? CLUE_NUMBER_MAX : MAX_CLUE_NUMBER;
+                const number = Math.max(1, Math.min(chosen.leadOwn, cap));
                 return { kind: 'clue', word: chosen.word, number };
             }
 

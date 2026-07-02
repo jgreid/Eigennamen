@@ -185,13 +185,15 @@ function scoringStub(rel: Record<string, Record<string, number>>): SemanticBacke
 
 describe('spymaster multi-factor scoring', () => {
     // Board words chosen so no candidate clue is a substring of one (which would
-    // make it an illegal clue and get filtered before scoring).
-    const OWN2: ['red', 'red', 'blue', 'assassin'] = ['red', 'red', 'blue', 'assassin'];
+    // make it an illegal clue and get filtered before scoring). Boards carry TWO
+    // opponent cards so the endgame desperation path (exactly one opponent card
+    // left) stays out of tests that aren't about it.
+    const OWN2: ['red', 'red', 'blue', 'blue', 'assassin'] = ['red', 'red', 'blue', 'blue', 'assassin'];
 
     it('plays defense: prefers a clue that does not also point at the opponent', () => {
         // CLEAN and LEAKY both safely cover the two own cards, but LEAKY also
         // relates to the opponent card — a cautious expert avoids arming them.
-        const view = spymasterView(['OWNA', 'OWNB', 'OPPO', 'ASSN'], OWN2);
+        const view = spymasterView(['OWNA', 'OWNB', 'OPPO', 'OPPOX', 'ASSN'], OWN2);
         const backend = scoringStub({
             CLEAN: { OWNA: 0.9, OWNB: 0.85, OPPO: 0.1, ASSN: 0.1 },
             LEAKY: { OWNA: 0.9, OWNB: 0.85, OPPO: 0.6, ASSN: 0.1 },
@@ -213,14 +215,14 @@ describe('spymaster multi-factor scoring', () => {
     it('salvages a real number from the best-effort path (no more constant 1)', () => {
         // No clue clears the safety margin (so scoring returns no candidate), but
         // the salvage clue still out-ranks the danger cards on TWO own cards.
-        const view = spymasterView(['OWNA', 'OWNB', 'OPPO', 'ASSN'], OWN2);
+        const view = spymasterView(['OWNA', 'OWNB', 'OPPO', 'OPPOX', 'ASSN'], OWN2);
         const backend = scoringStub({ SALVAGE: { OWNA: 0.4, OWNB: 0.35, OPPO: 0.3, ASSN: 0.1 } });
         const action = makeEmbeddingSpymaster(resolveSkill('expert', 1), backend).chooseClue(view, ctx(1));
         expect(action).toEqual({ kind: 'clue', word: 'SALVAGE', number: 2 });
     });
 
     it('temperature 0 (expert) is a deterministic argmax across seeds', () => {
-        const view = spymasterView(['OWNA', 'OWNB', 'OPPO', 'ASSN'], OWN2);
+        const view = spymasterView(['OWNA', 'OWNB', 'OPPO', 'OPPOX', 'ASSN'], OWN2);
         const backend = scoringStub({
             STRONG: { OWNA: 0.95, OWNB: 0.9, OPPO: 0.1, ASSN: 0.1 },
             WEAKER: { OWNA: 0.7, OWNB: 0.1, OPPO: 0.1, ASSN: 0.1 },
@@ -234,7 +236,7 @@ describe('spymaster multi-factor scoring', () => {
     it('high temperature (novice) explores real alternatives, not only the argmax', () => {
         // Three equally-good clues: a novice's softmax + blunder should not always
         // land on the same one.
-        const view = spymasterView(['OWNA', 'OWNB', 'OPPO', 'ASSN'], OWN2);
+        const view = spymasterView(['OWNA', 'OWNB', 'OPPO', 'OPPOX', 'ASSN'], OWN2);
         const eq = { OWNA: 0.9, OWNB: 0.85, OPPO: 0.1, ASSN: 0.1 };
         const backend = scoringStub({ ONE: eq, TWO: eq, THREE: eq });
         const chosen = new Set<string>();
@@ -243,6 +245,109 @@ describe('spymaster multi-factor scoring', () => {
             if (a.kind === 'clue') chosen.add(a.word);
         }
         expect(chosen.size).toBeGreaterThan(1);
+    });
+});
+
+describe('turn economy: endgame urgency and board cohesion', () => {
+    it('goes for the win: an all-covering clue beats a clearer partial clue', () => {
+        // WINALL covers every remaining own card with modest clarity; SAFE2
+        // covers two of three brilliantly. Converting the board this turn beats
+        // the clearer partial clue that leaves a card (and a turn) behind.
+        const view = spymasterView(
+            ['OWNA', 'OWNB', 'OWNC', 'OPPO', 'OPPOX', 'ASSN'],
+            ['red', 'red', 'red', 'blue', 'blue', 'assassin']
+        );
+        const backend = scoringStub({
+            WINALL: { OWNA: 0.6, OWNB: 0.55, OWNC: 0.5, OPPO: 0.1, ASSN: 0.05 },
+            SAFE2: { OWNA: 0.95, OWNB: 0.9, OWNC: 0.1, OPPO: 0.1, ASSN: 0.05 },
+        });
+        const action = makeEmbeddingSpymaster(resolveSkill('expert', 3), backend).chooseClue(view, ctx(3));
+        expect(action).toEqual({ kind: 'clue', word: 'WINALL', number: 3 });
+    });
+
+    it('a board-winning clue may exceed the normal number cap', () => {
+        // Five own cards, one clue safely covers them all: the number is the true
+        // count (5 > MAX_CLUE_NUMBER 4), which the server accepts (max 9).
+        const view = spymasterView(
+            ['OWNA', 'OWNB', 'OWNC', 'OWND', 'OWNE', 'OPPO', 'OPPOX', 'ASSN'],
+            ['red', 'red', 'red', 'red', 'red', 'blue', 'blue', 'assassin']
+        );
+        const backend = scoringStub({
+            BIGWIN: { OWNA: 0.9, OWNB: 0.85, OWNC: 0.8, OWND: 0.75, OWNE: 0.7, OPPO: 0.1, ASSN: 0.05 },
+        });
+        const action = makeEmbeddingSpymaster(resolveSkill('expert', 4), backend).chooseClue(view, ctx(4));
+        expect(action).toEqual({ kind: 'clue', word: 'BIGWIN', number: 5 });
+    });
+
+    it('desperation (opponent one card from winning) relaxes the margin for a bigger number', () => {
+        // OWNB sits under the normal expert margin over the hot neutral, so with
+        // two opponent cards left the clue is a safe 1 — but with the opponent
+        // one card from winning, banking a single forfeits the game, so the
+        // margin relaxes and both own cards ride the clue.
+        const rels = { OWNA: 0.9, OWNB: 0.5, OPPO: 0.1, NEUT: 0.4, ASSN: 0.05 };
+        const calm = spymasterView(
+            ['OWNA', 'OWNB', 'OPPO', 'OPPOX', 'NEUT', 'ASSN'],
+            ['red', 'red', 'blue', 'blue', 'neutral', 'assassin']
+        );
+        const desperate = spymasterView(
+            ['OWNA', 'OWNB', 'OPPO', 'NEUT', 'ASSN'],
+            ['red', 'red', 'blue', 'neutral', 'assassin']
+        );
+        const backend = scoringStub({ DESP: rels });
+        const calmAction = makeEmbeddingSpymaster(resolveSkill('expert', 5), backend).chooseClue(calm, ctx(5));
+        const despAction = makeEmbeddingSpymaster(resolveSkill('expert', 5), backend).chooseClue(desperate, ctx(5));
+        expect(calmAction).toEqual({ kind: 'clue', word: 'DESP', number: 1 });
+        expect(despAction).toEqual({ kind: 'clue', word: 'DESP', number: 2 });
+    });
+
+    it('desperation never relaxes the hard assassin floor', () => {
+        // Same desperate board, but the second own card hugs the assassin
+        // (gap 0.07 < floor 0.1): even with the game on the line it is dropped.
+        const view = spymasterView(['OWNA', 'OWNB', 'OPPO', 'ASSN'], ['red', 'red', 'blue', 'assassin']);
+        const backend = scoringStub({ HUGGER: { OWNA: 0.9, OWNB: 0.5, OPPO: 0.1, ASSN: 0.43 } });
+        const action = makeEmbeddingSpymaster(resolveSkill('expert', 6), backend).chooseClue(view, ctx(6));
+        expect(action).toEqual({ kind: 'clue', word: 'HUGGER', number: 1 });
+    });
+
+    it('prefers the clue whose leftovers still clue well together (no stranding)', () => {
+        // SMART and GREEDY both cover two own cards with identical clarity, but
+        // SMART leaves the related pair {CC, DD} (one future clue) while GREEDY
+        // leaves the unrelated {BB, DD} (two future single-card turns).
+        const view = spymasterView(
+            ['AA', 'BB', 'CC', 'DD', 'NEUT', 'ASSN'],
+            ['red', 'red', 'red', 'red', 'neutral', 'assassin']
+        );
+        const backend = scoringStub({
+            GREEDY: { AA: 0.9, CC: 0.85, NEUT: 0.05, ASSN: 0.05 },
+            SMART: { AA: 0.9, BB: 0.85, NEUT: 0.05, ASSN: 0.05 },
+            CC: { DD: 0.6 }, // own-pair relatedness; CC is a board word, so it is never a clue candidate
+        });
+        const action = makeEmbeddingSpymaster(resolveSkill('expert', 7), backend).chooseClue(view, ctx(7));
+        expect(action).toMatchObject({ kind: 'clue', word: 'SMART', number: 2 });
+    });
+
+    it('does not overtrim safe low-signal cards when no assassin remains', () => {
+        // No assassin on the board: FAINT's cards clear the margin but sit below
+        // the 0.1 assassin floor in absolute terms — the berth must not apply.
+        const view = spymasterView(['OWNA', 'OWNB', 'NEUT'], ['red', 'red', 'neutral']);
+        const backend = scoringStub({
+            RIVAL: { OWNA: 0.3, OWNB: 0.02, NEUT: 0.02 },
+            FAINT: { OWNA: 0.09, OWNB: 0.085, NEUT: 0.02 },
+        });
+        const reckless: SkillParams = {
+            temperature: 0,
+            blunderRate: 0,
+            riskAversion: 0.3,
+            seed: 1,
+            aggression: 0.95,
+            assassinCaution: 0.7,
+        };
+        const action = makeEmbeddingSpymaster(reckless, backend).chooseClue(view, {
+            gameMode: 'classic',
+            skill: reckless,
+            rng: makeRng(1),
+        });
+        expect(action).toEqual({ kind: 'clue', word: 'FAINT', number: 2 });
     });
 });
 

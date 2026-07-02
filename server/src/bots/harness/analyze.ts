@@ -165,7 +165,11 @@ export function referenceLead(
         if (r >= maxNonOwn + REF_MARGIN) lead++;
         else break;
     }
-    while (lead > 0 && (ownRel[lead - 1] as number) - maxAss < REF_MARGIN * 2) lead--;
+    // Assassin berth only applies while an assassin remains unrevealed — with
+    // maxAss = 0 it would demand an absolute 0.1 relatedness from safe cards.
+    if (g.assassin.length > 0) {
+        while (lead > 0 && (ownRel[lead - 1] as number) - maxAss < REF_MARGIN * 2) lead--;
+    }
 
     const clarity = lead > 0 ? Math.max(0, (ownRel[lead - 1] as number) - maxNonOwn) : 0;
     const maxOwn = ownRel.length > 0 ? (ownRel[0] as number) : 0;

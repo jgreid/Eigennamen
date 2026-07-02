@@ -89,8 +89,12 @@ const base = (over: Partial<SkillParams>): SkillParams => ({
 describe('aggression stretches the clue number', () => {
     // One clue links two own cards: BRIDGE fits OWNA strongly and OWNB just past
     // the aggressive margin but short of the neutral one. A timid bot clues 1; a
-    // bold one shrinks the margin and clues 2.
-    const board = view(['OWNA', 'OWNB', 'OPPO', 'NEUT', 'ASSN'], ['red', 'red', 'blue', 'neutral', 'assassin']);
+    // bold one shrinks the margin and clues 2. Two opponent cards keep the
+    // endgame desperation margin (which would also stretch the number) out of it.
+    const board = view(
+        ['OWNA', 'OWNB', 'OPPO', 'OPPOX', 'NEUT', 'ASSN'],
+        ['red', 'red', 'blue', 'blue', 'neutral', 'assassin']
+    );
     const backend = stub({ BRIDGE: { OWNA: 0.9, OWNB: 0.7, OPPO: 0.62, NEUT: 0.1, ASSN: 0.0 } });
 
     it('low aggression gives a small number', () => {
@@ -110,7 +114,11 @@ describe('defenseBias steers away from arming the opponent', () => {
     // lights up the opponent's card (OPPO 0.5); CLEAN leaves their board dark.
     // commonnessBias is zeroed so the ambiguity penalty (which also dislikes
     // ARMED's hot halo) stays out of the comparison — this isolates defenseBias.
-    const board = view(['OWNA', 'OWNB', 'OPPO', 'NEUT', 'ASSN'], ['red', 'red', 'blue', 'neutral', 'assassin']);
+    // Two opponent cards keep desperation (which zeroes the defense penalty) out.
+    const board = view(
+        ['OWNA', 'OWNB', 'OPPO', 'OPPOX', 'NEUT', 'ASSN'],
+        ['red', 'red', 'blue', 'blue', 'neutral', 'assassin']
+    );
     const backend = stub({
         ARMED: { OWNA: 0.95, OWNB: 0.0, OPPO: 0.5, NEUT: 0.1, ASSN: 0.0 },
         CLEAN: { OWNA: 0.0, OWNB: 0.79, OPPO: 0.0, NEUT: 0.35, ASSN: 0.0 },

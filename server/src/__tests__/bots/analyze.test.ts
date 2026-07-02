@@ -93,6 +93,15 @@ describe('referenceLead', () => {
         expect(ref.heat).toBeCloseTo(0.5);
         expect(ref.dangerNext).toBe(false);
     });
+
+    it('skips the assassin berth when no assassin remains unrevealed', () => {
+        // A safe low-signal card (0.08) clears the reference margin over a cold
+        // board; with no assassin left the berth must not demand 0.1 absolute.
+        const gn = game(['OWNW', 'OPPW'], ['red', 'blue']);
+        const backend = stub({ FAINT: { OWNW: 0.08, OPPW: 0.02 } });
+        const ref = referenceLead('FAINT', boardGroupsFor(gn, 'red'), backend);
+        expect(ref.safeLead).toBe(1);
+    });
 });
 
 describe('aggregate + detectGaps', () => {
