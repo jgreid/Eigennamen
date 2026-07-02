@@ -4,7 +4,7 @@ import type { GameSocket } from './rateLimitHandler';
 import type { TimerInfo } from './socketFunctionProvider';
 
 import logger from '../utils/logger';
-import { SOCKET_EVENTS, LOCKS, SESSION_SECURITY } from '../config/constants';
+import { SOCKET_EVENTS, LOCKS, SESSION_SECURITY, ERROR_CODES } from '../config/constants';
 import { safeEmitToRoom } from './safeEmit';
 import { withTimeout, TIMEOUTS } from '../utils/timeout';
 import { withLock } from '../utils/distributedLock';
@@ -48,8 +48,22 @@ function createTimerExpireCallback(
                             return null;
                         }
 
-                        const turnResult = await gameService.endTurn(roomCode, 'Timer');
-                        return turnResult;
+                        // Pass the turn we observed as the expected team. If a reveal
+                        // or manual endTurn already advanced the turn between this read
+                        // and endTurn acquiring the reveal lock, endTurn.lua no-ops
+                        // (NOT_YOUR_TURN) instead of double-flipping and skipping a turn.
+                        try {
+                            return await gameService.endTurn(roomCode, 'Timer', game.currentTurn);
+                        } catch (endTurnErr) {
+                            const code = (endTurnErr as { code?: string }).code;
+                            if (code === ERROR_CODES.NOT_YOUR_TURN || code === ERROR_CODES.GAME_OVER) {
+                                logger.debug(
+                                    `Timer expiry for room ${roomCode} is stale (turn already advanced); skipping`
+                                );
+                                return null;
+                            }
+                            throw endTurnErr;
+                        }
                     },
                     { lockTimeout: 5000, maxRetries: 3 }
                 );
@@ -259,14 +273,20 @@ async function handleDisconnect(
                                 return;
                             }
 
+                            // Exclude bots as host candidates: a bot cannot start
+                            // games or manage the room, so handing it host locks
+                            // every host-only function. Prefer a human; only fall
+                            // back to bots if no human remains connected.
                             const connectedPlayers = players.filter(
                                 (p: Player) => p.connected && p.sessionId !== socket.sessionId
                             );
+                            const humanCandidates = connectedPlayers.filter((p: Player) => !p.isBot);
+                            const hostCandidates = humanCandidates.length > 0 ? humanCandidates : connectedPlayers;
 
-                            if (connectedPlayers.length > 0) {
-                                // Transfer host to first connected player
+                            if (hostCandidates.length > 0) {
+                                // Transfer host to first eligible player
                                 // Safe to cast: we just verified length > 0
-                                const newHost = connectedPlayers[0] as Player;
+                                const newHost = hostCandidates[0] as Player;
 
                                 // Use atomic host transfer to prevent race conditions
                                 // This atomically updates old host, new host, and room in a single Lua script

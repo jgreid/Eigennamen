@@ -340,17 +340,19 @@ describe('handleSetupAction("setup-host-submit")', () => {
         handleSetupAction('setup-host-submit');
         await new Promise((r) => setTimeout(r, 10));
 
-        expect(mockUpdateSettings).toHaveBeenCalledWith(expect.objectContaining({ timerSeconds: 90 }));
+        // Server settings schema expects `turnTimer` (seconds); `timerSeconds`
+        // was silently stripped, so the configured timer never applied.
+        expect(mockUpdateSettings).toHaveBeenCalledWith(expect.objectContaining({ turnTimer: 90 }));
     });
 
-    test('does not send timerSeconds when timer is off', async () => {
+    test('sends turnTimer=null when timer is off', async () => {
         mockCreateRoom.mockResolvedValue({ room: { code: 'r' } });
 
         fillHostForm('Host1', 'my-room');
         handleSetupAction('setup-host-submit');
         await new Promise((r) => setTimeout(r, 10));
 
-        expect(mockUpdateSettings).toHaveBeenCalledWith(expect.objectContaining({ timerSeconds: undefined }));
+        expect(mockUpdateSettings).toHaveBeenCalledWith(expect.objectContaining({ turnTimer: null }));
     });
 
     test('shows ROOM_ALREADY_EXISTS error', async () => {

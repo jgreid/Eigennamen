@@ -143,6 +143,32 @@ describe('Board Layout Distribution', () => {
         }
     });
 
+    test('forceFirstTeam keeps card counts consistent with the forced starting team', () => {
+        // Regression: match mode alternates the starting team each round. A prior
+        // implementation overrode layout.firstTeam AFTER generation without swapping
+        // the 9/8 card counts, so the forced first team could end up with only 8.
+        for (const seed of seeds.slice(0, 200)) {
+            for (const forced of ['red', 'blue'] as const) {
+                const layout = generateBoardLayout(seed, false, forced);
+                const redCount = layout.types.filter((t) => t === 'red').length;
+                const blueCount = layout.types.filter((t) => t === 'blue').length;
+
+                expect(layout.firstTeam).toBe(forced);
+                if (forced === 'red') {
+                    expect(redCount).toBe(FIRST_TEAM_CARDS);
+                    expect(blueCount).toBe(SECOND_TEAM_CARDS);
+                    expect(layout.redTotal).toBe(FIRST_TEAM_CARDS);
+                    expect(layout.blueTotal).toBe(SECOND_TEAM_CARDS);
+                } else {
+                    expect(blueCount).toBe(FIRST_TEAM_CARDS);
+                    expect(redCount).toBe(SECOND_TEAM_CARDS);
+                    expect(layout.blueTotal).toBe(FIRST_TEAM_CARDS);
+                    expect(layout.redTotal).toBe(SECOND_TEAM_CARDS);
+                }
+            }
+        }
+    });
+
     test('first team selection is roughly 50/50', () => {
         let redFirst = 0;
         for (const seed of seeds) {

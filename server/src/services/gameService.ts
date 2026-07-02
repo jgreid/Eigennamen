@@ -166,7 +166,8 @@ function buildGameState(
     usedWordListId: string | null,
     boardWords: string[],
     layout: ReturnType<typeof generateBoardLayout>,
-    options: CreateGameOptions
+    options: CreateGameOptions,
+    wordPool?: string[]
 ): GameState {
     const isDuet = options.gameMode === 'duet';
     const isMatch = options.gameMode === 'match';
@@ -193,7 +194,18 @@ function buildGameState(
         history: [],
         stateVersion: 1,
         createdAt: Date.now(),
+        // Always record the mode (including 'classic') so clients can render the
+        // correct UI. Previously only duet/match set it, leaving classic games
+        // with an undefined gameMode that the client mistook for match mode.
+        gameMode: options.gameMode ?? 'classic',
     };
+
+    // Persist the full resolved word pool (not just the 25 selected board words)
+    // so match rounds can draw a fresh board from the same source. Falls back to
+    // the board words if the pool is not supplied (older callers).
+    if (wordPool && wordPool.length >= boardWords.length) {
+        base.wordPool = wordPool;
+    }
 
     if (isDuet) {
         base.gameMode = 'duet';
@@ -289,7 +301,7 @@ export async function createGame(roomCode: string, options: CreateGameOptions = 
             const { words, usedWordListId } = await resolveGameWords(roomCode, options);
             const boardWords = selectBoardWords(words, numericSeed);
             const layout = generateBoardLayout(numericSeed, isDuet);
-            const game = buildGameState(seed, usedWordListId, boardWords, layout, options);
+            const game = buildGameState(seed, usedWordListId, boardWords, layout, options, words);
 
             await persistGameState(redis, roomCode, game);
             notifyGameMutation(roomCode);
@@ -345,6 +357,7 @@ export async function revealCard(
                 ALREADY_REVEALED: GameStateError.cardAlreadyRevealed(index),
                 NOT_YOUR_TURN: PlayerError.notYourTurn(playerTeam),
                 INVALID_INDEX: new ValidationError('Invalid card index'),
+                GAME_PAUSED: GameStateError.gamePaused(),
             };
 
             const result = await executeLuaScript<RevealResult>(
@@ -388,6 +401,7 @@ export async function endTurn(
                 NO_GAME: GameStateError.noActiveGame(),
                 GAME_OVER: GameStateError.gameOver(),
                 NOT_YOUR_TURN: PlayerError.notYourTurn(expectedTeam as Team),
+                GAME_PAUSED: GameStateError.gamePaused(),
             };
 
             const result = await executeLuaScript<EndTurnResult>(
@@ -559,15 +573,17 @@ export async function pauseGame(roomCode: string): Promise<void> {
     const gameKey = `room:${roomCode}:game`;
     await withLock(
         `reveal:${roomCode}`,
-        () =>
-            executeGameTransaction(
+        async () => {
+            await executeGameTransaction(
                 gameKey,
                 (game: GameState) => {
                     if (game.gameOver) throw GameStateError.gameOver();
                     game.paused = true;
                 },
                 `pauseGame-${roomCode}`
-            ),
+            );
+            notifyGameMutation(roomCode);
+        },
         { lockTimeout: LOCKS.CARD_REVEAL * 1000, maxRetries: 5 }
     );
 }
@@ -579,14 +595,18 @@ export async function resumeGame(roomCode: string): Promise<void> {
     const gameKey = `room:${roomCode}:game`;
     await withLock(
         `reveal:${roomCode}`,
-        () =>
-            executeGameTransaction(
+        async () => {
+            await executeGameTransaction(
                 gameKey,
                 (game: GameState) => {
                     game.paused = false;
                 },
                 `resumeGame-${roomCode}`
-            ),
+            );
+            // Resuming is a state change bots and clients must react to; without
+            // this a bot on the acting seat never wakes up after a pause.
+            notifyGameMutation(roomCode);
+        },
         { lockTimeout: LOCKS.CARD_REVEAL * 1000, maxRetries: 5 }
     );
 }
@@ -754,41 +774,59 @@ export async function startNextRound(
         async () => {
             const redis: RedisClient = getRedis();
 
-            if (!currentGame.gameOver) {
+            // Re-read the authoritative state under the lock rather than trusting
+            // the caller's snapshot: two concurrent game:nextRound calls would
+            // otherwise both pass these guards on the same stale `currentGame` and
+            // each regenerate a board (phantom round, lost bonus).
+            const freshGame = (await getGame(roomCode)) ?? currentGame;
+
+            if (!freshGame.gameOver) {
                 throw RoomError.gameInProgress(roomCode);
             }
-            if (currentGame.matchOver) {
+            if (freshGame.matchOver) {
                 throw GameStateError.gameOver();
             }
 
-            const nextRound = (currentGame.matchRound ?? 1) + 1;
+            const nextRound = (freshGame.matchRound ?? 1) + 1;
 
             const seed = generateSeed();
             const numericSeed = hashString(seed);
 
-            const { words, usedWordListId } = await resolveGameWords(roomCode, options);
+            // Reuse the full word pool from the prior round so a fresh board is
+            // drawn from the same source. `freshGame.words` is only the 25 board
+            // words, so passing those would reshuffle the identical set every
+            // round — draw from the persisted pool instead.
+            const poolOverride = freshGame.wordPool && freshGame.wordPool.length > 0 ? freshGame.wordPool : undefined;
+            const { words, usedWordListId } = await resolveGameWords(roomCode, {
+                ...options,
+                wordList: poolOverride ?? options.wordList,
+            });
             const boardWords = selectBoardWords(words, numericSeed);
-            const layout = generateBoardLayout(numericSeed, false);
 
-            // Explicitly alternate first team based on previous round
-            const previousFirstTeam = currentGame.firstTeamHistory?.slice(-1)[0];
-            if (previousFirstTeam) {
-                layout.firstTeam = previousFirstTeam === 'red' ? 'blue' : 'red';
-            }
+            // Alternate the first team from the previous round, forcing it into
+            // board generation so the card counts (9/8) and types array stay
+            // consistent with firstTeam.
+            const previousFirstTeam = freshGame.firstTeamHistory?.slice(-1)[0];
+            const forcedFirstTeam: 'red' | 'blue' | undefined = previousFirstTeam
+                ? previousFirstTeam === 'red'
+                    ? 'blue'
+                    : 'red'
+                : undefined;
+            const layout = generateBoardLayout(numericSeed, false, forcedFirstTeam);
 
             const matchOptions: CreateGameOptions = {
                 ...options,
                 gameMode: 'match',
                 matchCarryOver: {
                     matchRound: nextRound,
-                    redMatchScore: currentGame.redMatchScore ?? 0,
-                    blueMatchScore: currentGame.blueMatchScore ?? 0,
-                    roundHistory: currentGame.roundHistory ?? [],
-                    firstTeamHistory: currentGame.firstTeamHistory ?? [],
+                    redMatchScore: freshGame.redMatchScore ?? 0,
+                    blueMatchScore: freshGame.blueMatchScore ?? 0,
+                    roundHistory: freshGame.roundHistory ?? [],
+                    firstTeamHistory: freshGame.firstTeamHistory ?? [],
                 },
             };
 
-            const game = buildGameState(seed, usedWordListId, boardWords, layout, matchOptions);
+            const game = buildGameState(seed, usedWordListId, boardWords, layout, matchOptions, words);
 
             await persistGameState(redis, roomCode, game);
             notifyGameMutation(roomCode);

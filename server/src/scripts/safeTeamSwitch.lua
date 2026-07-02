@@ -70,8 +70,10 @@ else
 end
 player.lastSeen = now
 
--- Clear team-specific roles when switching teams
-if oldTeam ~= actualNewTeam and (oldRole == 'spymaster' or oldRole == 'clicker') then
+-- Clear team-bound roles when switching teams. advisor is team-bound too
+-- (setRole.lua enforces one advisor per team), so it must be demoted alongside
+-- spymaster/clicker to preserve the one-holder-per-team invariant.
+if oldTeam ~= actualNewTeam and (oldRole == 'spymaster' or oldRole == 'clicker' or oldRole == 'advisor') then
     player.role = 'spectator'
 end
 

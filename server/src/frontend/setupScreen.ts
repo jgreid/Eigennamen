@@ -280,7 +280,9 @@ async function handleHostSubmit(): Promise<void> {
         if (isClientConnected()) {
             EigennamenClient.updateSettings({
                 gameMode,
-                timerSeconds: timerSeconds > 0 ? timerSeconds : undefined,
+                // Server settings schema expects `turnTimer` (seconds); `timerSeconds`
+                // was silently stripped, so the host's configured timer never applied.
+                turnTimer: timerSeconds > 0 ? timerSeconds : null,
                 teamNames: { red: redName, blue: blueName },
             });
         }

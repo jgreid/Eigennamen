@@ -37,6 +37,12 @@ if game.gameOver then
     return cjson.encode({error = 'GAME_OVER'})
 end
 
+-- Reject endTurn on a paused game atomically (defense in depth), matching
+-- submitClue.lua / revealCard.lua so no turn advances while the game is paused.
+if game.paused then
+    return cjson.encode({error = 'GAME_PAUSED'})
+end
+
 -- Validate the calling team matches current turn (prevents race condition)
 if expectedTeam and expectedTeam ~= '' and game.currentTurn ~= expectedTeam then
     return cjson.encode({error = 'NOT_YOUR_TURN'})

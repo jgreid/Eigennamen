@@ -129,6 +129,33 @@ describe('disconnectHandler', () => {
             );
         });
 
+        it('should prefer a human over a bot when transferring host', async () => {
+            playerService.getPlayer
+                .mockResolvedValueOnce({
+                    sessionId: 'sess-1',
+                    roomCode: 'ROOM01',
+                    nickname: 'Host',
+                    team: 'red',
+                    isHost: true,
+                    connected: true,
+                })
+                .mockResolvedValueOnce(null); // re-check: host didn't reconnect
+
+            playerService.getPlayersInRoom
+                .mockResolvedValueOnce([]) // for notification
+                .mockResolvedValueOnce([
+                    { sessionId: 'bot-1', nickname: 'Bot', connected: true, isBot: true },
+                    { sessionId: 'sess-2', nickname: 'Bob', connected: true },
+                ]);
+            playerService.atomicHostTransfer.mockResolvedValue({ success: true });
+
+            await handleDisconnect(mockIo, mockSocket, 'transport close');
+
+            // A bot cannot run host-only functions, so the human must be chosen
+            // even though the bot appears first in the list.
+            expect(playerService.atomicHostTransfer).toHaveBeenCalledWith('sess-1', 'sess-2', 'ROOM01');
+        });
+
         it('should skip host transfer if host reconnected', async () => {
             playerService.getPlayer
                 .mockResolvedValueOnce({
@@ -411,14 +438,32 @@ describe('disconnectHandler', () => {
         });
 
         it('should end turn and emit events on timer expiry', async () => {
-            gameService.getGame.mockResolvedValue({ gameOver: false });
+            gameService.getGame.mockResolvedValue({ gameOver: false, currentTurn: 'red' });
             gameService.endTurn.mockResolvedValue({ currentTurn: 'blue', previousTurn: 'red' });
 
             await callback('ROOM01');
 
-            expect(gameService.endTurn).toHaveBeenCalledWith('ROOM01', 'Timer');
+            // The observed turn is passed as the expected-team guard so a stale
+            // expiry cannot double-flip after a reveal already ended the turn.
+            expect(gameService.endTurn).toHaveBeenCalledWith('ROOM01', 'Timer', 'red');
             expect(emitToRoom).toHaveBeenCalledWith('ROOM01', expect.stringContaining('turnEnded'), expect.any(Object));
             expect(emitToRoom).toHaveBeenCalledWith('ROOM01', expect.stringContaining('expired'), expect.any(Object));
+        });
+
+        it('should no-op (no broadcast) when the turn already advanced (stale expiry)', async () => {
+            gameService.getGame.mockResolvedValue({ gameOver: false, currentTurn: 'red' });
+            // A concurrent reveal/endTurn already flipped the turn, so endTurn.lua
+            // rejects with NOT_YOUR_TURN.
+            gameService.endTurn.mockRejectedValue(Object.assign(new Error('not your turn'), { code: 'NOT_YOUR_TURN' }));
+
+            await callback('ROOM01');
+
+            expect(gameService.endTurn).toHaveBeenCalledWith('ROOM01', 'Timer', 'red');
+            expect(emitToRoom).not.toHaveBeenCalledWith(
+                'ROOM01',
+                expect.stringContaining('turnEnded'),
+                expect.any(Object)
+            );
         });
 
         it('should handle errors in timer expiry', async () => {
