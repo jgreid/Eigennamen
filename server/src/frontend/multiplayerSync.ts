@@ -67,6 +67,10 @@ export const multiplayerEventNames: string[] = [
     'statsUpdated',
     'chatMessage',
     'spectatorChatMessage',
+    // Advisor-bot suggestions. Must be listed so cleanupMultiplayerListeners()
+    // removes it on leave — otherwise the listener accumulates and duplicates
+    // across every leave/join cycle.
+    'botSuggestion',
 ];
 
 // Track DOM listeners for cleanup to prevent memory leaks
@@ -108,6 +112,12 @@ export function cleanupMultiplayerListeners(): void {
 export function syncLocalPlayerState(player: ServerPlayerData): void {
     if (!player) return;
     setPlayerRole(player.role, player.team);
+    // Sync host status too: a host transfer that happened while this client was
+    // offline is reflected in the reconnect/resync `you` payload. Without this the
+    // client's isHost stays stale (host controls hidden/shown incorrectly).
+    if (typeof player.isHost === 'boolean') {
+        state.isHost = player.isHost;
+    }
     updateChatForRole();
 }
 
@@ -139,6 +149,9 @@ export function resetMultiplayerState(): void {
     state.lastRevealedWasCorrect = false;
     state.pendingUIUpdate = false;
     state.multiplayerPlayers = [];
+    // Clear advisor suggestions so stale badges don't render onto the next room's board.
+    state.botSuggestions = [];
+    state.botSuggestionAdvisor = null;
     document.querySelectorAll('.card.revealing').forEach((c) => c.classList.remove('revealing'));
 }
 

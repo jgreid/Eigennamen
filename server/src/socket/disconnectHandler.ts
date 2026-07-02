@@ -174,6 +174,25 @@ async function handleDisconnect(
             return;
         }
 
+        // Zombie-socket guard: if a newer socket already owns this session (the
+        // player reconnected on a fresh socket while this old one lingered until
+        // its ping-timeout), this disconnect is stale. Acting on it would mark an
+        // actively-connected player disconnected, transfer host away from them,
+        // and eventually schedule their removal. Skip entirely — the mapping only
+        // points elsewhere when a live newer socket has taken over. If the mapping
+        // is absent (expired), fall through and handle the disconnect normally.
+        const currentSocketId = await withTimeout(
+            playerService.getSocketId(socket.sessionId),
+            TIMEOUTS.REDIS_OPERATION,
+            `disconnect-getSocketId-${socket.sessionId}`
+        );
+        if (currentSocketId && currentSocketId !== socket.id) {
+            logger.info(
+                `Ignoring stale disconnect for session ${socket.sessionId}: socket ${socket.id} superseded by ${currentSocketId}`
+            );
+            return;
+        }
+
         const roomCode = player.roomCode;
 
         // Generate reconnection token before marking as disconnected

@@ -582,6 +582,12 @@ Run `npm run format` to auto-format, `npm run format:check` to verify.
 - **Paused-state Lua guards**: `revealCard.lua`, `endTurn.lua`, and `submitClue.lua` all reject mutations on a paused game atomically (returning `GAME_PAUSED`), independent of the handler's cached-state check. `pauseGame`/`resumeGame` emit `notifyGameMutation` so bots and clients react to pause/resume.
 - **Timer-expiry turn guard**: The timer-expiry callback passes the observed `currentTurn` as the expected-team guard to `endTurn`, so a stale expiry that races a reveal/endTurn no-ops (NOT_YOUR_TURN) instead of double-flipping and skipping a turn.
 - **Host transfer prefers humans**: Disconnect-driven host transfer excludes bots when a human candidate remains connected — a bot cannot run host-only functions, so handing it host would lock the room.
+- **Observer role is locked during an active game**: `canChangeTeamOrRole` blocks an observer from changing into ANY other role (including plain spectator) while a game is live — an observer has seen the whole board, and allowing the step-down opened an `observer → spectator → clicker` laundering path. Role changes are free again once the game is over.
+- **Zombie-socket disconnect guard**: `handleDisconnect` no-ops when a newer socket already owns the session (`getSocketId(sessionId) !== socket.id`), so a lingering old socket's late disconnect can't mark an actively-reconnected player disconnected, transfer host away from them, or schedule their removal.
+- **Mutation-notifier listener isolation**: `notifyGameMutation` runs each `onGameMutation` listener in its own try/catch — it fires synchronously inside game write paths, so a throwing listener must not abort the others or poison the committed mutation's result.
+- **Bot notification coalescing**: `botController` records mutations that arrive while a tick is in flight (`pending`) and re-ticks once it finishes, so a notification landing between a tick's final state read and its exit isn't dropped (which would stall the bot). It also re-verifies the seat after its "thinking" pause so a removed/kicked bot can't land one last move.
+- **Bot-only room cleanup**: `leaveRoom` tears the room down when no humans remain (bots are first-class players that never disconnect, so a bots-only room would otherwise linger until TTL).
+- **addBot seat serialization**: `addBot` runs its seat-occupancy check and join under a per-room `bot-manage:` lock so two simultaneous `bot:add` calls can't both seat the same team+role.
 
 ## Key Services
 

@@ -269,8 +269,13 @@ export function handleModalKeydown(e: KeyboardEvent): void {
 
     // Tab key focus trapping
     if (e.key === 'Tab') {
+        // Exclude disabled controls: .focus() on a disabled element is a no-op, so
+        // if the first/last focusable element is disabled (e.g. the replay modal's
+        // prev/next buttons at a boundary) Tab wrapping would stick and the trap
+        // would break. :disabled only applies to form controls, which is exactly
+        // what needs excluding here (anchors/[tabindex] are never :disabled).
         const focusableElements = state.activeModal.querySelectorAll(
-            'button, input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])'
+            'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
         );
         if (focusableElements.length === 0) return;
 

@@ -327,6 +327,43 @@ describe('playerContext', () => {
             });
             expect(result.allowed).toBe(true);
         });
+
+        // Regression (finding 13): an observer has seen the whole board, so during an
+        // active game they cannot step down to spectator (which used to be allowed and
+        // enabled an observer -> spectator -> clicker launder) nor become a playing role.
+        it('blocks observer from stepping down to spectator during active game', () => {
+            const result = canChangeTeamOrRole(
+                {
+                    player: { role: 'observer', team: null },
+                    game: { gameOver: false, currentTurn: 'red' },
+                },
+                { targetRole: 'spectator' }
+            );
+            expect(result.allowed).toBe(false);
+            expect(result.reason).toContain('observer');
+        });
+
+        it('blocks observer from becoming a clicker during active game', () => {
+            const result = canChangeTeamOrRole(
+                {
+                    player: { role: 'observer', team: null },
+                    game: { gameOver: false, currentTurn: 'red' },
+                },
+                { targetRole: 'clicker' }
+            );
+            expect(result.allowed).toBe(false);
+        });
+
+        it('allows observer to change once the game is over', () => {
+            const result = canChangeTeamOrRole(
+                {
+                    player: { role: 'observer', team: null },
+                    game: { gameOver: true, currentTurn: 'red' },
+                },
+                { targetRole: 'spectator' }
+            );
+            expect(result.allowed).toBe(true);
+        });
     });
 
     describe('syncSocketRooms', () => {

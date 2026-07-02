@@ -43,8 +43,14 @@ export function subscribe(topic: string, callback: Callback): () => void {
 
     return () => {
         const idx = list.indexOf(callback);
-        if (idx >= 0) list.splice(idx, 1);
-        if (list.length === 0) map.delete(key);
+        // Already unsubscribed: do nothing. Calling a stale unsubscribe twice must
+        // not fall through to the prune below and delete a newer list that was
+        // registered at the same key after this one emptied out.
+        if (idx < 0) return;
+        list.splice(idx, 1);
+        // Only prune the key when THIS list is still the registered one and is now
+        // empty — never clobber a newer list captured under the same key.
+        if (list.length === 0 && map.get(key) === list) map.delete(key);
     };
 }
 

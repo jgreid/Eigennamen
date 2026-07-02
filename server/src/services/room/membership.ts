@@ -228,9 +228,13 @@ export async function leaveRoom(code: string, sessionId: string): Promise<LeaveR
     await playerService.removePlayer(sessionId);
 
     // Re-check actual player count from Redis (not the stale snapshot) to handle
-    // concurrent leaves that may have emptied the room since we fetched allPlayers
+    // concurrent leaves that may have emptied the room since we fetched allPlayers.
+    // Bots are first-class players that never disconnect, so a room left with only
+    // bots would otherwise never be cleaned up here — treat "no humans remain" the
+    // same as empty and tear the room (and its bots) down.
     const currentPlayers: Player[] = await playerService.getPlayersInRoom(code);
-    if (currentPlayers.length === 0) {
+    const humansRemaining = currentPlayers.filter((p: Player) => !p.isBot).length;
+    if (currentPlayers.length === 0 || humansRemaining === 0) {
         await cleanupRoom(code);
         roomDeleted = true;
     }

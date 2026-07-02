@@ -19,6 +19,7 @@ import { hashString } from './game/boardGenerator';
 import { strategyLabel } from '../bots/strategies/registry';
 import { botConfigSchema } from '../validators/botSchemas';
 import { ATOMIC_JOIN_SCRIPT } from '../scripts';
+import { withLock } from '../utils/distributedLock';
 import type { BotConfig } from '../bots/strategies/types';
 
 export interface AddBotOptions {
@@ -40,6 +41,19 @@ function shortId(): string {
  * Returns the created bot Player.
  */
 export async function addBot(roomCode: string, opts: AddBotOptions): Promise<Player> {
+    // Serialize concurrent bot adds for a room so the seat-occupancy check below
+    // (a read-then-join) can't be passed by two simultaneous bot:add calls that
+    // then both seat the same team+role. A racing human player:setRole is still
+    // rejected independently by SET_ROLE_SCRIPT's ROLE_TAKEN check against the
+    // (connected) bot, so the remaining unlocked window is the narrow
+    // simultaneous-first-claim case, which yields only a dormant duplicate seat.
+    return withLock(`bot-manage:${roomCode}`, () => addBotLocked(roomCode, opts), {
+        lockTimeout: 5000,
+        maxRetries: 3,
+    });
+}
+
+async function addBotLocked(roomCode: string, opts: AddBotOptions): Promise<Player> {
     const redis: RedisClient = getRedis();
 
     // Enforce the same one-spymaster/one-clicker-per-team invariant the human

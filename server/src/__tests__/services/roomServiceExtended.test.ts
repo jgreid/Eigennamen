@@ -335,6 +335,20 @@ describe('Room Service', () => {
             expect(result.roomDeleted).toBe(true);
         });
 
+        test('deletes the room when only bots remain after the last human leaves', async () => {
+            // Regression (finding 42): bots are first-class players that never
+            // disconnect, so a room left with only bots must still be cleaned up.
+            const playerService = require('../../services/playerService');
+            playerService.getPlayersInRoom.mockResolvedValueOnce([]).mockResolvedValueOnce([
+                { sessionId: 'bot-1', nickname: 'Bot A', isBot: true, connected: true },
+                { sessionId: 'bot-2', nickname: 'Bot B', isBot: true, connected: true },
+            ]);
+
+            const result = await roomService.leaveRoom('leave-room', 'host-1');
+
+            expect(result.roomDeleted).toBe(true);
+        });
+
         test('handles leaving non-existent room', async () => {
             const result = await roomService.leaveRoom('notexist', 'player-1');
 

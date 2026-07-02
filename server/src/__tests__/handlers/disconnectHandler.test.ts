@@ -32,6 +32,9 @@ jest.mock('../../services/playerService', () => ({
     getRoomStats: jest.fn().mockResolvedValue({ totalPlayers: 0 }),
     generateReconnectionToken: jest.fn().mockResolvedValue('abc123'),
     atomicHostTransfer: jest.fn().mockResolvedValue({ success: true }),
+    // Default: no live newer socket owns the session, so the zombie-socket guard
+    // falls through and the disconnect is handled normally.
+    getSocketId: jest.fn().mockResolvedValue(null),
 }));
 
 jest.mock('../../services/gameService', () => ({
@@ -77,6 +80,43 @@ describe('disconnectHandler', () => {
             playerService.getPlayer.mockResolvedValue(null);
             await handleDisconnect(mockIo, mockSocket, 'transport close');
             expect(playerService.handleDisconnect).not.toHaveBeenCalled();
+        });
+
+        // Regression (finding 14): a zombie socket's late disconnect must not clobber
+        // a player who already reconnected on a newer socket.
+        it('should no-op when a newer socket already owns the session', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'sess-1',
+                roomCode: 'ROOM01',
+                nickname: 'Alice',
+                team: 'red',
+                isHost: true,
+                connected: true,
+            });
+            // A different socket owns the session now (player reconnected).
+            playerService.getSocketId.mockResolvedValue('sock-2');
+
+            await handleDisconnect(mockIo, mockSocket, 'transport close');
+
+            expect(playerService.handleDisconnect).not.toHaveBeenCalled();
+            expect(playerService.atomicHostTransfer).not.toHaveBeenCalled();
+            expect(safeEmitToRoom).not.toHaveBeenCalled();
+        });
+
+        it('should proceed when this socket still owns the session', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'sess-1',
+                roomCode: 'ROOM01',
+                nickname: 'Alice',
+                team: 'red',
+                isHost: false,
+                connected: true,
+            });
+            playerService.getSocketId.mockResolvedValue('sock-1'); // same as mockSocket.id
+
+            await handleDisconnect(mockIo, mockSocket, 'transport close');
+
+            expect(playerService.handleDisconnect).toHaveBeenCalledWith('sess-1');
         });
 
         it('should mark player as disconnected and notify room', async () => {

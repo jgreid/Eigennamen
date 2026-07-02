@@ -114,6 +114,23 @@ export function doConnect(
         const isSecure = url.startsWith('https://');
         const transports = isSecure ? ['websocket'] : ['polling', 'websocket'];
 
+        // Tear down any pre-existing socket before creating a new one. During a
+        // transient disconnect the old socket.io Manager keeps auto-reconnecting;
+        // creating a second socket without disconnecting the first orphans the old
+        // one with its listeners still attached (setupEventListeners' cleanup would
+        // run against the NEW socket, not the old), leaking a live connection and
+        // duplicating events. Clean listeners while host.socket still points at the
+        // old instance, then disconnect it.
+        if (host.socket) {
+            cleanupSocketListeners(host);
+            try {
+                host.socket.disconnect();
+            } catch {
+                /* already closed */
+            }
+            host.socket = null;
+        }
+
         const socket = io(url, {
             auth: {
                 sessionId: host.sessionId,

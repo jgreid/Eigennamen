@@ -16,6 +16,10 @@ const mockRedis = {
 
 jest.mock('../../config/redis', () => ({ getRedis: () => mockRedis }));
 jest.mock('../../utils/logger', () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() }));
+// addBot serializes under a per-room lock; pass it through in unit tests.
+jest.mock('../../utils/distributedLock', () => ({
+    withLock: jest.fn((_key: string, fn: () => Promise<unknown>) => fn()),
+}));
 jest.mock('../../services/playerService', () => ({
     getPlayersInRoom: jest.fn(),
     getTeamMembers: jest.fn(),
@@ -80,6 +84,19 @@ describe('botService.addBot', () => {
         ).rejects.toMatchObject({ code: ERROR_CODES.INVALID_INPUT });
         // Must not have created any player record for the rejected bot.
         expect(mockRedis.eval).not.toHaveBeenCalled();
+    });
+
+    it('serializes the seat-occupancy check and join under a per-room lock', async () => {
+        // Regression (finding 16/25): the check-then-join must run inside a lock so
+        // two simultaneous bot:add calls can't both seat the same team+role.
+        const { withLock } = require('../../utils/distributedLock');
+        await addBot('ROOM01', {
+            team: 'blue',
+            role: 'clicker',
+            strategyId: 'greedyClicker',
+            skillPreset: 'expert',
+        });
+        expect(withLock).toHaveBeenCalledWith('bot-manage:ROOM01', expect.any(Function), expect.any(Object));
     });
 
     it('rejects when the room is at capacity', async () => {
