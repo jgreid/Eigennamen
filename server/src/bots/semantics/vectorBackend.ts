@@ -25,7 +25,7 @@
 import { openSync, readSync, closeSync, existsSync } from 'fs';
 import type { SemanticBackend } from './backend';
 import { tableBackend } from './tableBackend';
-import { caseSignal } from './properAssociations';
+import { referenceSignal } from './properAssociations';
 import { normalizeClueWord } from '../../shared/gameRules';
 import logger from '../../utils/logger';
 
@@ -296,7 +296,7 @@ export function makeVectorBackend(options: VectorBackendOptions): SemanticBacken
             // reference. Embeddings conflate every sense of a token under one
             // vector, so the curated proper table's explicit reading (via the
             // fallback chain) can only sharpen the score — take the max.
-            if (caseSignal(a) === 'proper' || caseSignal(b) === 'proper') {
+            if (referenceSignal(a) === 'proper' || referenceSignal(b) === 'proper') {
                 return Math.max(cosine ?? 0, fallback.relatedness(a, b));
             }
             if (cosine !== null) return cosine;
@@ -310,7 +310,7 @@ export function makeVectorBackend(options: VectorBackendOptions): SemanticBacken
             // For a proper-cased reference, the curated fame rating (via the
             // fallback chain) is a better "will the guessers know it?" prior
             // than the file rank of the sense-conflated token.
-            if (caseSignal(word) === 'proper') {
+            if (referenceSignal(word) === 'proper') {
                 const fame = fallback.commonness?.(word);
                 if (fame !== undefined && fame < 1) return fame;
             }

@@ -866,6 +866,29 @@ regenerate with `npm run bots:associations` (currently 91 clue concepts / 704
 verified pairs). The `tableBackend` falls back to lexical similarity for any pair
 not covered, so custom word lists still degrade gracefully.
 
+### Custom semantic maps (SHIPPED — the prepared-list path)
+
+The "give the bots the list in advance" primitive is live: `npm run bots:map`
+(scripts/build-semantic-map.mjs) sends a custom word list to Claude in batches
+and curates the same two structures the default list ships with — concept
+groups and fame-rated proper-noun references (canonical case, honouring the
+clue-capitalization signal) — into a JSON **semantic map**
+(`semantics/mapBackend.ts`). At runtime every map in `BOT_SEMANTIC_MAPS_DIR`
+(default `src/bots/data/semantic-maps`) is merged into one overlay in the
+backend chain:
+
+```
+vectors? → custom maps → baked table → lexical
+```
+
+Merged (rather than hash-keyed per list) because associations are pairwise
+facts that only fire when their words are on the board — one directory serves
+any number of lists, and unprepared lists degrade to lexical exactly as
+before. The overlay reuses the baked table's scoring machinery
+(`semantics/associationIndex.ts`) so both grade identically, and per-key
+commonness/fame from the map feeds the spymaster's rarity penalty. See
+[BOT_SEMANTIC_MAPS.md](BOT_SEMANTIC_MAPS.md).
+
 ### Backend choice, updated
 
 - **ConceptNet Numberbatch stays the strong default** and is *more* justified

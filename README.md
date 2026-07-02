@@ -197,6 +197,23 @@ FROZEN
 - Recommended **50+ words** for better variety between games
 - Words are automatically converted to uppercase
 
+### Playing with AI bots on a custom list
+
+Out of the box, the AI bots only carry semantic knowledge for the default word
+list — on a custom list their clues degrade to letter-pattern similarity. To
+get full-strength bots, prepare the list in advance by building a **semantic
+map** for it (an LLM curates concept groups and pop-culture references over
+your exact words):
+
+```bash
+cd server
+npm run bots:map -- --words path/to/my-list.txt
+```
+
+Drop-in and restart — see [docs/BOT_SEMANTIC_MAPS.md](docs/BOT_SEMANTIC_MAPS.md)
+for details. Unprepared lists still work; the bots just play far below their
+potential on them.
+
 ## Customizing Team Names
 
 1. Click **Settings**

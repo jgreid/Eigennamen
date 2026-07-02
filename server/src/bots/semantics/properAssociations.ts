@@ -77,6 +77,18 @@ export const PROPER_ASSOCIATIONS: Record<string, string[]> = {
     Trojan: ['HORSE', 'WAR', 'GREECE'],
     Zeus: ['GREECE', 'BOLT', 'KING'],
 
+    // Acronyms & intercaps — canonical case IS the reference ("case matters
+    // for each letter"): NASA/CIA carry the proper signal in ALL CAPS because
+    // that is their canonical form; McDonald's carries it via the intercap.
+    CIA: ['AGENT', 'SPY', 'CODE', 'WASHINGTON'],
+    DNA: ['CODE', 'CELL', 'LAB'],
+    FBI: ['AGENT', 'SPY', 'WASHINGTON'],
+    KGB: ['SPY', 'AGENT', 'MOSCOW'],
+    "McDonald's": ['KID', 'GOLD'],
+    NBA: ['BALL', 'COURT', 'STAR'],
+    USA: ['AMERICA', 'WASHINGTON'],
+    USSR: ['MOSCOW', 'REVOLUTION'],
+
     // Games & tech
     iPhone: ['APPLE', 'SCREEN', 'TABLET'],
     Lego: ['BLOCK', 'PLASTIC'],
@@ -134,6 +146,8 @@ export const DEFAULT_PROPER_FAME = 0.9;
 export const PROPER_FAME: Record<string, number> = {
     Bollywood: 0.75,
     Camelot: 0.7,
+    KGB: 0.8,
+    USSR: 0.8,
     Excalibur: 0.75,
     Gotham: 0.75,
     Hercules: 0.8,
@@ -169,4 +183,21 @@ export function caseSignal(word: string): CaseSignal {
     const hasLower = /\p{Ll}/u.test(word);
     if (!hasLower) return 'neutral';
     return /\p{Lu}/u.test(word) ? 'proper' : 'common';
+}
+
+/** Exact-case key set — "case matters for each letter". */
+const CANONICAL_KEYS = new Set(Object.keys(PROPER_ASSOCIATIONS));
+
+/**
+ * The case-signal a CLUE carries, including canonical-form matching: an
+ * ALL-CAPS clue that letter-for-letter matches a reference whose canonical
+ * form IS all caps ("NASA", "CIA", "UFO") carries the proper signal — an
+ * acronym has no lowercase letters to signal with, so its exact canonical
+ * case is the signal. Any other ALL-CAPS word stays neutral (legacy clients,
+ * bot concept clues, board words).
+ */
+export function referenceSignal(word: string): CaseSignal {
+    const sig = caseSignal(word);
+    if (sig === 'neutral' && /\p{Lu}/u.test(word) && CANONICAL_KEYS.has(word)) return 'proper';
+    return sig;
 }

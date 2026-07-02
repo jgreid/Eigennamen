@@ -1,20 +1,28 @@
 /**
  * Semantic-backend selection.
  *
- * Resolves which SemanticBackend the bot strategies use. If the operator points
- * BOT_EMBEDDINGS_PATH at a word-vectors file (fastText / GloVe / word2vec /
- * ConceptNet Numberbatch) it loads the vector backend; otherwise it uses the
- * offline-baked association table. Either way the strategies are unchanged — the
- * choice happens behind the SemanticBackend interface.
+ * Resolves which SemanticBackend the bot strategies use, as a chain:
+ *
+ *   vectors (BOT_EMBEDDINGS_PATH)? → custom semantic maps? → baked table → lexical
+ *
+ * Custom semantic maps are per-word-list association tables built offline by
+ * `npm run bots:map` (an LLM curates concepts + references over a custom word
+ * list — see docs/BOT_SEMANTIC_MAPS.md). Every *.json in the maps directory
+ * (BOT_SEMANTIC_MAPS_DIR, default src/bots/data/semantic-maps under the server
+ * cwd) is merged into one overlay, so bots reach full table-quality play on
+ * any custom list that was prepared in advance; unprepared lists fall through
+ * to the lexical floor as before ("otherwise you get what you get").
  *
  * Resolution is memoised: the (potentially file-reading) construction runs once,
  * lazily, on the first bot that needs a semantic strategy — never at import time,
  * so importing the registry stays side-effect-free and tests with no env var keep
  * getting the deterministic table backend.
  */
+import { join } from 'path';
 import type { SemanticBackend } from './backend';
 import { tableBackend } from './tableBackend';
 import { makeVectorBackend } from './vectorBackend';
+import { loadSemanticMaps, makeCustomMapBackend } from './mapBackend';
 import logger from '../../utils/logger';
 
 let cached: SemanticBackend | undefined;
@@ -26,14 +34,20 @@ function readNumberEnv(name: string): number | undefined {
     return Number.isFinite(n) && n > 0 ? n : undefined;
 }
 
-/** The semantic backend for bot strategies (vector if configured, else table). */
+/** The semantic backend for bot strategies (see the chain above). */
 export function getSemanticBackend(): SemanticBackend {
     if (cached) return cached;
+
+    // Custom semantic maps overlay the baked table when present.
+    const mapsDir = process.env.BOT_SEMANTIC_MAPS_DIR ?? join(process.cwd(), 'src', 'bots', 'data', 'semantic-maps');
+    const maps = loadSemanticMaps(mapsDir);
+    const base = maps.length > 0 ? makeCustomMapBackend(maps, tableBackend) : tableBackend;
 
     const path = process.env.BOT_EMBEDDINGS_PATH;
     if (path) {
         const vb = makeVectorBackend({
             path,
+            fallback: base,
             maxWords: readNumberEnv('BOT_EMBEDDINGS_MAX_WORDS'),
             vocabCap: readNumberEnv('BOT_EMBEDDINGS_VOCAB_CAP'),
         });
@@ -42,17 +56,21 @@ export function getSemanticBackend(): SemanticBackend {
             return vb;
         }
         // path set but the file was missing/unusable — makeVectorBackend already
-        // logged why; fall through to the table so bots still function.
+        // logged why; fall through so bots still function.
     }
 
-    cached = tableBackend;
-    // One-time operator visibility: weak/strong bots depend entirely on this, and
-    // the difference is otherwise invisible. Logged once (the result is memoised).
-    logger.info(
-        'Bot semantics: using the offline association table (lexical fallback for ' +
-            'uncovered words). For stronger, meaning-based clues set BOT_EMBEDDINGS_PATH ' +
-            'to a word-vectors file, or run `npm run dev:bots`. See docs/BOT_EMBEDDINGS.md.'
-    );
+    cached = base;
+    if (base === tableBackend) {
+        // One-time operator visibility: weak/strong bots depend entirely on this,
+        // and the difference is otherwise invisible. Logged once (memoised).
+        logger.info(
+            'Bot semantics: using the offline association table (lexical fallback for ' +
+                'uncovered words). For stronger, meaning-based clues set BOT_EMBEDDINGS_PATH ' +
+                'to a word-vectors file, or run `npm run dev:bots`. For custom word lists, ' +
+                'build a semantic map with `npm run bots:map`. See docs/BOT_EMBEDDINGS.md ' +
+                'and docs/BOT_SEMANTIC_MAPS.md.'
+        );
+    }
     return cached;
 }
 

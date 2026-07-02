@@ -21,7 +21,10 @@
  * dampened to lexical noise, because the reference sense deliberately EXCLUDES
  * the common sense. An all-lowercase clue ("alien") explicitly means the
  * common sense and never reads the proper table. Legacy ALL-CAPS clues carry
- * no signal and take the best of both readings.
+ * no signal and take the best of both readings — EXCEPT an exact match of a
+ * canonical all-caps reference key ("NASA", "CIA"), which carries the proper
+ * signal: case matters for each letter, and an acronym's canonical case is
+ * its signal.
  *
  * The table's keys — common concepts plus display-cased proper references —
  * are the spymaster's candidate clue vocabulary.
@@ -30,41 +33,17 @@ import type { SemanticBackend } from './backend';
 import { lexicalBackend } from './backend';
 import { normalizeClueWord } from '../../shared/gameRules';
 import { ASSOCIATIONS } from './associations';
-import { PROPER_ASSOCIATIONS, PROPER_FAME, DEFAULT_PROPER_FAME, caseSignal } from './properAssociations';
+import { buildAssociationIndex, scoreCommonAssociation } from './associationIndex';
+import {
+    PROPER_ASSOCIATIONS,
+    PROPER_FAME,
+    DEFAULT_PROPER_FAME,
+    caseSignal,
+    referenceSignal,
+} from './properAssociations';
 
-/** Normalized lookup: clue -> set of related board words. */
-const TABLE: Map<string, Set<string>> = new Map(
-    Object.entries(ASSOCIATIONS).map(([clue, words]) => [
-        normalizeClueWord(clue),
-        new Set(words.map((w) => normalizeClueWord(w))),
-    ])
-);
-
-/**
- * Inverted index: board word -> set of concept keys it belongs to. Built from
- * the same table, it lets us measure how strongly two ordinary words relate by
- * how many concept groups they share — the basis for interpreting human clues.
- */
-const MEMBERSHIP: Map<string, Set<string>> = new Map();
-for (const [concept, words] of TABLE) {
-    for (const w of words) {
-        let concepts = MEMBERSHIP.get(w);
-        if (!concepts) {
-            concepts = new Set();
-            MEMBERSHIP.set(w, concepts);
-        }
-        concepts.add(concept);
-    }
-}
-
-/**
- * Partial score for a given number of shared concept groups. Saturating and
- * always < 1 so a co-membership never outranks a direct clue→word hit:
- * 1 shared → 0.50, 2 → 0.67, 3 → 0.75, 4 → 0.80, … (1 - 1/(n+1)).
- */
-function sharedConceptScore(shared: number): number {
-    return shared > 0 ? 1 - 1 / (shared + 1) : 0;
-}
+/** Concept table + inverted membership index (see associationIndex.ts). */
+const INDEX = buildAssociationIndex(ASSOCIATIONS);
 
 /** Normalized proper-reference lookup: key → related board words. */
 const PROPER_TABLE: Map<string, Set<string>> = new Map(
@@ -98,28 +77,7 @@ function properDirect(a: string, b: string): number {
 
 /** The common-sense reading: concept table → co-membership → lexical floor. */
 function commonRelatedness(a: string, b: string): number {
-    const A = normalizeClueWord(a);
-    const B = normalizeClueWord(b);
-    // Direct clue→board-word entry (the table is keyed by clue word; check
-    // both orders so relatedness stays symmetric).
-    if (TABLE.get(A)?.has(B) || TABLE.get(B)?.has(A)) return 1;
-
-    // Graded co-membership: how many concept groups both words belong to.
-    // Helps the clicker interpret human clues that are board-ish words rather
-    // than table keys, and softens otherwise-binary rankings.
-    const ca = MEMBERSHIP.get(A);
-    const cb = MEMBERSHIP.get(B);
-    if (ca && cb) {
-        let shared = 0;
-        // Iterate the smaller set for a cheaper intersection.
-        const [small, large] = ca.size <= cb.size ? [ca, cb] : [cb, ca];
-        for (const c of small) if (large.has(c)) shared++;
-        if (shared > 0) {
-            return Math.max(sharedConceptScore(shared), lexicalBackend.relatedness(a, b));
-        }
-    }
-
-    return lexicalBackend.relatedness(a, b);
+    return scoreCommonAssociation(INDEX, a, b) ?? lexicalBackend.relatedness(a, b);
 }
 
 export const tableBackend: SemanticBackend = {
@@ -127,10 +85,16 @@ export const tableBackend: SemanticBackend = {
     relatedness(a: string, b: string): number {
         if (normalizeClueWord(a) === normalizeClueWord(b)) return 1;
 
-        const aSig = caseSignal(a);
-        const bSig = caseSignal(b);
-        // Mixed case = the house-rule signal for a specific reference. Board
-        // words are stored ALL-CAPS, so only a clue word can carry it.
+        const aSig = referenceSignal(a);
+        const bSig = referenceSignal(b);
+        // An explicit lowercase word is the common sense, PERIOD — the clue
+        // side of the convention outranks any reference reading of its partner
+        // (board words are never lowercase, so a 'common' signal always comes
+        // from the clue).
+        if (aSig === 'common' || bSig === 'common') return commonRelatedness(a, b);
+        // Mixed case = the house-rule signal for a specific reference (or the
+        // exact canonical form of an all-caps acronym like NASA — "case
+        // matters for each letter").
         if (aSig === 'proper' || bSig === 'proper') {
             const reference = aSig === 'proper' ? a : b;
             const other = aSig === 'proper' ? b : a;
@@ -145,21 +109,20 @@ export const tableBackend: SemanticBackend = {
             // (graceful — a human guesser falls back the same way).
             return commonRelatedness(a, b);
         }
-        // Explicit lowercase = explicitly the common sense; never the reference.
-        if (aSig === 'common' || bSig === 'common') return commonRelatedness(a, b);
         // No signal (legacy ALL-CAPS): the best of both readings.
         return Math.max(commonRelatedness(a, b), properDirect(a, b));
     },
     vocabulary(): string[] {
         // Common concept keys plus display-cased proper references — emitting a
         // reference verbatim ("Cinderella") is itself the case signal.
-        return [...TABLE.keys(), ...PROPER_DISPLAY.values()];
+        return [...INDEX.table.keys(), ...PROPER_DISPLAY.values()];
     },
     commonness(word: string): number {
         // Fame prior for proper references ("only clue culture references the
         // guessers are going to know"): feeds the spymaster's rarity penalty,
         // scaled by the persona's commonnessBias. An explicit lowercase word is
-        // the common sense, never judged as a reference.
+        // the common sense, never judged as a reference. (caseSignal, not
+        // referenceSignal: fame keys off the table membership itself here.)
         const fame = PROPER_FAME_NORM.get(normalizeClueWord(word));
         if (fame !== undefined && caseSignal(word) !== 'common') return fame;
         return 1;

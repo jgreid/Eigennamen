@@ -8,6 +8,7 @@ import {
     PROPER_FAME,
     DEFAULT_PROPER_FAME,
     caseSignal,
+    referenceSignal,
 } from '../../bots/semantics/properAssociations';
 import { DEFAULT_WORDS, normalizeClueWord } from '../../shared/gameRules';
 
@@ -26,6 +27,32 @@ describe('caseSignal (the house-rule convention)', () => {
         expect(caseSignal('ALIEN')).toBe('neutral');
         expect(caseSignal('UFO')).toBe('neutral');
         expect(caseSignal('42')).toBe('neutral');
+    });
+});
+
+describe('referenceSignal (case matters for each letter)', () => {
+    it('upgrades exact canonical all-caps references to the proper signal', () => {
+        // Acronyms have no lowercase form to signal with — their canonical
+        // case IS the signal.
+        expect(referenceSignal('NASA')).toBe('proper');
+        expect(referenceSignal('CIA')).toBe('proper');
+        expect(referenceSignal('UFO')).toBe('proper');
+    });
+
+    it('leaves non-canonical ALL CAPS neutral and lowercase common', () => {
+        expect(referenceSignal('ALIEN')).toBe('neutral'); // canonical form is "Alien"
+        expect(referenceSignal('CINDERELLA')).toBe('neutral');
+        expect(referenceSignal('nasa')).toBe('common'); // explicit lowercase opts out
+        expect(referenceSignal('Alien')).toBe('proper');
+        expect(referenceSignal("McDonald's")).toBe('proper');
+    });
+
+    it('every curated key carries the proper signal when emitted verbatim', () => {
+        // The spymaster emits keys in display case — that emission must BE the
+        // signal, for title-case, intercap, and acronym keys alike.
+        for (const key of Object.keys(PROPER_ASSOCIATIONS)) {
+            expect({ key, signal: referenceSignal(key) }).toEqual({ key, signal: 'proper' });
+        }
     });
 });
 

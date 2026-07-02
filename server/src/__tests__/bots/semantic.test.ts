@@ -164,6 +164,14 @@ describe('tableBackend case signal (proper-noun references)', () => {
         expect(tableBackend.relatedness('Zorblax', 'GLASS')).toBe(tableBackend.relatedness('zorblax', 'GLASS'));
     });
 
+    it('reads canonical all-caps acronyms as the reference ("case matters for each letter")', () => {
+        expect(tableBackend.relatedness('NASA', 'SPACE')).toBe(1);
+        expect(tableBackend.relatedness('CIA', 'AGENT')).toBe(1);
+        expect(tableBackend.relatedness("McDonald's", 'GOLD')).toBe(1); // intercap + apostrophe
+        // Explicit lowercase still opts out of the reference reading.
+        expect(tableBackend.relatedness('nasa', 'SPACE')).toBeLessThan(1);
+    });
+
     it('exposes fame as the commonness prior — but never judges a lowercase word as a reference', () => {
         expect(tableBackend.commonness!('Cinderella')).toBe(0.9);
         expect(tableBackend.commonness!('Zelda')).toBe(0.7); // deeper cut
