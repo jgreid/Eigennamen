@@ -67,6 +67,17 @@ export const CLUE_WORD_MAX_LENGTH = 40;
 /** Maximum value for a clue number. */
 export const CLUE_NUMBER_MAX = 9;
 
+// ---- Custom word lists ----
+
+/**
+ * Maximum number of words in a custom word list. Shared by the frontend
+ * parser (settings.ts) and the game:start Zod schema (gameSchemas.ts) so the
+ * two bounds can't drift apart — a list the client accepts locally must also
+ * be one the server will accept over the wire (e.g. "combined" mode unions
+ * DEFAULT_WORDS with the custom list, so the parser cap alone isn't enough).
+ */
+export const MAX_CUSTOM_WORD_LIST_SIZE = 2000;
+
 /**
  * Normalize a word for clue-legality comparison: NFKC, trim, uppercase.
  * Board words are stored uppercase, so this aligns the two sides.

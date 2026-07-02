@@ -174,6 +174,10 @@ rule.
 3. Click **Save & Apply**
 4. Start a **New Game** — your custom words will be included in the game link
 
+This works the same way in a hosted multiplayer room: whichever list is active
+in the host's Settings menu when they start (or restart) the game is the list
+everyone plays with.
+
 ### Using a wordlist.txt File
 
 1. Create a file named `wordlist.txt` in the same folder as `index.html`

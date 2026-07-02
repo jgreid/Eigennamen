@@ -590,6 +590,7 @@ Run `npm run format` to auto-format, `npm run format:check` to verify.
 - **Bot notification coalescing**: `botController` records mutations that arrive while a tick is in flight (`pending`) and re-ticks once it finishes, so a notification landing between a tick's final state read and its exit isn't dropped (which would stall the bot). It also re-verifies the seat after its "thinking" pause so a removed/kicked bot can't land one last move.
 - **Bot-only room cleanup**: `leaveRoom` tears the room down when no humans remain (bots are first-class players that never disconnect, so a bots-only room would otherwise linger until TTL).
 - **addBot seat serialization**: `addBot` runs its seat-occupancy check and join under a per-room `bot-manage:` lock so two simultaneous `bot:add` calls can't both seat the same team+role.
+- **Multiplayer custom word lists**: `game.ts`'s `buildStartGameOptions()` forwards the host's active Settings-menu word list (`state.activeWords`) on every multiplayer `game:start`/auto-start call whenever `state.wordSource !== 'default'`, so a prepared custom/combined list (see `docs/BOT_SEMANTIC_MAPS.md`) reaches hosted rooms the same way it already worked in standalone mode. The client parser cap and the `game:start` Zod schema's max both read `MAX_CUSTOM_WORD_LIST_SIZE` (`shared/gameRules.ts`) so the two bounds can't drift apart.
 
 ## Key Services
 

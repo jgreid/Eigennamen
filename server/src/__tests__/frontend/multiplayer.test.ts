@@ -119,6 +119,7 @@ jest.mock('../../frontend/board', () => ({
 jest.mock('../../frontend/game', () => ({
     updateScoreboard: jest.fn(),
     updateTurnIndicator: jest.fn(),
+    buildStartGameOptions: jest.fn(() => ({})),
 }));
 
 jest.mock('../../frontend/multiplayerListeners', () => ({
@@ -335,6 +336,14 @@ describe('multiplayer module', () => {
             setupMultiplayerDOM();
             onMultiplayerJoined({ room: { code: 'R' }, players: [] }, false);
             expect((global as any).EigennamenClient.startGame).not.toHaveBeenCalled();
+        });
+
+        test('forwards buildStartGameOptions() (e.g. a custom word list) to the auto-start call', () => {
+            setupMultiplayerDOM();
+            const { buildStartGameOptions } = require('../../frontend/game');
+            (buildStartGameOptions as jest.Mock).mockReturnValueOnce({ wordList: ['A', 'B', 'C'] });
+            onMultiplayerJoined({ room: { code: 'R' }, players: [] }, true);
+            expect((global as any).EigennamenClient.startGame).toHaveBeenCalledWith({ wordList: ['A', 'B', 'C'] });
         });
 
         test('closes multiplayer modal after delay', () => {

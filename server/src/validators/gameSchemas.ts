@@ -2,7 +2,7 @@ import type { z as ZodType } from 'zod';
 
 import { z } from 'zod';
 import { BOARD_SIZE } from '../config/constants';
-import { CLUE_WORD_MAX_LENGTH, CLUE_NUMBER_MAX } from '../shared/gameRules';
+import { CLUE_WORD_MAX_LENGTH, CLUE_NUMBER_MAX, MAX_CUSTOM_WORD_LIST_SIZE } from '../shared/gameRules';
 import { removeControlChars } from '../utils/sanitize';
 
 const gameStartSchema = z
@@ -21,7 +21,7 @@ const gameStartSchema = z
                     .refine((val: string) => val.length >= 1, 'Word cannot be empty after sanitization')
             )
             .min(BOARD_SIZE, `Must have at least ${BOARD_SIZE} words`)
-            .max(500, 'Too many words')
+            .max(MAX_CUSTOM_WORD_LIST_SIZE, 'Too many words')
             .refine(
                 (words: string[]) => new Set(words.map((w: string) => w.toLowerCase())).size >= BOARD_SIZE,
                 `Must have at least ${BOARD_SIZE} unique words (case-insensitive)`

@@ -73,6 +73,8 @@ import {
     closeGameOver,
     abandonAndNewGame,
     forfeitAndNewGame,
+    newGame,
+    buildStartGameOptions,
 } from '../../frontend/game';
 import { state, BOARD_SIZE, FIRST_TEAM_CARDS, SECOND_TEAM_CARDS, DEFAULT_WORDS } from '../../frontend/state';
 import { encodeWordsForURL } from '../../frontend/utils';
@@ -1473,6 +1475,32 @@ describe('confirmNewGame edge cases', () => {
         delete (global as any).EigennamenClient;
     });
 
+    test('forwards the host-configured custom word list to a multiplayer game:start', () => {
+        state.isMultiplayerMode = true;
+        state.wordSource = 'custom';
+        state.activeWords = ['ONE', 'TWO', 'THREE'];
+        state.gameMode = 'classic';
+        state.gameState.gameOver = false;
+        (isClientConnected as jest.Mock).mockReturnValue(true);
+
+        const mockStartGame = jest.fn();
+        (global as any).EigennamenClient = {
+            player: { isHost: true },
+            startGame: mockStartGame,
+            isConnected: jest.fn(() => true),
+            on: jest.fn(),
+            off: jest.fn(),
+            once: jest.fn(),
+        };
+
+        newGame();
+
+        expect(mockStartGame).toHaveBeenCalledWith({ wordList: ['ONE', 'TWO', 'THREE'] });
+
+        state.wordSource = 'default';
+        delete (global as any).EigennamenClient;
+    });
+
     test('shows dialog in standalone mode only when cards are revealed', () => {
         state.isMultiplayerMode = false;
         state.gameState.words = Array(BOARD_SIZE).fill('word');
@@ -1485,5 +1513,26 @@ describe('confirmNewGame edge cases', () => {
 
         const simpleBtn = document.querySelector('[data-action="confirm-yes-new-game"]') as HTMLElement;
         expect(simpleBtn.hidden).toBe(false); // Visible in standalone = dialog was shown
+    });
+});
+
+// ========== BUILD START GAME OPTIONS ==========
+
+describe('buildStartGameOptions', () => {
+    afterEach(() => {
+        state.wordSource = 'default';
+    });
+
+    test('sends an empty payload when the host has not customized the word list', () => {
+        state.wordSource = 'default';
+        expect(buildStartGameOptions()).toEqual({});
+    });
+
+    test('forwards activeWords when the host chose a custom/combined/file list', () => {
+        for (const source of ['custom', 'combined', 'file']) {
+            state.wordSource = source;
+            state.activeWords = [`${source}-A`, `${source}-B`];
+            expect(buildStartGameOptions()).toEqual({ wordList: state.activeWords });
+        }
     });
 });

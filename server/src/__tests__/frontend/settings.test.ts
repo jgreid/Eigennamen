@@ -29,6 +29,7 @@ jest.mock('../../frontend/state', () => ({
     },
     BOARD_SIZE: 25,
     DEFAULT_WORDS: Array.from({ length: 50 }, (_, i) => `WORD${i}`),
+    MAX_CUSTOM_WORD_LIST_SIZE: 2000,
 }));
 
 jest.mock('../../frontend/i18n', () => ({
@@ -90,7 +91,7 @@ import {
     loadLocalSettings,
     initSettingsListeners,
 } from '../../frontend/settings';
-import { state, DEFAULT_WORDS } from '../../frontend/state';
+import { state, DEFAULT_WORDS, MAX_CUSTOM_WORD_LIST_SIZE } from '../../frontend/state';
 
 describe('settings module', () => {
     beforeEach(() => {
@@ -130,9 +131,9 @@ describe('settings module', () => {
             expect(result[0]).toHaveLength(50);
         });
 
-        test('caps at 10000 words', () => {
-            const text = Array.from({ length: 15000 }, (_, i) => `WORD${i}`).join('\n');
-            expect(parseWords(text)).toHaveLength(10000);
+        test('caps at MAX_CUSTOM_WORD_LIST_SIZE words', () => {
+            const text = Array.from({ length: 2500 }, (_, i) => `WORD${i}`).join('\n');
+            expect(parseWords(text)).toHaveLength(MAX_CUSTOM_WORD_LIST_SIZE);
         });
 
         test('returns empty array for empty input', () => {

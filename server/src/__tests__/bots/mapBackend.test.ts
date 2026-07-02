@@ -17,7 +17,6 @@ import { tableBackend } from '../../bots/semantics/tableBackend';
 import { getSemanticBackend, resetSemanticBackendCache } from '../../bots/semantics/selectBackend';
 import { analyzeGames } from '../../bots/harness/analyze';
 import type { Entrant } from '../../bots/harness/types';
-import type { SemanticBackend } from '../../bots/semantics/backend';
 
 const CUSTOM_WORDS = [
     'NEBULA',
