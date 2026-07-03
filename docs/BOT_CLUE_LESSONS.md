@@ -406,3 +406,73 @@ correctly; and the one failure mode that survived all four rounds intact is the
 one no scoring function touches: the spymaster's mouth. Discipline that
 depends on remembering to be disciplined isn't discipline — it's luck with
 good intentions.
+
+---
+
+## Part 7 — Round 5: the go-big experiment
+
+Fifth session, played under forcing rules — every spymaster owed at least one
+4+ clue, with no 1-clues until the final word — to probe the offense after
+four rounds of accumulating defense. Both boards closed 9/9 and the assassin
+was never touched, but the tempo gap was a rout: **human 9/9 in 4 turns**
+(batarang 5 → four cards in one turn, the series record) versus **AI 9/9 in
+7 turns with four misfires**, including a forced quad (`monster 4`) that died
+on its *first guess* to a neutral. The constraint did its job: it generated an
+entire family of lessons about what numbers mean, and it showed whose cluing
+style scales — reference-scene bundles scaled; manufactured category quads
+did not.
+
+### New lessons (29–36)
+
+| # | Lesson | Illustration |
+|---|--------|--------------|
+| 29 | **Coerced numbers pool; floor+1 separates (costly signaling).** Forcing a minimum makes the floor number uninformative — it could hide any true set plus padding. Going one above the floor is a mildly costly signal that at least the floor-th target is real. | On `batarang 5` the guesser reasoned: "a 4 would have told me almost nothing... but they said 5, one beyond the forced minimum — I trust ~4 and treat the 5th as the rule-mandated pad." Took exactly 4, all red. |
+| 30 | **Promise compulsion survives common knowledge of coercion.** The number is a quota the guesser fills, not advice they weigh — even when they know it was forced, even against their own stated uncertainty. | The cluer planned all 4 monster guesses while "only confident in two"; end-game, they would have tapped the known-pad slot of a structurally forced 2 (YARD, blue) after rating it "a distant second." |
+| 31 | **Panel variance is the verdict.** When independent halo auditors disagree several-fold on one word's salience, the disagreement itself flags the fragile word — siding with any point estimate is the error. Corollary: "worst case is only a neutral" mis-prices slot 1 of a wide clue, where the whole promise rides on the first guess. | The red-team split 4× on SCORPION (guesser-sim 0.75, audit 0.19); the optimists won the argument and the quad delivered 0/4 when SCORPION went first. |
+| 32 | **Sequencing rules are game-mode-dependent.** Round 4's "risky multi goes late" assumed lurkers leave the board; in solitaire nothing does, the red:trap ratio worsens monotonically, and the wide clue is safest on turn 1 with the most true targets diluting its halo. The guesser-side dual: one agent hallucinated opponent-turn pressure in a solitaire game to justify over-extending. | Alt-search's inversion analysis; the club-3 "banking is close to conceding" rationale. |
+| 33 | **A famous world's object radiates the world before its mechanics.** Narrowing from the franchise to one artifact does not confine the halo to the artifact's function — characters and imagery still come first. Contents > function, at reference scale. | `batarang 5` intended HAND and SHOT (held, thrown); the guesser delivered ROBIN, SUPERHERO, SHADOW, and a lucky PHOENIX, leaving both mechanics legs stranded. |
+| 34 | **Register is a frame over all 25 words — sweep the assassin in the clue's register, not the board's default.** An adult-register clue re-scored the whole board and lifted the assassin to 4th via slang the register itself activated; playable only because N=2 sat under two deafening locks. The auditing guesser even identified "assassin-shaped" words from hop-structure alone. | `masturbation 2`: ICE CREAM rose to 0.30 (cream-slang, "smells like a trap"); WHALE flagged via *sperm whale* as "exactly the shape the assassin takes." |
+| 35 | **Stray inference must invert the salience prior.** A stranded target is by definition the one whose link was *weakest* — reconstructing strays by strongest-association to the dead clue is methodologically backwards, and wrong theories don't die when refuted, they mutate (lore → mechanics) and make the surface read look like bait. Current-clue fit leads; old-frame fit is a weak tiebreaker; expect the true stray's old link to look limp. First-instinct primacy (lesson 1) exists precisely to cap theory-stacking — the machine recommitted the ledger's very first human sin, with citations. | SHARK (0.70, phantom lore), then CHECK (0.60, "deductive" restaurant theory) and a planned BACK (mutated mechanics theory) — while the actual strays, triple-coded SHOT and HAND, were dismissed in writing as "classic bait." The theory died on attempt three: "HAND back-fits batarang only limply — and limply is what a stray looks like." |
+| 36 | **Sweep completeness is unbounded for human-shaped attention.** After five rounds of accumulated discipline, `GAME → YARD` (backyard games) walked past the AI spymaster's halo sweep entirely — unlisted, unpriced, blue. Exhaustive enumeration belongs to the machine even when the spymaster is the machine. | The round's final misfire, missed by the same process that caught Mario's pipes. |
+
+### Scorecards under forcing rules
+
+- **Human:** 9/9 in 4 turns — `batarang 5` (4/5, series-record turn), `pepper 3` (2/3), `club 3` (1/3), `masturbation 2` (2/2). Both misfires (SHARK, CHECK) were the guesser's debt-theories, not clue defects. The 5 was a *chosen* over-commitment ("might have given 6") that the costly-signal effect converted into trust.
+- **AI:** 9/9 in 7 turns — `monster 4` (0/4!), `Godzilla 3` (2/3, STAR lost to a fame-of-fact inversion: the cluer filed *Godzilla-the-movie-star* above the "deep" 1998 New York reference), `DONOR 2` (1/2, agent-frame beat apparatus-frame: "a donor is a *person*"), `SOUP 2` (2/2), `SKYSCRAPER 2` (2/2), `GAME 2` (1/2, the unswept YARD), `TODDLER 1` (1/1). The forced quad was manufactured, not found — and the round's clean turns were all pairs with single-referent or compound locks.
+
+### Engineering additions (2.21–2.24)
+
+**2.21 Variance-gated halo audit. 🔴** Sample the halo model several times (or
+several agents/temperatures) per candidate clue; treat high variance on any
+single non-own word as a hot word regardless of its mean (lesson 31). Extends
+the round-2 rule "conflicting analyses resolve assassin-negative" from verdicts
+to distributions.
+
+**2.22 Slot-position risk weighting. 🔴** Score a clue's expected delivery as
+the survival function over ordered guesses — P(prefix delivered) — not as
+independent per-card margins; a contested word near the *front* of the
+guesser's predicted order costs the entire promise (lesson 31's corollary,
+`monster 4`'s epitaph). Natural home: beside `leadOwn` in `scoreClue`, using
+the clicker model's predicted pick order.
+
+**2.23 Register-conditional scoring. 🔴** Tag clue candidates with an activated
+register (slang/adult/technical/nursery) and re-score the assassin and blue
+halos *within that register* (lesson 34). Depends on Phase 2 edge channels; the
+capitalization convention is precedent that register signals are already part
+of the table's contract.
+
+**2.24 Leftover inference with an inverted prior. 🔴** In the clicker/advisor
+leftover tracker (2.12): score stray candidates by current-clue fit first, use
+dead-frame fit only as a weak tiebreaker, and *penalize* head-of-distribution
+matches to the dead clue (the guessers already rejected those — lesson 35).
+Cap theory depth: after one refuted reconstruction of a given stray, fall back
+to surface reads (lesson 1 as a hard rule).
+
+**Round-5 through-line:** numbers are language. A free number speaks
+(round 4); a forced number pools; one-above-the-floor pays to be believed; and
+the guesser obeys the quota even knowing it was coerced. The offense that
+survived going big was the same offense the ledger has endorsed since lesson 4
+— vivid scenes with their contents on the board — and the failures on both
+sides came from theories: the panel's theory of a scorpion, the guesser's
+theory of a stray, the spymaster's theory that a category could be stretched
+into a quad. When in doubt, the surface is the strategy.

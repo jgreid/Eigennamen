@@ -1,8 +1,8 @@
 # Bot Nuance Plan — from the Play-Session Ledger to Code
 
 Companion to [BOT_CLUE_LESSONS.md](BOT_CLUE_LESSONS.md). That document is the
-*ledger* — 20 lessons and 7 failure modes from three human-vs-AI play sessions.
-This one is the *build sheet*: every open plan item (2.8–2.19) mapped to the
+*ledger* — 36 lessons and 7 catalogued failure modes from five human-vs-AI play
+sessions. This one is the *build sheet*: open plan items (2.8–2.24) mapped to the
 exact functions, constants, and data structures that host it, sequenced into
 phases with the metric that gates each change.
 
@@ -185,6 +185,14 @@ doctrine)* Scale `RARITY_WEIGHT` by intended number in `scoreClue`
 (`spymasters.ts` robustness block): full penalty on breadth clues, waived at
 N=1 where narrowness (low `maxNonOwn` heat) dominates — a rare definitional
 single (vertebrae → spine) beats a common compound trailing laterals.
+
+**4.5 Round-5 additions (2.21–2.24).** Variance-gated halo audits (multi-sample
+the halo model; high per-word variance = hot word), slot-position risk
+weighting (score expected delivery as the survival function over the clicker's
+predicted pick order — a front-slot contest costs the whole promise),
+register-conditional scoring (rides Phase 2 edge channels), and
+inverted-prior leftover inference with a theory-depth cap (extends 4.3; see
+ledger Part 7 for the derivations).
 
 ## Phase 5 — Retune and validate
 
