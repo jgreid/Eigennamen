@@ -352,3 +352,57 @@ halo you didn't audit; the contract includes contents you never knew existed.
 Every defense in this document converges on outsourcing that audit: to the
 assassin-first sweep, to an external content list, to a second frame, to a
 teammate — to anything that isn't your own certainty.
+
+---
+
+## Part 6 — Round 4: both boards survived
+
+Fourth session, same two-board protocol — and the first round in which **nobody
+died**. The human's board closed **9/9 in 4 turns** (one blue, assassin never
+threatened) — their best cluing of the series, with a visible learning curve
+*inside* the round: a frame-momentum misfire on turn 1, then three straight
+clean turns applying the ledger in real time. The AI's board closed **9/9 in
+7 turns with zero misfires** — the slow-clean extreme of the delivery/tempo
+tradeoff — after its pre-round red-team killed the drafted opener (the audit's
+own guesser simulation walked into a blue card on the promised third slot:
+`PIE 3`'s tail wasn't weak, it was *contested* — chicken pot pie is a pie;
+whipped cream is a topping). The shipped Phase-1 discipline was exercised live:
+promise-floor reasoning at the frame level, give-time re-gating on every clue,
+and the risky-multi-goes-late sequencing rule.
+
+### New lessons (21–28)
+
+| # | Lesson | Illustration |
+|---|--------|--------------|
+| 21 | **Frame momentum.** A 2+1 mixed-frame clue doesn't deliver 2+1 — it delivers the 2, then the *majority frame's continuation*, whatever color that is. Each correct guess strengthens the frame and raises the conditional confidence of the frame's own next member. Mixed frames are safe exactly when each frame's board-best is yours. | `assault 3` (CHARGE, POLICE, SWING): the guesser took CHARGE, POLICE, then CLUB — *"the crime trio is all but confirmed and CLUB completes it; conditional confidence rises well above its raw 0.50."* SWING (the off-frame leg) sat fifth. Contrast `penguin 3`: three frames, each with a red board-best — 3/3. |
+| 22 | **Granularity asymmetry.** The cluer's expert-granularity veto can pass on a distinction the guesser cannot perceive. Halo sweeps must run at *folk* granularity. | The cluer saw CLUB and dismissed it — "that's battery, not assault." Legally correct, invisible from the other side of the table. (Bot note: corpus-trained edges blur legal categories — model coarseness is *protective* here.) |
+| 23 | **Friendly fire: sweep your own words too.** The halo audit checks non-own threats, but an own *non-target* outranking an own target scrambles the plan at zero material cost — the guess "succeeds" while the intended target strands and a later clue's pair breaks. Also: acronym casing is a frame *amplifier*. | `IT 2` (TAG, CRASH): the guesser took APPLE — Apple-the-company, primed by the all-caps acronym signal — and CRASH. 2/2 "delivered," wrong two: TAG stranded, the planned `PIE 2` broken. |
+| 24 | **Double-coding: why debt-bundling works.** Folding a stranded target into a new frame doesn't just clear the debt — it *disambiguates the contested slot*, because two independent clue-paths converging on one card beat one path each at two cards. | `tree 2`: SWING (0.78) vs STICK (0.66) was close on tree-frame strength alone; the stranded `assault` target broke the tie — *"both readings say it's ours. STICK can't say that."* |
+| 25 | **Negative-space inference is reliable in proportion to how canonical the rejected alternative is.** Round 3's sundial inversion and round 4's network save are the same mechanism with opposite outcomes. | `network 2`: SPY at 0.58 vs SWITCH at 0.62 — held by *"a spymaster holding SPY had RING as the tighter clue; network is exactly what you say for SERVER + SWITCH."* RING is canonical; sundial's "Egypt" counterfactual never was. |
+| 26 | **The singles doctrine (number-conditional narrowness).** At N=1 the optimal clue property inverts: breadth clues need commonness (the guesser must generalize), a single needs only *narrowness* — a rare, near-definitional word with an empty board halo beats a common compound trailing laterals. Rarity costs only when the guesser must spread the clue. | The cluer's own critique of `BOOK 1` (spine): "I'd give *vertebrae* — less likely to trigger on other words." Applied live twice: `GRAFFITI 1` over PLAYGROUND (marbles/musical-chairs laterals), `LASH 1` over CREAM (hand-cream rival compound). |
+| 27 | **Guessers profile the spymaster across turns.** The blind guesser explicitly used the cluer's style history ("this spymaster clues in idioms: penguin suit, lemon tree, tree swing") to re-rate candidates. The bot clicker has no cross-turn opponent model at all. | `network 2`: SPY's rating was *inflated* by the idiom-heavy profile before negative space pulled it back. |
+| 28 | **Table-talk discipline must be structural, not aspirational.** Three rounds, three spymaster leaks (round 3's target names; round 4's "APPLE wasn't a target" tell and the pre-guess CREAM mention) — each made in full knowledge of lesson 15. The fix is procedural: never discuss unplayed alternatives or intent while their targets are live; the advisor's `reason`/`warning` strings need the same hard rule. | Leak #3 handed the guesser a second code-path onto the final word before the guess. |
+
+### Engineering additions
+
+**2.20 Number-conditional rarity. 🔴** Scale `RARITY_WEIGHT` with the intended
+number in `scoreClue`: full penalty on breadth clues, waived (or inverted
+toward a narrowness bonus — low `maxNonOwn` heat) at N=1 (lesson 26). Cheap:
+both terms already exist in the score expression.
+
+**Scope extensions to existing items:** lesson 21 gives 2.17's sense-enumeration
+a spymaster-side dual (score the *continuation* of each frame the intended set
+activates — the frame's next-brightest board member must be own); lesson 23
+adds own-word spillover to the give-time sweep (harness leftover-tracking in
+2.12 must model it); lesson 27 folds into the Phase-4 memory work (the clicker's
+cross-turn state should include a spymaster style profile, not just leftover
+targets); lesson 28 hardens 4.2's advisor-string discipline rule.
+
+**Round-4 through-line:** the round where the loop closed. The red-team killed
+the AI's opening the way rounds 2–3 said it should; the human ran the ledger
+forward turn by turn — burned once by frame momentum, then penguin, tree, and
+network each demonstrated a different Part-1-through-5 lesson executed
+correctly; and the one failure mode that survived all four rounds intact is the
+one no scoring function touches: the spymaster's mouth. Discipline that
+depends on remembering to be disciplined isn't discipline — it's luck with
+good intentions.

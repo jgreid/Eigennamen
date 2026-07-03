@@ -164,7 +164,10 @@ the endgame test. Discipline rule from failure G: `reason`/`warning` strings
 must never encode key information beyond the suggestion itself.
 
 **4.3 Within-game leftover memory (2.12)** *(lesson 9: clue debt; the blind
-guesser's CASINO burn and subsequent self-correction)*
+guesser's CASINO burn and subsequent self-correction; round-4 lessons 24/27:
+double-coding means leftover candidates should BOOST matching new-clue
+candidates, and the memory should carry a spymaster style profile — the
+round-4 guesser demonstrably used one)*
 Strategies are pure (`types.ts:5-9`) — keep them pure by passing memory as
 data: extend `BotContext` (`types.ts:76-81`) with an optional per-seat
 `memory` snapshot, threaded by the two callers (`harness/playGame.ts:90-91`,
@@ -176,6 +179,12 @@ bonus-guess EV, not just the burned word.
 frame-switch fires in a REMOVAL-style harness scenario; advisor warnings
 appear in `game:botSuggestion` payloads without protocol breakage
 (`socket-events` types).
+
+**4.4 Number-conditional rarity (2.20, round 4)** *(lesson 26: the singles
+doctrine)* Scale `RARITY_WEIGHT` by intended number in `scoreClue`
+(`spymasters.ts` robustness block): full penalty on breadth clues, waived at
+N=1 where narrowness (low `maxNonOwn` heat) dominates — a rare definitional
+single (vertebrae → spine) beats a common compound trailing laterals.
 
 ## Phase 5 — Retune and validate
 
