@@ -219,7 +219,7 @@ including the assassin, landed from turn 3 onward.
 
 ### Engineering plan, extended
 
-**2.8 Give-time assassin re-gate. 🔴** Any clue carried over from an earlier
+**2.8 Give-time assassin re-gate. 🟢 (implemented: `passesAssassinGate` re-asserted at emission; ramped-floor retry never bypasses the berth)** Any clue carried over from an earlier
 plan, suggestion, or cached candidate list must re-run the full assassin/halo
 gate against the *current* board at the moment it is given. When two analyses
 conflict, the assassin-negative verdict wins unconditionally — the loss function
@@ -238,7 +238,7 @@ word and *exhaustive* content lists per referent (Thunderball ⊃ pool, casino,
 shark…), so a title-clue collides with its own board-resident contents — and
 with its rivals' contents — at scoring time (lessons 7, 10).
 
-**2.11 Endgame calibration. 🔴** Spymaster: scale the assassin berth *up* as the
+**2.11 Endgame calibration. 🟡 (spymaster side implemented: one-way `ENDGAME_BERTH_RAMP` on the berth floor + endgame-sliced `dangerNextRate`; clicker/advisor stretch-prior modeling remains)** Spymaster: scale the assassin berth *up* as the
 board empties and own-words dwindle. Clicker/advisor: model the human stretch
 prior — late clues get looser guesses — and require an explicit
 assassin-candidate check before any late stretched guess (lesson 11).
@@ -323,7 +323,7 @@ by leaking its own remaining targets in table-talk**.
 human penetration of the *fact*, not just corpus strength or word frequency.
 Guesser-side critical (lesson 14); the table backend's advantage, formalized.
 
-**2.15 Number-inventory guard. 🔴** The spymaster must not set N above the
+**2.15 Number-inventory guard. 🟢 (implemented: `PROMISE_FLOOR` tail trim — never promises an absolutely-weak card, never trims below 1, desperate win attempts exempt)** The spymaster must not set N above the
 count of targets clearing the guesser-visible strength bar; endgame stragglers
 get deferred or singled, never folded into an inflated N (lesson 18 — would
 have blocked both `Tinder 3`→GOLD and round 2's whole-hand `ENGINE 2`→BOX).
@@ -342,7 +342,7 @@ frame may be wrong," the procedural form of the human's ignored alarm.
 function/attribute/compound edges in `scoreClue` and the clicker (lesson 16
 completes the gradient begun in lessons 7 and 13).
 
-**2.19 Board-difficulty normalization. 🔴** In `bots:analyze`, score chosen
+**2.19 Board-difficulty normalization. 🟢 (implemented: `boardBestLead` ceiling + `ceilingUtilization` with shared boards per index, one per color, full-board clue legality)** In `bots:analyze`, score chosen
 clues relative to the best line an exhaustive search found for that board, so
 per-persona stats separate bad *selection* from bad *luck* (the cluer's caveat).
 
