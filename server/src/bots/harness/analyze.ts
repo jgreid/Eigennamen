@@ -22,10 +22,21 @@ import type { SemanticBackend } from '../semantics/backend';
 import { playEngineGame, type GameEvent } from './playGame';
 import { getSemanticBackend } from '../semantics/selectBackend';
 import { PERSONAS } from '../personas';
+import { isClueLegalForBoard } from '../../shared/gameRules';
 
 /** Fixed yardstick margin — a neutral, persona-independent reference so every
  *  entrant's clues are measured against the SAME theoretical ceiling. */
 export const REF_MARGIN = 0.05;
+
+/** Endgame slice: a clue given with this many own cards (or fewer) unrevealed.
+ *  Both live-play assassin hits (rounds 2–3) were endgame events — spymasters
+ *  relax late while guessers lower their thresholds (ledger lesson 11/18), so
+ *  the danger metrics are sliced here to make that phase visible. */
+export const ENDGAME_OWN_MAX = 3;
+
+/** Candidate-pool breadth for the board-best yardstick when the backend
+ *  supports nearest(); mirrors the spymaster's own centroid breadth. */
+const BASELINE_NEIGHBOURS = 40;
 
 /** Unrevealed board words split by their relationship to the clue-giving team. */
 export interface BoardGroups {
@@ -46,8 +57,14 @@ export interface ClueRecord {
     number: number;
     /** Own cards unrevealed at clue time. */
     ownAvailable: number;
+    /** Board cards revealed at clue time (game progress when the clue was given). */
+    revealedCount: number;
     /** Theoretical max own cards a perfect clue could safely lead (ref margin). */
     safeLead: number;
+    /** Best safeLead any candidate clue could reach on this board state — the
+     *  board's own ceiling, independent of the word actually chosen. 0 when the
+     *  backend offers no candidate pool (no nearest() and no vocabulary()). */
+    boardBestLead: number;
     /** Gap from the weakest intended own card to the best non-own card (>= 0). */
     clarity: number;
     /** The assassin was the single most clue-related unrevealed card (danger). */
@@ -90,6 +107,19 @@ export interface ClueDiagnostics {
     /** Fraction of clues whose best non-own card is an opponent/assassin — how
      *  often the brightest spillover is lethal rather than merely wasteful. */
     dangerNextRate: number;
+    /** Clues given in the endgame slice (≤ ENDGAME_OWN_MAX own cards left). */
+    endgameClues: number;
+    /** dangerNextRate over the endgame slice only. The endgame is where both
+     *  sides relax (lesson 11/18) and where live-play assassin hits landed —
+     *  a spymaster should be CLEANER here, not looser. 0 when the slice is empty. */
+    dangerNextRateEndgame: number;
+    /** Mean board ceiling (best achievable safeLead) at this entrant's clue times. */
+    avgBoardBestLead: number;
+    /** sum(number) / sum(boardBestLead): how much of what the boards offered the
+     *  entrant's clue numbers actually asked for. Separates timid clue SELECTION
+     *  from a genuinely cold board ("we get the words we get"). 0 when the
+     *  yardstick had no candidate pool. */
+    ceilingUtilization: number;
     /** Avg of commonness and halo coolness (1 - heat), in [0, 1]. Low values
      *  mean idiosyncratic clues: rare words and/or hot, ambiguous halos. */
     robustness: number;
@@ -183,6 +213,38 @@ export function referenceLead(
     return { safeLead: lead, clarity, assassinArgmax, dangerNext, heat: maxNonOwn };
 }
 
+/**
+ * The board's own ceiling: the best safeLead ANY candidate clue reaches on this
+ * board state, so an entrant's numbers can be judged against what the board
+ * actually offered rather than an absolute scale (bad selection vs bad luck).
+ * Candidates come from the backend's nearest() around the own cards when it has
+ * one (mirroring the spymaster's generator), else its fixed vocabulary(); board
+ * words are excluded by the same legality rule real clues obey — against the
+ * FULL board (`allBoardWords`, revealed cards included), exactly as the server
+ * validates real clues: a revealed cluster-mate is still an illegal clue, and
+ * admitting it would inflate the ceiling on every post-reveal record. The
+ * unrevealed-groups fallback exists only for callers with no game at hand.
+ * Returns 0 when the backend offers no pool at all — consumers must treat 0 as
+ * "no yardstick", not "the board offered nothing".
+ */
+export function boardBestLead(g: BoardGroups, backend: SemanticBackend, allBoardWords?: readonly string[]): number {
+    const boardWords = allBoardWords ? [...allBoardWords] : [...g.own, ...g.opp, ...g.neutral, ...g.assassin];
+    let pool: string[];
+    if (backend.nearest && g.own.length > 0) {
+        pool = backend.nearest(g.own, BASELINE_NEIGHBOURS).map((c) => c.word);
+    } else {
+        pool = backend.vocabulary ? backend.vocabulary() : [];
+    }
+    let best = 0;
+    for (const clue of pool) {
+        if (!isClueLegalForBoard(clue, boardWords)) continue;
+        const lead = referenceLead(clue, g, backend).safeLead;
+        if (lead > best) best = lead;
+        if (best >= g.own.length) break; // ceiling reached — covers everything
+    }
+    return best;
+}
+
 /** Reduce a terminal reveal into the reason a clue's guessing phase ended. */
 function endReasonFor(result: RevealResult, team: Team): ClueEnd | null {
     if (result.gameOver) return result.endReason === 'assassin' ? 'assassin' : 'gameWon';
@@ -196,7 +258,7 @@ function endReasonFor(result: RevealResult, team: Team): ClueEnd | null {
  * each clue with the entrant that gave it so records can be pooled across games.
  */
 function collectGameRecords(
-    opts: { seed: string; gameMode: GameMode; red: Entrant; blue: Entrant; words?: string[] },
+    opts: { seed: string; boardSeed?: string; gameMode: GameMode; red: Entrant; blue: Entrant; words?: string[] },
     backend: SemanticBackend,
     sink: ClueRecord[]
 ): void {
@@ -219,7 +281,9 @@ function collectGameRecords(
                 word: ev.word,
                 number: ev.number,
                 ownAvailable: groups.own.length,
+                revealedCount: game.revealed.reduce((n, r) => n + (r ? 1 : 0), 0),
                 safeLead: ref.safeLead,
+                boardBestLead: boardBestLead(groups, backend, game.words as string[]),
                 clarity: ref.clarity,
                 assassinArgmax: ref.assassinArgmax,
                 dangerNext: ref.dangerNext,
@@ -274,6 +338,8 @@ export function aggregate(records: ClueRecord[]): ClueDiagnostics[] {
         const totalNumber = sum((r) => r.number);
         const avgNumber = totalNumber / clues;
         const avgSafeLead = sum((r) => r.safeLead) / clues;
+        const endgame = list.filter((r) => r.ownAvailable <= ENDGAME_OWN_MAX);
+        const totalBestLead = sum((r) => r.boardBestLead);
         const d: ClueDiagnostics = {
             entrantId,
             clues,
@@ -289,6 +355,10 @@ export function aggregate(records: ClueRecord[]): ClueDiagnostics[] {
             fallbackRate: frac((r) => r.fallback),
             wrongGuessRate: frac((r) => r.endReason === 'wrongGuess'),
             dangerNextRate: frac((r) => r.dangerNext),
+            endgameClues: endgame.length,
+            dangerNextRateEndgame: endgame.length > 0 ? endgame.filter((r) => r.dangerNext).length / endgame.length : 0,
+            avgBoardBestLead: totalBestLead / clues,
+            ceilingUtilization: totalBestLead > 0 ? totalNumber / totalBestLead : 0,
             robustness: sum((r) => (r.commonness + (1 - r.heat)) / 2) / clues,
             // A miss can occur at most once per clue (it ends the turn), so any
             // non-own reveal on a record with a banked core is the press-on that
@@ -323,9 +393,43 @@ export function detectGaps(d: ClueDiagnostics): string[] {
     if (d.dangerNextRate > 0.45) {
         gaps.push('dangerous halos: > 45% of clues spill brightest onto an opponent/assassin card');
     }
+    // The endgame slice gets a TIGHTER bar than the flat rate: the endgame is
+    // where guessers relax their thresholds (stretch prior), so a lethal
+    // brightest-spillover there converts to real hits far more often. Gated on
+    // a minimum sample so a couple of unlucky late clues don't flag a persona.
+    if (d.endgameClues >= 5 && d.dangerNextRateEndgame > 0.35) {
+        gaps.push('endgame danger: late clues (≤3 own left) spill brightest onto an opponent/assassin card');
+    }
+    // Selection gap: the boards offered multi-card lines (avg ceiling ≥ 1.5) but
+    // the numbers asked for well under them. Distinct from under-cluing above,
+    // which compares the number to the GIVEN clue's own lead — this compares it
+    // to the best clue anyone could have chosen. Skipped when the yardstick had
+    // no candidate pool (avgBoardBestLead 0 ⇒ ceilingUtilization 0). Threshold
+    // calibrated on live data: the yardstick applies no promise floor, so a
+    // floor-respecting spymaster sits structurally below 1.0 — at 0.6 half the
+    // healthy roster flagged; 0.55 keeps the flag on genuine timidity.
+    if (d.avgBoardBestLead >= 1.5 && d.ceilingUtilization > 0 && d.ceilingUtilization < 0.55) {
+        gaps.push('selection gap: clue choices use < 55% of the board’s best-line ceiling');
+    }
     if (d.robustness < 0.6) gaps.push('idiosyncratic: clue words run rare and/or their halos run hot');
     if (d.overReachRate > 0.15) gaps.push('over-reach: > 15% of clues end with a miss past a banked core');
     return gaps;
+}
+
+/**
+ * Seeds for pair (i, j)'s g-th game. The BOARD seed deliberately excludes the
+ * entrant indices so every pair plays the SAME board at each board index —
+ * without this, each entrant's metrics average over a private set of boards and
+ * per-entrant differences conflate skill with board luck. It is derived from
+ * floor(g / 2), not g: the color swap alternates on g % 2, so consecutive game
+ * indices are the SAME board played once per color — otherwise board identity
+ * couples to roster position (the lower-indexed entrant would hold the red key
+ * of every even board in every pairing, and no pair would ever see a board from
+ * both sides). The decision seed keeps the pair and full game index so the two
+ * same-board games still play out differently.
+ */
+export function analysisSeeds(baseSeed: string, i: number, j: number, g: number): { seed: string; boardSeed: string } {
+    return { seed: `${baseSeed}:${i}-${j}:${g}`, boardSeed: `${baseSeed}:board:${Math.floor(g / 2)}` };
 }
 
 /** Round-robin analysis over the entrants; returns raw records + diagnostics. */
@@ -340,8 +444,8 @@ export function analyzeGames(spec: AnalyzeSpec): AnalyzeReport {
                 const swap = g % 2 === 1;
                 const red = (swap ? entrants[j] : entrants[i]) as Entrant;
                 const blue = (swap ? entrants[i] : entrants[j]) as Entrant;
-                const seed = `${baseSeed}:${i}-${j}:${g}`;
-                collectGameRecords({ seed, gameMode, red, blue, words }, backend, records);
+                const { seed, boardSeed } = analysisSeeds(baseSeed, i, j, g);
+                collectGameRecords({ seed, boardSeed, gameMode, red, blue, words }, backend, records);
             }
         }
     }
@@ -399,6 +503,8 @@ async function main(): Promise<void> {
             assassin: `${(d.assassinRate * 100).toFixed(1)}%`,
             fallback: `${(d.fallbackRate * 100).toFixed(0)}%`,
             dangerNext: `${(d.dangerNextRate * 100).toFixed(0)}%`,
+            dangerEG: `${(d.dangerNextRateEndgame * 100).toFixed(0)}%`,
+            ceilUse: d.ceilingUtilization.toFixed(2),
             robust: d.robustness.toFixed(2),
             overreach: `${(d.overReachRate * 100).toFixed(0)}%`,
         }))

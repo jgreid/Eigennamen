@@ -428,10 +428,14 @@ describe('turn economy: endgame urgency and board cohesion', () => {
 
     it('does not overtrim safe low-signal cards when no assassin remains', () => {
         // No assassin on the board: FAINT's cards clear the margin but sit below
-        // the 0.1 assassin floor in absolute terms — the berth must not apply.
+        // the 0.1 assassin floor in absolute terms — the berth must not apply,
+        // so FAINT survives as a REAL clue. Its number, though, is promise-
+        // trimmed to 1 (both cards are absolutely weak — lesson 18: a number
+        // never promises a sub-floor tail). The number is the discriminator: a
+        // wrongly-applied berth would null the clue and the best-effort fallback
+        // would emit FAINT with a board-derived number of 2 instead.
         const view = spymasterView(['OWNA', 'OWNB', 'NEUT'], ['red', 'red', 'neutral']);
         const backend = scoringStub({
-            RIVAL: { OWNA: 0.3, OWNB: 0.02, NEUT: 0.02 },
             FAINT: { OWNA: 0.09, OWNB: 0.085, NEUT: 0.02 },
         });
         const reckless: SkillParams = {
@@ -447,7 +451,7 @@ describe('turn economy: endgame urgency and board cohesion', () => {
             skill: reckless,
             rng: makeRng(1),
         });
-        expect(action).toEqual({ kind: 'clue', word: 'FAINT', number: 2 });
+        expect(action).toEqual({ kind: 'clue', word: 'FAINT', number: 1 });
     });
 });
 

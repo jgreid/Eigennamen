@@ -159,3 +159,196 @@ The harness already tracks `assassinRate`, `leakRate`, `misfireRate`, `ambition`
 **Through-line:** the assassin gate must be a hard, un-tunable floor; everything
 else is calibration; and the whole edifice is only as good as how well the
 semantic backend matches a *human's* sense of which word is brightest.
+
+---
+
+## Part 4 — Round 2: the ledger, extended
+
+A second human-play session, with a tighter protocol: two boards played in
+parallel. On board A the human clued and a **blind LLM guesser** (given only the
+words and the clue, never the key) adjudicated each clue; on board B the AI
+clued against the human guessing blind, with the key committed up front as a
+SHA-256 hash. Outcome: the human's board closed **9/9 in 6 turns** (3 misfires,
+assassin never touched); the AI's board died **8/9 with an assassin hit on
+turn 4**. The distribution of damage is the headline: the first twelve guesses
+across both boards went twelve-for-twelve red — every casualty of the round,
+including the assassin, landed from turn 3 onward.
+
+### New lessons (7–13)
+
+| # | Lesson | Illustration |
+|---|--------|--------------|
+| 7 | **Exemplar asymmetry.** An instance-clue ("Thunderball" for BOND + NOVEL) asks the guesser to climb *up* to type-memberships, but salience radiates *down* into the work's vivid contents. Title-clues are only safe as **content bundles**; meta-attributes ("it's a novel") route through the creator instead. Dual of lesson #3. | Blind guesser on `Thunderball 2`: POOL (shark pool) 0.62 and CASINO 0.58 both outranked the intended NOVEL at 0.30. `Fleming 2` was the clean counterfactual. |
+| 8 | **Confidence is per-edge, never pooled.** "Bond novel" felt like one unbreakable unit to the cluer, but the guesser cashes each target separately; the BOND edge's 0.95 transferred nothing to NOVEL's 0.30. 🟢 *The engine already models this correctly (`leadOwn` requires each intended card to clear `maxNonOwn + margin` individually) — first case where the engine is the corrective model for a human bias.* | Same play as #7. |
+| 9 | **Clue debt.** A misread clue costs more than its fizzled turn: the stranded target keeps radiating *phantom* candidates under the wrong frame in later turns. | Thunderball's unfound NOVEL made CASINO (the film's brightest unrevealed content word) a bonus-guess magnet — burned a neutral a full two turns later, after a perfect `Carpathia 2`. |
+| 10 | **Referent collision.** "You'll either know it or you won't" has a third branch: *you'll know a different one.* Unknown references fail **closed** (blank → cautious forced guess); colliding references fail **open** (wrong referent → confident wrong guesses). Fame-gating (`commonnessBias`) and ambiguity-gating are different tests. | `Nicolette 2` meant Ray Nicolette (Elmore Leonard). The blind guesser resolved to *Aucassin et Nicolette*, took NOVEL (right, wrong reason) then STAR via the chantefable's star-song — blue. RAY appeared nowhere in its ranking. |
+| 11 | **The endgame spiral.** Clue ordering is common knowledge: spymasters sequence best-first and lower standards late ("if I thought it was a great clue I would've given it earlier"); guessers know it and lower acceptance thresholds late ("last clues are always a little stretched"). Each side's relaxation licenses the other's — the endgame is structurally the high-risk phase, so that is when the assassin berth must *widen*. | 12/12 red on early guesses; TOOTH, BOX 💀, STAR, CASINO all from turn 3 on. |
+| 12 | **Generation failure ≠ selection failure.** Under endgame pressure humans *satisfice retrieval*: the first workable bridge wins, unexamined alternatives never surface. Exhaustive candidate generation is the engine's structural advantage; judgment over candidates is the human's — the seam is the advisor-bot thesis. | `Nicolette 2` was "literally the best I could come up with"; `Bradbury 2` (Ray Bradbury: RAY + NOVEL, both one-hop, high fame, low collision) existed and was never generated. |
+| 13 | **Completion entropy (the orphan modifier).** A compound-completion clue is safe exactly when the completion mass concentrates on the target: "manta" has essentially one continuation. It is dangerous when the head is shared — "engine ___" spreads over {box, hood, room, block}, and FOSSIL splits between the compound (fuel) and category members (tooth, bone). | `manta 1` → RAY at 0.95, tapped without hesitation; contrast failures D and E below. |
+
+### Where the AI failed (again)
+
+| # | Failure | Root cause |
+|---|---------|-----------|
+| D | **`FOSSIL 2` (DINOSAUR + GAS) delivered a blue TOOTH.** The human guessed member-first: "dinosaur tooth for fossil — nothing else is close"; GAS (via *fossil fuel*) never registered. | Corpus co-occurrence ("fossil fuel") ≠ human free association (fossil → dinosaur, bone, tooth). A category clue promises **members** (lesson #3, violated by the AI this time). Direct evidence for plan 2.7. |
+| E | **`ENGINE 2` (HOOD + GAS) hit the assassin.** The human never rated HOOD ("vaguely mechanical"), actively *constructed* the compound "engine box," and tapped BOX. | Failure A recommitted, with a process record: the pre-round red-team had named "gearbox for CAR/ENGINE clues" inside BOX's banned clue-space, while a different agent in the same review recommended `ENGINE 2` as a tightening — and at give-time the suggestion was inherited without re-running the assassin gate. Guessers don't just receive collocations; they **manufacture** them in both directions. |
+
+### What held
+
+- **Human guess discipline, six for six:** banked at exactly the promised number
+  every turn; the turn-1 BELL flirtation was rejected in favor of SWITCH (the
+  pre-round red-team had priced that contest ~70/30 the same way).
+- **Pre-emptive halo vetoes:** QUICKSAND (BOOT + SINK) killed because the
+  viscous-goo frame drifts toward the KETCHUP assassin — the assassin-first
+  check, run live; WADERS killed after self-detecting that neutral STREAM
+  out-glows SINK in the fly-fishing frame — failure B caught *before* the clue
+  was given. Risk pricing stayed proportional: Mountie was played through a
+  faint ketchup-chips brush (0.22, far below the 0.85/0.72 targets).
+- **The capitalization convention carried signal in both directions:** the
+  human's casing was convention-perfect all round (lowercase `limestone`/`manta`,
+  mixed-case `Thunderball`/`Carpathia`/`Mountie`/`Nicolette`), and the blind
+  guesser used the *lowercase* of `manta` to kill the Black Manta → COMIC trap.
+- **Primacy:** the cluer's first-listed target delivered 6/6; every misfire
+  lived in the second slot or the bonus. "Core + stretch" is real, and the core
+  is often exactly one word.
+- **The blind guesser independently reproduced the shipped clicker:** its bonus
+  refusal on `LIMESTONE 2` restated the `CLIFF_*` triple condition (steep drop +
+  absolutely weak + blurred alternatives) nearly verbatim — and after the CASINO
+  burn it *recalibrated within the game*, refusing the next leftover hunt as
+  negative-EV. The bot clicker has no such cross-turn adaptivity (see 2.12).
+
+### Engineering plan, extended
+
+**2.8 Give-time assassin re-gate. 🟢 (implemented: `passesAssassinGate` re-asserted at emission; ramped-floor retry never bypasses the berth)** Any clue carried over from an earlier
+plan, suggestion, or cached candidate list must re-run the full assassin/halo
+gate against the *current* board at the moment it is given. When two analyses
+conflict, the assassin-negative verdict wins unconditionally — the loss function
+is asymmetric (failure E).
+
+**2.9 Completion-entropy term. 🔴** Score `P(completion | clue word)` in both
+directions ("X box", "gearbox") from a bigram/collocation source and penalize
+clues whose high-probability completions land on non-own board words; reward
+orphan modifiers whose mass concentrates on the target. Would have red-flagged
+ENGINE and FOSSIL and green-lit manta (lessons 13, failures D/E). Natural home:
+the semantics backend, beside `commonness()`.
+
+**2.10 Referent-ambiguity sweep. 🔴** Reference entries in
+`properAssociations` / semantic maps should store **rival referents** per clue
+word and *exhaustive* content lists per referent (Thunderball ⊃ pool, casino,
+shark…), so a title-clue collides with its own board-resident contents — and
+with its rivals' contents — at scoring time (lessons 7, 10).
+
+**2.11 Endgame calibration. 🟡 (spymaster side implemented: one-way `ENDGAME_BERTH_RAMP` on the berth floor + endgame-sliced `dangerNextRate`; clicker/advisor stretch-prior modeling remains)** Spymaster: scale the assassin berth *up* as the
+board empties and own-words dwindle. Clicker/advisor: model the human stretch
+prior — late clues get looser guesses — and require an explicit
+assassin-candidate check before any late stretched guess (lesson 11).
+
+**2.12 Within-game leftover reframing. 🔴** Track leftover targets per clue;
+when a leftover's top candidate bounces (POOL blue → later CASINO neutral),
+downgrade the whole frame's bonus-guess EV rather than just the burned word
+(lesson 9). This is the cross-turn adaptivity the blind guesser showed
+naturally.
+
+**2.13 Hypernym candidates for unknown references. 🔴** Guesser-side: an
+unrecognized proper-noun clue should generate type-membership candidates
+(hypernyms: "is a novel", "is a Bond title") *below* content candidates —
+robustness against human exemplar clues (lesson 7).
+
+**Sequencing:** 2.8 and 2.11 are near-free gating/scaling changes inside
+existing scoring paths — do them first. 2.9 needs a collocation source and can
+piggyback on the `commonness()` backend. 2.10 and 2.13 are curation and
+map-schema work (`npm run bots:map` output format). All remain
+strategy/semantics-layer changes: `npm run bots:parity` unaffected, run it
+anyway, and extend `bots:analyze` with an endgame-sliced `dangerNextRate` so
+lesson 11 is measured, not vibed.
+
+**Round-2 through-line:** both catastrophic failures — the human's STAR and the
+AI's BOX — were *the same error at different layers*: projecting your own
+salience (an association, a compound, a referent) onto a mind that had filed the
+world differently. The assassin gate, the completion-entropy check, and the
+referent sweep are all the same defense: before you speak, ask what else these
+sounds could mean to someone who isn't you.
+
+---
+
+## Part 5 — Round 3: the number is a promise, the referent is a contract
+
+Third session, protocol upgrades: a live colored key-card board (artifact,
+updated per turn), give-time re-gating practiced on every AI clue, and — after
+a mid-round dispute — an explicit **calibration instruction** for the blind
+guesser: median strong-human retrieval only, specialist-trivia edges flagged and
+downweighted. Outcome: the human's board died **8/9, assassin on turn 4**
+(`Tinder 3` → DATE ✓ MATCH ✓ **GOLD 💀** — Tinder Gold, the app's premium
+tier); the AI's board ran **7/9 clean in four clues** (MYTH 3/3, POKER 2/2,
+RECITAL 2/2), whiffed `REMOVAL 2` (0/2, neutral), then **forfeited its ending
+by leaking its own remaining targets in table-talk**.
+
+### New lessons (14–20)
+
+| # | Lesson | Illustration |
+|---|--------|--------------|
+| 14 | **Knowledge-depth calibration.** A simulator (or embedding backend) over-retrieves: its within-referent fame gradient inverts a human's. "For most humans, knowing who Hooke is *at all* is the deep cut." Association edges need a *human-penetration* weight — fame of the **fact**, not just commonness of the word. This is why curated tables can beat embeddings at guessing: the bots are the encyclopedic player. | `Hooke 3` (SPRING/FORCE/GENIUS): the uncalibrated guesser took BARK 0.55 — *Micrographia*'s cork→"cell" coinage — an edge that exists only in an encyclopedic mind. GENIUS, the correct human third, sat sixth at 0.25. |
+| 15 | **Table-talk is part of the clue — in both directions.** Disclaimers modulate depth-seeking: "you know it or you don't" reads as *the referent is the gate* to a knowledge-poor guesser and as *a target is a deep cut* to a knowledge-rich one — the listener's depth selects the reading. And the spymaster's chatter is bound by the same information discipline as the clue itself. | The YKIOYD framing steered the Hooke guesser into deep-content spelunking; two turns later the AI casually named its two remaining words in commentary and voided its own endgame. |
+| 16 | **The concreteness gradient, fourth datapoint.** Parts and mechanism outshine function-output, completing the series: contents > meta-attributes (Thunderball, Hooke), members > compounds (FOSSIL), parts/mechanism > what-it-computes (sundial). One gradient: perceptual concreteness wins. Implementable as a concreteness prior on edges. | `sundial 2` (RAY + DATE): the guesser took RAY 0.80 then POLE 0.55 — *the gnomon is a pole in the ground* — while DATE (what the device tells you) sat fourth at 0.15. |
+| 17 | **Negative-space inference can invert.** Lesson #5's guesser-side power tool — "the clue they didn't give is information" — misfires when the guesser misattributes *why* the alternative was rejected, converting a target into a repellent. | The sundial guesser reasoned "they said *sundial*, not *Egypt*, because Egypt would splash onto DATE (date palms), GOLD, SCORPION" — and demoted the actual target DATE. |
+| 18 | **The number is a promise, and it arms the residual halo.** When N exceeds the targets the *guesser* can see clearing the bar, the excess promise is spent on the clue's tier-2 halo, brightest-first, whatever color it is. Corollary: never set N by inventory ("I have 3 words left") — both assassin hits across rounds 2–3 came from whole-remaining-hand numbers. | `Dumbledore 3` exactly covered TEACHER/SPELL/GENIUS, so GOLD-at-0.35 (Flamel, alchemy) stayed safely *below* the promise line. `Tinder 3` had two visible targets (FILE scored 0.03), so the promise dredged GOLD-at-0.60 *above* it: "there is no other viable third target, and this spymaster's proper-noun clues have been precise." |
+| 19 | **The referent knows more than you.** A reference clue commits you to *all* of the referent's famous contents — including the ones outside your knowledge, which is demographically gated (a 20-years-married cluer had never heard of Tinder Gold; the guesser judged it pub-quiz-level). The content sweep must therefore be external, not introspective. | Tinder Gold, assassin, guess three. The `npm run bots:map` machinery — an LLM-curated content list — flags it in milliseconds; the strongest human-facing advisor argument yet. |
+| 20 | **Frame monopolization (guesser-side first-instinct gone wrong).** The first frame that fires monopolizes the search; the *detectable* signal that it's the wrong frame is uniform weak fit — every candidate mediocre, none clean. The cluer's own alarm ("I worry I'm missing the point… but") fired and was overridden. Procedure, not vibes: when the current frame's best fits are all sub-threshold, enumerate the clue's other senses and re-score before guessing. | `REMOVAL 2` (mole removal, cast removal — medical frame): the guesser's "destruction/removal" frame (torch it, sink it, cast it off) arrived first and won; SINK (neutral) mercifully ended the turn before TORCH (blue). The guesser even touched CAST — right word, wrong path — and discarded it. |
+
+### Where each side failed (F–G) and what held
+
+- **F (AI): `REMOVAL 2` bet on fixed collocations against a frame-constructing
+  guesser.** The sequencing logic (clear ORGAN and SUIT first so the medical
+  reads are unique) was correct *inside* a frame that never fired. Failure D's
+  root cause again, mirrored: in round 2 the AI over-trusted its own compound
+  ("fossil fuel"); here it under-modeled the guesser's constructed frame.
+- **G (AI): the table-talk leak** — lesson 15 enforced on its author, two turns
+  after writing it.
+- **What held:** Dumbledore was the round's masterclass — the stranded GENIUS
+  debt cleared by *bundling into a fresh tight frame* (plan 2.12 from the
+  cluer's side), the attribute leg finally cashing because the referent's
+  board-resident contents came along with it, and the number sized exactly to
+  the visible targets, which is what kept the assassin below the promise line.
+  The human's casing stayed convention-perfect (`sundial` lowercase, `Tinder`
+  capitalized). The blind guesser's within-game recalibration compounded:
+  it declined every leftover chase, explicitly citing its own BARK and POLE
+  burns as evidence its frame-model of this spymaster was unreliable.
+- **Scoring philosophy (the cluer's caveat):** "we get the words we get —
+  sometimes there are no good clues." Judge line *selection* against the lines
+  the board actually offered, not against a platonic clue.
+
+### Engineering plan, extended (2.14–2.19)
+
+**2.14 Fame-of-fact weighting. 🔴** Extend 2.7: weight association edges by
+human penetration of the *fact*, not just corpus strength or word frequency.
+Guesser-side critical (lesson 14); the table backend's advantage, formalized.
+
+**2.15 Number-inventory guard. 🟢 (implemented: `PROMISE_FLOOR` tail trim — never promises an absolutely-weak card, never trims below 1, desperate win attempts exempt)** The spymaster must not set N above the
+count of targets clearing the guesser-visible strength bar; endgame stragglers
+get deferred or singled, never folded into an inflated N (lesson 18 — would
+have blocked both `Tinder 3`→GOLD and round 2's whole-hand `ENGINE 2`→BOX).
+
+**2.16 External referent-content sweep. 🔴** Reference clues validate against
+externally curated content lists (the `bots:map` LLM pipeline), including
+product/brand tiers and rival referents (merges with 2.10) — never against the
+cluer's internal knowledge alone (lesson 19).
+
+**2.17 Sense-enumeration in the clicker. 🔴** Split a clue into senses/frames,
+score candidates per-sense, and trigger a frame switch when the current frame's
+best fits are uniformly weak (lesson 20). Surfaces in the advisor as "your
+frame may be wrong," the procedural form of the human's ignored alarm.
+
+**2.18 Concreteness prior. 🔴** Boost parts/members/contents edges over
+function/attribute/compound edges in `scoreClue` and the clicker (lesson 16
+completes the gradient begun in lessons 7 and 13).
+
+**2.19 Board-difficulty normalization. 🟢 (implemented: `boardBestLead` ceiling + `ceilingUtilization` with shared boards per index, one per color, full-board clue legality)** In `bots:analyze`, score chosen
+clues relative to the best line an exhaustive search found for that board, so
+per-persona stats separate bad *selection* from bad *luck* (the cluer's caveat).
+
+**Round-3 through-line:** the number is a promise and the referent is a
+contract — both bind you to things you cannot see. The promise spends whatever
+halo you didn't audit; the contract includes contents you never knew existed.
+Every defense in this document converges on outsourcing that audit: to the
+assassin-first sweep, to an external content list, to a second frame, to a
+teammate — to anything that isn't your own certainty.

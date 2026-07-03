@@ -166,6 +166,21 @@ const RARITY_WEIGHT = 0.25;
 const WIN_BONUS = 1.0;
 const DESPERATION_MARGIN_FACTOR = 0.4;
 const DESPERATION_MARGIN_MIN = 0.02;
+// The number is a PROMISE (ledger lesson 18): when it exceeds the targets the
+// guesser can actually see, the excess is spent fishing in the clue's residual
+// halo — brightest-first, whatever color that is (Tinder 3 → GOLD; ENGINE 2 →
+// BOX). So a tail card may only be PROMISED when it is strong in absolute
+// terms, not merely margin-clearing on a cold board. Aligned with the
+// clicker's CLIFF_ABS_CEILING (0.3): below it a guesser is in the
+// no-information state a clue never promised. Never trims below 1 — a single
+// is always promiseable (one guess is the argmax; there is no excess promise).
+const PROMISE_FLOOR = 0.3;
+// Endgame assassin discipline (ledger lessons 11/18): as own cards dwindle,
+// spymasters relax and guessers lower their acceptance thresholds — the exact
+// phase where both live-play assassin hits landed. The berth FLOOR therefore
+// widens one-way as the board empties (up to 2× with the last own card).
+// Desperation still never touches the berth; this ramp only ever raises it.
+const ENDGAME_BERTH_RAMP = 1.0;
 // Cohesion: each own card a clue leaves behind with NO related partner among
 // the other leftovers is likely a future single-card turn, so a clue that
 // strands cards pays now for the turns it creates later. The threshold sits
@@ -174,7 +189,7 @@ const STRAND_THRESHOLD = 0.4;
 const STRAND_WEIGHT = 0.15;
 
 /** Result of scoring a candidate clue against the board. */
-interface ClueEval {
+export interface ClueEval {
     word: string;
     /** Own cards the clicker would take before crossing onto any non-own card,
      *  capped at what a single clue number can actually ask for. */
@@ -184,6 +199,25 @@ interface ClueEval {
     coversAll: boolean;
     /** Ranking key: leadOwn, adjusted for clarity, assassin risk, and defense. */
     score: number;
+    /** Relatedness of the weakest card the number actually promises. Retained
+     *  so the assassin gate is REPLAYABLE at give time without recomputation. */
+    weakestIntended: number;
+    /** Closest unrevealed assassin's relatedness (0 with no assassin left). */
+    maxAss: number;
+    /** The berth this eval was gated against (0 with no assassin left). */
+    berth: number;
+}
+
+/**
+ * The assassin gate as a standalone, replayable invariant: the weakest card a
+ * clue promises must clear the closest assassin by the full berth. scoreClue
+ * enforces this during scoring today; re-asserting it on the SELECTED clue at
+ * give time is the ledger's failure-E defense — any future path that caches or
+ * carries candidates between planning and emission must pass this same gate,
+ * and when analyses disagree, the assassin-negative verdict wins.
+ */
+export function passesAssassinGate(ev: Pick<ClueEval, 'weakestIntended' | 'maxAss' | 'berth'>): boolean {
+    return ev.weakestIntended - ev.maxAss >= ev.berth;
 }
 
 /** Per-decision board context for scoring, computed once in chooseClue. */
@@ -195,6 +229,9 @@ interface ScoreContext {
      *  side's extra misfires outweigh the tempo it buys. Only this binary
      *  last-stand trigger survived the data.) */
     desperate: boolean;
+    /** Hard assassin-berth floor for this decision. ASSASSIN_BERTH_FLOOR early,
+     *  ramped up (one-way) as own cards dwindle — see ENDGAME_BERTH_RAMP. */
+    assassinBerthFloor: number;
     /** Cost of the own cards a clue would leave behind, by how clue-able they
      *  remain together (stranded singles cost future turns). */
     strandPenalty: (residual: readonly string[]) => number;
@@ -287,8 +324,9 @@ function scoreClue(
     // remains unrevealed: with maxAss = 0 the floor would demand an absolute
     // relatedness of 0.1 from every intended card, silently trimming perfectly
     // safe low-signal cards on a board with nothing to steer clear of.
+    let berth = 0;
     if (groups.assassin.length > 0) {
-        const berth = Math.max(ASSASSIN_BERTH_FLOOR, margin * 2 * style.assassinCaution);
+        berth = Math.max(ctx.assassinBerthFloor, margin * 2 * style.assassinCaution);
         while (leadOwn > 0 && (own[leadOwn - 1] as number) - maxAss < berth) leadOwn--;
         if (leadOwn === 0) return null;
     }
@@ -298,8 +336,24 @@ function scoreClue(
     // set is capped at the normal clue-number ceiling, and everything downstream
     // (clarity, value, coverage) is computed on the cards the clicker will
     // actually be asked to take — not on a lead the number can't express.
-    const coversAll = leadOwn === groups.own.length;
-    const intended = coversAll ? leadOwn : Math.min(leadOwn, MAX_CLUE_NUMBER);
+    const fullLead = leadOwn === groups.own.length;
+    let intended = fullLead ? leadOwn : Math.min(leadOwn, MAX_CLUE_NUMBER);
+    // Promise trim (lesson 18): never promise a tail card that is only
+    // margin-clearing but absolutely weak — the number would send the clicker
+    // fishing in the residual halo. Trims the NUMBER, never the clue (a single
+    // is always promiseable), and a trimmed clue no longer counts as
+    // board-winning: an undeliverable tail is an illusory win. One exemption:
+    // a board-winning attempt under desperation. With the opponent one card
+    // from winning, trimming the win attempt forfeits the game outright —
+    // exactly the case the desperation margins exist for — so the last stand
+    // keeps its full number. The assassin berth already vetted every one of
+    // those cards; desperation thins promises, never the assassin wall.
+    const desperateWinAttempt = ctx.desperate && fullLead;
+    while (!desperateWinAttempt && intended > 1 && (own[intended - 1] as number) < PROMISE_FLOOR) intended--;
+    const coversAll = fullLead && intended === leadOwn;
+    // A trimmed full-board lead is no longer a win attempt, so it re-enters the
+    // normal number cap like any other partial clue.
+    if (!coversAll) intended = Math.min(intended, MAX_CLUE_NUMBER);
 
     const weakestIntended = own[intended - 1] as number;
     const clarity = Math.min(0.999, Math.max(0, weakestIntended - maxNonOwn));
@@ -341,7 +395,7 @@ function scoreClue(
         coverageBonus +
         winBonus -
         strandPenalty;
-    return { word: clue, leadOwn: intended, coversAll, score };
+    return { word: clue, leadOwn: intended, coversAll, score, weakestIntended, maxAss, berth };
 }
 
 /**
@@ -516,6 +570,21 @@ export function makeEmbeddingSpymaster(
             // computed once so the cohesion term costs each candidate only map
             // lookups over its residual set.
             const desperate = groups.opponent.length === 1;
+            // Endgame assassin discipline: the berth floor widens one-way as own
+            // cards dwindle (fraction cleared of the team's TOTAL key cards, so
+            // the ramp is progress-driven and monotonic across a game). Clamped
+            // to [1, 2]× so a fresh board is exactly the classic floor. Counts
+            // mirror groupBoard's match-mode trap rule (negative-value own cards
+            // are never steer-targets), so a fresh match board also starts at 1×.
+            let ownTotal = 0;
+            for (let i = 0; i < view.types.length; i++) {
+                if (view.types[i] !== view.team) continue;
+                if (isMatch && (view.cardScores?.[i] ?? 0) < 0) continue;
+                ownTotal++;
+            }
+            const cleared = ownTotal > 0 ? 1 - groups.own.length / ownTotal : 0;
+            const berthScale = 1 + ENDGAME_BERTH_RAMP * Math.min(1, Math.max(0, cleared));
+            const assassinBerthFloor = ASSASSIN_BERTH_FLOOR * berthScale;
             const pairRel = new Map<string, number>();
             for (let i = 0; i < groups.own.length; i++) {
                 for (let j = i + 1; j < groups.own.length; j++) {
@@ -539,23 +608,48 @@ export function makeEmbeddingSpymaster(
                 }
                 return STRAND_WEIGHT * stranded;
             };
-            const scoreCtx: ScoreContext = { desperate, strandPenalty };
+            // Score every legal candidate at the given berth floor, then pick
+            // one via temperature — with the give-time assassin re-gate
+            // (failure-E defense): scoreClue already enforced the berth during
+            // scoring, but the gate is re-asserted on the SELECTED clue at the
+            // moment of emission — the invariant that protects any future path
+            // where candidates are cached or carried between planning and give
+            // time. A failing candidate is dropped and selection re-runs on the
+            // remainder; an emptied pool returns null.
+            const emitAt = (berthFloor: number): BotAction | null => {
+                const scoreCtx: ScoreContext = { desperate, assassinBerthFloor: berthFloor, strandPenalty };
+                const scored: ClueEval[] = [];
+                for (const clue of legalCandidates) {
+                    const ev = scoreClue(clue, groups, backend, skill.riskAversion, valueOf, style, scoreCtx);
+                    if (ev) scored.push(ev);
+                }
+                let pool = scored;
+                while (pool.length > 0) {
+                    const chosen = selectByTemperature(pool, skill.temperature, ctx.rng);
+                    if (!passesAssassinGate(chosen)) {
+                        pool = pool.filter((c) => c !== chosen);
+                        continue;
+                    }
+                    // A board-winning clue carries its true count (the server
+                    // allows up to CLUE_NUMBER_MAX); everything else keeps the
+                    // normal cap.
+                    const cap = chosen.coversAll ? CLUE_NUMBER_MAX : MAX_CLUE_NUMBER;
+                    const number = Math.max(1, Math.min(chosen.leadOwn, cap));
+                    return { kind: 'clue', word: chosen.word, number };
+                }
+                return null;
+            };
 
-            // Score every legal candidate, then pick one via temperature.
-            const scored: ClueEval[] = [];
-            for (const clue of legalCandidates) {
-                const ev = scoreClue(clue, groups, backend, skill.riskAversion, valueOf, style, scoreCtx);
-                if (ev) scored.push(ev);
-            }
-
-            if (scored.length > 0) {
-                const chosen = selectByTemperature(scored, skill.temperature, ctx.rng);
-                // A board-winning clue carries its true count (the server allows
-                // up to CLUE_NUMBER_MAX); everything else keeps the normal cap.
-                const cap = chosen.coversAll ? CLUE_NUMBER_MAX : MAX_CLUE_NUMBER;
-                const number = Math.max(1, Math.min(chosen.leadOwn, cap));
-                return { kind: 'clue', word: chosen.word, number };
-            }
+            // Try the ramped endgame floor first; if it empties the pool, retry
+            // once at the base floor before degrading further. The ramp is a
+            // PREFERENCE, not a cliff: a clue clearing the classic berth is
+            // strictly safer than the berth-FREE best-effort fallback the ramp
+            // would otherwise cascade into — exactly the endgame states the
+            // ramp exists to protect.
+            const emitted =
+                emitAt(assassinBerthFloor) ??
+                (assassinBerthFloor > ASSASSIN_BERTH_FLOOR ? emitAt(ASSASSIN_BERTH_FLOOR) : null);
+            if (emitted) return emitted;
 
             // Nothing leads safely: fall back to the least-bad legal clue, which
             // still refuses to make the assassin the clicker's top pick. Try the
