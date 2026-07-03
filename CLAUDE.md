@@ -743,5 +743,6 @@ Key env vars (see `server/.env.example` for full list):
 | [docs/BOT_EMBEDDINGS.md](docs/BOT_EMBEDDINGS.md) | Optional word-embedding backend for the semantic bot spymaster |
 | [docs/BOT_SEMANTIC_MAPS.md](docs/BOT_SEMANTIC_MAPS.md) | Prepared custom word lists: LLM-built semantic maps (`npm run bots:map`) for full-strength bots |
 | [docs/BOT_CLUE_LESSONS.md](docs/BOT_CLUE_LESSONS.md) | Human-play lessons → prioritized plan for improving bot clue-giving and guessing |
+| [docs/BOT_NUANCE_PLAN.md](docs/BOT_NUANCE_PLAN.md) | Build sheet for the lessons ledger: plan items 2.8–2.19 mapped to exact code hooks, phased with metric gates |
 | [docs/SETUP_SCREEN_GUIDE.md](docs/SETUP_SCREEN_GUIDE.md) | User-facing setup screen walkthrough |
 | [docs/WINDOWS_SETUP.md](docs/WINDOWS_SETUP.md) | Windows development setup |
