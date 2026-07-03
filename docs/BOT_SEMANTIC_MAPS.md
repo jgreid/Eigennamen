@@ -86,6 +86,8 @@ Maps are loaded once and memoised — restart the server after adding one.
 - The builder covers what it honestly can; uncovered words fall back to
   lexical similarity (the coverage report names them — consider hand-adding
   associations for those).
-- Multiplayer custom lists: the server accepts an inline `wordList` on
-  `game:start`; the standalone app manages custom lists in Settings. Either
-  way, the map only depends on the words — not on how the list reaches a game.
+- Multiplayer custom lists: the Settings-menu word list is host-side state —
+  whichever list is active for the host when they start (or restart) the game
+  is forwarded on `game:start` and becomes the list for the whole room. This
+  works identically in standalone and hosted multiplayer; the map only
+  depends on the words, not on how the list reaches a game.

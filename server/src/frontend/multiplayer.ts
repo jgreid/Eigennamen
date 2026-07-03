@@ -20,7 +20,7 @@ import {
 } from './multiplayerSync.js';
 import { resetGameState } from './stateMutations.js';
 import { renderBoard } from './board.js';
-import { updateScoreboard, updateTurnIndicator } from './game.js';
+import { updateScoreboard, updateTurnIndicator, buildStartGameOptions } from './game.js';
 import { setupMultiplayerListeners } from './multiplayerListeners.js';
 import { isClientConnected } from './clientAccessor.js';
 import { startRevealSweep } from './game/reveal.js';
@@ -388,7 +388,7 @@ export function onMultiplayerJoined(result: JoinCreateResult, isHostParam: boole
         // immediately playable. Players who join later receive the game
         // state via the room:joined response.
         if (isHostParam && isClientConnected()) {
-            EigennamenClient.startGame({});
+            EigennamenClient.startGame(buildStartGameOptions());
         }
     }
 

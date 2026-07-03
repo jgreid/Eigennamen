@@ -1,4 +1,4 @@
-import { state, BOARD_SIZE, DEFAULT_WORDS } from './state.js';
+import { state, BOARD_SIZE, DEFAULT_WORDS, MAX_CUSTOM_WORD_LIST_SIZE } from './state.js';
 import { updateCharCounter, safeGetItem, safeSetItem, safeRemoveItem } from './utils.js';
 import { openModal, closeModal, showToast } from './ui.js';
 import { updateURL, updateScoreboard, updateTurnIndicator } from './game.js';
@@ -156,7 +156,6 @@ export function updateWordCount(): void {
     }
 }
 
-const MAX_WORD_LIST_SIZE = 10000;
 const MAX_WORD_LENGTH = 50;
 
 export function parseWords(text: string): string[] {
@@ -166,8 +165,10 @@ export function parseWords(text: string): string[] {
         .map((w) => w.trim())
         .filter((w) => w.length > 0 && !w.startsWith('#'))
         .map((w) => w.substring(0, MAX_WORD_LENGTH).toUpperCase());
-    // Cap at MAX_WORD_LIST_SIZE to prevent memory issues
-    return words.slice(0, MAX_WORD_LIST_SIZE);
+    // Cap at MAX_CUSTOM_WORD_LIST_SIZE — shared with the server's game:start
+    // schema so a list accepted here is never silently rejected once sent
+    // over the wire in multiplayer mode.
+    return words.slice(0, MAX_CUSTOM_WORD_LIST_SIZE);
 }
 
 export function saveSettings(): void {

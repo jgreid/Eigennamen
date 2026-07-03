@@ -46,6 +46,7 @@ jest.mock('../../frontend/state', () => ({
     },
     BOARD_SIZE: 25,
     DEFAULT_WORDS: Array.from({ length: 50 }, (_, i) => `WORD${i}`),
+    MAX_CUSTOM_WORD_LIST_SIZE: 2000,
 }));
 
 jest.mock('../../frontend/i18n', () => ({

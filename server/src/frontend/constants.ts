@@ -16,6 +16,7 @@ import {
     TIMER_MAX_TURN_SECONDS,
     TIMER_DEFAULT_TURN_SECONDS,
     DEFAULT_WORDS as SHARED_DEFAULT_WORDS,
+    MAX_CUSTOM_WORD_LIST_SIZE as SHARED_MAX_CUSTOM_WORD_LIST_SIZE,
 } from '../shared/index.js';
 
 /**
@@ -64,6 +65,7 @@ export const ROLE_BANNER_CONFIG: Record<string, { red: string; blue: string; lab
 };
 
 export const DEFAULT_WORDS: string[] = [...SHARED_DEFAULT_WORDS];
+export const MAX_CUSTOM_WORD_LIST_SIZE = SHARED_MAX_CUSTOM_WORD_LIST_SIZE;
 
 /**
  * Timer-related constants — bounds sourced from shared module

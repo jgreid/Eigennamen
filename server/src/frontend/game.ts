@@ -105,6 +105,17 @@ export function initGame(seed: string, wordList?: string[]): boolean {
     return true;
 }
 
+/**
+ * Options for a multiplayer game:start call. Forwards the host's locally
+ * configured word list (set via the settings panel) so a prepared/custom
+ * list actually reaches the server instead of silently staying on the
+ * built-in default — state.wordSource stays 'default' until the host
+ * customizes something, so the common case sends an untouched `{}`.
+ */
+export function buildStartGameOptions(): Record<string, unknown> {
+    return state.wordSource === 'default' ? {} : { wordList: state.activeWords };
+}
+
 export function newGame(): void {
     // Prevent rapid clicks
     if (state.newGameDebounce) return;
@@ -149,7 +160,7 @@ export function newGame(): void {
         if (isMatchRoundOver) {
             EigennamenClient.nextRound();
         } else {
-            EigennamenClient.startGame({});
+            EigennamenClient.startGame(buildStartGameOptions());
         }
         return;
     }

@@ -23,6 +23,7 @@ export {
     NEUTRAL_CARDS,
     ASSASSIN_CARDS,
     DEFAULT_WORDS,
+    MAX_CUSTOM_WORD_LIST_SIZE,
     ROLE_BANNER_CONFIG,
 } from './constants.js';
 

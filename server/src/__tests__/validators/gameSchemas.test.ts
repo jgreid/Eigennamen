@@ -44,10 +44,16 @@ describe('gameStartSchema', () => {
         expect(result.success).toBe(false);
     });
 
-    test('rejects word list exceeding 500 words', () => {
-        const tooMany = Array.from({ length: 501 }, (_, i) => `word${i}`);
+    test('rejects word list exceeding MAX_CUSTOM_WORD_LIST_SIZE words', () => {
+        const tooMany = Array.from({ length: 2001 }, (_, i) => `word${i}`);
         const result = gameStartSchema.safeParse({ wordList: tooMany });
         expect(result.success).toBe(false);
+    });
+
+    test('accepts word list right at MAX_CUSTOM_WORD_LIST_SIZE words', () => {
+        const atMax = Array.from({ length: 2000 }, (_, i) => `word${i}`);
+        const result = gameStartSchema.safeParse({ wordList: atMax });
+        expect(result.success).toBe(true);
     });
 
     test('accepts empty object (all fields optional)', () => {
