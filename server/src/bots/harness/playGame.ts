@@ -26,6 +26,11 @@ export type GameEvent =
 
 export interface PlayGameOptions {
     seed: string;
+    /** Seed for board generation only (words + key layout). Defaults to `seed`.
+     *  Letting callers split the two means a tournament can hold the BOARD
+     *  constant across entrant pairings (fair difficulty comparison) while each
+     *  pairing still gets its own decision randomness via `seed`. */
+    boardSeed?: string;
     gameMode: GameMode;
     red: Entrant;
     blue: Entrant;
@@ -67,7 +72,7 @@ function bindSeat(team: Team, role: 'spymaster' | 'clicker', spec: SeatSpec, bas
 
 export function playEngineGame(opts: PlayGameOptions): MatchResult {
     const { seed, gameMode, red, blue } = opts;
-    const game = createEngineGame({ seed, gameMode, words: opts.words });
+    const game = createEngineGame({ seed: opts.boardSeed ?? seed, gameMode, words: opts.words });
 
     const bindings: Record<string, SeatBinding> = {
         'red:spymaster': bindSeat('red', 'spymaster', red.spymaster, seed),
