@@ -18,6 +18,7 @@ import {
 import type { GameState, Team } from '../../types';
 import type { SemanticBackend } from '../../bots/semantics/backend';
 import type { Entrant } from '../../bots/harness/types';
+import { playEngineGame } from '../../bots/harness/playGame';
 
 function game(words: string[], types: string[], over: Partial<GameState> = {}): GameState {
     return {
@@ -250,6 +251,26 @@ describe('aggregate + detectGaps', () => {
         expect(enough.join(' ')).toMatch(/endgame danger/);
     });
 
+    it('pins the endgame-danger rate threshold on both sides (sample gate cleared)', () => {
+        const mix = (hot: number, clean: number): ClueRecord[] => [
+            ...Array.from({ length: hot }, () => rec({ ownAvailable: 2, dangerNext: true })),
+            ...Array.from({ length: clean }, () => rec({ ownAvailable: 2, dangerNext: false })),
+        ];
+        // 2/6 ≈ 0.33 < 0.35 — clears the sample gate but stays under the rate bar.
+        expect(detectGaps(aggregate(mix(2, 4))[0] as ClueDiagnostics).join(' ')).not.toMatch(/endgame danger/);
+        // 3/6 = 0.50 > 0.35 — flagged.
+        expect(detectGaps(aggregate(mix(3, 3))[0] as ClueDiagnostics).join(' ')).toMatch(/endgame danger/);
+    });
+
+    it('pins the selection-gap threshold: healthy utilization on hot boards passes', () => {
+        // Hot boards (ceiling 3) with numbers of 2: utilization ≈ 0.67 ≥ 0.55.
+        const healthy = aggregate(Array.from({ length: 10 }, () => rec({ number: 2, boardBestLead: 3 })));
+        expect((healthy[0] as ClueDiagnostics).gaps.join(' ')).not.toMatch(/selection gap/);
+        // Same boards with numbers of 1: utilization ≈ 0.33 < 0.55 — flagged.
+        const timid = aggregate(Array.from({ length: 10 }, () => rec({ number: 1, boardBestLead: 3 })));
+        expect((timid[0] as ClueDiagnostics).gaps.join(' ')).toMatch(/selection gap/);
+    });
+
     it('computes the board-ceiling utilization and flags a selection gap', () => {
         // Boards offered 3-card lines; the entrant asked for 1s. 10/30 ≈ 0.33.
         const timid = Array.from({ length: 10 }, () => rec({ number: 1, boardBestLead: 3 }));
@@ -297,6 +318,25 @@ describe('boardBestLead', () => {
         const bare = { id: 'bare', relatedness: () => 0.5 };
         expect(boardBestLead(boardGroupsFor(g, 'red'), bare)).toBe(0);
     });
+
+    it('judges legality against the FULL board: a revealed cluster-mate is still illegal', () => {
+        // NAIL was an own card, already found. It relates perfectly to the two
+        // remaining own cards — but a real spymaster may never clue a board
+        // word, revealed or not (the server checks the full 25). Admitting it
+        // would inflate the ceiling on every post-reveal record.
+        const gr = game(['NAIL', 'HAMMER', 'SCREW', 'OPPO', 'ASSN'], ['red', 'red', 'red', 'blue', 'assassin'], {
+            revealed: [true, false, false, false, false],
+        });
+        const backend = stub({
+            NAIL: { HAMMER: 1, SCREW: 1, OPPO: 0.0, ASSN: 0.0 },
+            TOOL: { HAMMER: 0.9, SCREW: 0.0, OPPO: 0.0, ASSN: 0.0 },
+        });
+        const groups = boardGroupsFor(gr, 'red');
+        // With the full word list, NAIL is excluded and TOOL's 1-lead is the true ceiling.
+        expect(boardBestLead(groups, backend, gr.words as string[])).toBe(1);
+        // The unrevealed-only fallback (no game at hand) would wrongly admit NAIL.
+        expect(boardBestLead(groups, backend)).toBe(2);
+    });
 });
 
 describe('analyzeGames end-to-end', () => {
@@ -333,12 +373,40 @@ describe('analyzeGames end-to-end', () => {
         expect(a.diagnostics).toEqual(b.diagnostics);
     });
 
-    it('derives the board seed from the game index only, never the pairing', () => {
+    it('derives the board seed from the board index only, never the pairing', () => {
         const a = analysisSeeds('base', 0, 1, 3);
         const b = analysisSeeds('base', 2, 5, 3);
         expect(a.boardSeed).toBe(b.boardSeed); // same game index ⇒ same board
         expect(a.seed).not.toBe(b.seed); // decisions still vary by pairing
+        // Consecutive game indices share a board: the color swap alternates on
+        // g % 2, so each pair plays every board once per color — board identity
+        // must never couple to roster position.
+        expect(analysisSeeds('base', 0, 1, 2).boardSeed).toBe(a.boardSeed);
+        expect(analysisSeeds('base', 0, 1, 2).seed).not.toBe(a.seed);
         expect(analysisSeeds('base', 0, 1, 4).boardSeed).not.toBe(a.boardSeed);
+    });
+
+    it('boardSeed pins the board words independently of the decision seed', () => {
+        const [a, b] = personaEntrants();
+        const boardWords = (seed: string, boardSeed: string): string[] => {
+            let words: string[] = [];
+            playEngineGame({
+                seed,
+                boardSeed,
+                gameMode: 'classic',
+                red: a as Entrant,
+                blue: b as Entrant,
+                onEvent: (_ev, game) => {
+                    if (words.length === 0) words = [...(game.words as string[])];
+                },
+            });
+            return words;
+        };
+        const w1 = boardWords('decisions-1', 'board-X');
+        const w2 = boardWords('decisions-2', 'board-X');
+        const w3 = boardWords('decisions-1', 'board-Y');
+        expect(w1).toEqual(w2); // same boardSeed ⇒ same board, decisions differ
+        expect(w1).not.toEqual(w3); // different boardSeed ⇒ different board
     });
 
     it('gives every entrant pairing the same board at the same game index', () => {

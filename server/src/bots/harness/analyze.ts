@@ -219,12 +219,16 @@ export function referenceLead(
  * actually offered rather than an absolute scale (bad selection vs bad luck).
  * Candidates come from the backend's nearest() around the own cards when it has
  * one (mirroring the spymaster's generator), else its fixed vocabulary(); board
- * words are excluded by the same legality rule real clues obey. Returns 0 when
- * the backend offers no pool at all — consumers must treat 0 as "no yardstick",
- * not "the board offered nothing".
+ * words are excluded by the same legality rule real clues obey — against the
+ * FULL board (`allBoardWords`, revealed cards included), exactly as the server
+ * validates real clues: a revealed cluster-mate is still an illegal clue, and
+ * admitting it would inflate the ceiling on every post-reveal record. The
+ * unrevealed-groups fallback exists only for callers with no game at hand.
+ * Returns 0 when the backend offers no pool at all — consumers must treat 0 as
+ * "no yardstick", not "the board offered nothing".
  */
-export function boardBestLead(g: BoardGroups, backend: SemanticBackend): number {
-    const boardWords = [...g.own, ...g.opp, ...g.neutral, ...g.assassin];
+export function boardBestLead(g: BoardGroups, backend: SemanticBackend, allBoardWords?: readonly string[]): number {
+    const boardWords = allBoardWords ? [...allBoardWords] : [...g.own, ...g.opp, ...g.neutral, ...g.assassin];
     let pool: string[];
     if (backend.nearest && g.own.length > 0) {
         pool = backend.nearest(g.own, BASELINE_NEIGHBOURS).map((c) => c.word);
@@ -279,7 +283,7 @@ function collectGameRecords(
                 ownAvailable: groups.own.length,
                 revealedCount: game.revealed.reduce((n, r) => n + (r ? 1 : 0), 0),
                 safeLead: ref.safeLead,
-                boardBestLead: boardBestLead(groups, backend),
+                boardBestLead: boardBestLead(groups, backend, game.words as string[]),
                 clarity: ref.clarity,
                 assassinArgmax: ref.assassinArgmax,
                 dangerNext: ref.dangerNext,
@@ -400,9 +404,12 @@ export function detectGaps(d: ClueDiagnostics): string[] {
     // the numbers asked for well under them. Distinct from under-cluing above,
     // which compares the number to the GIVEN clue's own lead — this compares it
     // to the best clue anyone could have chosen. Skipped when the yardstick had
-    // no candidate pool (avgBoardBestLead 0 ⇒ ceilingUtilization 0).
-    if (d.avgBoardBestLead >= 1.5 && d.ceilingUtilization > 0 && d.ceilingUtilization < 0.6) {
-        gaps.push('selection gap: clue choices use < 60% of the board’s best-line ceiling');
+    // no candidate pool (avgBoardBestLead 0 ⇒ ceilingUtilization 0). Threshold
+    // calibrated on live data: the yardstick applies no promise floor, so a
+    // floor-respecting spymaster sits structurally below 1.0 — at 0.6 half the
+    // healthy roster flagged; 0.55 keeps the flag on genuine timidity.
+    if (d.avgBoardBestLead >= 1.5 && d.ceilingUtilization > 0 && d.ceilingUtilization < 0.55) {
+        gaps.push('selection gap: clue choices use < 55% of the board’s best-line ceiling');
     }
     if (d.robustness < 0.6) gaps.push('idiosyncratic: clue words run rare and/or their halos run hot');
     if (d.overReachRate > 0.15) gaps.push('over-reach: > 15% of clues end with a miss past a banked core');
@@ -411,13 +418,18 @@ export function detectGaps(d: ClueDiagnostics): string[] {
 
 /**
  * Seeds for pair (i, j)'s g-th game. The BOARD seed deliberately excludes the
- * entrant indices so every pair plays the SAME board at game index g — without
- * this, each entrant's metrics average over a private set of boards and
- * per-entrant differences conflate skill with board luck. The decision seed
- * keeps the pair in it so different matchups still explore different play.
+ * entrant indices so every pair plays the SAME board at each board index —
+ * without this, each entrant's metrics average over a private set of boards and
+ * per-entrant differences conflate skill with board luck. It is derived from
+ * floor(g / 2), not g: the color swap alternates on g % 2, so consecutive game
+ * indices are the SAME board played once per color — otherwise board identity
+ * couples to roster position (the lower-indexed entrant would hold the red key
+ * of every even board in every pairing, and no pair would ever see a board from
+ * both sides). The decision seed keeps the pair and full game index so the two
+ * same-board games still play out differently.
  */
 export function analysisSeeds(baseSeed: string, i: number, j: number, g: number): { seed: string; boardSeed: string } {
-    return { seed: `${baseSeed}:${i}-${j}:${g}`, boardSeed: `${baseSeed}:board:${g}` };
+    return { seed: `${baseSeed}:${i}-${j}:${g}`, boardSeed: `${baseSeed}:board:${Math.floor(g / 2)}` };
 }
 
 /** Round-robin analysis over the entrants; returns raw records + diagnostics. */

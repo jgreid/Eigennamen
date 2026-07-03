@@ -342,8 +342,14 @@ function scoreClue(
     // margin-clearing but absolutely weak — the number would send the clicker
     // fishing in the residual halo. Trims the NUMBER, never the clue (a single
     // is always promiseable), and a trimmed clue no longer counts as
-    // board-winning: an undeliverable tail is an illusory win.
-    while (intended > 1 && (own[intended - 1] as number) < PROMISE_FLOOR) intended--;
+    // board-winning: an undeliverable tail is an illusory win. One exemption:
+    // a board-winning attempt under desperation. With the opponent one card
+    // from winning, trimming the win attempt forfeits the game outright —
+    // exactly the case the desperation margins exist for — so the last stand
+    // keeps its full number. The assassin berth already vetted every one of
+    // those cards; desperation thins promises, never the assassin wall.
+    const desperateWinAttempt = ctx.desperate && fullLead;
+    while (!desperateWinAttempt && intended > 1 && (own[intended - 1] as number) < PROMISE_FLOOR) intended--;
     const coversAll = fullLead && intended === leadOwn;
     // A trimmed full-board lead is no longer a win attempt, so it re-enters the
     // normal number cap like any other partial clue.
@@ -602,35 +608,48 @@ export function makeEmbeddingSpymaster(
                 }
                 return STRAND_WEIGHT * stranded;
             };
-            const scoreCtx: ScoreContext = { desperate, assassinBerthFloor, strandPenalty };
-
-            // Score every legal candidate, then pick one via temperature.
-            const scored: ClueEval[] = [];
-            for (const clue of legalCandidates) {
-                const ev = scoreClue(clue, groups, backend, skill.riskAversion, valueOf, style, scoreCtx);
-                if (ev) scored.push(ev);
-            }
-
-            // Give-time assassin re-gate (failure-E defense): scoreClue already
-            // enforced the berth during scoring, but the gate is re-asserted on
-            // the SELECTED clue at the moment of emission — the invariant that
-            // protects any future path where candidates are cached or carried
-            // between planning and give time. A failing candidate is dropped and
-            // selection re-runs on the remainder; an emptied pool falls through
-            // to the assassin-safe best-effort path below.
-            let pool = scored;
-            while (pool.length > 0) {
-                const chosen = selectByTemperature(pool, skill.temperature, ctx.rng);
-                if (!passesAssassinGate(chosen)) {
-                    pool = pool.filter((c) => c !== chosen);
-                    continue;
+            // Score every legal candidate at the given berth floor, then pick
+            // one via temperature — with the give-time assassin re-gate
+            // (failure-E defense): scoreClue already enforced the berth during
+            // scoring, but the gate is re-asserted on the SELECTED clue at the
+            // moment of emission — the invariant that protects any future path
+            // where candidates are cached or carried between planning and give
+            // time. A failing candidate is dropped and selection re-runs on the
+            // remainder; an emptied pool returns null.
+            const emitAt = (berthFloor: number): BotAction | null => {
+                const scoreCtx: ScoreContext = { desperate, assassinBerthFloor: berthFloor, strandPenalty };
+                const scored: ClueEval[] = [];
+                for (const clue of legalCandidates) {
+                    const ev = scoreClue(clue, groups, backend, skill.riskAversion, valueOf, style, scoreCtx);
+                    if (ev) scored.push(ev);
                 }
-                // A board-winning clue carries its true count (the server allows
-                // up to CLUE_NUMBER_MAX); everything else keeps the normal cap.
-                const cap = chosen.coversAll ? CLUE_NUMBER_MAX : MAX_CLUE_NUMBER;
-                const number = Math.max(1, Math.min(chosen.leadOwn, cap));
-                return { kind: 'clue', word: chosen.word, number };
-            }
+                let pool = scored;
+                while (pool.length > 0) {
+                    const chosen = selectByTemperature(pool, skill.temperature, ctx.rng);
+                    if (!passesAssassinGate(chosen)) {
+                        pool = pool.filter((c) => c !== chosen);
+                        continue;
+                    }
+                    // A board-winning clue carries its true count (the server
+                    // allows up to CLUE_NUMBER_MAX); everything else keeps the
+                    // normal cap.
+                    const cap = chosen.coversAll ? CLUE_NUMBER_MAX : MAX_CLUE_NUMBER;
+                    const number = Math.max(1, Math.min(chosen.leadOwn, cap));
+                    return { kind: 'clue', word: chosen.word, number };
+                }
+                return null;
+            };
+
+            // Try the ramped endgame floor first; if it empties the pool, retry
+            // once at the base floor before degrading further. The ramp is a
+            // PREFERENCE, not a cliff: a clue clearing the classic berth is
+            // strictly safer than the berth-FREE best-effort fallback the ramp
+            // would otherwise cascade into — exactly the endgame states the
+            // ramp exists to protect.
+            const emitted =
+                emitAt(assassinBerthFloor) ??
+                (assassinBerthFloor > ASSASSIN_BERTH_FLOOR ? emitAt(ASSASSIN_BERTH_FLOOR) : null);
+            if (emitted) return emitted;
 
             // Nothing leads safely: fall back to the least-bad legal clue, which
             // still refuses to make the assassin the clicker's top pick. Try the

@@ -72,6 +72,23 @@ describe('PROMISE_FLOOR trims absolutely-weak tail promises', () => {
         expect(action).toMatchObject({ kind: 'clue', word: 'LINK', number: 3 });
     });
 
+    it('a trimmed full-board lead loses win status and re-enters the normal cap', () => {
+        // Six own cards all clear the margin (a full-board lead, which would
+        // normally ride the win-clue exemption past MAX_CLUE_NUMBER), but the
+        // tail card is below the promise floor: the trim to 5 revokes coversAll,
+        // so the number re-enters the normal cap of 4 instead of promising 5.
+        const board = view(
+            ['OWNA', 'OWNB', 'OWNC', 'OWND', 'OWNE', 'OWNF', 'OPPO', 'OPPOX', 'NEUT'],
+            ['red', 'red', 'red', 'red', 'red', 'red', 'blue', 'blue', 'neutral']
+        );
+        const backend = stub({
+            LINK: { OWNA: 0.9, OWNB: 0.85, OWNC: 0.8, OWND: 0.75, OWNE: 0.7, OWNF: 0.2, OPPO: 0.02, NEUT: 0.02 },
+        });
+        const skill = base({});
+        const action = makeEmbeddingSpymaster(skill, backend).chooseClue(board, ctx(skill));
+        expect(action).toMatchObject({ kind: 'clue', word: 'LINK', number: 4 });
+    });
+
     it('never trims below 1: a cold-board single stays a playable clue', () => {
         // The only viable link is faint (0.2) but it clears the margin on a cold
         // board — a single is always promiseable (the guess is the argmax), so
@@ -114,7 +131,7 @@ describe('endgame berth widening (one-way assassin discipline)', () => {
     ];
     const backend = stub({
         LINK: { OWNA: 0.45, OWNB: 0.44, ASSN: 0.3, OPPO: 0.02 },
-        SAFE: { OWNC: 0.4, ASSN: 0.0, OPPO: 0.02 },
+        SAFE: { OWNB: 0.4, ASSN: 0.0, OPPO: 0.02 },
     });
     const skill = base({ riskAversion: 0, assassinCaution: 0, commonnessBias: 0 });
 
@@ -124,10 +141,42 @@ describe('endgame berth widening (one-way assassin discipline)', () => {
     });
 
     it('rejects the same assassin margin late and switches to the safe clue', () => {
-        // 3 of 5 own cards found ⇒ 60% cleared ⇒ floor = 0.1 × 1.6 = 0.16, which
-        // both of LINK's cards (0.14 / 0.15 over the assassin) now fail.
-        const revealed = [false, true, false, true, true, false, false, false];
+        // OWNC/OWND/OWNE found ⇒ 3 of 5 cleared ⇒ floor = 0.1 × 1.6 = 0.16.
+        // Both of LINK's still-live cards (OWNA 0.15, OWNB 0.14 over the
+        // assassin) fail the widened floor — LINK, otherwise the winning
+        // 2-clue at the fresh-board floor, is eliminated and SAFE (0.4 clear
+        // of the assassin) takes over.
+        const revealed = [false, false, true, true, true, false, false, false];
         const action = makeEmbeddingSpymaster(skill, backend).chooseClue(view(words, types, revealed), ctx(skill));
         expect(action).toMatchObject({ kind: 'clue', word: 'SAFE', number: 1 });
+    });
+
+    it('retries at the base floor before degrading to the berth-free fallback', () => {
+        // Late game, and the ONLY candidate fails the ramped floor while still
+        // clearing the classic one: the spymaster must re-admit it at the base
+        // floor rather than cascade into pickBestEffort, which applies no berth
+        // at all. Discriminator: the real clue's margin logic yields number 1
+        // (SOLO's second card misses the safety margin), while the best-effort
+        // fallback's board-derived number would be 2 (both own cards out-rank
+        // the assassin) — so the number tells us which path emitted the clue.
+        const soloWords = ['OWNA', 'OWNB', 'OWNC', 'OWND', 'OWNE', 'OPPO', 'OPPOX', 'ASSN'];
+        const soloTypes: ('red' | 'blue' | 'neutral' | 'assassin')[] = [
+            'red',
+            'red',
+            'red',
+            'red',
+            'red',
+            'blue',
+            'blue',
+            'assassin',
+        ];
+        const soloBackend = stub({ SOLO: { OWNA: 0.45, OWNB: 0.34, ASSN: 0.3, OPPO: 0.02 } });
+        // OWNC/OWND/OWNE found ⇒ floor 0.16; SOLO's best gap is 0.15.
+        const revealed = [false, false, true, true, true, false, false, false];
+        const action = makeEmbeddingSpymaster(skill, soloBackend).chooseClue(
+            view(soloWords, soloTypes, revealed),
+            ctx(skill)
+        );
+        expect(action).toMatchObject({ kind: 'clue', word: 'SOLO', number: 1 });
     });
 });
