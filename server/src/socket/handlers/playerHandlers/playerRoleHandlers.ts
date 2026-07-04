@@ -143,10 +143,9 @@ export default function playerRoleHandlers(io: Server, socket: GameSocket): void
                                 targetRole: validated.role,
                             });
                             if (!canChange.allowed) {
-                                throw new GameStateError(
-                                    ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN,
-                                    canChange.reason ?? ''
-                                );
+                                const errorCode = (canChange.code ||
+                                    ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN) as ErrorCode;
+                                throw new GameStateError(errorCode, canChange.reason ?? '');
                             }
                         }
 
@@ -226,10 +225,9 @@ export default function playerRoleHandlers(io: Server, socket: GameSocket): void
                             targetRole: validated.role,
                         });
                         if (!canChangeRole.allowed) {
-                            throw new GameStateError(
-                                ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN,
-                                canChangeRole.reason ?? ''
-                            );
+                            const errorCode = (canChangeRole.code ||
+                                ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN) as ErrorCode;
+                            throw new GameStateError(errorCode, canChangeRole.reason ?? '');
                         }
 
                         // Step 1: Set team if different (this resets role to spectator)

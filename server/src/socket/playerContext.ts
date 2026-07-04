@@ -294,6 +294,22 @@ function canChangeTeamOrRole(
         };
     }
 
+    // A spymaster has also seen the FULL unmasked board this game, so the same
+    // lockout applies: no role change at all while a game is active, not even to
+    // spectator. The team-change guard above already blocks the cross-team version
+    // of "become a clicker with spymaster knowledge"; without this same-team guard,
+    // a spymaster could either swap directly to clicker on their own team, or step
+    // down to spectator first and become clicker later — the identical
+    // observer -> spectator -> clicker laundering path this closes for spymasters.
+    // They remain spymaster until the game ends (or may leave the room).
+    if (player.role === 'spymaster' && targetRole && targetRole !== 'spymaster') {
+        return {
+            allowed: false,
+            reason: 'Cannot leave the spymaster role during an active game — you have seen the whole board',
+            code: ERROR_CODES.SPYMASTER_CANNOT_CHANGE_ROLE,
+        };
+    }
+
     if (player.role === 'spymaster' || player.role === 'clicker') {
         if (game.currentTurn === player.team) {
             // Allow switching between active roles on the same team (clicker <-> spymaster)

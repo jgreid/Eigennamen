@@ -74,7 +74,9 @@ function errorHandler(err: AppError | ZodError, _req: Request, res: Response, _n
             [ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN]: 400,
             [ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN]: 400,
             [ERROR_CODES.SPYMASTER_CANNOT_CHANGE_TEAM]: 400,
+            [ERROR_CODES.SPYMASTER_CANNOT_CHANGE_ROLE]: 400,
             [ERROR_CODES.PLAYER_NOT_FOUND]: 404,
+            [ERROR_CODES.NO_CLUE_GIVEN]: 400,
         };
 
         // Allowlist of detail fields that are safe to expose to clients.

@@ -78,7 +78,9 @@ describe('contextHandler', () => {
             'CANNOT_SWITCH_TEAM_DURING_TURN',
             'CANNOT_CHANGE_ROLE_DURING_TURN',
             'SPYMASTER_CANNOT_CHANGE_TEAM',
+            'SPYMASTER_CANNOT_CHANGE_ROLE',
             'GAME_NOT_STARTED',
+            'NO_CLUE_GIVEN',
         ];
         createRateLimitedHandler.mockImplementation((socket, eventName, handler) => {
             return async (data) => {

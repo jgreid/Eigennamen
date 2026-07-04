@@ -24,12 +24,15 @@ export function getErrorMessage(error: ServerErrorData): string {
         GAME_NOT_STARTED: 'Wait for the host to start the game',
         GAME_OVER: 'The game has ended \u2014 click New Game to play again',
         CARD_ALREADY_REVEALED: 'That card has already been revealed',
+        NO_CLUE_GIVEN: 'Wait for a clue before revealing a card',
         TEAM_WOULD_BE_EMPTY: 'Cannot leave \u2014 your team needs at least one player',
         CANNOT_SWITCH_TEAM_DURING_TURN:
             "Cannot switch teams during your team's active turn \u2014 wait for the turn to end",
         CANNOT_CHANGE_ROLE_DURING_TURN:
             "Cannot change roles during your team's active turn \u2014 wait for the turn to end",
         SPYMASTER_CANNOT_CHANGE_TEAM: 'Spymasters cannot change teams during an active game',
+        SPYMASTER_CANNOT_CHANGE_ROLE:
+            "Spymasters can't switch roles during an active game — you've seen the whole board",
         MUST_JOIN_TEAM: 'Join a team first by clicking a team score, then select a role',
         ROLE_TAKEN: 'That role is already taken \u2014 try the other role or wait for it to open',
         ROOM_NOT_FOUND: 'Room not found \u2014 it may have expired. Check the Room ID or create a new room',
