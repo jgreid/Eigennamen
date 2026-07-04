@@ -22,7 +22,7 @@
  *
  * Chain order (selectBackend): vectors? → custom maps → baked table → lexical.
  */
-import { readdirSync, readFileSync, statSync } from 'fs';
+import { closeSync, fstatSync, openSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import type { EdgeInfo, EdgeKind, SemanticBackend } from './backend';
 import { lexicalBackend } from './backend';
@@ -160,14 +160,25 @@ export function loadSemanticMaps(dir: string): SemanticMap[] {
     for (const file of entries.sort()) {
         const path = join(dir, file);
         try {
-            const size = statSync(path).size;
-            if (size > MAX_MAP_FILE_BYTES) {
-                logger.warn(
-                    `Bot semantic map skipped (file too large: ${size} bytes > ${MAX_MAP_FILE_BYTES}): ${path}`
-                );
-                continue;
+            // Open first, then size-check the DESCRIPTOR: a stat on the path
+            // followed by a read of the path would be a check-then-use race
+            // (the file could be swapped between the two) — fstat on the open
+            // fd sizes exactly the inode the read consumes.
+            const fd = openSync(path, 'r');
+            let raw: string;
+            try {
+                const size = fstatSync(fd).size;
+                if (size > MAX_MAP_FILE_BYTES) {
+                    logger.warn(
+                        `Bot semantic map skipped (file too large: ${size} bytes > ${MAX_MAP_FILE_BYTES}): ${path}`
+                    );
+                    continue;
+                }
+                raw = readFileSync(fd, 'utf8');
+            } finally {
+                closeSync(fd);
             }
-            const doc: unknown = JSON.parse(readFileSync(path, 'utf8'));
+            const doc: unknown = JSON.parse(raw);
             if (isSemanticMap(doc)) {
                 maps.push(doc);
             } else {
