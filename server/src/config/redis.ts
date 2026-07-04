@@ -369,7 +369,12 @@ async function cleanupPartialConnections(): Promise<void> {
             if (client.isOpen) {
                 await Promise.race([
                     client.quit(),
-                    new Promise<void>((_, reject) => setTimeout(() => reject(new Error('quit timeout')), 3000)),
+                    new Promise<void>((_, reject) => {
+                        const t = setTimeout(() => reject(new Error('quit timeout')), 3000);
+                        // A losing timer must not keep the process alive, nor (with
+                        // detectOpenHandles) look like a leak once quit() wins the race.
+                        if (typeof t.unref === 'function') t.unref();
+                    }),
                 ]);
             }
         } catch (err) {
@@ -546,7 +551,10 @@ export async function disconnectRedis(): Promise<void> {
                         // quit() must not block stopEmbeddedRedis() from ever running.
                         await Promise.race([
                             client.quit(),
-                            new Promise<void>((_, reject) => setTimeout(() => reject(new Error('quit timeout')), 3000)),
+                            new Promise<void>((_, reject) => {
+                                const t = setTimeout(() => reject(new Error('quit timeout')), 3000);
+                                if (typeof t.unref === 'function') t.unref();
+                            }),
                         ]);
                     }
                 } catch {
