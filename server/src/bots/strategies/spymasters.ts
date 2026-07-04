@@ -155,6 +155,13 @@ const ASSASSIN_BERTH_FLOOR = 0.1;
 // frequency prior — see SemanticBackend.commonness).
 const AMBIGUITY_WEIGHT = 0.3;
 const RARITY_WEIGHT = 0.25;
+// Number-conditional rarity (Phase 4.4 / 2.20 — the singles doctrine, ledger
+// lesson 26): rarity taxes BREADTH. A rare word costs when the guesser must
+// generalize across several targets; a near-definitional single fires
+// regardless (vertebrae → SPINE beats book → SPINE at N=1, where book's
+// laterals are the real hazard). Mostly waived at N=1 — the residual scale
+// keeps outright obscurities from riding entirely free.
+const RARITY_SINGLES_SCALE = 0.25;
 // Endgame terms. WIN_BONUS decisively prefers a clue that safely covers EVERY
 // remaining own card — converting the game this turn beats any partial clue —
 // and only such clues may exceed MAX_CLUE_NUMBER (up to the server-wide
@@ -400,7 +407,10 @@ function scoreClue(
     // margin cleared); rarity punishes obscure clue words when the backend
     // carries a frequency prior (absent one, commonness defaults to 1 = no-op).
     const ambiguityPenalty = AMBIGUITY_WEIGHT * style.commonnessBias * maxNonOwn;
-    const rarityPenalty = RARITY_WEIGHT * style.commonnessBias * (1 - (backend.commonness?.(clue) ?? 1));
+    // Rarity scales with the number (the singles doctrine): full tax on
+    // breadth clues, mostly waived for a single where narrowness dominates.
+    const rarityScale = intended === 1 ? RARITY_SINGLES_SCALE : 1;
+    const rarityPenalty = RARITY_WEIGHT * rarityScale * style.commonnessBias * (1 - (backend.commonness?.(clue) ?? 1));
     // Phase-2 edge channels over the INTENDED edges: fame-of-fact (the
     // weakest-penetration edge bounds how much of the promise a median table
     // retrieves) and the concreteness gradient (abstract retrieval paths

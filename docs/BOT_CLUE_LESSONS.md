@@ -243,7 +243,7 @@ board empties and own-words dwindle. Clicker/advisor: model the human stretch
 prior — late clues get looser guesses — and require an explicit
 assassin-candidate check before any late stretched guess (lesson 11).
 
-**2.12 Within-game leftover reframing. 🔴** Track leftover targets per clue;
+**2.12 Within-game leftover reframing. 🟡 (Phase 4.3 shipped the memory: `BotContext.memory` — promised-vs-taken per clue, threaded by the harness loop and a live per-room tracker in `botController` — with the clicker's `DEBT_BOOST` for owed unbounced frames and a hard zero for bounced ones; open: the spymaster style profile from lesson 27 and duet support)** Track leftover targets per clue;
 when a leftover's top candidate bounces (POOL blue → later CASINO neutral),
 downgrade the whole frame's bonus-guess EV rather than just the burned word
 (lesson 9). This is the cross-turn adaptivity the blind guesser showed
@@ -333,7 +333,7 @@ externally curated content lists (the `bots:map` LLM pipeline), including
 product/brand tiers and rival referents (merges with 2.10) — never against the
 cluer's internal knowledge alone (lesson 19).
 
-**2.17 Sense-enumeration in the clicker. 🔴** Split a clue into senses/frames,
+**2.17 Sense-enumeration in the clicker. 🟢 (Phase 4.1: `resolveClueFrame` — the case convention makes senses enumerable, so the flipped-case probe scores the other sense; switch on the uniform-weak tell (`FRAME_DOUBT_FLOOR`) when the alternate clears `FRAME_SWITCH_BAR` on 2+ candidates; shared by clicker and advisor, which also says so via the frame-doubt warning)** Split a clue into senses/frames,
 score candidates per-sense, and trigger a frame switch when the current frame's
 best fits are uniformly weak (lesson 20). Surfaces in the advisor as "your
 frame may be wrong," the procedural form of the human's ignored alarm.
@@ -385,7 +385,7 @@ and the risky-multi-goes-late sequencing rule.
 
 ### Engineering additions
 
-**2.20 Number-conditional rarity. 🔴** Scale `RARITY_WEIGHT` with the intended
+**2.20 Number-conditional rarity. 🟢 (Phase 4.4: `RARITY_SINGLES_SCALE` — full rarity tax on breadth clues, mostly waived at N=1 where narrowness dominates; the vertebrae-over-book flip is pinned in `clickerNuance.test.ts`)** Scale `RARITY_WEIGHT` with the intended
 number in `scoreClue`: full penalty on breadth clues, waived (or inverted
 toward a narrowness bonus — low `maxNonOwn` heat) at N=1 (lesson 26). Cheap:
 both terms already exist in the score expression.

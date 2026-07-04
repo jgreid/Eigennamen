@@ -15,6 +15,7 @@ import type { BotClickerView, SkillParams, SeededRng } from './types';
 import type { SemanticBackend } from '../semantics/backend';
 import { clueRetrieval, defaultSemanticBackend } from '../semantics/backend';
 import { referenceSignal } from '../semantics/properAssociations';
+import { resolveClueFrame, FRAME_DOUBT_FLOOR } from './clueFrame';
 
 export interface GuessSuggestion {
     /** Board index of the suggested card. */
@@ -23,7 +24,34 @@ export interface GuessSuggestion {
     confidence: number;
     /** Short human-readable rationale. */
     reason: string;
+    /** Optional caution flag (Phase 4.2 — the human-facing payoff of ledger
+     *  lessons 11/15/18/19). DISCIPLINE RULE (failure G): warnings are FIXED
+     *  strings derived only from the masked view, the clue, and public
+     *  reveals — they must never name a board word or encode key information
+     *  beyond the suggestion itself. */
+    warning?: string;
 }
+
+/** Optional public context for warning triggers (never key information). */
+export interface AdvisorContext {
+    /** Own-team cards still unrevealed — public via the room score. Enables
+     *  the late-game stretch warning. */
+    ownRemaining?: number;
+}
+
+// Endgame slice for the late-stretch warning; mirrors the harness's
+// ENDGAME_OWN_MAX (both live-play assassin hits were endgame events).
+const ADVISOR_ENDGAME_OWN_MAX = 3;
+// A suggestion this weak is a stretch, not a read (aligned with the clicker's
+// CLIFF_ABS_CEILING band).
+const STRETCH_SCORE_CEILING = 0.35;
+
+// Fixed warning strings (failure-G discipline: no interpolation, ever).
+const WARNING_FRAME_DOUBT =
+    'The direct reading of the clue fits nothing here — these follow its other sense. Verify the frame before clicking.';
+const WARNING_UNRESOLVED_REFERENCE =
+    'Unfamiliar reference — consider type-level readings (a novel, a film, a brand) and stop early rather than stretch.';
+const WARNING_LATE_STRETCH = 'Late-game stretch beyond the strong core — run the assassin check before touching this.';
 
 interface Scored {
     index: number;
@@ -68,10 +96,20 @@ export function suggestGuesses(
     backend: SemanticBackend = defaultSemanticBackend,
     maxSuggestions = 3,
     skill?: SkillParams,
-    rng?: SeededRng
+    rng?: SeededRng,
+    advisorCtx?: AdvisorContext
 ): GuessSuggestion[] {
     const clue = view.currentClue;
     if (!clue) return [];
+
+    // Frame doubt (Phase 4.1, shared with the clicker): when the given
+    // reading fits nothing and the case-flipped sense clears the bar, rank
+    // under that sense — and say so.
+    const unrevealedWords: string[] = [];
+    for (let i = 0; i < view.revealed.length; i++) {
+        if (!view.revealed[i]) unrevealedWords.push(view.words[i] as string);
+    }
+    const frame = resolveClueFrame(clue.word, unrevealedWords, backend);
 
     const scored: Scored[] = [];
     for (let i = 0; i < view.revealed.length; i++) {
@@ -79,7 +117,7 @@ export function suggestGuesses(
         // clueRetrieval, not bare relatedness: the advisor advises a HUMAN
         // clicker, and a human's compound completion competes directly with
         // associative fit (same model as the greedy clicker).
-        scored.push({ index: i, score: clueRetrieval(backend, clue.word, view.words[i] as string) });
+        scored.push({ index: i, score: clueRetrieval(backend, frame.word, view.words[i] as string) });
     }
     scored.sort((a, b) => b.score - a.score);
 
@@ -100,9 +138,28 @@ export function suggestGuesses(
     const damp = 1 - Math.min(0.5, temperature * 0.25);
     const reason =
         referenceSignal(clue.word) === 'proper' ? `fits “${clue.word}” (the reference)` : `fits “${clue.word}”`;
-    return picks.map((s) => ({
-        index: s.index,
-        confidence: Math.round(Math.min(1, s.score) * damp * 100) / 100,
-        reason,
-    }));
+
+    // Warning triggers, strongest first (one per suggestion). All derive only
+    // from the masked view + public counts — never from key information.
+    const bestFit = positive.length > 0 ? (positive[0] as Scored).score : 0;
+    const unresolvedReference =
+        !frame.switched && referenceSignal(clue.word) === 'proper' && bestFit < FRAME_DOUBT_FLOOR;
+    const endgame = advisorCtx?.ownRemaining !== undefined && advisorCtx.ownRemaining <= ADVISOR_ENDGAME_OWN_MAX;
+    const warningFor = (score: number): string | undefined => {
+        if (frame.switched) return WARNING_FRAME_DOUBT;
+        if (unresolvedReference) return WARNING_UNRESOLVED_REFERENCE;
+        if (endgame && score < STRETCH_SCORE_CEILING) return WARNING_LATE_STRETCH;
+        return undefined;
+    };
+
+    return picks.map((s) => {
+        const warning = warningFor(s.score);
+        const suggestion: GuessSuggestion = {
+            index: s.index,
+            confidence: Math.round(Math.min(1, s.score) * damp * 100) / 100,
+            reason,
+        };
+        if (warning) suggestion.warning = warning;
+        return suggestion;
+    });
 }

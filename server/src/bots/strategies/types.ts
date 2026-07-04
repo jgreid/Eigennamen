@@ -73,11 +73,35 @@ export function resolveStyle(skill: SkillParams): StyleParams {
     };
 }
 
+/**
+ * One clue this seat's team received earlier in the game, with its observed
+ * outcome (Phase 4.3, ledger lessons 9/24/27 — clue debt). `taken < number`
+ * with no bounce is an OWED frame: cards that fit it are still promised.
+ * A bounced frame is void — its promises transfer nothing.
+ */
+export interface ClueMemoryEntry {
+    readonly word: string;
+    readonly number: number;
+    /** Own-team cards revealed while this clue was live. */
+    readonly taken: number;
+    /** A guess under this clue hit a non-own card (the frame burned). */
+    readonly bounced: boolean;
+}
+
+/** Per-seat within-game memory, passed as DATA so strategies stay pure. */
+export interface BotSeatMemory {
+    /** This team's completed clues, oldest first (never the live clue). */
+    readonly clues: readonly ClueMemoryEntry[];
+}
+
 /** Immutable context passed to every decision. */
 export interface BotContext {
     readonly gameMode: GameMode;
     readonly skill: SkillParams;
     readonly rng: SeededRng;
+    /** Optional within-game memory (clue debt). Absent = no adjustment —
+     *  threaded by the harness game loop and the live bot controller. */
+    readonly memory?: BotSeatMemory;
 }
 
 /** A clue that has been given this turn (clicker view). */

@@ -24,7 +24,7 @@ const botService = require('../../services/botService');
 const gameActions = require('../../socket/handlers/gameActions');
 const { safeEmitToRoom } = require('../../socket/safeEmit');
 const logger = require('../../utils/logger');
-const { initBotController, stopBotController, tickRoom } = require('../../bots/botController');
+const { initBotController, stopBotController, tickRoom, reconcileClueMemory } = require('../../bots/botController');
 
 const mockIo = {};
 
@@ -195,5 +195,74 @@ describe('botController.tickRoom self-healing (re-arm)', () => {
         // 1 initial attempt + a bounded number of retries, then it gives up loudly.
         expect(gameActions.applyClue).toHaveBeenCalledTimes(7);
         expect(logger.error).toHaveBeenCalled();
+    });
+});
+
+describe('clue-debt tracker (reconcileClueMemory, Phase 4.3)', () => {
+    beforeEach(() => {
+        stopBotController(); // clears tracker state between tests
+    });
+
+    const base = {
+        seed: 'game-1',
+        gameMode: 'classic',
+        words: ['APPLE', 'RIVER', 'TIGER', 'MOUNTAIN'],
+        types: ['red', 'red', 'blue', 'neutral'],
+    };
+
+    it('finalizes a clue with promised-vs-taken and the bounce flag when the clue ends', () => {
+        // FRUIT 2 arrives on a fresh board…
+        reconcileClueMemory('R1', {
+            ...base,
+            revealed: [false, false, false, false],
+            currentClue: { team: 'red', word: 'FRUIT', number: 2 },
+        });
+        // …one own card and one blue card were revealed under it, then it ended.
+        const tracker = reconcileClueMemory('R1', {
+            ...base,
+            revealed: [true, false, true, false],
+            currentClue: null,
+        });
+        expect(tracker.clues.red).toEqual([{ word: 'FRUIT', number: 2, taken: 1, bounced: true }]);
+        expect(tracker.clues.blue).toEqual([]);
+    });
+
+    it('a clean under-delivery records debt without a bounce', () => {
+        reconcileClueMemory('R2', {
+            ...base,
+            revealed: [false, false, false, false],
+            currentClue: { team: 'red', word: 'FRUIT', number: 2 },
+        });
+        const tracker = reconcileClueMemory('R2', {
+            ...base,
+            revealed: [true, false, false, false],
+            currentClue: { team: 'blue', word: 'WATER', number: 1 },
+        });
+        expect(tracker.clues.red).toEqual([{ word: 'FRUIT', number: 2, taken: 1, bounced: false }]);
+    });
+
+    it('resets on a new game and stays empty in duet', () => {
+        reconcileClueMemory('R3', {
+            ...base,
+            revealed: [false, false, false, false],
+            currentClue: { team: 'red', word: 'FRUIT', number: 2 },
+        });
+        // New game seed: the old live clue must not leak into the new game.
+        const fresh = reconcileClueMemory('R3', {
+            ...base,
+            seed: 'game-2',
+            revealed: [true, false, false, false],
+            currentClue: null,
+        });
+        expect(fresh.clues.red).toEqual([]);
+
+        const duet = reconcileClueMemory('R4', {
+            ...base,
+            gameMode: 'duet',
+            revealed: [false, false, false, false],
+            currentClue: { team: 'red', word: 'FRUIT', number: 2 },
+        });
+        expect(duet.live).toBeNull();
+        expect(duet.clues.red).toEqual([]);
     });
 });

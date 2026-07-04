@@ -18,7 +18,7 @@
 import type { Server } from 'socket.io';
 import type { GameMode } from '../shared/gameRules';
 import type { GameState, Player, Team } from '../types';
-import type { BotClickerView } from './strategies/types';
+import type { BotClickerView, ClueMemoryEntry } from './strategies/types';
 
 import logger from '../utils/logger';
 import { onGameMutation } from '../socket/gameMutationNotifier';
@@ -39,6 +39,65 @@ import { applyClue, applyReveal, applyEndTurn } from '../socket/handlers/gameAct
 /** Per-room de-dupe key for the last advisor suggestion emitted (avoids
  *  re-emitting identical suggestions on every unrelated mutation). */
 const suggestionKeys = new Map<string, string>();
+
+/**
+ * Per-room clue-debt tracker (Phase 4.3): reconstructs promised-vs-taken per
+ * clue from successive game snapshots, so bot clickers get the same
+ * within-game memory the harness threads. Ticks fire on every game mutation,
+ * so each clue transition is observed promptly; the memory is a tie-breaker
+ * boost, so a rare coalesced-race misattribution is acceptable by design.
+ */
+interface RoomClueTracker {
+    /** Identifies the game the memory belongs to (reset on a new game). */
+    gameKey: string;
+    /** The clue currently being guessed, with the board as it stood when the
+     *  clue arrived (finalized by diffing reveals when the clue changes). */
+    live: { team: Team; word: string; number: number; revealedSnapshot: readonly boolean[] } | null;
+    clues: { red: ClueMemoryEntry[]; blue: ClueMemoryEntry[] };
+}
+const clueMemory = new Map<string, RoomClueTracker>();
+
+/** Advance a room's clue-debt tracker to the given game snapshot. Classic
+ *  and match only — a duet reveal's classification follows the side-A key,
+ *  so the memory stays empty there (mirrors the harness). Exported for
+ *  tests; state is cleared by stopBotController. */
+export function reconcileClueMemory(roomCode: string, game: GameState): RoomClueTracker {
+    const gameKey = String(game.seed ?? roomCode);
+    let tracker = clueMemory.get(roomCode);
+    if (!tracker || tracker.gameKey !== gameKey) {
+        tracker = { gameKey, live: null, clues: { red: [], blue: [] } };
+        clueMemory.set(roomCode, tracker);
+    }
+    if (game.gameMode === 'duet') return tracker;
+    const live = game.currentClue;
+    if (tracker.live && (!live || live.word !== tracker.live.word || live.team !== tracker.live.team)) {
+        // The tracked clue ended: classify every card revealed since it
+        // arrived (types[] is unmasked server-side).
+        let taken = 0;
+        let bounced = false;
+        for (let i = 0; i < game.revealed.length; i++) {
+            if (!game.revealed[i] || tracker.live.revealedSnapshot[i]) continue;
+            if (game.types[i] === tracker.live.team) taken++;
+            else bounced = true;
+        }
+        tracker.clues[tracker.live.team].push({
+            word: tracker.live.word,
+            number: tracker.live.number,
+            taken,
+            bounced,
+        });
+        tracker.live = null;
+    }
+    if (live && !tracker.live) {
+        tracker.live = {
+            team: live.team,
+            word: live.word,
+            number: live.number,
+            revealedSnapshot: [...game.revealed],
+        };
+    }
+    return tracker;
+}
 
 /**
  * Live "thinking" pace between bot actions so a whole cascade (clue → guess →
@@ -146,6 +205,7 @@ export function stopBotController(): void {
     reArmTimers.clear();
     failureStreak.clear();
     suggestionKeys.clear();
+    clueMemory.clear();
     ioRef = null;
 }
 
@@ -190,7 +250,14 @@ async function emitAdvisorSuggestions(
     const cfg = await botService.getBotConfig(advisor.sessionId);
     const seed = hashString(`${cfg?.seed ?? 0}:${game.seed}:${game.stateVersion ?? 0}`);
     const skill = cfg ? resolveSkill(cfg.skillPreset, seed) : undefined;
-    const suggestions = suggestGuesses(view, getSemanticBackend(), 3, skill, makeRng(seed));
+    // Public own-remaining count for the late-stretch warning (types[] is
+    // unmasked server-side; the count itself is public via the room score,
+    // so no key information reaches the advisor payload).
+    let ownRemaining = 0;
+    for (let i = 0; i < game.types.length; i++) {
+        if (game.types[i] === team && !game.revealed[i]) ownRemaining++;
+    }
+    const suggestions = suggestGuesses(view, getSemanticBackend(), 3, skill, makeRng(seed), { ownRemaining });
     if (suggestions.length === 0) return;
 
     suggestionKeys.set(roomCode, key);
@@ -236,8 +303,11 @@ export async function tickRoom(roomCode: string): Promise<void> {
             const game = await gameService.getGame(roomCode);
             if (!game || game.gameOver || game.paused) {
                 suggestionKeys.delete(roomCode);
+                if (!game || game.gameOver) clueMemory.delete(roomCode);
                 break;
             }
+            // Keep the clue-debt memory current with every observed snapshot.
+            const memoryTracker = reconcileClueMemory(roomCode, game);
 
             const team = game.currentTurn;
             const role: 'spymaster' | 'clicker' = game.currentClue ? 'clicker' : 'spymaster';
@@ -259,7 +329,12 @@ export async function tickRoom(roomCode: string): Promise<void> {
             const skill = resolveSkill(cfg.skillPreset, seed);
             const strategy =
                 role === 'spymaster' ? resolveSpymaster(cfg.strategyId, skill) : resolveClicker(cfg.strategyId, skill);
-            const ctx = { gameMode: (game.gameMode as GameMode) ?? 'classic', skill, rng: makeRng(seed) };
+            const ctx = {
+                gameMode: (game.gameMode as GameMode) ?? 'classic',
+                skill,
+                rng: makeRng(seed),
+                memory: { clues: memoryTracker.clues[team] },
+            };
 
             const action = playOneAction(game, seat, strategy, ctx);
             if (action.kind === 'noop') break;

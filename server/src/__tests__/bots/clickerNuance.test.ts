@@ -1,0 +1,245 @@
+/**
+ * Phase-4 clicker/advisor nuance (docs/BOT_NUANCE_PLAN.md):
+ *  4.1 sense enumeration + frame switch (ledger lesson 20 — the uniform-weak
+ *      tell: handed "Tinder" with no app cards in sight, read tinder → fire),
+ *  4.2 advisor warnings (fixed strings, failure-G discipline),
+ *  4.3 within-game clue debt (lessons 9/24/27 — owed frames boost, burned
+ *      frames transfer nothing),
+ *  4.4 number-conditional rarity (lesson 26 — the singles doctrine).
+ */
+import { lexicalBackend } from '../../bots/semantics/backend';
+import { tableBackend } from '../../bots/semantics/tableBackend';
+import { makeCustomMapBackend, type SemanticMap } from '../../bots/semantics/mapBackend';
+import { resolveClueFrame } from '../../bots/strategies/clueFrame';
+import { makeGreedyClicker } from '../../bots/strategies/clickers';
+import { makeEmbeddingSpymaster } from '../../bots/strategies/spymasters';
+import { suggestGuesses } from '../../bots/strategies/advisor';
+import { makeRng } from '../../bots/rng';
+import type {
+    BotClickerView,
+    BotContext,
+    BotSeatMemory,
+    BotSpymasterView,
+    SkillParams,
+} from '../../bots/strategies/types';
+
+const skill = (over: Partial<SkillParams> = {}): SkillParams => ({
+    temperature: 0,
+    blunderRate: 0,
+    riskAversion: 0.6,
+    seed: 1,
+    ...over,
+});
+const ctx = (s: SkillParams, memory?: BotSeatMemory): BotContext => ({
+    gameMode: 'classic',
+    skill: s,
+    rng: makeRng(1),
+    ...(memory ? { memory } : {}),
+});
+
+const clickerView = (words: string[], clue: string, number: number, guessesUsed = 0): BotClickerView => ({
+    role: 'clicker',
+    team: 'red',
+    gameMode: 'classic',
+    words,
+    revealed: words.map(() => false),
+    types: words.map(() => null),
+    currentTurn: 'red',
+    currentClue: { word: clue, number },
+    guessesUsed,
+    guessesAllowed: number + 1,
+});
+
+// The Tinder-shaped map: the reference sense reaches HEART; the common sense
+// (fire) reaches TORCH and LOG.
+const TINDER_MAP: SemanticMap = {
+    version: 2,
+    words: ['TORCH', 'LOG', 'HEART', 'ROSE', 'PIT'],
+    concepts: { TINDER: ['TORCH', 'LOG'] },
+    proper: { Tinder: { contents: ['HEART'], fame: 0.85 } },
+};
+const tinderBackend = makeCustomMapBackend([TINDER_MAP], lexicalBackend);
+
+describe('4.1 frame switch: the uniform-weak tell flips the sense', () => {
+    it('resolveClueFrame switches a proper clue to its common sense when the reference explains nothing', () => {
+        expect(resolveClueFrame('Tinder', ['TORCH', 'LOG', 'ROSE'], tinderBackend)).toEqual({
+            word: 'tinder',
+            switched: true,
+        });
+        // With the reference's content on the board, the given frame holds.
+        expect(resolveClueFrame('Tinder', ['TORCH', 'LOG', 'HEART'], tinderBackend).switched).toBe(false);
+        // One strong alternate candidate is coincidence, not a frame.
+        expect(resolveClueFrame('Tinder', ['TORCH', 'ROSE'], tinderBackend).switched).toBe(false);
+        // Neutral (ALL CAPS) clues are already read both ways — never switch.
+        expect(resolveClueFrame('TINDER', ['TORCH', 'LOG', 'ROSE'], tinderBackend).switched).toBe(false);
+    });
+
+    it('the clicker guesses under the switched sense (tinder → fire → TORCH)', () => {
+        const s = skill();
+        const action = makeGreedyClicker(s, tinderBackend).chooseGuess(
+            clickerView(['TORCH', 'LOG', 'ROSE', 'PIT'], 'Tinder', 2),
+            ctx(s)
+        );
+        expect(action).toEqual({ kind: 'reveal', index: 0 });
+    });
+
+    it('no switch when the given frame delivers (HEART on board)', () => {
+        const s = skill();
+        const action = makeGreedyClicker(s, tinderBackend).chooseGuess(
+            clickerView(['TORCH', 'LOG', 'HEART', 'ROSE'], 'Tinder', 1),
+            ctx(s)
+        );
+        expect(action).toEqual({ kind: 'reveal', index: 2 });
+    });
+});
+
+describe('4.2 advisor warnings (fixed strings, masked-view-only discipline)', () => {
+    it('frame doubt: suggestions follow the alternate sense and say so', () => {
+        const words = ['TORCH', 'LOG', 'ROSE', 'PIT'];
+        const suggestions = suggestGuesses(clickerView(words, 'Tinder', 2), tinderBackend, 3);
+        expect(suggestions.length).toBeGreaterThanOrEqual(2);
+        expect(suggestions.map((s) => s.index).sort()).toEqual([0, 1]);
+        for (const s of suggestions) {
+            expect(s.warning).toMatch(/other sense/);
+            // Failure-G discipline: a warning never names a board word.
+            for (const w of words) expect(s.warning!.toUpperCase()).not.toContain(w);
+        }
+    });
+
+    it('unresolved reference: a known-but-absent reference warns toward type-level readings', () => {
+        // "Hooke" is a curated reference, but none of its contents/hypernyms
+        // are on this board — the advisor can only offer orthographic noise
+        // and must say the reference is unresolved.
+        const suggestions = suggestGuesses(clickerView(['HOOD', 'TOOTH', 'HORSE'], 'Hooke', 1), tableBackend, 3);
+        expect(suggestions.length).toBeGreaterThanOrEqual(1);
+        expect(suggestions[0]!.warning).toMatch(/type-level/);
+    });
+
+    it('late stretch: a weak suggestion in the endgame carries the assassin-check warning', () => {
+        const map: SemanticMap = {
+            version: 2,
+            words: ['MIST'],
+            concepts: { BLORP: [{ word: 'MIST', weight: 0.3 }] },
+        };
+        const backend = makeCustomMapBackend([map], lexicalBackend);
+        const view = clickerView(['MIST', 'ZZZZ'], 'blorp', 1);
+        const late = suggestGuesses(view, backend, 3, undefined, undefined, { ownRemaining: 2 });
+        expect(late[0]!.warning).toMatch(/assassin check/);
+        const early = suggestGuesses(view, backend, 3, undefined, undefined, { ownRemaining: 7 });
+        expect(early[0]!.warning).toBeUndefined();
+    });
+
+    it('no warning on a confident, resolved suggestion', () => {
+        const suggestions = suggestGuesses(
+            clickerView(['TORCH', 'LOG', 'HEART', 'ROSE'], 'Tinder', 1),
+            tinderBackend,
+            3,
+            undefined,
+            undefined,
+            { ownRemaining: 7 }
+        );
+        expect(suggestions[0]).toMatchObject({ index: 2 });
+        expect(suggestions[0]!.warning).toBeUndefined();
+    });
+});
+
+describe('4.3 clue debt: owed frames boost, burned frames transfer nothing', () => {
+    // PLAIN and OWED fit the live clue equally; OWED also fits the earlier
+    // OLDIE clue. Ties break to the first (lowest-index) candidate, so the
+    // debt boost is exactly what moves the pick.
+    const map: SemanticMap = {
+        version: 2,
+        words: ['PLAIN', 'OWED'],
+        concepts: {
+            CURR: [
+                { word: 'PLAIN', weight: 0.6 },
+                { word: 'OWED', weight: 0.6 },
+            ],
+            OLDIE: [{ word: 'OWED', weight: 0.8 }],
+        },
+    };
+    const backend = makeCustomMapBackend([map], lexicalBackend);
+    const view = (): BotClickerView => clickerView(['PLAIN', 'OWED'], 'CURR', 2);
+    const memory = (entry: Partial<BotSeatMemory['clues'][number]>): BotSeatMemory => ({
+        clues: [{ word: 'OLDIE', number: 2, taken: 1, bounced: false, ...entry }],
+    });
+
+    it('without memory the tie breaks to the first candidate', () => {
+        const s = skill();
+        expect(makeGreedyClicker(s, backend).chooseGuess(view(), ctx(s))).toEqual({ kind: 'reveal', index: 0 });
+    });
+
+    it('an owed, unbounced frame boosts its leftover candidate', () => {
+        const s = skill();
+        expect(makeGreedyClicker(s, backend).chooseGuess(view(), ctx(s, memory({})))).toEqual({
+            kind: 'reveal',
+            index: 1,
+        });
+    });
+
+    it('a bounced frame is void — no boost', () => {
+        const s = skill();
+        expect(makeGreedyClicker(s, backend).chooseGuess(view(), ctx(s, memory({ bounced: true })))).toEqual({
+            kind: 'reveal',
+            index: 0,
+        });
+    });
+
+    it('a fully delivered frame owes nothing — no boost', () => {
+        const s = skill();
+        expect(makeGreedyClicker(s, backend).chooseGuess(view(), ctx(s, memory({ taken: 2 })))).toEqual({
+            kind: 'reveal',
+            index: 0,
+        });
+    });
+});
+
+describe('4.4 number-conditional rarity: the singles doctrine', () => {
+    const spymasterView = (words: string[], types: ('red' | 'blue' | 'neutral' | 'assassin')[]): BotSpymasterView => ({
+        role: 'spymaster',
+        team: 'red',
+        gameMode: 'classic',
+        words,
+        revealed: words.map(() => false),
+        types,
+        currentTurn: 'red',
+    });
+
+    // RAREKEY is a deep-cut near-definitional clue (cold halo); COMKEY is the
+    // household word trailing a lateral onto a neutral card.
+    const map: SemanticMap = {
+        version: 2,
+        words: ['TARGETA', 'TARGETB', 'LATERAL', 'OPPOX'],
+        concepts: {
+            RAREKEY: [
+                { word: 'TARGETA', weight: 0.9 },
+                { word: 'TARGETB', weight: 0.85 },
+            ],
+            COMKEY: [
+                { word: 'TARGETA', weight: 0.95 },
+                { word: 'TARGETB', weight: 0.9 },
+                { word: 'LATERAL', weight: 0.3 },
+            ],
+        },
+        commonness: { RAREKEY: 0.1, COMKEY: 1 },
+    };
+    const backend = makeCustomMapBackend([map], lexicalBackend);
+
+    it('at N=1 the rare, narrow clue beats the common one trailing a lateral', () => {
+        const s = skill();
+        const action = makeEmbeddingSpymaster(s, backend).chooseClue(
+            spymasterView(['TARGETA', 'OPPOX', 'LATERAL'], ['red', 'blue', 'neutral']),
+            ctx(s)
+        );
+        expect(action).toMatchObject({ kind: 'clue', word: 'RAREKEY', number: 1 });
+    });
+
+    it('on a breadth clue (N=2) the full rarity tax keeps the common clue on top', () => {
+        const s = skill();
+        const action = makeEmbeddingSpymaster(s, backend).chooseClue(
+            spymasterView(['TARGETA', 'TARGETB', 'OPPOX', 'LATERAL'], ['red', 'red', 'blue', 'neutral']),
+            ctx(s)
+        );
+        expect(action).toMatchObject({ kind: 'clue', word: 'COMKEY', number: 2 });
+    });
+});

@@ -18,6 +18,8 @@
 import type { BotAction, BotClickerView, BotContext, ClickerStrategy, SkillParams, SeededRng } from './types';
 import type { SemanticBackend } from '../semantics/backend';
 import { clueRetrieval, defaultSemanticBackend } from '../semantics/backend';
+import { resolveClueFrame } from './clueFrame';
+import { normalizeClueWord } from '../../shared/gameRules';
 
 function unrevealedIndices(view: BotClickerView): number[] {
     const out: number[] = [];
@@ -124,6 +126,31 @@ const BONUS_FLOOR_BASE = 0.6;
 const BONUS_FLOOR_TIMIDITY = 0.2;
 const BONUS_FIELD_GAP = 0.2;
 
+// Clue debt (Phase 4.3, ledger lessons 9/24/27): a card that also fits an
+// OWED earlier clue (promised more than it delivered, never bounced) is more
+// likely intended — the spymaster double-codes, and human guessers work the
+// debt. The boost is a tie-breaker, not an override: it must never outrank a
+// clearly better current-clue fit, so it is small relative to real signal.
+// A frame whose guess bounced is void — its promises transfer nothing.
+const DEBT_FIT_BAR = 0.5;
+const DEBT_BOOST = 0.15;
+
+/** Bonus for a card that fits the strongest owed (undelivered, unbounced)
+ *  earlier clue, from the seat's optional memory. 0 without memory. */
+function debtBoost(ctx: BotContext, backend: SemanticBackend, currentClue: string, word: string): number {
+    const clues = ctx.memory?.clues;
+    if (!clues || clues.length === 0) return 0;
+    const current = normalizeClueWord(currentClue);
+    let best = 0;
+    for (const c of clues) {
+        if (c.bounced || c.taken >= c.number) continue;
+        if (normalizeClueWord(c.word) === current) continue;
+        const fit = clueRetrieval(backend, c.word, word);
+        if (fit >= DEBT_FIT_BAR && fit > best) best = fit;
+    }
+    return DEBT_BOOST * best;
+}
+
 /**
  * Estimate the score (vs the current clue) of the LAST card this clicker took
  * under this clue. Strategies are stateless, but within a turn ONLY this
@@ -163,18 +190,31 @@ export function makeGreedyClicker(
             const choices = unrevealedIndices(view);
             if (choices.length === 0 || !view.currentClue) return { kind: 'endTurn' };
 
+            // Frame doubt (Phase 4.1): when the given reading of the clue is
+            // uniformly weak on this board and the case-flipped sense clears
+            // the bar on 2+ candidates, guess under THAT sense instead —
+            // deterministic per view, so every tick re-derives the same frame.
+            const frame = resolveClueFrame(
+                view.currentClue.word,
+                choices.map((i) => view.words[i] as string),
+                backend
+            );
             // Rank unrevealed cards by how strongly the clue RETRIEVES them:
             // associative relatedness or phrase completion, whichever is
             // stronger (clueRetrieval). A human completes "engine ___" before
             // reasoning about categories, so when the backend carries a
             // collocation channel the compound reading competes directly —
             // this is what makes the greedy clicker a faithful stand-in for a
-            // human guesser in misfire-class-D boards.
-            const clueWord = view.currentClue.word;
-            const scored = choices.map((index) => ({
-                index,
-                score: clueRetrieval(backend, clueWord, view.words[index] as string),
-            }));
+            // human guesser in misfire-class-D boards. The clue-debt boost
+            // (Phase 4.3) breaks ties toward cards an earlier clue still owes.
+            const clueWord = frame.word;
+            const scored = choices.map((index) => {
+                const word = view.words[index] as string;
+                return {
+                    index,
+                    score: clueRetrieval(backend, clueWord, word) + debtBoost(ctx, backend, clueWord, word),
+                };
+            });
             let best = scored[0] as { index: number; score: number };
             let second = -Infinity;
             for (let i = 1; i < scored.length; i++) {

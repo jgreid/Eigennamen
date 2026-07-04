@@ -166,6 +166,21 @@ cap the number below the brand-tier word.
 
 ## Phase 4 — Clicker and advisor nuance
 
+> **Shipped (4.1–4.4).** 4.1: `strategies/clueFrame.ts` — the case convention
+> makes senses enumerable (flipped-case probe = the other sense); the clicker
+> and advisor re-rank on the uniform-weak tell. 4.2: `GuessSuggestion.warning`
+> (fixed strings only — failure-G discipline) for frame doubt, unresolved
+> references, and late-game stretches; plumbed through `botController` →
+> `game:botSuggestion` → board badge. 4.3: `BotContext.memory` clue-debt
+> snapshots threaded by the harness loop and a live per-room tracker;
+> `DEBT_BOOST` for owed unbounced frames, zero for bounced (classic/match;
+> duet's masked key exempts it like the cliff estimate). 4.4:
+> `RARITY_SINGLES_SCALE`. Gate held on seed `ph4-gate`: delivery flat for
+> every competent persona, overreach flat at 0%, misfire/dangerEG nudged
+> down; warnings covered in `clickerNuance.test.ts`. **4.5 (2.21–2.24)
+> remains open** — variance-gated audits need a sampling-capable halo model
+> and register channels need curated data; both are Phase-5-and-beyond work.
+
 **4.1 Sense-enumeration + frame-switch (2.17)** *(lesson 20: REMOVAL tunnel
 vision; the uniform-weak-fit tell)*
 In `makeGreedyClicker` (`clickers.ts:156-235`): enumerate the clue's senses
