@@ -203,10 +203,23 @@ async function stopEmbeddedRedis(): Promise<void> {
     });
 }
 
-function reconnectStrategy(retries: number): number | Error {
+/**
+ * Exported for unit testing only (see __tests__/config/redis.test.ts) — every other
+ * caller reaches it exclusively through `createClientOptions`'s `socket.reconnectStrategy`.
+ */
+export function reconnectStrategy(retries: number): number | Error {
     if (retries > 20) {
-        logger.error('Redis max reconnection attempts reached');
-        return new Error('Max reconnection attempts reached');
+        // node-redis permanently stops retrying once this returns an Error —
+        // nothing else in the codebase ever calls connectRedis() again, so the
+        // process would otherwise stay alive indefinitely, pulled from load-
+        // balancer rotation by /health/ready but never self-healing even after
+        // Redis recovers. Exit and let the platform's own "always restart a
+        // crashed process" behavior (Fly Machines, Docker restart policy, k8s)
+        // give the next attempt a completely fresh connection sequence,
+        // instead of building bespoke in-process retry-after-giving-up logic.
+        // See docs/HARDENING_PLAN.md P1-2.
+        logger.error('Redis max reconnection attempts reached — exiting so the platform restarts this process');
+        process.exit(1);
     }
     // Exponential backoff with jitter to prevent thundering herd across instances
     const baseDelay = Math.min(100 * Math.pow(2, retries), 15000);
