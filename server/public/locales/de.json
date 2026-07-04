@@ -188,7 +188,8 @@
         "nicknameLength": "Spitzname muss {{min}}–{{max}} Zeichen lang sein",
         "nicknameCharsOnly": "Nur Buchstaben, Zahlen, Leerzeichen, Bindestriche und Unterstriche erlaubt",
         "youAreHost": "Du bist jetzt der Gastgeber!",
-        "newHost": "{{name}} ist jetzt der Gastgeber"
+        "newHost": "{{name}} ist jetzt der Gastgeber",
+        "botStalled": "Ein Bot im {{team}}-Team blieb hängen, sein Zug wurde automatisch beendet"
     },
     "settings": {
         "title": "Einstellungen",

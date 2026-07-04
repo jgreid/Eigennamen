@@ -191,7 +191,7 @@ describe('botController.tickRoom self-healing (re-arm)', () => {
         expect(gameActions.applyClue).toHaveBeenCalledTimes(2);
     });
 
-    it('stops re-arming after the failure cap instead of spinning forever', async () => {
+    it('stops re-arming after the failure cap, forces the stuck turn to end, and warns the room', async () => {
         gameService.getGame.mockResolvedValue(gameNoClue); // always the bot spymaster's turn
         gameActions.applyClue.mockRejectedValue(new Error('persistent failure'));
 
@@ -204,6 +204,51 @@ describe('botController.tickRoom self-healing (re-arm)', () => {
         // 1 initial attempt + a bounded number of retries, then it gives up loudly.
         expect(gameActions.applyClue).toHaveBeenCalledTimes(7);
         expect(logger.error).toHaveBeenCalled();
+
+        // Ticking is mutation-driven and it's the stuck bot's own turn, so nothing
+        // else would ever unstick the game — giving up must force the turn to end
+        // (docs/HARDENING_PLAN.md P1-6) rather than leaving it silently frozen.
+        expect(gameActions.applyEndTurn).toHaveBeenCalledTimes(1);
+        expect(gameActions.applyEndTurn).toHaveBeenCalledWith(
+            mockIo,
+            'ROOM01',
+            expect.objectContaining({ team: 'red' })
+        );
+        expect(safeEmitToRoom).toHaveBeenCalledWith(
+            mockIo,
+            'ROOM01',
+            'room:warning',
+            expect.objectContaining({ code: 'BOT_STALLED', team: 'red' })
+        );
+    });
+
+    it('resets the failure streak on the next successful action after a prior (non-fatal) failure', async () => {
+        // Locks in the assumption the give-up logic depends on: a success must
+        // fully clear backoff state, not just avoid re-arming this one time.
+        gameService.getGame
+            .mockResolvedValueOnce(gameNoClue) // attempt 1: fails
+            .mockResolvedValueOnce(gameNoClue) // retry: succeeds
+            .mockResolvedValue(gameWithClue); // then clicker's turn, no bot clicker -> clean stop
+        gameActions.applyClue.mockRejectedValueOnce(new Error('transient')).mockResolvedValue({});
+
+        await tickRoom('ROOM01');
+        await jest.advanceTimersByTimeAsync(300); // first backed-off retry succeeds
+
+        expect(gameActions.applyClue).toHaveBeenCalledTimes(2);
+
+        // If the streak weren't cleared on success, a single subsequent failure would
+        // immediately be treated as one attempt closer to the already-exhausted cap
+        // instead of a fresh budget.
+        gameActions.applyClue.mockReset().mockRejectedValue(new Error('persistent failure'));
+        gameService.getGame.mockReset().mockResolvedValue(gameNoClue);
+
+        await tickRoom('ROOM01');
+        for (let i = 0; i < 8; i++) {
+            await jest.advanceTimersByTimeAsync(2200);
+        }
+        // A full fresh set of retries (not just 1 more before giving up) proves the
+        // streak restarted from zero rather than continuing from the earlier failure.
+        expect(gameActions.applyClue).toHaveBeenCalledTimes(7);
     });
 });
 

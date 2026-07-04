@@ -188,7 +188,8 @@
         "nicknameLength": "Le pseudonyme doit comporter {{min}}-{{max}} caractères",
         "nicknameCharsOnly": "Seuls les lettres, chiffres, espaces, tirets et underscores sont autorisés",
         "youAreHost": "Vous êtes maintenant l'hôte !",
-        "newHost": "{{name}} est maintenant l'hôte"
+        "newHost": "{{name}} est maintenant l'hôte",
+        "botStalled": "Un bot de l'équipe {{team}} est resté bloqué, son tour a donc été terminé automatiquement"
     },
     "settings": {
         "title": "Paramètres",

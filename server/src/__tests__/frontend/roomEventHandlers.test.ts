@@ -206,6 +206,12 @@ describe('roomWarning', () => {
         emit('roomWarning', { code: 'OTHER_WARNING' });
         expect(mockRequestResync).not.toHaveBeenCalled();
     });
+
+    test('shows a toast on BOT_STALLED so a stuck bot forcing a turn end is actually visible', () => {
+        emit('roomWarning', { code: 'BOT_STALLED', message: 'A bot on the red team got stuck', team: 'red' });
+        expect(showToast).toHaveBeenCalledWith('multiplayer.botStalled', 'warning');
+        expect(mockRequestResync).not.toHaveBeenCalled();
+    });
 });
 
 describe('disconnected', () => {

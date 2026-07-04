@@ -22,7 +22,7 @@ import type { BotClickerView, ClueMemoryEntry } from './strategies/types';
 
 import logger from '../utils/logger';
 import { onGameMutation } from '../socket/gameMutationNotifier';
-import { safeEmitToPlayers } from '../socket/safeEmit';
+import { safeEmitToPlayers, safeEmitToRoom } from '../socket/safeEmit';
 import { SOCKET_EVENTS } from '../config/constants';
 import * as gameService from '../services/gameService';
 import * as playerService from '../services/playerService';
@@ -35,6 +35,7 @@ import { resolveSkill } from './presets';
 import { makeRng } from './rng';
 import { playOneAction } from './playOneAction';
 import { applyClue, applyReveal, applyEndTurn } from '../socket/handlers/gameActions';
+import type { GameActor } from '../socket/handlers/gameActions';
 
 /** Per-room de-dupe key for the last advisor suggestion emitted (avoids
  *  re-emitting identical suggestions on every unrelated mutation). */
@@ -184,15 +185,53 @@ const failureStreak = new Map<string, number>();
 /** Per-room pending re-arm timer (at most one in flight). */
 const reArmTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
+/**
+ * Force-end the stuck team's turn and tell the room why, once a room has
+ * exhausted its re-arm budget. Ticking is driven only by game mutations and
+ * it's the stalled bot's own turn, so without this the turn indicator never
+ * advances and no other player can produce a mutation to unstick it — a
+ * deterministic strategy failure in a timer-less room would otherwise brick
+ * the game silently (docs/HARDENING_PLAN.md P1-6).
+ */
+async function giveUpAndForceEndTurn(roomCode: string, lastActor: GameActor | null): Promise<void> {
+    logger.error(
+        `botController giving up on ${roomCode} after ${MAX_REARM_ATTEMPTS} consecutive action failures — forcing the stuck turn to end`
+    );
+    const io = ioRef;
+    if (!io) return;
+    try {
+        const game = await gameService.getGame(roomCode);
+        if (!game || game.gameOver || game.paused) return; // nothing left to force-end
+        const team = game.currentTurn;
+        // Prefer the nickname of the bot whose action actually failed, but the
+        // team is what matters for the endTurn guard — fall back to a generic
+        // identity if the last failure happened before an actor was resolved
+        // (e.g. a getGame/getTeamMembers read failure) or belongs to the other team.
+        const actor: GameActor =
+            lastActor && lastActor.team === team ? lastActor : { sessionId: 'system', nickname: 'Bot', team };
+        await applyEndTurn(io, roomCode, actor);
+        safeEmitToRoom(io, roomCode, SOCKET_EVENTS.ROOM_WARNING, {
+            code: 'BOT_STALLED',
+            message: `A bot on the ${team} team couldn't complete its turn after ${MAX_REARM_ATTEMPTS} attempts, so its turn was ended automatically.`,
+            team,
+        });
+    } catch (err) {
+        logger.error(`botController force-end-turn for ${roomCode} also failed: ${(err as Error).message}`);
+    }
+}
+
 /** Schedule a bounded, backed-off retry of a room that failed mid-cascade. */
-function scheduleReArm(roomCode: string): void {
+async function scheduleReArm(roomCode: string, lastActor: GameActor | null): Promise<void> {
     const streak = (failureStreak.get(roomCode) ?? 0) + 1;
     failureStreak.set(roomCode, streak);
     // Same leak guard as the trackers: a room that dies mid-backoff (or after
     // giving up) never gets a success/clean-stop to clear its streak.
     evictOldestBeyondCap(failureStreak);
     if (streak > MAX_REARM_ATTEMPTS) {
-        logger.error(`botController giving up on ${roomCode} after ${MAX_REARM_ATTEMPTS} consecutive action failures`);
+        // Reset so a fresh failure streak (e.g. next turn also stalls) gets its
+        // own full retry budget instead of giving up immediately again.
+        clearReArm(roomCode);
+        await giveUpAndForceEndTurn(roomCode, lastActor);
         return;
     }
     if (reArmTimers.has(roomCode)) return; // one pending re-arm at a time
@@ -337,6 +376,10 @@ export async function tickRoom(roomCode: string): Promise<void> {
     // over/paused, a human's seat, or no move to make). A failure re-arms a
     // retry; a clean stop clears the backoff.
     let actionFailed = false;
+    // The actor whose action most recently failed (or was attempted), so that if
+    // the room eventually gives up, the forced endTurn can be attributed to the
+    // right team/nickname instead of a bare fallback.
+    let lastActor: GameActor | null = null;
     try {
         // Sequential by design: each bot action mutates shared game state under
         // the reveal lock and must complete before the next is computed.
@@ -409,6 +452,7 @@ export async function tickRoom(roomCode: string): Promise<void> {
             }
 
             const actor = { sessionId: seat.sessionId, nickname: seat.nickname, team, role: seat.role };
+            lastActor = actor;
             try {
                 if (action.kind === 'clue') {
                     await applyClue(io, roomCode, actor, action.word, action.number);
@@ -452,7 +496,7 @@ export async function tickRoom(roomCode: string): Promise<void> {
     }
 
     if (actionFailed) {
-        scheduleReArm(roomCode);
+        await scheduleReArm(roomCode, lastActor);
     } else {
         // Clean stop: nothing more for a bot to do right now. Drop any backoff.
         clearReArm(roomCode);
