@@ -241,6 +241,23 @@ persona-independent. Then **round 4** of human play: the human against the
 improved bots, with the advisor live — the validation round the first three
 sessions earned.
 
+> **Retune half — verified no-op (evidence, not assumption).** Roster on
+> `phase5-roster` (8 games/pair, classic): the four competent personae all
+> pass every gate — delivery 94–100%, leak ≤ 2%, misfire ≤ 5%, assassin 0%,
+> `ceilUse` 0.52–0.64, overreach 0%. The only two flags are BY DESIGN, not
+> regressions: **apprentice** (the beginner) carries its intended
+> assassin-exposure / weak-coverage profile, flat vs the Phase-4 baseline
+> (assassin 2.7–2.8%), and **maverick** (off-kilter, low `commonnessBias`)
+> shows a borderline selection gap (`ceilUse` 0.52) that is its creative
+> identity, not a defect — on the `ph4-gate` seed it isn't even flagged
+> (0.59). A seed-matched run against the Phase-4 baseline is **bit-identical**
+> across all six personae, so the Phase 2–4 scoring terms + the hardening
+> fixes shifted no equilibrium: each term was gated at introduction and the
+> cumulative effect is stable. Per the "measure before tuning" guardrail, no
+> knob is changed — manufacturing a tune without a demonstrated problem would
+> be fiddling. The persona ladder is validated as healthy; the remaining half
+> is the live human-play validation round.
+
 ## Traceability
 
 | Ledger item | Discharged by |
