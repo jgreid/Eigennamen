@@ -41,6 +41,8 @@ This document defines the backup strategy, recovery procedures, and operational 
 
 ## 2. Redis Backup Strategy
 
+> **Current state:** every step in this section is a manual runbook — there is no scheduled script that runs it for you (`scripts/` has `health-check.sh`, `redis-inspect.sh`, and `pre-deploy-check.sh`, but no `redis-backup.sh`, and no workflow runs on a schedule). Automating this is a proposed feature, not a defect — it isn't tracked in `docs/HARDENING_PLAN.md`, but if you want it built, ask for it to be added there or to a feature-roadmap doc.
+
 ### 2.1 Understanding Redis Persistence
 
 Redis supports two persistence mechanisms:

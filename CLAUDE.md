@@ -29,7 +29,7 @@ npm run redis:down             # Stop the managed Redis container
 docker compose up -d --build   # Start with Docker (Redis + app)
 
 # Quality gates (all four must pass before submitting a PR)
-npm test                       # All tests (backend + frontend, 160 suites)
+npm test                       # All tests (backend + frontend, 167 suites)
 npm run lint                   # ESLint
 npm run format:check           # Prettier check
 npm run typecheck              # TypeScript check
@@ -113,7 +113,7 @@ Eigennamen/
     │   │   ├── components.css  # UI components
     │   │   ├── layout.css      # Game board + page layout
     │   │   ├── setup.css       # Setup screen
-    │   │   ├── accessibility.css # a11y styles (453 lines)
+    │   │   ├── accessibility.css # a11y styles (472 lines)
     │   │   └── ...             # modals, multiplayer, replay, responsive, admin
     │   ├── locales/            # i18n translations (en, de, es, fr) + wordlists
     │   ├── icons/              # App icons
@@ -174,7 +174,7 @@ Eigennamen/
         │   ├── gameService.ts  # Core game logic, Mulberry32 PRNG, delegates to game/
         │   ├── roomService.ts  # Room create/join/leave/settings lifecycle
         │   ├── playerService.ts # Player CRUD barrel — re-exports from player/ sub-modules
-        │   ├── timerService.ts # Turn timers (Redis-backed, pause/resume/add-time)
+        │   ├── timerService.ts # Turn timers (Redis-tracked state; expiry runs on an in-process timer — single-instance only, see docs/HARDENING_PLAN.md P2-2)
         │   ├── gameHistoryService.ts # Game history barrel — re-exports from gameHistory/
         │   ├── auditService.ts # Security audit logging (ring buffer)
         │   ├── botService.ts   # Bot lifecycle: addBot/removeBot/getBotConfig (bots are first-class room players)
@@ -323,7 +323,7 @@ Eigennamen/
         ├── scripts/            # Redis Lua scripts (29 atomic operations)
         │   ├── index.ts        # Barrel export with documented KEYS/ARGV/Returns headers
         │   └── atomicRateLimit.lua # Extracted rate-limit Lua script
-        └── __tests__/          # Jest tests (105 backend suites)
+        └── __tests__/          # Jest tests (112 backend + 55 frontend suites)
             ├── helpers/        # Test utilities + mock factories (mocks.ts ~721 lines)
             ├── integration/    # Integration tests
             └── frontend/       # Frontend unit tests
@@ -341,7 +341,7 @@ Client event → Socket.io → Zod validation → rate limiter → context handl
 
 The `socket/contextHandler.ts` factory creates handler pipelines with these stages:
 
-1. **Rate Limiting** — Per-event, per-IP Redis-backed counters
+1. **Rate Limiting** — Per-event, per-IP counters (in-memory per process today, except session validation which is Redis-backed — see docs/HARDENING_PLAN.md P2-1)
 2. **Zod Validation** — Input schema validation with sanitization
 3. **Player Context Resolution** — Resolves session → player → room from JWT/session store
 4. **Handler Execution** — Wrapped with timeout protection
@@ -431,7 +431,7 @@ Configured in `config/gameConfig.ts`, rules shared via `shared/gameRules.ts`:
 - **Selectors** — `store/selectors.ts` for derived state
 - **Batch updates** — `store/batch.ts` to group multiple state changes
 - **DOM manipulation** — Direct DOM via `document.getElementById()`, `el.hidden`, `el.textContent`
-- **No innerHTML for user content** — Use `textContent`, `createElement()`, or `escapeHTML()` + innerHTML only for trusted templates
+- **No innerHTML for user content** — Use `textContent` or `createElement()`. `frontend/utils.ts`'s `escapeHTML()` only escapes `&`/`<`/`>`, not quotes, so it is **not** attribute-injection-safe — it has no current call sites and is slated for removal (see docs/HARDENING_PLAN.md P1-12); don't add a new one
 
 ## Socket Events
 
@@ -556,10 +556,10 @@ Run `npm run format` to auto-format, `npm run format:check` to verify.
 - **Validation**: Zod schemas at every entry point with `removeControlChars()` sanitization
 - **NFKC normalization**: Prevents Unicode homoglyph attacks
 - **CSP**: Strict Content-Security-Policy with no `unsafe-inline` in script-src or style-src
-- **No innerHTML for user content**: Use `textContent`, `createElement()`, or allowlisted `escapeHTML()` patterns
+- **No innerHTML for user content**: Use `textContent` or `createElement()` — `escapeHTML()` is not attribute-safe and has no current call sites (see docs/HARDENING_PLAN.md P1-12)
 - **JWT**: Minimum 32-character secret enforced in production
 - **Session limits**: 8-hour max lifetime, IP consistency checks
-- **Rate limiting**: Per-event + per-IP, both HTTP (express-rate-limit) and WebSocket (Redis-backed)
+- **Rate limiting**: Per-event + per-IP; HTTP via express-rate-limit, WebSocket via in-memory per-process counters today (session validation alone is Redis-backed) — making the WebSocket path Redis-backed across instances is tracked in docs/HARDENING_PLAN.md P2-1
 - **Error detail stripping**: Internal fields never exposed to clients
 - **GitHub Actions**: All pinned to immutable commit SHAs
 
@@ -592,6 +592,19 @@ Run `npm run format` to auto-format, `npm run format:check` to verify.
 - **addBot seat serialization**: `addBot` runs its seat-occupancy check and join under a per-room `bot-manage:` lock so two simultaneous `bot:add` calls can't both seat the same team+role.
 - **Multiplayer custom word lists**: `game.ts`'s `buildStartGameOptions()` forwards the host's active Settings-menu word list (`state.activeWords`) on every multiplayer `game:start`/auto-start call whenever `state.wordSource !== 'default'`, so a prepared custom/combined list (see `docs/BOT_SEMANTIC_MAPS.md`) reaches hosted rooms the same way it already worked in standalone mode. The client parser cap and the `game:start` Zod schema's max both read `MAX_CUSTOM_WORD_LIST_SIZE` (`shared/gameRules.ts`) so the two bounds can't drift apart.
 
+## Known Issues (Tracked)
+
+A July 2026 codebase-wide hardening review found a small number of real defects. The full remediation plan — root cause, concrete fix, files touched, tests, sequencing — lives in **[docs/HARDENING_PLAN.md](docs/HARDENING_PLAN.md)**. None of the code fixes below have shipped yet; check that document for current status before assuming any of these are resolved.
+
+The four most severe, all reachable today in the default single-instance deployment:
+
+- **A spymaster can switch to `clicker` mid-game and act on the board they've already seen** — `canChangeTeamOrRole` (`socket/playerContext.ts`) blocks the analogous team-change and observer cases but not this one. See HARDENING_PLAN.md P0-1 before touching role-change logic.
+- **`game:reveal` doesn't require an active clue** — a turn's initial `guessesAllowed: 0` is ambiguously overloaded with the real "unlimited guesses" sentinel a clue-number-0 produces, so a client can reveal cards before ever giving a clue. See P0-2 before touching `revealCard.lua` or the guess-count logic.
+- **`withLock`'s internal timeout can be shorter than the operation it guards** — the lock releases and the caller is told "failed" while the wrapped write is still in flight and lands afterward. See P0-3 before adding a new `withLock` call site; always size `lockTimeout` to exceed the slowest realistic inner operation.
+- **Disconnect and reconnect can race on a player's `connected` flag** with nothing serializing the two writes, occasionally causing the scheduled cleanup sweep to evict an actively-reconnected player. See P0-4 before touching `services/player/cleanup.ts` or the reconnect handler.
+
+Known scaling-readiness gap: several pieces of per-room/per-IP coordination state (socket-level rate limiting, the bot controller's in-flight guard, turn-timer pause/resume/stop) live in a plain in-process `Map`, not Redis — correct only for a single instance. This is fine for the current deployment (`fly.toml` deliberately keeps exactly one machine) but must be closed before running more than one instance behind a load balancer. See HARDENING_PLAN.md Phase 2.
+
 ## Key Services
 
 | Service | File | Purpose |
@@ -599,7 +612,7 @@ Run `npm run format` to auto-format, `npm run format:check` to verify.
 | `gameService` | `services/gameService.ts` | Core game logic, Mulberry32 PRNG, delegates to `game/` sub-modules |
 | `roomService` | `services/roomService.ts` | Room create/join/leave/settings lifecycle |
 | `playerService` | `services/playerService.ts` | Player CRUD barrel (delegates to `player/` sub-modules) |
-| `timerService` | `services/timerService.ts` | Turn timers — Redis-backed with pause/resume/add-time |
+| `timerService` | `services/timerService.ts` | Turn timers — Redis-tracked state, in-process expiry timer (single-instance only, see docs/HARDENING_PLAN.md P2-2) |
 | `gameHistoryService` | `services/gameHistoryService.ts` | Game history barrel — delegates to `gameHistory/` sub-modules (types, validation, storage, replayEngine) |
 | `auditService` | `services/auditService.ts` | Security audit logging (in-memory ring buffer, MAX_LOGS_PER_CATEGORY=10000) |
 | `botService` | `services/botService.ts` | Bot lifecycle — addBot/removeBot/getBotConfig (bots are first-class Redis players driven by `bots/botController.ts`) |
@@ -645,8 +658,8 @@ See [docs/ADDING_A_FEATURE.md](docs/ADDING_A_FEATURE.md) for a full worked examp
 
 ### Structure
 
-- **Backend unit/integration**: Jest, 105 suites in `server/src/__tests__/`
-- **Frontend unit**: Jest with jsdom, in `server/src/__tests__/frontend/`
+- **Backend unit/integration**: Jest, 112 suites in `server/src/__tests__/`
+- **Frontend unit**: Jest with jsdom, 55 suites in `server/src/__tests__/frontend/`
 - **E2E**: Playwright, 13 specs in `server/e2e/`
 - **Load testing**: Custom scripts in `server/loadtest/`
 
@@ -747,3 +760,4 @@ Key env vars (see `server/.env.example` for full list):
 | [docs/BOT_NUANCE_PLAN.md](docs/BOT_NUANCE_PLAN.md) | Build sheet for the lessons ledger: plan items 2.8–2.19 mapped to exact code hooks, phased with metric gates |
 | [docs/SETUP_SCREEN_GUIDE.md](docs/SETUP_SCREEN_GUIDE.md) | User-facing setup screen walkthrough |
 | [docs/WINDOWS_SETUP.md](docs/WINDOWS_SETUP.md) | Windows development setup |
+| [docs/HARDENING_PLAN.md](docs/HARDENING_PLAN.md) | Tracked remediation plan from the July 2026 hardening review — root cause, fix, tests, and sequencing for every open finding |

@@ -261,6 +261,8 @@ describe('gameHandlers', () => {
 
 ### Testing with Real Redis
 
+> **Known gap:** this pattern exists but isn't currently applied to the 29 Lua atomic scripts in `server/src/scripts/`. Every backend test — including the dedicated Lua test files — mocks `eval`/`evalSha` to return `null` and only asserts on each script's *source text*, never its actual behavior against real Redis. A broken atomic script can pass the full test suite today. Building a real-Redis Lua test harness using the pattern below is tracked in [docs/HARDENING_PLAN.md](HARDENING_PLAN.md) P1-9.
+
 For integration tests that need real Redis:
 
 ```javascript

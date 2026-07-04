@@ -8,6 +8,13 @@
 #   2. fly secrets set REDIS_URL=rediss://...
 #   3. Remove REDIS_URL and MEMORY_MODE_ALLOW_FLY from [env] below
 # Until then, keep exactly 1 machine: fly scale count 1
+#
+# NOTE: `min_machines_running = 1` below is a floor, not a ceiling — it does not
+# stop the autoscaler from starting a 2nd machine if auto_start_machines and the
+# concurrency limits (both set below) decide load warrants it. Nothing in this
+# config or the deploy pipeline currently enforces the "exactly 1 machine" rule
+# automatically; see docs/HARDENING_PLAN.md P2-5 before relying on manual
+# `fly scale count 1` alone in a real production rollout.
 
 app = "eigennamen"
 primary_region = "iad"
