@@ -439,7 +439,106 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-  # ── E2E tests ──────────────────────────────────────────────────────────
+  # ── E2E smoke tests (blocking) ──────────────────────────────────────────
+  # A small, single-browser-context slice of home.spec.js (page load + core
+  # UI presence) that gates merges. Verified independently against a clean
+  # checkout of main before being wired up here: home.spec.js's "Home Page"
+  # and "Accessibility" tests pass reliably except "has share link input"
+  # (excluded via --grep-invert — fails the same way on unmodified main, a
+  # pre-existing issue out of scope here). game-flow.spec.js was considered
+  # but excluded: 6 of its 9 tests fail on unmodified main too (a pre-existing
+  # "must join a team first" UI bug), so it isn't a safe blocking candidate
+  # yet — that's exactly the kind of instability the full `e2e` job below
+  # stays non-blocking for. This job never opens a second browser context or
+  # hits the multiplayer socket path, so it doesn't run into the documented
+  # per-IP-socket-limit / click-timing flakiness either. Concrete, always-on
+  # end-to-end check called for in docs/HARDENING_PLAN.md P1-9.
+  e2e-smoke:
+    name: E2E Smoke (blocking)
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - id: cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
+        with:
+          path: server/node_modules
+          key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
+
+      - name: Install dependencies (cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Build app
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      # Memory mode (REDIS_URL=memory) spawns an embedded redis-server process,
+      # so the binary must be on PATH. The runner image does not ship it.
+      - name: Install Redis (for embedded memory-mode server)
+        run: sudo apt-get update && sudo apt-get install -y redis-server
+
+      - name: Start server
+        run: |
+          node dist/index.js > /tmp/server-smoke.log 2>&1 &
+          echo $! > /tmp/server-smoke.pid
+        env:
+          NODE_ENV: test
+          REDIS_URL: memory
+          PORT: 3000
+          JWT_SECRET: e2e-smoke-test-secret-long-enough-for-validation
+
+      - name: Wait for server
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3000/health/ready > /dev/null 2>&1; then
+              echo "Server ready after ${i}s"
+              exit 0
+            fi
+            if [ -f /tmp/server-smoke.pid ] && ! kill -0 "$(cat /tmp/server-smoke.pid)" 2>/dev/null; then
+              echo "::error::Server process exited before becoming ready"
+              cat /tmp/server-smoke.log || true
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "::error::Server failed to become ready within 60s"
+          cat /tmp/server-smoke.log || true
+          exit 1
+
+      - name: Run E2E smoke specs
+        run: npx playwright test e2e/home.spec.js --project=chromium --grep-invert "has share link input"
+        env:
+          BASE_URL: http://localhost:3000
+          CI: true
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: playwright-smoke-report
+          path: server/playwright-report/
+          retention-days: 7
+
+      - name: Stop server
+        if: always()
+        run: |
+          if [ -f /tmp/server-smoke.pid ]; then
+            kill "$(cat /tmp/server-smoke.pid)" 2>/dev/null || true
+          fi
+
+  # ── E2E tests (full suite, non-blocking) ────────────────────────────────
   e2e:
     name: E2E Tests
     # Depends on install (for the node_modules cache) and builds its own dist/
@@ -452,6 +551,8 @@ jobs:
     # blocks the Deploy workflow (it gates on workflow_run.conclusion == 'success').
     # continue-on-error keeps the job's own check visible while leaving the run
     # conclusion green, so the documented non-blocking intent actually holds.
+    # (e2e-smoke above covers the always-on slice; this job is the full suite,
+    # including the multiplayer specs that are the actual source of flakiness.)
     continue-on-error: true
     # Bound the job so a hung/very-slow Playwright run can't occupy a runner for
     # the 6h default. E2E is non-blocking, so keep this tight; --max-failures also
@@ -565,12 +666,14 @@ jobs:
   ci-passed:
     name: CI Passed
     if: always()
-    # E2E is intentionally NOT a dependency: the suite has known pre-existing
-    # instability under the single shared server (per-IP socket limit + click/
-    # render timing flakiness) and is tracked for stabilization separately. It
-    # still runs and reports as its own check, but does not gate merge — and
-    # this gate reports as soon as the required jobs finish.
-    needs: [lint, typecheck, build, test, security, docker]
+    # The full E2E suite (`e2e`) is intentionally NOT a dependency: it has
+    # known pre-existing instability under the single shared server (per-IP
+    # socket limit + click/render timing flakiness) and is tracked for
+    # stabilization separately. It still runs and reports as its own check,
+    # but does not gate merge. `e2e-smoke` — a small single-context slice that
+    # doesn't hit that flaky class — IS a dependency, so real end-to-end
+    # coverage still gates merges (docs/HARDENING_PLAN.md P1-9).
+    needs: [lint, typecheck, build, test, security, docker, e2e-smoke]
     runs-on: ubuntu-latest
     steps:
       - name: Check all jobs
@@ -581,6 +684,7 @@ jobs:
           echo "Test: ${{ needs.test.result }}"
           echo "Security: ${{ needs.security.result }}"
           echo "Docker: ${{ needs.docker.result }}"
+          echo "E2E Smoke: ${{ needs.e2e-smoke.result }}"
 
           # Fail if any required (blocking) job failed
           if [ "${{ needs.lint.result }}" != "success" ] || \
@@ -588,7 +692,8 @@ jobs:
              [ "${{ needs.build.result }}" != "success" ] || \
              [ "${{ needs.test.result }}" != "success" ] || \
              [ "${{ needs.security.result }}" != "success" ] || \
-             [ "${{ needs.docker.result }}" != "success" ]; then
+             [ "${{ needs.docker.result }}" != "success" ] || \
+             [ "${{ needs.e2e-smoke.result }}" != "success" ]; then
             echo "::error::One or more required CI jobs failed"
             exit 1
           fi
