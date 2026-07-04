@@ -21,8 +21,13 @@ import { caseSignal } from '../semantics/properAssociations';
 export const FRAME_DOUBT_FLOOR = 0.35;
 /** The alternate sense must carry REAL signal to switch to it… */
 export const FRAME_SWITCH_BAR = 0.5;
-/** …on at least this many live candidates (one hit could be coincidence). */
-const FRAME_SWITCH_MIN_CANDIDATES = 2;
+/** …on at least this many live candidates for the INITIAL switch (one hit
+ *  could be coincidence). Mid-clue the caller lowers this to 1: once guesses
+ *  are spent and the given frame still explains nothing, a single strong
+ *  alternate candidate is the continuation of the working frame — otherwise
+ *  consuming the first switched-frame card would un-switch the frame and
+ *  strand its remaining targets. */
+export const FRAME_SWITCH_MIN_CANDIDATES = 2;
 
 export interface ClueFrame {
     /** The clue word to score with — the given word, or its case-flipped
@@ -38,7 +43,12 @@ export interface ClueFrame {
  * (ALL-CAPS / legacy) clues never switch — backends already read those both
  * ways, so the flip could add nothing.
  */
-export function resolveClueFrame(clueWord: string, candidates: readonly string[], backend: SemanticBackend): ClueFrame {
+export function resolveClueFrame(
+    clueWord: string,
+    candidates: readonly string[],
+    backend: SemanticBackend,
+    minStrong: number = FRAME_SWITCH_MIN_CANDIDATES
+): ClueFrame {
     const sig = caseSignal(clueWord);
     if (candidates.length === 0 || (sig !== 'proper' && sig !== 'common')) {
         return { word: clueWord, switched: false };
@@ -54,7 +64,7 @@ export function resolveClueFrame(clueWord: string, candidates: readonly string[]
         sig === 'proper' ? clueWord.toLowerCase() : clueWord.charAt(0).toUpperCase() + clueWord.slice(1).toLowerCase();
     const altScores = candidates.map((w) => clueRetrieval(backend, alternate, w));
     const strong = altScores.filter((s) => s >= FRAME_SWITCH_BAR).length;
-    if (strong >= FRAME_SWITCH_MIN_CANDIDATES && Math.max(...altScores) > bestGiven) {
+    if (strong >= Math.max(1, minStrong) && Math.max(...altScores) > bestGiven) {
         return { word: alternate, switched: true };
     }
     return { word: clueWord, switched: false };

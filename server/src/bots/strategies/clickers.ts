@@ -194,10 +194,15 @@ export function makeGreedyClicker(
             // uniformly weak on this board and the case-flipped sense clears
             // the bar on 2+ candidates, guess under THAT sense instead —
             // deterministic per view, so every tick re-derives the same frame.
+            // Mid-clue (guesses already spent, given frame still explaining
+            // nothing) ONE strong alternate candidate suffices: consuming the
+            // first switched-frame card must not un-switch the frame and
+            // strand its remaining targets.
             const frame = resolveClueFrame(
                 view.currentClue.word,
                 choices.map((i) => view.words[i] as string),
-                backend
+                backend,
+                view.guessesUsed > 0 ? 1 : undefined
             );
             // Rank unrevealed cards by how strongly the clue RETRIEVES them:
             // associative relatedness or phrase completion, whichever is

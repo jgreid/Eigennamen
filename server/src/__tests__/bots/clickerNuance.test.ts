@@ -83,6 +83,26 @@ describe('4.1 frame switch: the uniform-weak tell flips the sense', () => {
         expect(action).toEqual({ kind: 'reveal', index: 0 });
     });
 
+    it('stays in the switched frame mid-clue: one strong leftover is continuation, not coincidence', () => {
+        // TORCH was taken under the switched sense; LOG is the only alternate
+        // candidate left. The initial min-2 coincidence guard must not
+        // un-switch the frame now and strand LOG in the dead reference frame.
+        const s = skill();
+        const view: BotClickerView = {
+            role: 'clicker',
+            team: 'red',
+            gameMode: 'classic',
+            words: ['TORCH', 'LOG', 'ROSE', 'PIT'],
+            revealed: [true, false, false, false],
+            types: ['red', null, null, null],
+            currentTurn: 'red',
+            currentClue: { word: 'Tinder', number: 2 },
+            guessesUsed: 1,
+            guessesAllowed: 3,
+        };
+        expect(makeGreedyClicker(s, tinderBackend).chooseGuess(view, ctx(s))).toEqual({ kind: 'reveal', index: 1 });
+    });
+
     it('no switch when the given frame delivers (HEART on board)', () => {
         const s = skill();
         const action = makeGreedyClicker(s, tinderBackend).chooseGuess(

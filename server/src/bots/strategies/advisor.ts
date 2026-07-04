@@ -104,12 +104,13 @@ export function suggestGuesses(
 
     // Frame doubt (Phase 4.1, shared with the clicker): when the given
     // reading fits nothing and the case-flipped sense clears the bar, rank
-    // under that sense — and say so.
+    // under that sense — and say so. Mid-clue one strong alternate candidate
+    // suffices (same continuation rule as the clicker).
     const unrevealedWords: string[] = [];
     for (let i = 0; i < view.revealed.length; i++) {
         if (!view.revealed[i]) unrevealedWords.push(view.words[i] as string);
     }
-    const frame = resolveClueFrame(clue.word, unrevealedWords, backend);
+    const frame = resolveClueFrame(clue.word, unrevealedWords, backend, view.guessesUsed > 0 ? 1 : undefined);
 
     const scored: Scored[] = [];
     for (let i = 0; i < view.revealed.length; i++) {
