@@ -274,7 +274,7 @@ export function makeVectorBackend(options: VectorBackendOptions): SemanticBacken
     const NEAREST_CACHE_MAX = 4096;
     const nearestCache = new Map<string, Array<{ word: string; score: number }>>();
 
-    return {
+    const backend: SemanticBackend = {
         id: 'vectors',
         relatedness(a: string, b: string): number {
             const A = normalizeClueWord(a);
@@ -379,4 +379,19 @@ export function makeVectorBackend(options: VectorBackendOptions): SemanticBacken
             return top;
         },
     };
+
+    // Phase-2 channels (edgeInfo/collocation) live in the curated tables, not
+    // in the sense-conflated embeddings. When a prepared v2 map sits beneath
+    // the vector backend in the chain, forward its channels through — else
+    // clueRetrieval's `if (!backend.collocation)` and scoreClue's
+    // `if (backend.edgeInfo)` see the top-level vector backend, find neither,
+    // and every compound-interception / fame / concreteness signal silently
+    // vanishes under embeddings (correctness-review finding). Forwarded ONLY
+    // when the fallback actually provides them, so a channel-less chain keeps
+    // reporting absence (the no-op contract those guards depend on).
+    const fallbackEdgeInfo = opts.fallback.edgeInfo?.bind(opts.fallback);
+    const fallbackCollocation = opts.fallback.collocation?.bind(opts.fallback);
+    if (fallbackEdgeInfo) backend.edgeInfo = fallbackEdgeInfo;
+    if (fallbackCollocation) backend.collocation = fallbackCollocation;
+    return backend;
 }

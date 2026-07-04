@@ -85,6 +85,37 @@ describe('makeVectorBackend', () => {
         expect(makeVectorBackend({ path: join(dir, 'does-not-exist.vec') })).toBeNull();
     });
 
+    it('forwards the fallback chain’s Phase-2 channels (edgeInfo/collocation)', () => {
+        // When a prepared v2 map sits beneath the embeddings, its per-edge
+        // channels must survive the vector layer — else clueRetrieval and
+        // scoreClue, which probe the TOP-LEVEL backend, see neither and every
+        // compound-interception / fame / concreteness signal vanishes under
+        // embeddings (correctness-review finding).
+        const fallback: SemanticBackend = {
+            id: 'chan-stub',
+            relatedness: () => 0,
+            edgeInfo: (clue: string, word: string) =>
+                clue === 'ENGINE' && word === 'BOX' ? { strength: 0.3, kind: 'compound' } : null,
+            collocation: (a: string, b: string) =>
+                (a === 'ENGINE' && b === 'BOX') || (a === 'BOX' && b === 'ENGINE') ? 0.8 : 0,
+        };
+        const b = makeVectorBackend({ path: vecPath, fallback }) as SemanticBackend;
+        expect(typeof b.edgeInfo).toBe('function');
+        expect(typeof b.collocation).toBe('function');
+        expect(b.edgeInfo!('ENGINE', 'BOX')).toEqual({ strength: 0.3, kind: 'compound' });
+        expect(b.collocation!('ENGINE', 'BOX')).toBe(0.8);
+        expect(b.collocation!('BOX', 'ENGINE')).toBe(0.8);
+    });
+
+    it('reports channel ABSENCE when the fallback has none (preserves the no-op contract)', () => {
+        // clueRetrieval/scoreClue guard on `!backend.collocation` /
+        // `backend.edgeInfo` — a channel-less chain must keep those falsy.
+        const fallback: SemanticBackend = { id: 'plain-stub', relatedness: () => 0 };
+        const b = makeVectorBackend({ path: vecPath, fallback }) as SemanticBackend;
+        expect(b.edgeInfo).toBeUndefined();
+        expect(b.collocation).toBeUndefined();
+    });
+
     it('honours the maxWords cap', () => {
         const b = makeVectorBackend({ path: vecPath, maxWords: 2 }) as SemanticBackend;
         // Only KING and QUEEN load; APPLE is beyond the cap so its pair scores via

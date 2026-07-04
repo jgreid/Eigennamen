@@ -111,6 +111,44 @@ describe('4.1 frame switch: the uniform-weak tell flips the sense', () => {
         );
         expect(action).toEqual({ kind: 'reveal', index: 2 });
     });
+
+    it('a delivering proper clue is NOT hijacked mid-clue by its weak promised tail (correctness-review finding)', () => {
+        // "Fable 2": GLASS (1.0) taken; PRINCESS is the promised second card
+        // at 0.32 — a tail the spymaster could legitimately promise (above
+        // PROMISE_FLOOR 0.3). PUMPKIN tempts a hijack into the common sense
+        // ("fable" → PUMPKIN, 0.6). The mid-clue doubt floor is PROMISE_FLOOR,
+        // so 0.32 clears it: no doubt, and PRINCESS (the promise) is taken —
+        // not PUMPKIN, a channel the clue's assassin gate never evaluated.
+        const hijack: SemanticMap = {
+            version: 2,
+            words: ['GLASS', 'PRINCESS', 'PUMPKIN', 'DECOY'],
+            concepts: { FABLE: [{ word: 'PUMPKIN', weight: 0.6 }] },
+            proper: {
+                Fable: {
+                    contents: [
+                        { word: 'GLASS', weight: 1 },
+                        { word: 'PRINCESS', weight: 0.32 },
+                    ],
+                    fame: 0.9,
+                },
+            },
+        };
+        const be = makeCustomMapBackend([hijack], lexicalBackend);
+        const s = skill();
+        const view: BotClickerView = {
+            role: 'clicker',
+            team: 'red',
+            gameMode: 'classic',
+            words: ['GLASS', 'PRINCESS', 'PUMPKIN', 'DECOY'],
+            revealed: [true, false, false, false],
+            types: ['red', null, null, null],
+            currentTurn: 'red',
+            currentClue: { word: 'Fable', number: 2 },
+            guessesUsed: 1,
+            guessesAllowed: 3,
+        };
+        expect(makeGreedyClicker(s, be).chooseGuess(view, ctx(s))).toEqual({ kind: 'reveal', index: 1 });
+    });
 });
 
 describe('4.2 advisor warnings (fixed strings, masked-view-only discipline)', () => {
@@ -211,6 +249,31 @@ describe('4.3 clue debt: owed frames boost, burned frames transfer nothing', () 
             kind: 'reveal',
             index: 0,
         });
+    });
+
+    it('the debt boost never jumps a card across the assassin berth (correctness-review finding)', () => {
+        // HAMMER (own) leads DANGER by exactly the hard assassin berth floor
+        // (0.5 vs 0.4). An owed clue fits DANGER perfectly (0.9) — but the
+        // spymaster's gate certified that 0.10 gap without ever seeing the
+        // debt boost, so the boost (capped below 0.10) must NOT flip the pick
+        // onto the card the gate ruled safe.
+        const dbg: SemanticMap = {
+            version: 2,
+            words: ['HAMMER', 'DANGER'],
+            concepts: {
+                TOOL: [
+                    { word: 'HAMMER', weight: 0.5 },
+                    { word: 'DANGER', weight: 0.4 },
+                ],
+                SEA: [{ word: 'DANGER', weight: 0.9 }],
+            },
+        };
+        const be = makeCustomMapBackend([dbg], lexicalBackend);
+        const s = skill();
+        const mem: BotSeatMemory = { clues: [{ word: 'SEA', number: 3, taken: 1, bounced: false }] };
+        expect(makeGreedyClicker(s, be).chooseGuess(clickerView(['HAMMER', 'DANGER'], 'TOOL', 1), ctx(s, mem))).toEqual(
+            { kind: 'reveal', index: 0 }
+        );
     });
 });
 
