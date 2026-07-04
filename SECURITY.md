@@ -64,7 +64,7 @@ We aim to acknowledge reports within 48 hours and provide an initial assessment 
 
 ### Rate Limiting
 - **HTTP**: express-rate-limit (configurable window and max requests)
-- **WebSocket**: Per-event rate limiting with Redis-backed counters
+- **WebSocket**: Per-event, per-IP rate limiting — in-memory per process today (only session-validation attempts are Redis-backed); see Known Limitations below
 - **Auth failures**: Per-IP auth failure tracking with automatic blocking after threshold
 - **Connection limits**: Max concurrent connections per IP
 
@@ -82,6 +82,14 @@ We aim to acknowledge reports within 48 hours and provide an initial assessment 
 - CI/CD: npm audit, Trivy vulnerability scanning, CodeQL analysis
 - All GitHub Actions SHA-pinned to immutable commit hashes
 - Workflow permissions scoped to minimum required
+
+## Known Limitations
+
+A July 2026 hardening review found a handful of gaps worth tracking against this threat model; the full remediation plan is in [docs/HARDENING_PLAN.md](docs/HARDENING_PLAN.md). Highlights:
+
+- WebSocket rate limiting (above) is per-process in-memory, not shared across instances — correct for the current single-instance deployment, but divided by instance count the moment a second instance runs behind a load balancer (HARDENING_PLAN.md P2-1).
+- Express's `trust proxy` setting is currently gated on `NODE_ENV=production` alone rather than on verified reverse-proxy topology, which could let a client spoof `X-Forwarded-For` on a self-hosted deployment with no real proxy in front (P1-1).
+- A handful of game-rule invariants (role-change restrictions, the requirement that a clue precede a reveal) have edge cases that let a player gain an unfair advantage; these are gameplay-integrity bugs rather than infrastructure security issues, tracked as P0-1/P0-2.
 
 ## Incident Response
 

@@ -498,6 +498,16 @@ To verify events propagate across instances:
 4. Send a chat message — it should appear on both instances
 5. Reveal a card — both instances should see the update
 
+### Known Limitations
+
+Redis + the Socket.io adapter + sticky sessions makes core gameplay work across instances, but a few pieces of coordination state are still process-local as of this writing, so behavior that depends on them is only correct when all players in a room happen to land on the same instance:
+
+- **Socket-level rate limiting** is an in-memory per-process counter, not Redis-backed — an attacker split across instances gets roughly N× the intended budget.
+- **Turn-timer pause/resume/stop/add-time** only affects the local `setTimeout` on whichever instance started the timer; a request handled by a different instance updates Redis but doesn't stop the real timer from firing.
+- **The bot controller's in-flight guard** and **the connection tracker's per-IP counters** are both process-local `Map`s.
+
+None of these break the single-machine deployment this app ships with by default (`fly.toml` deliberately keeps exactly one machine running). They matter once you actually scale to 2+ instances. The fix for each is tracked in [docs/HARDENING_PLAN.md](HARDENING_PLAN.md), Phase 2 — treat that phase as a prerequisite for a production multi-instance rollout, not just a nice-to-have.
+
 ---
 
 ## Load Testing
