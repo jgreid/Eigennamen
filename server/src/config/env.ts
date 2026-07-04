@@ -244,6 +244,42 @@ export function isDevelopment(): boolean {
 }
 
 /**
+ * Whether we're actually running on Fly.io, where the edge proxy injects and
+ * overwrites the Fly-Client-IP header (so a client cannot forge it).
+ */
+export function isFlyDeployment(): boolean {
+    return !!(process.env['FLY_APP_NAME'] || process.env['FLY_ALLOC_ID']);
+}
+
+/**
+ * Whether proxy headers (X-Forwarded-For, Fly-Client-IP) should be trusted —
+ * either explicitly configured, or auto-detected on a known platform whose
+ * edge strips/overwrites client-supplied values for these headers.
+ *
+ * Deliberately NOT based on NODE_ENV/isProduction() alone: a "production"
+ * NODE_ENV says nothing about whether a real reverse proxy actually sits in
+ * front of this process (e.g. a self-hosted `docker compose up` deployment
+ * with no proxy). Trusting proxy headers when none exists lets a client set
+ * its own X-Forwarded-For and spoof its source IP — defeating per-IP rate
+ * limits, session IP-binding, and audit-log IPs. This is the single source of
+ * truth for both Express's `trust proxy` setting (app.ts) and the Socket.io
+ * IP resolver (middleware/auth/clientIP.ts) so they can't drift apart again.
+ */
+export function shouldTrustProxy(): boolean {
+    if (process.env['TRUST_PROXY'] === 'true' || process.env['TRUST_PROXY'] === '1') {
+        return true;
+    }
+    if (isFlyDeployment()) {
+        return true;
+    }
+    // Auto-detect Heroku (sets DYNO)
+    if (process.env['DYNO']) {
+        return true;
+    }
+    return false;
+}
+
+/**
  * Parse CORS_ORIGIN environment variable into an array of origins.
  * Handles wildcard ('*'), comma-separated values, and trimming.
  * Returns `true` for wildcard (meaning all origins), or an array of trimmed origin strings.

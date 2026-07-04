@@ -9,34 +9,7 @@
 
 import type { Socket } from 'socket.io';
 
-/**
- * Check if we should trust proxy headers (X-Forwarded-For)
- * Only trust when explicitly configured or in known deployment environments
- */
-function shouldTrustProxy(): boolean {
-    // Trust proxy if explicitly configured
-    if (process.env.TRUST_PROXY === 'true' || process.env.TRUST_PROXY === '1') {
-        return true;
-    }
-    // Auto-detect Fly.io deployment (sets FLY_APP_NAME)
-    if (process.env.FLY_APP_NAME) {
-        return true;
-    }
-    // Auto-detect Heroku (sets DYNO)
-    if (process.env.DYNO) {
-        return true;
-    }
-    // Don't trust by default in other environments
-    return false;
-}
-
-/**
- * True only when actually running on Fly.io, where the edge proxy injects and
- * overwrites the Fly-Client-IP header (so a client cannot forge it).
- */
-function isFlyDeployment(): boolean {
-    return !!(process.env.FLY_APP_NAME || process.env.FLY_ALLOC_ID);
-}
+import { shouldTrustProxy, isFlyDeployment } from '../../config/env';
 
 /**
  * Get client IP address from socket, handling proxies securely

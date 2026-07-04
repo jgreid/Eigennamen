@@ -2,7 +2,16 @@
  * Tests for Environment Configuration and Validation
  */
 
-const { validateEnv, getEnv, getEnvInt, getEnvBool, isProduction, isDevelopment } = require('../../config/env');
+const {
+    validateEnv,
+    getEnv,
+    getEnvInt,
+    getEnvBool,
+    isProduction,
+    isDevelopment,
+    shouldTrustProxy,
+    isFlyDeployment,
+} = require('../../config/env');
 
 // Mock logger
 jest.mock('../../utils/logger', () => ({
@@ -30,6 +39,9 @@ describe('Environment Configuration', () => {
         delete process.env.LOG_LEVEL;
         delete process.env.FLY_ALLOC_ID;
         delete process.env.MEMORY_MODE_ALLOW_FLY;
+        delete process.env.TRUST_PROXY;
+        delete process.env.FLY_APP_NAME;
+        delete process.env.DYNO;
     });
 
     afterEach(() => {
@@ -400,6 +412,68 @@ describe('Environment Configuration', () => {
             process.env.NODE_ENV = 'test';
 
             expect(isDevelopment()).toBe(false);
+        });
+    });
+
+    // Regression (docs/HARDENING_PLAN.md P1-1): trust-proxy decisions must be
+    // based on verified topology, never NODE_ENV alone — a self-hosted
+    // production deployment with no real reverse proxy in front would
+    // otherwise let a client spoof X-Forwarded-For. This is the single source
+    // of truth both app.ts and middleware/auth/clientIP.ts read from.
+    describe('shouldTrustProxy', () => {
+        it('is false in production with no TRUST_PROXY and no platform marker', () => {
+            process.env.NODE_ENV = 'production';
+
+            expect(shouldTrustProxy()).toBe(false);
+        });
+
+        it('is true when TRUST_PROXY=true, regardless of NODE_ENV', () => {
+            delete process.env.NODE_ENV;
+            process.env.TRUST_PROXY = 'true';
+
+            expect(shouldTrustProxy()).toBe(true);
+        });
+
+        it('is true when TRUST_PROXY=1', () => {
+            process.env.TRUST_PROXY = '1';
+
+            expect(shouldTrustProxy()).toBe(true);
+        });
+
+        it('is true when a Fly.io marker is present, even without NODE_ENV=production', () => {
+            delete process.env.NODE_ENV;
+            process.env.FLY_APP_NAME = 'eigennamen';
+
+            expect(shouldTrustProxy()).toBe(true);
+        });
+
+        it('is true when a Heroku marker (DYNO) is present', () => {
+            delete process.env.NODE_ENV;
+            process.env.DYNO = 'web.1';
+
+            expect(shouldTrustProxy()).toBe(true);
+        });
+
+        it('is false in development with no explicit opt-in', () => {
+            process.env.NODE_ENV = 'development';
+
+            expect(shouldTrustProxy()).toBe(false);
+        });
+    });
+
+    describe('isFlyDeployment', () => {
+        it('is true when FLY_APP_NAME is set', () => {
+            process.env.FLY_APP_NAME = 'eigennamen';
+            expect(isFlyDeployment()).toBe(true);
+        });
+
+        it('is true when FLY_ALLOC_ID is set', () => {
+            process.env.FLY_ALLOC_ID = 'abc123';
+            expect(isFlyDeployment()).toBe(true);
+        });
+
+        it('is false with neither marker set', () => {
+            expect(isFlyDeployment()).toBe(false);
         });
     });
 });
