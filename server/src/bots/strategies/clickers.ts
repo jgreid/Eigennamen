@@ -18,7 +18,7 @@
 import type { BotAction, BotClickerView, BotContext, ClickerStrategy, SkillParams, SeededRng } from './types';
 import type { SemanticBackend } from '../semantics/backend';
 import { clueRetrieval, defaultSemanticBackend } from '../semantics/backend';
-import { resolveClueFrame } from './clueFrame';
+import { frameContextFromView, resolveClueFrame } from './clueFrame';
 import { normalizeClueWord } from '../../shared/gameRules';
 
 function unrevealedIndices(view: BotClickerView): number[] {
@@ -132,8 +132,17 @@ const BONUS_FIELD_GAP = 0.2;
 // debt. The boost is a tie-breaker, not an override: it must never outrank a
 // clearly better current-clue fit, so it is small relative to real signal.
 // A frame whose guess bounced is void — its promises transfer nothing.
+//
+// The boost is capped STRICTLY BELOW the spymaster's hard assassin berth
+// floor (ASSASSIN_BERTH_FLOOR = 0.1): the spymaster's margin machinery models
+// the clicker with clueRetrieval ONLY and never sees this boost, so a boost
+// wider than the certified assassin gap could flip the argmax onto the
+// assassin/opponent across a gap the gate ruled safe (correctness-review
+// finding, runtime-reproduced with a 0.15 boost jumping a 0.10 berth). Kept
+// below the floor, debt can only ever reorder cards the gate already treated
+// as interchangeably safe.
 const DEBT_FIT_BAR = 0.5;
-const DEBT_BOOST = 0.15;
+const DEBT_BOOST = 0.08;
 
 /** Bonus for a card that fits the strongest owed (undelivered, unbounced)
  *  earlier clue, from the seat's optional memory. 0 without memory. */
@@ -192,17 +201,17 @@ export function makeGreedyClicker(
 
             // Frame doubt (Phase 4.1): when the given reading of the clue is
             // uniformly weak on this board and the case-flipped sense clears
-            // the bar on 2+ candidates, guess under THAT sense instead —
-            // deterministic per view, so every tick re-derives the same frame.
-            // Mid-clue (guesses already spent, given frame still explaining
-            // nothing) ONE strong alternate candidate suffices: consuming the
-            // first switched-frame card must not un-switch the frame and
-            // strand its remaining targets.
+            // the bar, guess under THAT sense instead — deterministic per
+            // view, so every tick re-derives the same frame. The view carries
+            // the mid-clue continuation evidence (revealed own cards) so a
+            // switched frame stays alive across its own guesses without letting
+            // a delivering given-frame clue be hijacked once its strong cards
+            // are consumed.
             const frame = resolveClueFrame(
                 view.currentClue.word,
                 choices.map((i) => view.words[i] as string),
                 backend,
-                view.guessesUsed > 0 ? 1 : undefined
+                frameContextFromView(view)
             );
             // Rank unrevealed cards by how strongly the clue RETRIEVES them:
             // associative relatedness or phrase completion, whichever is

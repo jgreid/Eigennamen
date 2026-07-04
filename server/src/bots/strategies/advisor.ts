@@ -15,7 +15,7 @@ import type { BotClickerView, SkillParams, SeededRng } from './types';
 import type { SemanticBackend } from '../semantics/backend';
 import { clueRetrieval, defaultSemanticBackend } from '../semantics/backend';
 import { referenceSignal } from '../semantics/properAssociations';
-import { resolveClueFrame, FRAME_DOUBT_FLOOR } from './clueFrame';
+import { frameContextFromView, resolveClueFrame, FRAME_DOUBT_FLOOR } from './clueFrame';
 
 export interface GuessSuggestion {
     /** Board index of the suggested card. */
@@ -104,13 +104,13 @@ export function suggestGuesses(
 
     // Frame doubt (Phase 4.1, shared with the clicker): when the given
     // reading fits nothing and the case-flipped sense clears the bar, rank
-    // under that sense — and say so. Mid-clue one strong alternate candidate
-    // suffices (same continuation rule as the clicker).
+    // under that sense — and say so. Uses the same continuation evidence as
+    // the clicker (revealed own cards) so mid-clue advice tracks the frame.
     const unrevealedWords: string[] = [];
     for (let i = 0; i < view.revealed.length; i++) {
         if (!view.revealed[i]) unrevealedWords.push(view.words[i] as string);
     }
-    const frame = resolveClueFrame(clue.word, unrevealedWords, backend, view.guessesUsed > 0 ? 1 : undefined);
+    const frame = resolveClueFrame(clue.word, unrevealedWords, backend, frameContextFromView(view));
 
     const scored: Scored[] = [];
     for (let i = 0; i < view.revealed.length; i++) {

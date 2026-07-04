@@ -61,9 +61,11 @@ const clueMemory = new Map<string, RoomClueTracker>();
  * Leak guard for the long-lived per-room maps: a room that dies without a
  * final tick (TTL expiry, abandonment mid-game) never hits the gameOver
  * cleanup path, so on a long-running server these maps would only grow.
- * Map insertion order is kept LRU-ish by re-inserting on access; evicting
- * an active room is harmless — its tracker just rebuilds from the next
- * snapshot (the memory is a tie-breaker boost, not authoritative state).
+ * Order is kept LRU by delete-before-set at every write site (clueMemory,
+ * suggestionKeys, failureStreak), so the oldest key here is the least
+ * recently touched; evicting an active room is harmless — its tracker just
+ * rebuilds from the next snapshot (the memory is a tie-breaker boost, not
+ * authoritative state).
  */
 const MAX_TRACKED_ROOMS = 500;
 /** Per-team clue-entry cap within one game (a real game gives far fewer). */
@@ -187,9 +189,16 @@ const reArmTimers = new Map<string, ReturnType<typeof setTimeout>>();
 /** Schedule a bounded, backed-off retry of a room that failed mid-cascade. */
 function scheduleReArm(roomCode: string): void {
     const streak = (failureStreak.get(roomCode) ?? 0) + 1;
+    // Delete-before-set refreshes recency (Map keeps first-insertion order, so
+    // a bare re-set would leave an actively-failing room as the OLDEST entry —
+    // then the leak-guard eviction would drop it first and RESET its streak,
+    // letting a deterministically-failing action evade MAX_REARM_ATTEMPTS
+    // forever (correctness-review finding). Refreshed, the failing room stays
+    // at the tail and the give-up cap governs it, not eviction.
+    failureStreak.delete(roomCode);
     failureStreak.set(roomCode, streak);
-    // Same leak guard as the trackers: a room that dies mid-backoff (or after
-    // giving up) never gets a success/clean-stop to clear its streak.
+    // Leak guard: a room that dies mid-backoff (or after giving up) never gets
+    // a success/clean-stop to clear its streak.
     evictOldestBeyondCap(failureStreak);
     if (streak > MAX_REARM_ATTEMPTS) {
         logger.error(`botController giving up on ${roomCode} after ${MAX_REARM_ATTEMPTS} consecutive action failures`);
@@ -296,6 +305,9 @@ async function emitAdvisorSuggestions(
     const suggestions = suggestGuesses(view, getSemanticBackend(), 3, skill, makeRng(seed), { ownRemaining });
     if (suggestions.length === 0) return;
 
+    // Delete-before-set: refresh recency so the most active advisor rooms
+    // aren't evicted first (which would re-emit duplicate suggestions to them).
+    suggestionKeys.delete(roomCode);
     suggestionKeys.set(roomCode, key);
     evictOldestBeyondCap(suggestionKeys);
     safeEmitToRoom(io, roomCode, SOCKET_EVENTS.GAME_BOT_SUGGESTION, {
