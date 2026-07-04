@@ -53,6 +53,7 @@ const {
     finalizeMatchRound,
     startNextRound,
     getGameStateForPlayer,
+    abandonGame,
 } = require('../../services/gameService');
 
 /** Helper: creates a standard room setup for createGame */
@@ -182,6 +183,8 @@ describe('createGame - match mode', () => {
         expect(game.matchRound).toBe(1);
         expect(game.redMatchScore).toBe(0);
         expect(game.blueMatchScore).toBe(0);
+        expect(game.roundStartRedMatchScore).toBe(0);
+        expect(game.roundStartBlueMatchScore).toBe(0);
         expect(game.roundHistory).toEqual([]);
         expect(game.firstTeamHistory).toHaveLength(1);
         expect(game.matchOver).toBe(false);
@@ -227,6 +230,10 @@ describe('createGame - match mode', () => {
         expect(game.matchRound).toBe(3);
         expect(game.redMatchScore).toBe(28);
         expect(game.blueMatchScore).toBe(22);
+        // Snapshot must reflect the carried-over baseline, not zero — this is what
+        // an abandonGame() call on round 3 should roll back to.
+        expect(game.roundStartRedMatchScore).toBe(28);
+        expect(game.roundStartBlueMatchScore).toBe(22);
         expect(game.roundHistory).toHaveLength(2);
         expect(game.firstTeamHistory).toHaveLength(3); // carried 2 + current 1
         expect(game.matchOver).toBe(false);
@@ -552,6 +559,103 @@ describe('finalizeRound', () => {
         finalizeRound(game);
 
         expect(game.roundHistory).toHaveLength(1);
+    });
+});
+
+describe('abandonGame', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        // abandonGame acquires the `reveal:` distributed lock (redis.set NX) before
+        // running its transaction, and releases it via redis.eval afterward.
+        mockRedis.set.mockResolvedValue('OK');
+        mockRedis.eval.mockResolvedValue(1);
+        mockRedis.watch.mockResolvedValue('OK');
+        mockRedis.unwatch.mockResolvedValue('OK');
+        mockRedis.ttl.mockResolvedValue(86400);
+        mockMulti.exec.mockResolvedValue([['OK']]);
+    });
+
+    test('rolls a match-mode game back to its round-start score, not just gameOver', async () => {
+        // Simulates several cards already revealed this round, accruing live
+        // score (revealCard.lua) above the snapshot taken when the round began.
+        const matchGame = createMatchGameState({
+            redMatchScore: 14,
+            blueMatchScore: 9,
+            roundStartRedMatchScore: 10,
+            roundStartBlueMatchScore: 6,
+        });
+        let savedJson: string | null = null;
+        mockRedis.get.mockResolvedValue(JSON.stringify(matchGame));
+        mockMulti.set.mockImplementation((_key: string, json: string) => {
+            savedJson = json;
+            return mockMulti;
+        });
+
+        await abandonGame('MATCH1');
+
+        const saved = JSON.parse(savedJson as unknown as string);
+        expect(saved.gameOver).toBe(true);
+        expect(saved.winner).toBeNull();
+        expect(saved.redMatchScore).toBe(10);
+        expect(saved.blueMatchScore).toBe(6);
+    });
+
+    test('no-ops the rollback for a match game with no round-start snapshot (legacy persisted game)', async () => {
+        const matchGame = createMatchGameState({
+            redMatchScore: 14,
+            blueMatchScore: 9,
+        });
+        delete matchGame.roundStartRedMatchScore;
+        delete matchGame.roundStartBlueMatchScore;
+        let savedJson: string | null = null;
+        mockRedis.get.mockResolvedValue(JSON.stringify(matchGame));
+        mockMulti.set.mockImplementation((_key: string, json: string) => {
+            savedJson = json;
+            return mockMulti;
+        });
+
+        await abandonGame('MATCH2');
+
+        const saved = JSON.parse(savedJson as unknown as string);
+        expect(saved.redMatchScore).toBe(14);
+        expect(saved.blueMatchScore).toBe(9);
+    });
+
+    test('does not touch scores for a classic-mode game', async () => {
+        const classicGame = {
+            id: 'classic-1',
+            seed: 'classic-seed',
+            words: DEFAULT_WORDS.slice(0, BOARD_SIZE),
+            types: Array(BOARD_SIZE).fill('red'),
+            revealed: Array(BOARD_SIZE).fill(false),
+            currentTurn: 'red',
+            redScore: 3,
+            blueScore: 1,
+            redTotal: BOARD_SIZE,
+            blueTotal: 0,
+            gameOver: false,
+            stateVersion: 1,
+        };
+        let savedJson: string | null = null;
+        mockRedis.get.mockResolvedValue(JSON.stringify(classicGame));
+        mockMulti.set.mockImplementation((_key: string, json: string) => {
+            savedJson = json;
+            return mockMulti;
+        });
+
+        await abandonGame('CLASSIC');
+
+        const saved = JSON.parse(savedJson as unknown as string);
+        expect(saved.gameOver).toBe(true);
+        expect(saved.redScore).toBe(3);
+        expect(saved.blueScore).toBe(1);
+    });
+
+    test('rejects abandoning an already-over game', async () => {
+        const matchGame = createMatchGameState({ gameOver: true });
+        mockRedis.get.mockResolvedValue(JSON.stringify(matchGame));
+
+        await expect(abandonGame('MATCH3')).rejects.toThrow();
     });
 });
 

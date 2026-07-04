@@ -221,6 +221,11 @@ export interface GameState {
     redMatchScore?: number;
     /** Cumulative blue team match score across rounds */
     blueMatchScore?: number;
+    /** Snapshot of redMatchScore when the current round started, so game:abandon can
+     *  roll back card points accrued live during this round instead of banking them. */
+    roundStartRedMatchScore?: number;
+    /** Snapshot of blueMatchScore when the current round started (see roundStartRedMatchScore). */
+    roundStartBlueMatchScore?: number;
     /** Results of completed rounds */
     roundHistory?: RoundResult[];
     /** Whether the game is paused */

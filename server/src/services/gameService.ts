@@ -242,6 +242,14 @@ function buildGameState(
             base.matchOver = false;
             base.matchWinner = null;
         }
+
+        // Snapshot the match score as it stands at the moment this round begins
+        // (i.e. before any card in it is revealed) — revealCard.lua accrues card
+        // points into redMatchScore/blueMatchScore live on every reveal, so
+        // abandonGame needs this baseline to roll an abandoned round back to a
+        // scoreless do-over instead of letting accrued points stick permanently.
+        base.roundStartRedMatchScore = base.redMatchScore;
+        base.roundStartBlueMatchScore = base.blueMatchScore;
     }
 
     return base;
@@ -557,6 +565,17 @@ export async function abandonGame(roomCode: string): Promise<void> {
                     }
                     game.gameOver = true;
                     game.winner = null;
+                    // Match mode: card points accrue live into redMatchScore/blueMatchScore
+                    // on every reveal (revealCard.lua), independent of round completion.
+                    // Roll back to the snapshot taken when this round started so an
+                    // abandoned round is a scoreless do-over, not a way to bank points
+                    // and keep a permanent edge. Games persisted before the snapshot
+                    // field existed fall back to a no-op (their current score is all
+                    // there is to roll back to).
+                    if (game.gameMode === 'match') {
+                        game.redMatchScore = game.roundStartRedMatchScore ?? game.redMatchScore ?? 0;
+                        game.blueMatchScore = game.roundStartBlueMatchScore ?? game.blueMatchScore ?? 0;
+                    }
                     return {};
                 },
                 'abandonGame'
