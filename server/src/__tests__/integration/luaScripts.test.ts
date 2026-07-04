@@ -14,12 +14,13 @@
  */
 process.env['REDIS_URL'] = 'memory';
 
-import { connectRedis, disconnectRedis } from '../../config/redis';
+import { connectRedis, disconnectRedis, getRedis } from '../../config/redis';
 import * as roomService from '../../services/roomService';
 import { joinRoom } from '../../services/room/membership';
 import * as gameService from '../../services/gameService';
 import * as playerService from '../../services/playerService';
 import { setTeam, setRole } from '../../services/player/mutations';
+import { SUBMIT_CLUE_SCRIPT } from '../../scripts';
 
 const CONNECT_TIMEOUT_MS = 20000;
 
@@ -215,6 +216,28 @@ describe('Real-Redis Lua script integration', () => {
             await expect(gameService.endTurn(code, 'Player', notTheTurn)).rejects.toMatchObject({
                 code: 'NOT_YOUR_TURN',
             });
+        });
+
+        it('submitClue.lua clamps an out-of-range clue number to CLUE_NUMBER_MAX (P1-8 defense-in-depth)', async () => {
+            // gameService.submitClue's own shape check (P1-8) already rejects an
+            // out-of-range number before Lua ever sees it — this exercises the
+            // Lua script directly (as a future non-gameService caller would) to
+            // prove its own clamp holds independently, matching the existing
+            // nil-guard convention for the lower bound.
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            const game = await gameService.createGame(code, { gameMode: 'classic', seed: `${code}-seed` });
+            const team = game.currentTurn;
+
+            const redis = getRedis();
+            const raw = await redis.eval(SUBMIT_CLUE_SCRIPT, {
+                keys: [`room:${code}:game`],
+                arguments: ['ZZZLUACLAMPCLUEZZZ', '999', 'Spymaster', team, Date.now().toString(), '100', '86400'],
+            });
+            const result = JSON.parse(raw as string);
+
+            expect(result.number).toBe(9);
+            expect(result.guessesAllowed).toBe(10);
         });
     });
 });

@@ -60,7 +60,7 @@ import {
     clueResultSchema,
 } from './game/luaGameOps';
 
-import { isClueLegalForBoard } from '../shared/gameRules';
+import { isClueLegalForBoard, isValidClueWordShape, isValidClueNumberShape } from '../shared/gameRules';
 
 // Re-export types for consumers
 export type { CreateGameOptions, RevealResult, EndTurnResult, ForfeitResult };
@@ -455,6 +455,21 @@ export async function submitClue(
     return withLock(
         `reveal:${roomCode}`,
         async () => {
+            // Humans get these bounds at the socket boundary via gameClueSchema
+            // (Zod), but bots call submitClue directly, skipping Zod entirely.
+            // Re-check the same shared bounds here so a bot-originated clue (e.g.
+            // from a hand-edited custom semantic map) can't violate an invariant
+            // every other consumer (display, replay) assumes holds. See
+            // docs/HARDENING_PLAN.md P1-8.
+            const wordShape = isValidClueWordShape(word);
+            if (!wordShape.valid) {
+                throw new ValidationError(wordShape.reason ?? 'Invalid clue');
+            }
+            const numberShape = isValidClueNumberShape(clueNumber);
+            if (!numberShape.valid) {
+                throw new ValidationError(numberShape.reason ?? 'Invalid clue number');
+            }
+
             // Read the board to enforce clue legality. Board words are immutable
             // for the lifetime of a game, so this read is not racy; the Lua op
             // below re-validates turn/game-over/paused atomically.
