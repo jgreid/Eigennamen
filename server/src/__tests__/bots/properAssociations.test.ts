@@ -5,12 +5,18 @@
  */
 import {
     PROPER_ASSOCIATIONS,
+    PROPER_RIVALS,
+    PROPER_HYPERNYMS,
     PROPER_FAME,
     DEFAULT_PROPER_FAME,
     caseSignal,
     referenceSignal,
 } from '../../bots/semantics/properAssociations';
+import type { AssociationTarget } from '../../bots/semantics/associationIndex';
 import { DEFAULT_WORDS, normalizeClueWord } from '../../shared/gameRules';
+
+/** The board word a target names, whichever entry form it uses. */
+const wordOf = (t: AssociationTarget): string => (typeof t === 'string' ? t : t.word);
 
 describe('caseSignal (the house-rule convention)', () => {
     it('reads mixed case as the proper-noun signal', () => {
@@ -61,7 +67,7 @@ describe('PROPER_ASSOCIATIONS integrity', () => {
 
     it('every target is a default board word (the table is useless otherwise)', () => {
         for (const [key, targets] of Object.entries(PROPER_ASSOCIATIONS)) {
-            for (const t of targets) {
+            for (const t of targets.map(wordOf)) {
                 expect({ key, target: t, onBoard: board.has(normalizeClueWord(t)) }).toEqual({
                     key,
                     target: t,
@@ -79,7 +85,7 @@ describe('PROPER_ASSOCIATIONS integrity', () => {
         for (const [key, targets] of Object.entries(PROPER_ASSOCIATIONS)) {
             const K = normalizeClueWord(key);
             if (!board.has(K)) continue;
-            for (const t of targets) {
+            for (const t of targets.map(wordOf)) {
                 expect({ key, target: t, selfTarget: normalizeClueWord(t) === K }).toEqual({
                     key,
                     target: t,
@@ -95,7 +101,7 @@ describe('PROPER_ASSOCIATIONS integrity', () => {
         // would make it reachable only when unusable.
         for (const [key, targets] of Object.entries(PROPER_ASSOCIATIONS)) {
             const K = normalizeClueWord(key);
-            for (const t of targets) {
+            for (const t of targets.map(wordOf)) {
                 const T = normalizeClueWord(t);
                 expect({ key, target: t, selfBlocked: K.includes(T) || T.includes(K) }).toEqual({
                     key,
@@ -125,6 +131,76 @@ describe('PROPER_ASSOCIATIONS integrity', () => {
                 key,
                 signal: key === key.toUpperCase() ? 'neutral' : 'proper',
             });
+        }
+    });
+
+    it('weighted targets carry weights in (0, 1]', () => {
+        for (const [key, targets] of Object.entries(PROPER_ASSOCIATIONS)) {
+            for (const t of targets) {
+                if (typeof t === 'string' || t.weight === undefined) continue;
+                expect({ key, target: t.word, inRange: t.weight > 0 && t.weight <= 1 }).toEqual({
+                    key,
+                    target: t.word,
+                    inRange: true,
+                });
+            }
+        }
+    });
+});
+
+describe('PROPER_RIVALS / PROPER_HYPERNYMS integrity (Phase 3)', () => {
+    const board = new Set(DEFAULT_WORDS.map((w) => normalizeClueWord(w)));
+
+    it('every rivals/hypernyms key names a curated reference (no dead data)', () => {
+        for (const key of [...Object.keys(PROPER_RIVALS), ...Object.keys(PROPER_HYPERNYMS)]) {
+            expect({ key, hosted: key in PROPER_ASSOCIATIONS }).toEqual({ key, hosted: true });
+        }
+    });
+
+    it('rival contents are board words, fame is in (0, 1], and no self-blocked targets', () => {
+        for (const [key, rivals] of Object.entries(PROPER_RIVALS)) {
+            const K = normalizeClueWord(key);
+            for (const rival of rivals) {
+                expect(rival.fame).toBeGreaterThan(0);
+                expect(rival.fame).toBeLessThanOrEqual(1);
+                for (const t of rival.contents.map(wordOf)) {
+                    const T = normalizeClueWord(t);
+                    expect({ key, rival: rival.referent, target: t, ok: board.has(T) }).toEqual({
+                        key,
+                        rival: rival.referent,
+                        target: t,
+                        ok: true,
+                    });
+                    expect({ key, target: t, selfBlocked: K.includes(T) || T.includes(K) }).toEqual({
+                        key,
+                        target: t,
+                        selfBlocked: false,
+                    });
+                }
+            }
+        }
+    });
+
+    it('hypernyms are board words, not self-blocked, and disjoint from the contents', () => {
+        for (const [key, words] of Object.entries(PROPER_HYPERNYMS)) {
+            const K = normalizeClueWord(key);
+            const contents = new Set((PROPER_ASSOCIATIONS[key] ?? []).map((t) => normalizeClueWord(wordOf(t))));
+            for (const w of words) {
+                const W = normalizeClueWord(w);
+                expect({ key, hypernym: w, onBoard: board.has(W) }).toEqual({ key, hypernym: w, onBoard: true });
+                expect({ key, hypernym: w, selfBlocked: K.includes(W) || W.includes(K) }).toEqual({
+                    key,
+                    hypernym: w,
+                    selfBlocked: false,
+                });
+                // A word that is already a content edge would only shadow it —
+                // the content weight always wins the max.
+                expect({ key, hypernym: w, duplicatesContent: contents.has(W) }).toEqual({
+                    key,
+                    hypernym: w,
+                    duplicatesContent: false,
+                });
+            }
         }
     });
 });

@@ -25,8 +25,8 @@ import type {
     StyleParams,
 } from './types';
 import { resolveStyle } from './types';
-import type { SemanticBackend } from '../semantics/backend';
-import { defaultSemanticBackend } from '../semantics/backend';
+import type { EdgeKind, SemanticBackend } from '../semantics/backend';
+import { clueRetrieval, defaultSemanticBackend } from '../semantics/backend';
 import { isClueLegalForBoard, CLUE_NUMBER_MAX } from '../../shared/gameRules';
 
 /** Abstract words unlikely to collide with a Codenames board; filtered for
@@ -155,6 +155,13 @@ const ASSASSIN_BERTH_FLOOR = 0.1;
 // frequency prior — see SemanticBackend.commonness).
 const AMBIGUITY_WEIGHT = 0.3;
 const RARITY_WEIGHT = 0.25;
+// Number-conditional rarity (Phase 4.4 / 2.20 — the singles doctrine, ledger
+// lesson 26): rarity taxes BREADTH. A rare word costs when the guesser must
+// generalize across several targets; a near-definitional single fires
+// regardless (vertebrae → SPINE beats book → SPINE at N=1, where book's
+// laterals are the real hazard). Mostly waived at N=1 — the residual scale
+// keeps outright obscurities from riding entirely free.
+const RARITY_SINGLES_SCALE = 0.25;
 // Endgame terms. WIN_BONUS decisively prefers a clue that safely covers EVERY
 // remaining own card — converting the game this turn beats any partial clue —
 // and only such clues may exceed MAX_CLUE_NUMBER (up to the server-wide
@@ -187,6 +194,25 @@ const ENDGAME_BERTH_RAMP = 1.0;
 // between real association levels and lexical noise.
 const STRAND_THRESHOLD = 0.4;
 const STRAND_WEIGHT = 0.15;
+// Phase-2 edge channels (docs/BOT_NUANCE_PLAN.md), active only when the
+// backend carries per-edge data (v2 semantic maps) — exact no-ops otherwise.
+// Fame-of-fact (ledger lesson 14): an intended edge only a fraction of
+// guessers retrieve at table speed (Hooke → SPRING) is a promise most tables
+// can't cash; penalize by the WEAKEST-penetration intended edge, scaled like
+// the other shared-knowledge terms by the persona's commonnessBias.
+const FAME_OF_FACT_WEIGHT = 0.3;
+// Concreteness gradient (ledger lesson 16): contents > members/parts >
+// compounds > function/attribute. Abstract retrieval paths misfire more, so
+// intended edges pay by their kind's abstractness (unknown kind = 0).
+const CONCRETENESS_WEIGHT = 0.2;
+const EDGE_ABSTRACTNESS: Record<EdgeKind, number> = {
+    content: 0,
+    member: 0.1,
+    part: 0.1,
+    compound: 0.2,
+    function: 0.45,
+    attribute: 0.55,
+};
 
 /** Result of scoring a candidate clue against the board. */
 export interface ClueEval {
@@ -237,9 +263,13 @@ interface ScoreContext {
     strandPenalty: (residual: readonly string[]) => number;
 }
 
-/** Highest relatedness of `clue` to any word in `words` (0 if the group is empty). */
+/** Highest retrieval of `clue` against any word in `words` (0 if the group is
+ *  empty). Retrieval, not bare relatedness: a clue that forms a common phrase
+ *  with a board word pulls the guess whatever the model's association says
+ *  (misfire class D), so every clue-vs-board comparison in this file runs on
+ *  clueRetrieval — which is exactly relatedness for channel-less backends. */
 function maxRel(words: readonly string[], clue: string, backend: SemanticBackend): number {
-    return words.length > 0 ? Math.max(...words.map((w) => backend.relatedness(clue, w))) : 0;
+    return words.length > 0 ? Math.max(...words.map((w) => clueRetrieval(backend, clue, w))) : 0;
 }
 
 /**
@@ -299,7 +329,7 @@ function scoreClue(
     // intended set (the top cards by relatedness) can be scored by total value
     // in match mode, and the residual set fed to the cohesion term.
     const ownScored = groups.own
-        .map((w) => ({ word: w, rel: backend.relatedness(clue, w), value: valueOf(w) }))
+        .map((w) => ({ word: w, rel: clueRetrieval(backend, clue, w), value: valueOf(w) }))
         .sort((a, b) => b.rel - a.rel);
     const own = ownScored.map((o) => o.rel);
     const maxOpp = maxRel(groups.opponent, clue, backend);
@@ -377,7 +407,30 @@ function scoreClue(
     // margin cleared); rarity punishes obscure clue words when the backend
     // carries a frequency prior (absent one, commonness defaults to 1 = no-op).
     const ambiguityPenalty = AMBIGUITY_WEIGHT * style.commonnessBias * maxNonOwn;
-    const rarityPenalty = RARITY_WEIGHT * style.commonnessBias * (1 - (backend.commonness?.(clue) ?? 1));
+    // Rarity scales with the number (the singles doctrine): full tax on
+    // breadth clues, mostly waived for a single where narrowness dominates.
+    const rarityScale = intended === 1 ? RARITY_SINGLES_SCALE : 1;
+    const rarityPenalty = RARITY_WEIGHT * rarityScale * style.commonnessBias * (1 - (backend.commonness?.(clue) ?? 1));
+    // Phase-2 edge channels over the INTENDED edges: fame-of-fact (the
+    // weakest-penetration edge bounds how much of the promise a median table
+    // retrieves) and the concreteness gradient (abstract retrieval paths
+    // misfire more). Both exact no-ops without per-edge data — a missing
+    // method, a null edge, and missing channel fields all read as neutral.
+    let fameOfFactPenalty = 0;
+    let abstractnessPenalty = 0;
+    if (backend.edgeInfo) {
+        let minPenetration = 1;
+        let abstractness = 0;
+        for (const o of ownScored.slice(0, intended)) {
+            const edge = backend.edgeInfo(clue, o.word);
+            if (edge?.penetration !== undefined && edge.penetration < minPenetration) {
+                minPenetration = edge.penetration;
+            }
+            if (edge?.kind !== undefined) abstractness += EDGE_ABSTRACTNESS[edge.kind];
+        }
+        fameOfFactPenalty = FAME_OF_FACT_WEIGHT * style.commonnessBias * (1 - minPenetration);
+        abstractnessPenalty = CONCRETENESS_WEIGHT * style.commonnessBias * (abstractness / intended);
+    }
     // Turn economy: winning now beats any partial clue, and among partial clues
     // prefer the one whose leftovers still clue well together — a stranded own
     // card is a whole future turn spent on a single-card clue.
@@ -390,7 +443,9 @@ function scoreClue(
         assassinPenalty -
         opponentPenalty -
         ambiguityPenalty -
-        rarityPenalty +
+        rarityPenalty -
+        fameOfFactPenalty -
+        abstractnessPenalty +
         valueBonus +
         coverageBonus +
         winBonus -
@@ -461,7 +516,7 @@ function pickBestEffort(
     // Number: own cards that safely out-rank every dangerous (opponent/assassin)
     // card by a hair, so the clicker's first guesses land on ours.
     const dangerMax = maxRel(dangerous, chosenWord, backend);
-    const ownAheadOfDanger = groups.own.filter((w) => backend.relatedness(chosenWord, w) > dangerMax).length;
+    const ownAheadOfDanger = groups.own.filter((w) => clueRetrieval(backend, chosenWord, w) > dangerMax).length;
     const number = Math.max(1, Math.min(MAX_CLUE_NUMBER, ownAheadOfDanger));
     return { word: chosenWord, number };
 }

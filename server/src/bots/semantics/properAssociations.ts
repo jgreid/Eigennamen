@@ -27,10 +27,24 @@
  *    culture references the guessers are going to know": a Sharpshooter
  *    (commonnessBias 1.5) sticks to the household names, a Maverick (0.4)
  *    happily reaches for the deep cuts.
+ *  - CONTENTS must be exhaustive at the referent level, not the curator's
+ *    recall level (Phase 3, ledger lessons 10/19 — "the referent knows more
+ *    than you"): a title clue collides with its OWN board-resident contents
+ *    (Thunderball's POOL and CASINO) and with brand/product tiers (Tinder's
+ *    GOLD) at scoring time, but only if the edges exist. Weight an edge below
+ *    1 when it pulls real but second-tier retrieval.
+ *  - PROPER_RIVALS lists other referents the same clue word evokes; their
+ *    contents pull guesses too, scaled by the rival's fame ("Apollo" reaches
+ *    FIGHTER through Apollo Creed even when the cluer meant the moon program).
+ *  - PROPER_HYPERNYMS lists type-level readings (Thunderball IS a novel and a
+ *    film), scored below content matches — exemplar→type retrieval is real
+ *    but weak (ledger lesson 7, the exemplar asymmetry).
  */
+import type { AssociationTarget } from './associationIndex';
 
-/** Proper-noun reference → board words it evokes. Keys in display case. */
-export const PROPER_ASSOCIATIONS: Record<string, string[]> = {
+/** Proper-noun reference → board words it evokes (weight 1 unless curated
+ *  lower). Keys in display case. */
+export const PROPER_ASSOCIATIONS: Record<string, AssociationTarget[]> = {
     // Film & TV
     Alien: ['SPACE', 'SHIP', 'ROBOT', 'SCIENTIST'],
     Avatar: ['ALIEN', 'FILM', 'FOREST'],
@@ -99,6 +113,20 @@ export const PROPER_ASSOCIATIONS: Record<string, string[]> = {
     Tetris: ['BLOCK', 'SQUARE', 'LINE'],
     Zelda: ['LINK', 'PRINCESS'],
 
+    // Ledger round 2–3 references (the live-play misfires, curated to spec:
+    // exhaustive contents including scenes and brand tiers). Note the key
+    // collisions are deliberate and legal-checked per the rules above:
+    // "Thunderball" ⊃ BALL, "GoldenEye" ⊃ GOLD/EYE, "Hooke" ⊃ HOOK — those
+    // clues simply can't fire on boards carrying the colliding word.
+    GoldenEye: ['SATELLITE', 'AGENT', { word: 'RAY', weight: 0.6 }],
+    Hooke: ['SPRING', 'FORCE'],
+    Thunderball: [
+        { word: 'POOL', weight: 0.7 },
+        { word: 'CASINO', weight: 0.7 },
+        { word: 'SHARK', weight: 0.6 },
+    ],
+    Tinder: ['DATE', 'MATCH', { word: 'GOLD', weight: 0.5 }],
+
     // People & music
     Beatles: ['BAND', 'ENGLAND', 'LONDON'],
     Beethoven: ['PIANO', 'CONCERT', 'NOTE'],
@@ -139,6 +167,46 @@ export const PROPER_ASSOCIATIONS: Record<string, string[]> = {
     Wimbledon: ['RACKET', 'GRASS', 'ENGLAND'],
 };
 
+/**
+ * Rival referents (Phase 3, ledger lesson 10 — referent collision): other
+ * things the same clue word evokes, whose contents pull guesses scaled by the
+ * rival's fame. The spymaster's ordinary margin machinery then sees the pull:
+ * "Apollo" meant for MOON+SPACE still lights up FIGHTER for every guesser who
+ * lands on Apollo Creed first. Rival contents obey the same board-word and
+ * substring-collision rules as the main table.
+ */
+export interface RivalReferent {
+    referent: string;
+    /** How widely known the rival is, in (0, 1] — scales its contents' pull. */
+    fame: number;
+    contents: AssociationTarget[];
+}
+
+export const PROPER_RIVALS: Record<string, RivalReferent[]> = {
+    Apollo: [{ referent: 'Apollo Creed (Rocky)', fame: 0.6, contents: ['FIGHTER', 'RING'] }],
+    Elvis: [{ referent: 'Elvis (2022 film)', fame: 0.4, contents: ['FILM'] }],
+    Zelda: [{ referent: 'Zelda Fitzgerald', fame: 0.3, contents: ['NOVEL'] }],
+};
+
+/**
+ * Type-level readings of a reference (Phase 3, ledger lesson 7 — the exemplar
+ * asymmetry): "Thunderball" IS a novel and a film, and a guesser who can't
+ * retrieve the contents still reaches the type. Scored below content matches
+ * (HYPERNYM_SCORE in tableBackend) — exemplar→type retrieval is real but
+ * weak, the reverse of how a type clue retrieves its exemplars.
+ */
+export const PROPER_HYPERNYMS: Record<string, string[]> = {
+    Alien: ['FILM'],
+    Dracula: ['NOVEL', 'FILM'],
+    Frankenstein: ['NOVEL'],
+    GoldenEye: ['FILM'],
+    Hooke: ['SCIENTIST'],
+    Moby: ['NOVEL'],
+    Sherlock: ['NOVEL'],
+    Thunderball: ['NOVEL', 'FILM'],
+    Titanic: ['FILM'],
+};
+
 /** Everyone-knows-it default; override below for the deeper cuts. */
 export const DEFAULT_PROPER_FAME = 0.9;
 
@@ -146,6 +214,13 @@ export const DEFAULT_PROPER_FAME = 0.9;
 export const PROPER_FAME: Record<string, number> = {
     Bollywood: 0.75,
     Camelot: 0.7,
+    GoldenEye: 0.7,
+    // The round-3 calibration lesson in one number: knowing who Hooke is AT
+    // ALL is a deep cut for a median table, however bright the spring/force
+    // edges burn for a physicist.
+    Hooke: 0.35,
+    Thunderball: 0.65,
+    Tinder: 0.85,
     KGB: 0.8,
     USSR: 0.8,
     Excalibur: 0.75,

@@ -164,7 +164,7 @@ export interface AppState {
     roleChange: RoleChangeState;
 
     /** Advisor-bot guess suggestions for the current clue (advisory only). */
-    botSuggestions: { index: number; confidence: number; reason: string }[];
+    botSuggestions: { index: number; confidence: number; reason: string; warning?: string }[];
     /** Nickname of the advisor bot behind the current suggestions, if any. */
     botSuggestionAdvisor: string | null;
 

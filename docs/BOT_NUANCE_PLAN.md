@@ -1,8 +1,8 @@
 # Bot Nuance Plan — from the Play-Session Ledger to Code
 
 Companion to [BOT_CLUE_LESSONS.md](BOT_CLUE_LESSONS.md). That document is the
-*ledger* — 20 lessons and 7 failure modes from three human-vs-AI play sessions.
-This one is the *build sheet*: every open plan item (2.8–2.19) mapped to the
+*ledger* — 36 lessons and 7 catalogued failure modes from five human-vs-AI play
+sessions. This one is the *build sheet*: open plan items (2.8–2.24) mapped to the
 exact functions, constants, and data structures that host it, sequenced into
 phases with the metric that gates each change.
 
@@ -85,6 +85,17 @@ Phase 0 endgame slice is the measuring stick.
 
 ## Phase 2 — Widen the semantic backend (the keystone)
 
+> **Shipped.** `edgeInfo`/`collocation` on `SemanticBackend` +
+> `clueRetrieval = max(relatedness, collocation)` as the shared guesser
+> retrieval model (spymaster margins, clicker/advisor ranking, harness
+> yardstick); weighted `EdgeMeta` association index; SemanticMap v2
+> (`bots:map` now emits it; v1 still loads); consumers wired per below with
+> `FAME_OF_FACT_WEIGHT` / `CONCRETENESS_WEIGHT`. Gate held: v1 fixtures
+> regression-tested, misfire class D reproduces channel-blind and not
+> channel-aware (`edgeChannels.test.ts`). Status per item in
+> [BOT_CLUE_LESSONS.md](BOT_CLUE_LESSONS.md) (2.9/2.14/2.18 🟡 — data
+> curation for the baked table remains).
+
 New **optional** methods on `SemanticBackend` (`backend.ts:13-37`), so every
 backend stays valid, plus a versioned data format:
 
@@ -119,6 +130,18 @@ fix and not after.
 
 ## Phase 3 — Reference-clue safety (rides on Phase 2 data)
 
+> **Shipped.** Weighted `PROPER_ASSOCIATIONS` contents (Thunderball ⊃
+> POOL/CASINO/SHARK, Tinder ⊃ GOLD, GoldenEye, Hooke @ fame 0.35) +
+> `PROPER_RIVALS` (pull = weight × rival fame) + `PROPER_HYPERNYMS`
+> (`HYPERNYM_SCORE` 0.55, exemplar asymmetry) in the table's reference
+> reading; v2 map `rivals` consumed by the overlay; `bots:map` prompt gains
+> the referent-knows-more-than-you sweep and emits rivals. Gates held
+> (`referenceSafety.test.ts`): the Thunderball board rejects the title clue
+> with POOL blue and embraces it at 3 with the contents own; the brand-tier
+> edge caps the number below the tier word (before/after). Open: rival +
+> exhaustive-content curation across the full baked table (see 2.10/2.16
+> markers in the ledger).
+
 **3.1 External referent-content + rival-referent sweep (2.10 + 2.16)**
 *(lessons 10, 19: Aucassin's STAR; Tinder Gold)*
 Restructure `PROPER_ASSOCIATIONS` (`properAssociations.ts:33`) entries into
@@ -143,6 +166,21 @@ cap the number below the brand-tier word.
 
 ## Phase 4 — Clicker and advisor nuance
 
+> **Shipped (4.1–4.4).** 4.1: `strategies/clueFrame.ts` — the case convention
+> makes senses enumerable (flipped-case probe = the other sense); the clicker
+> and advisor re-rank on the uniform-weak tell. 4.2: `GuessSuggestion.warning`
+> (fixed strings only — failure-G discipline) for frame doubt, unresolved
+> references, and late-game stretches; plumbed through `botController` →
+> `game:botSuggestion` → board badge. 4.3: `BotContext.memory` clue-debt
+> snapshots threaded by the harness loop and a live per-room tracker;
+> `DEBT_BOOST` for owed unbounced frames, zero for bounced (classic/match;
+> duet's masked key exempts it like the cliff estimate). 4.4:
+> `RARITY_SINGLES_SCALE`. Gate held on seed `ph4-gate`: delivery flat for
+> every competent persona, overreach flat at 0%, misfire/dangerEG nudged
+> down; warnings covered in `clickerNuance.test.ts`. **4.5 (2.21–2.24)
+> remains open** — variance-gated audits need a sampling-capable halo model
+> and register channels need curated data; both are Phase-5-and-beyond work.
+
 **4.1 Sense-enumeration + frame-switch (2.17)** *(lesson 20: REMOVAL tunnel
 vision; the uniform-weak-fit tell)*
 In `makeGreedyClicker` (`clickers.ts:156-235`): enumerate the clue's senses
@@ -164,7 +202,10 @@ the endgame test. Discipline rule from failure G: `reason`/`warning` strings
 must never encode key information beyond the suggestion itself.
 
 **4.3 Within-game leftover memory (2.12)** *(lesson 9: clue debt; the blind
-guesser's CASINO burn and subsequent self-correction)*
+guesser's CASINO burn and subsequent self-correction; round-4 lessons 24/27:
+double-coding means leftover candidates should BOOST matching new-clue
+candidates, and the memory should carry a spymaster style profile — the
+round-4 guesser demonstrably used one)*
 Strategies are pure (`types.ts:5-9`) — keep them pure by passing memory as
 data: extend `BotContext` (`types.ts:76-81`) with an optional per-seat
 `memory` snapshot, threaded by the two callers (`harness/playGame.ts:90-91`,
@@ -176,6 +217,20 @@ bonus-guess EV, not just the burned word.
 frame-switch fires in a REMOVAL-style harness scenario; advisor warnings
 appear in `game:botSuggestion` payloads without protocol breakage
 (`socket-events` types).
+
+**4.4 Number-conditional rarity (2.20, round 4)** *(lesson 26: the singles
+doctrine)* Scale `RARITY_WEIGHT` by intended number in `scoreClue`
+(`spymasters.ts` robustness block): full penalty on breadth clues, waived at
+N=1 where narrowness (low `maxNonOwn` heat) dominates — a rare definitional
+single (vertebrae → spine) beats a common compound trailing laterals.
+
+**4.5 Round-5 additions (2.21–2.24).** Variance-gated halo audits (multi-sample
+the halo model; high per-word variance = hot word), slot-position risk
+weighting (score expected delivery as the survival function over the clicker's
+predicted pick order — a front-slot contest costs the whole promise),
+register-conditional scoring (rides Phase 2 edge channels), and
+inverted-prior leftover inference with a theory-depth cap (extends 4.3; see
+ledger Part 7 for the derivations).
 
 ## Phase 5 — Retune and validate
 

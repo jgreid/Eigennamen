@@ -12,6 +12,10 @@ const BOARD = new Set((m[1].match(/'[^']+'/g) || []).map((w) => w.replace(/'/g, 
 
 // 2) Concept -> candidate board words. Candidates not on the board are dropped by
 //    the filter below, so it is safe to be generous. Keys are clue words (uppercase).
+//    An entry may be a plain word (edge weight 1 — the classic form) or a weighted
+//    edge `{ word, weight?, kind?, collocation? }` carrying the Phase-2 per-edge
+//    channels (see server/src/bots/semantics/associationIndex.ts EdgeMeta); both
+//    forms load identically through buildAssociationIndex.
 const CANDIDATES = {
     ANIMAL: ['BEAR','LION','HORSE','DOG','CAT','WHALE','SHARK','MOUSE','OCTOPUS','PANDA','KANGAROO','RABBIT','BUFFALO','SCORPION','SEAL','DUCK','MOLE','PLATYPUS','CALF','CHICK','FISH'],
     MAMMAL: ['BEAR','LION','HORSE','DOG','CAT','WHALE','MOUSE','PANDA','KANGAROO','RABBIT','BUFFALO','SEAL','MOLE','PLATYPUS','CALF'],
@@ -106,18 +110,20 @@ const CANDIDATES = {
     GHOST: ['GHOST','SHADOW','SOUL','SPIRIT','WITCH'],
 };
 
-// 3) Filter to real board words, drop near-empty concepts, dedupe.
+// 3) Filter to real board words, drop near-empty concepts, dedupe. Plain-string
+//    and weighted-edge entries both pass through; only the word is normalized.
 const out = {};
 const dropped = {};
 for (const [clue, words] of Object.entries(CANDIDATES)) {
     const kept = [];
     const drop = [];
     const seen = new Set();
-    for (const w of words) {
-        const W = w.toUpperCase();
+    for (const entry of words) {
+        const isPlain = typeof entry === 'string';
+        const W = (isPlain ? entry : entry.word).toUpperCase();
         if (seen.has(W)) continue;
         seen.add(W);
-        if (BOARD.has(W)) kept.push(W);
+        if (BOARD.has(W)) kept.push(isPlain ? W : { ...entry, word: W });
         else drop.push(W);
     }
     if (kept.length >= 2) out[clue] = kept;
@@ -129,9 +135,11 @@ const header = `/**
  * Baked word-association table (the "LLM-offline -> baked table" backend, section 20).
  *
  * Each entry maps a CLUE word to the board words (from the standard set) it is
- * semantically related to. Every target is verified to be a real entry in
- * DEFAULT_WORDS (server/src/shared/gameRules.ts); clues whose targets are not on
- * the board are useless, so this table is generated through that filter. The
+ * semantically related to — a plain word is an edge of weight 1, a weighted
+ * entry carries the Phase-2 per-edge channels (see associationIndex.ts).
+ * Every target is verified to be a real entry in DEFAULT_WORDS
+ * (server/src/shared/gameRules.ts); clues whose targets are not on the board
+ * are useless, so this table is generated through that filter. The
  * tableBackend falls back to lexical similarity for any pair not covered here, so
  * custom / out-of-vocabulary word lists still degrade gracefully.
  *
@@ -139,15 +147,25 @@ const header = `/**
  * vocabulary. DO NOT edit by hand: add concept -> board-word groups in
  * scripts/generate-associations.mjs and re-run \`npm run bots:associations\`.
  */
-export const ASSOCIATIONS: Record<string, string[]> = {
+import type { AssociationTarget } from './associationIndex';
+
+export const ASSOCIATIONS: Record<string, AssociationTarget[]> = {
 `;
+const fmtEntry = (entry) => {
+    if (typeof entry === 'string') return `'${entry}'`;
+    const fields = [`word: '${entry.word}'`];
+    if (entry.weight !== undefined) fields.push(`weight: ${entry.weight}`);
+    if (entry.kind !== undefined) fields.push(`kind: '${entry.kind}'`);
+    if (entry.collocation !== undefined) fields.push(`collocation: ${entry.collocation}`);
+    return `{ ${fields.join(', ')} }`;
+};
 const body = Object.entries(out)
     .map(([clue, words]) => {
-        const items = words.map((w) => `'${w}'`).join(', ');
+        const items = words.map(fmtEntry).join(', ');
         const line = `    ${clue}: [${items}],`;
         if (line.length <= 116) return line;
         // wrap long arrays
-        const wrapped = words.map((w) => `        '${w}',`).join('\n');
+        const wrapped = words.map((w) => `        ${fmtEntry(w)},`).join('\n');
         return `    ${clue}: [\n${wrapped}\n    ],`;
     })
     .join('\n');

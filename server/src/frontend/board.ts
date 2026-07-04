@@ -341,8 +341,12 @@ export function renderBotSuggestions(): void {
         card.setAttribute('data-confidence', String(pct));
         const badge = document.createElement('span');
         badge.className = 'suggestion-badge';
-        badge.textContent = `${pct}%`;
-        badge.title = state.botSuggestionAdvisor ? `${state.botSuggestionAdvisor}: ${s.reason}` : s.reason;
+        // An advisor caution (late stretch, frame doubt, unresolved reference)
+        // is flagged on the badge and detailed in the tooltip. textContent
+        // only — advisory strings never touch innerHTML.
+        badge.textContent = s.warning ? `⚠ ${pct}%` : `${pct}%`;
+        const detail = s.warning ? `${s.reason} — ${s.warning}` : s.reason;
+        badge.title = state.botSuggestionAdvisor ? `${state.botSuggestionAdvisor}: ${detail}` : detail;
         card.appendChild(badge);
     }
 }

@@ -225,14 +225,14 @@ gate against the *current* board at the moment it is given. When two analyses
 conflict, the assassin-negative verdict wins unconditionally — the loss function
 is asymmetric (failure E).
 
-**2.9 Completion-entropy term. 🔴** Score `P(completion | clue word)` in both
+**2.9 Completion-entropy term. 🟡 (Phase 2 shipped the mechanism: `SemanticBackend.collocation` channel, `clueRetrieval = max(relatedness, collocation)` on both sides of the clue channel — spymaster margins, clicker/advisor ranking, harness yardstick — and `bots:map` v2 emits per-edge collocation; open: collocation data for the baked default-list table)** Score `P(completion | clue word)` in both
 directions ("X box", "gearbox") from a bigram/collocation source and penalize
 clues whose high-probability completions land on non-own board words; reward
 orphan modifiers whose mass concentrates on the target. Would have red-flagged
 ENGINE and FOSSIL and green-lit manta (lessons 13, failures D/E). Natural home:
 the semantics backend, beside `commonness()`.
 
-**2.10 Referent-ambiguity sweep. 🔴** Reference entries in
+**2.10 Referent-ambiguity sweep. 🟡 (Phase 3 shipped the mechanism: `PROPER_RIVALS` — rival referents whose weighted contents pull at weight × rival fame through the table's reference reading, mirrored in v2 map `rivals` and emitted by the `bots:map` sweep; open: rival curation across the full baked table)** Reference entries in
 `properAssociations` / semantic maps should store **rival referents** per clue
 word and *exhaustive* content lists per referent (Thunderball ⊃ pool, casino,
 shark…), so a title-clue collides with its own board-resident contents — and
@@ -243,13 +243,13 @@ board empties and own-words dwindle. Clicker/advisor: model the human stretch
 prior — late clues get looser guesses — and require an explicit
 assassin-candidate check before any late stretched guess (lesson 11).
 
-**2.12 Within-game leftover reframing. 🔴** Track leftover targets per clue;
+**2.12 Within-game leftover reframing. 🟡 (Phase 4.3 shipped the memory: `BotContext.memory` — promised-vs-taken per clue, threaded by the harness loop and a live per-room tracker in `botController` — with the clicker's `DEBT_BOOST` for owed unbounced frames and a hard zero for bounced ones; open: the spymaster style profile from lesson 27 and duet support)** Track leftover targets per clue;
 when a leftover's top candidate bounces (POOL blue → later CASINO neutral),
 downgrade the whole frame's bonus-guess EV rather than just the burned word
 (lesson 9). This is the cross-turn adaptivity the blind guesser showed
 naturally.
 
-**2.13 Hypernym candidates for unknown references. 🔴** Guesser-side: an
+**2.13 Hypernym candidates for unknown references. 🟢 (Phase 3: `PROPER_HYPERNYMS` type-level readings at `HYPERNYM_SCORE` 0.55 — below every content match, above the promise floor; the clicker reaches NOVEL from "Thunderball" without knowing the plot)** Guesser-side: an
 unrecognized proper-noun clue should generate type-membership candidates
 (hypernyms: "is a novel", "is a Bond title") *below* content candidates —
 robustness against human exemplar clues (lesson 7).
@@ -319,7 +319,7 @@ by leaking its own remaining targets in table-talk**.
 
 ### Engineering plan, extended (2.14–2.19)
 
-**2.14 Fame-of-fact weighting. 🔴** Extend 2.7: weight association edges by
+**2.14 Fame-of-fact weighting. 🟡 (Phase 2 shipped the channel: per-edge `penetration` in v2 maps → `SemanticBackend.edgeInfo` → `FAME_OF_FACT_WEIGHT` penalty on the weakest-penetration intended edge; open: penetration curation in the `bots:map` prompt and the baked table)** Extend 2.7: weight association edges by
 human penetration of the *fact*, not just corpus strength or word frequency.
 Guesser-side critical (lesson 14); the table backend's advantage, formalized.
 
@@ -328,17 +328,17 @@ count of targets clearing the guesser-visible strength bar; endgame stragglers
 get deferred or singled, never folded into an inflated N (lesson 18 — would
 have blocked both `Tinder 3`→GOLD and round 2's whole-hand `ENGINE 2`→BOX).
 
-**2.16 External referent-content sweep. 🔴** Reference clues validate against
+**2.16 External referent-content sweep. 🟡 (Phase 3: the `bots:map` prompt now mandates the "referent knows more than you" sweep — exhaustive contents incl. scenes and brand tiers, plus rivals; the ledger's live cases are curated in the baked table (Thunderball ⊃ POOL/CASINO/SHARK, Tinder ⊃ GOLD, GoldenEye, Hooke @ fame 0.35); open: the exhaustive sweep across all ~95 baked references)** Reference clues validate against
 externally curated content lists (the `bots:map` LLM pipeline), including
 product/brand tiers and rival referents (merges with 2.10) — never against the
 cluer's internal knowledge alone (lesson 19).
 
-**2.17 Sense-enumeration in the clicker. 🔴** Split a clue into senses/frames,
+**2.17 Sense-enumeration in the clicker. 🟢 (Phase 4.1: `resolveClueFrame` — the case convention makes senses enumerable, so the flipped-case probe scores the other sense; switch on the uniform-weak tell (`FRAME_DOUBT_FLOOR`) when the alternate clears `FRAME_SWITCH_BAR` on 2+ candidates; shared by clicker and advisor, which also says so via the frame-doubt warning)** Split a clue into senses/frames,
 score candidates per-sense, and trigger a frame switch when the current frame's
 best fits are uniformly weak (lesson 20). Surfaces in the advisor as "your
 frame may be wrong," the procedural form of the human's ignored alarm.
 
-**2.18 Concreteness prior. 🔴** Boost parts/members/contents edges over
+**2.18 Concreteness prior. 🟡 (Phase 2 shipped the channel: per-edge `kind` in v2 maps → `EDGE_ABSTRACTNESS` gradient scaled by `CONCRETENESS_WEIGHT` in `scoreClue`; open: kinds for the baked table and the Phase-3 proper-contents restructure)** Boost parts/members/contents edges over
 function/attribute/compound edges in `scoreClue` and the clicker (lesson 16
 completes the gradient begun in lessons 7 and 13).
 
@@ -352,3 +352,127 @@ halo you didn't audit; the contract includes contents you never knew existed.
 Every defense in this document converges on outsourcing that audit: to the
 assassin-first sweep, to an external content list, to a second frame, to a
 teammate — to anything that isn't your own certainty.
+
+---
+
+## Part 6 — Round 4: both boards survived
+
+Fourth session, same two-board protocol — and the first round in which **nobody
+died**. The human's board closed **9/9 in 4 turns** (one blue, assassin never
+threatened) — their best cluing of the series, with a visible learning curve
+*inside* the round: a frame-momentum misfire on turn 1, then three straight
+clean turns applying the ledger in real time. The AI's board closed **9/9 in
+7 turns with zero misfires** — the slow-clean extreme of the delivery/tempo
+tradeoff — after its pre-round red-team killed the drafted opener (the audit's
+own guesser simulation walked into a blue card on the promised third slot:
+`PIE 3`'s tail wasn't weak, it was *contested* — chicken pot pie is a pie;
+whipped cream is a topping). The shipped Phase-1 discipline was exercised live:
+promise-floor reasoning at the frame level, give-time re-gating on every clue,
+and the risky-multi-goes-late sequencing rule.
+
+### New lessons (21–28)
+
+| # | Lesson | Illustration |
+|---|--------|--------------|
+| 21 | **Frame momentum.** A 2+1 mixed-frame clue doesn't deliver 2+1 — it delivers the 2, then the *majority frame's continuation*, whatever color that is. Each correct guess strengthens the frame and raises the conditional confidence of the frame's own next member. Mixed frames are safe exactly when each frame's board-best is yours. | `assault 3` (CHARGE, POLICE, SWING): the guesser took CHARGE, POLICE, then CLUB — *"the crime trio is all but confirmed and CLUB completes it; conditional confidence rises well above its raw 0.50."* SWING (the off-frame leg) sat fifth. Contrast `penguin 3`: three frames, each with a red board-best — 3/3. |
+| 22 | **Granularity asymmetry.** The cluer's expert-granularity veto can pass on a distinction the guesser cannot perceive. Halo sweeps must run at *folk* granularity. | The cluer saw CLUB and dismissed it — "that's battery, not assault." Legally correct, invisible from the other side of the table. (Bot note: corpus-trained edges blur legal categories — model coarseness is *protective* here.) |
+| 23 | **Friendly fire: sweep your own words too.** The halo audit checks non-own threats, but an own *non-target* outranking an own target scrambles the plan at zero material cost — the guess "succeeds" while the intended target strands and a later clue's pair breaks. Also: acronym casing is a frame *amplifier*. | `IT 2` (TAG, CRASH): the guesser took APPLE — Apple-the-company, primed by the all-caps acronym signal — and CRASH. 2/2 "delivered," wrong two: TAG stranded, the planned `PIE 2` broken. |
+| 24 | **Double-coding: why debt-bundling works.** Folding a stranded target into a new frame doesn't just clear the debt — it *disambiguates the contested slot*, because two independent clue-paths converging on one card beat one path each at two cards. | `tree 2`: SWING (0.78) vs STICK (0.66) was close on tree-frame strength alone; the stranded `assault` target broke the tie — *"both readings say it's ours. STICK can't say that."* |
+| 25 | **Negative-space inference is reliable in proportion to how canonical the rejected alternative is.** Round 3's sundial inversion and round 4's network save are the same mechanism with opposite outcomes. | `network 2`: SPY at 0.58 vs SWITCH at 0.62 — held by *"a spymaster holding SPY had RING as the tighter clue; network is exactly what you say for SERVER + SWITCH."* RING is canonical; sundial's "Egypt" counterfactual never was. |
+| 26 | **The singles doctrine (number-conditional narrowness).** At N=1 the optimal clue property inverts: breadth clues need commonness (the guesser must generalize), a single needs only *narrowness* — a rare, near-definitional word with an empty board halo beats a common compound trailing laterals. Rarity costs only when the guesser must spread the clue. | The cluer's own critique of `BOOK 1` (spine): "I'd give *vertebrae* — less likely to trigger on other words." Applied live twice: `GRAFFITI 1` over PLAYGROUND (marbles/musical-chairs laterals), `LASH 1` over CREAM (hand-cream rival compound). |
+| 27 | **Guessers profile the spymaster across turns.** The blind guesser explicitly used the cluer's style history ("this spymaster clues in idioms: penguin suit, lemon tree, tree swing") to re-rate candidates. The bot clicker has no cross-turn opponent model at all. | `network 2`: SPY's rating was *inflated* by the idiom-heavy profile before negative space pulled it back. |
+| 28 | **Table-talk discipline must be structural, not aspirational.** Three rounds, three spymaster leaks (round 3's target names; round 4's "APPLE wasn't a target" tell and the pre-guess CREAM mention) — each made in full knowledge of lesson 15. The fix is procedural: never discuss unplayed alternatives or intent while their targets are live; the advisor's `reason`/`warning` strings need the same hard rule. | Leak #3 handed the guesser a second code-path onto the final word before the guess. |
+
+### Engineering additions
+
+**2.20 Number-conditional rarity. 🟢 (Phase 4.4: `RARITY_SINGLES_SCALE` — full rarity tax on breadth clues, mostly waived at N=1 where narrowness dominates; the vertebrae-over-book flip is pinned in `clickerNuance.test.ts`)** Scale `RARITY_WEIGHT` with the intended
+number in `scoreClue`: full penalty on breadth clues, waived (or inverted
+toward a narrowness bonus — low `maxNonOwn` heat) at N=1 (lesson 26). Cheap:
+both terms already exist in the score expression.
+
+**Scope extensions to existing items:** lesson 21 gives 2.17's sense-enumeration
+a spymaster-side dual (score the *continuation* of each frame the intended set
+activates — the frame's next-brightest board member must be own); lesson 23
+adds own-word spillover to the give-time sweep (harness leftover-tracking in
+2.12 must model it); lesson 27 folds into the Phase-4 memory work (the clicker's
+cross-turn state should include a spymaster style profile, not just leftover
+targets); lesson 28 hardens 4.2's advisor-string discipline rule.
+
+**Round-4 through-line:** the round where the loop closed. The red-team killed
+the AI's opening the way rounds 2–3 said it should; the human ran the ledger
+forward turn by turn — burned once by frame momentum, then penguin, tree, and
+network each demonstrated a different Part-1-through-5 lesson executed
+correctly; and the one failure mode that survived all four rounds intact is the
+one no scoring function touches: the spymaster's mouth. Discipline that
+depends on remembering to be disciplined isn't discipline — it's luck with
+good intentions.
+
+---
+
+## Part 7 — Round 5: the go-big experiment
+
+Fifth session, played under forcing rules — every spymaster owed at least one
+4+ clue, with no 1-clues until the final word — to probe the offense after
+four rounds of accumulating defense. Both boards closed 9/9 and the assassin
+was never touched, but the tempo gap was a rout: **human 9/9 in 4 turns**
+(batarang 5 → four cards in one turn, the series record) versus **AI 9/9 in
+7 turns with four misfires**, including a forced quad (`monster 4`) that died
+on its *first guess* to a neutral. The constraint did its job: it generated an
+entire family of lessons about what numbers mean, and it showed whose cluing
+style scales — reference-scene bundles scaled; manufactured category quads
+did not.
+
+### New lessons (29–36)
+
+| # | Lesson | Illustration |
+|---|--------|--------------|
+| 29 | **Coerced numbers pool; floor+1 separates (costly signaling).** Forcing a minimum makes the floor number uninformative — it could hide any true set plus padding. Going one above the floor is a mildly costly signal that at least the floor-th target is real. | On `batarang 5` the guesser reasoned: "a 4 would have told me almost nothing... but they said 5, one beyond the forced minimum — I trust ~4 and treat the 5th as the rule-mandated pad." Took exactly 4, all red. |
+| 30 | **Promise compulsion survives common knowledge of coercion.** The number is a quota the guesser fills, not advice they weigh — even when they know it was forced, even against their own stated uncertainty. | The cluer planned all 4 monster guesses while "only confident in two"; end-game, they would have tapped the known-pad slot of a structurally forced 2 (YARD, blue) after rating it "a distant second." |
+| 31 | **Panel variance is the verdict.** When independent halo auditors disagree several-fold on one word's salience, the disagreement itself flags the fragile word — siding with any point estimate is the error. Corollary: "worst case is only a neutral" mis-prices slot 1 of a wide clue, where the whole promise rides on the first guess. | The red-team split 4× on SCORPION (guesser-sim 0.75, audit 0.19); the optimists won the argument and the quad delivered 0/4 when SCORPION went first. |
+| 32 | **Sequencing rules are game-mode-dependent.** Round 4's "risky multi goes late" assumed lurkers leave the board; in solitaire nothing does, the red:trap ratio worsens monotonically, and the wide clue is safest on turn 1 with the most true targets diluting its halo. The guesser-side dual: one agent hallucinated opponent-turn pressure in a solitaire game to justify over-extending. | Alt-search's inversion analysis; the club-3 "banking is close to conceding" rationale. |
+| 33 | **A famous world's object radiates the world before its mechanics.** Narrowing from the franchise to one artifact does not confine the halo to the artifact's function — characters and imagery still come first. Contents > function, at reference scale. | `batarang 5` intended HAND and SHOT (held, thrown); the guesser delivered ROBIN, SUPERHERO, SHADOW, and a lucky PHOENIX, leaving both mechanics legs stranded. |
+| 34 | **Register is a frame over all 25 words — sweep the assassin in the clue's register, not the board's default.** An adult-register clue re-scored the whole board and lifted the assassin to 4th via slang the register itself activated; playable only because N=2 sat under two deafening locks. The auditing guesser even identified "assassin-shaped" words from hop-structure alone. | `masturbation 2`: ICE CREAM rose to 0.30 (cream-slang, "smells like a trap"); WHALE flagged via *sperm whale* as "exactly the shape the assassin takes." |
+| 35 | **Stray inference must invert the salience prior.** A stranded target is by definition the one whose link was *weakest* — reconstructing strays by strongest-association to the dead clue is methodologically backwards, and wrong theories don't die when refuted, they mutate (lore → mechanics) and make the surface read look like bait. Current-clue fit leads; old-frame fit is a weak tiebreaker; expect the true stray's old link to look limp. First-instinct primacy (lesson 1) exists precisely to cap theory-stacking — the machine recommitted the ledger's very first human sin, with citations. | SHARK (0.70, phantom lore), then CHECK (0.60, "deductive" restaurant theory) and a planned BACK (mutated mechanics theory) — while the actual strays, triple-coded SHOT and HAND, were dismissed in writing as "classic bait." The theory died on attempt three: "HAND back-fits batarang only limply — and limply is what a stray looks like." |
+| 36 | **Sweep completeness is unbounded for human-shaped attention.** After five rounds of accumulated discipline, `GAME → YARD` (backyard games) walked past the AI spymaster's halo sweep entirely — unlisted, unpriced, blue. Exhaustive enumeration belongs to the machine even when the spymaster is the machine. | The round's final misfire, missed by the same process that caught Mario's pipes. |
+
+### Scorecards under forcing rules
+
+- **Human:** 9/9 in 4 turns — `batarang 5` (4/5, series-record turn), `pepper 3` (2/3), `club 3` (1/3), `masturbation 2` (2/2). Both misfires (SHARK, CHECK) were the guesser's debt-theories, not clue defects. The 5 was a *chosen* over-commitment ("might have given 6") that the costly-signal effect converted into trust.
+- **AI:** 9/9 in 7 turns — `monster 4` (0/4!), `Godzilla 3` (2/3, STAR lost to a fame-of-fact inversion: the cluer filed *Godzilla-the-movie-star* above the "deep" 1998 New York reference), `DONOR 2` (1/2, agent-frame beat apparatus-frame: "a donor is a *person*"), `SOUP 2` (2/2), `SKYSCRAPER 2` (2/2), `GAME 2` (1/2, the unswept YARD), `TODDLER 1` (1/1). The forced quad was manufactured, not found — and the round's clean turns were all pairs with single-referent or compound locks.
+
+### Engineering additions (2.21–2.24)
+
+**2.21 Variance-gated halo audit. 🔴** Sample the halo model several times (or
+several agents/temperatures) per candidate clue; treat high variance on any
+single non-own word as a hot word regardless of its mean (lesson 31). Extends
+the round-2 rule "conflicting analyses resolve assassin-negative" from verdicts
+to distributions.
+
+**2.22 Slot-position risk weighting. 🔴** Score a clue's expected delivery as
+the survival function over ordered guesses — P(prefix delivered) — not as
+independent per-card margins; a contested word near the *front* of the
+guesser's predicted order costs the entire promise (lesson 31's corollary,
+`monster 4`'s epitaph). Natural home: beside `leadOwn` in `scoreClue`, using
+the clicker model's predicted pick order.
+
+**2.23 Register-conditional scoring. 🔴** Tag clue candidates with an activated
+register (slang/adult/technical/nursery) and re-score the assassin and blue
+halos *within that register* (lesson 34). Depends on Phase 2 edge channels; the
+capitalization convention is precedent that register signals are already part
+of the table's contract.
+
+**2.24 Leftover inference with an inverted prior. 🔴** In the clicker/advisor
+leftover tracker (2.12): score stray candidates by current-clue fit first, use
+dead-frame fit only as a weak tiebreaker, and *penalize* head-of-distribution
+matches to the dead clue (the guessers already rejected those — lesson 35).
+Cap theory depth: after one refuted reconstruction of a given stray, fall back
+to surface reads (lesson 1 as a hard rule).
+
+**Round-5 through-line:** numbers are language. A free number speaks
+(round 4); a forced number pools; one-above-the-floor pays to be believed; and
+the guesser obeys the quota even knowing it was coerced. The offense that
+survived going big was the same offense the ledger has endorsed since lesson 4
+— vivid scenes with their contents on the board — and the failures on both
+sides came from theories: the panel's theory of a scorpion, the guesser's
+theory of a stray, the spymaster's theory that a category could be stretched
+into a quad. When in doubt, the surface is the strategy.

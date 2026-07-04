@@ -87,9 +87,13 @@ describe('isSemanticMap', () => {
     it('accepts a well-formed v1 document and rejects malformed ones', () => {
         expect(isSemanticMap(CUSTOM_MAP)).toBe(true);
         expect(isSemanticMap(null)).toBe(false);
-        expect(isSemanticMap({ version: 2, words: [], concepts: {} })).toBe(false);
+        // v2 is a valid version since Phase 2; unknown versions still reject.
+        expect(isSemanticMap({ version: 2, words: [], concepts: {} })).toBe(true);
+        expect(isSemanticMap({ version: 3, words: [], concepts: {} })).toBe(false);
         expect(isSemanticMap({ version: 1, words: ['A'], concepts: { X: 'not-an-array' } })).toBe(false);
         expect(isSemanticMap({ version: 1, words: ['A'], concepts: {}, commonness: { X: 2 } })).toBe(false);
+        // v1 stays strictly the original shape: weighted edges need version 2.
+        expect(isSemanticMap({ version: 1, words: ['A'], concepts: { X: [{ word: 'A', weight: 0.8 }] } })).toBe(false);
     });
 });
 

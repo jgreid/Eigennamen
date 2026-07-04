@@ -65,7 +65,7 @@ export interface BotSuggestionData {
     team: string;
     clue: { word: string; number: number };
     advisor: { sessionId: string; nickname: string };
-    suggestions: { index: number; confidence: number; reason: string }[];
+    suggestions: { index: number; confidence: number; reason: string; warning?: string }[];
 }
 
 export interface JoinCreateResult {

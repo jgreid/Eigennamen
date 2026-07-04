@@ -10,7 +10,7 @@ import { resolveClicker, resolveSpymaster } from '../strategies/registry';
 import { resolveSkill } from '../presets';
 import { makeRng } from '../rng';
 import { playOneAction } from '../playOneAction';
-import type { SkillParams, SpymasterStrategy, ClickerStrategy } from '../strategies/types';
+import type { ClueMemoryEntry, SkillParams, SpymasterStrategy, ClickerStrategy } from '../strategies/types';
 import { createEngineGame, applyEngineClue, applyEngineReveal, applyEngineEndTurn } from '../engine';
 
 /**
@@ -87,27 +87,59 @@ export function playEngineGame(opts: PlayGameOptions): MatchResult {
     let endReason: string | null = null;
     const maxActions = opts.maxActions ?? 2000;
 
+    // Within-game clue-debt memory (Phase 4.3), threaded per team as data so
+    // strategies stay pure. The live clue is tracked separately and only
+    // committed to memory once it ends (new clue / end of turn). Classic and
+    // match only: a duet reveal's reported type follows the side-A key, so
+    // own-vs-miss classification is unreliable there — the memory stays empty
+    // (same reasoning as the clicker's duet-disabled cliff estimate).
+    const trackMemory = gameMode !== 'duet';
+    const memory: Record<'red' | 'blue', ClueMemoryEntry[]> = { red: [], blue: [] };
+    let liveClue: { team: Team; word: string; number: number; taken: number; bounced: boolean } | null = null;
+    const finalizeClue = (): void => {
+        if (!liveClue) return;
+        if (liveClue.team === 'red' || liveClue.team === 'blue') {
+            memory[liveClue.team].push({
+                word: liveClue.word,
+                number: liveClue.number,
+                taken: liveClue.taken,
+                bounced: liveClue.bounced,
+            });
+        }
+        liveClue = null;
+    };
+
     for (let i = 0; i < maxActions && !game.gameOver; i++) {
         const team = game.currentTurn;
         const role: 'spymaster' | 'clicker' = game.currentClue ? 'clicker' : 'spymaster';
         const binding = bindings[`${team}:${role}`] as SeatBinding;
 
         const decisionSeed = hashString(`${seed}:${team}:${role}:${game.stateVersion ?? 0}`);
-        const ctx = { gameMode, skill: binding.skill, rng: makeRng(decisionSeed) };
+        const teamMemory = memory[team === 'red' ? 'red' : 'blue'];
+        const ctx = { gameMode, skill: binding.skill, rng: makeRng(decisionSeed), memory: { clues: teamMemory } };
         const strategy = role === 'spymaster' ? binding.spymaster : binding.clicker;
         if (!strategy) break; // bound at construction; guard satisfies the type narrowing
 
         const action = playOneAction(game, binding.seat, strategy, ctx);
         if (action.kind === 'clue') {
+            finalizeClue();
             applyEngineClue(game, team, action.word, action.number);
+            if (trackMemory) {
+                liveClue = { team, word: action.word, number: action.number, taken: 0, bounced: false };
+            }
             clues++;
             opts.onEvent?.({ kind: 'clue', team, word: action.word, number: action.number }, game);
         } else if (action.kind === 'reveal') {
             const result = applyEngineReveal(game, action.index);
+            if (liveClue) {
+                if (result.type === liveClue.team) liveClue.taken++;
+                else liveClue.bounced = true;
+            }
             endReason = result.endReason ?? endReason;
             reveals++;
             opts.onEvent?.({ kind: 'reveal', team, index: action.index, result }, game);
         } else if (action.kind === 'endTurn') {
+            finalizeClue();
             applyEngineEndTurn(game);
             turns++;
             opts.onEvent?.({ kind: 'endTurn', team }, game);
