@@ -22,7 +22,7 @@ import type { BotClickerView, ClueMemoryEntry } from './strategies/types';
 
 import logger from '../utils/logger';
 import { onGameMutation } from '../socket/gameMutationNotifier';
-import { safeEmitToRoom } from '../socket/safeEmit';
+import { safeEmitToPlayers } from '../socket/safeEmit';
 import { SOCKET_EVENTS } from '../config/constants';
 import * as gameService from '../services/gameService';
 import * as playerService from '../services/playerService';
@@ -298,7 +298,12 @@ async function emitAdvisorSuggestions(
 
     suggestionKeys.set(roomCode, key);
     evictOldestBeyondCap(suggestionKeys);
-    safeEmitToRoom(io, roomCode, SOCKET_EVENTS.GAME_BOT_SUGGESTION, {
+    // Scoped to this team's own members only (not safeEmitToRoom) — these are
+    // suggestions for the acting team's own clicker, and broadcasting them
+    // room-wide would let the opposing team (and spectators) preview which
+    // cards the advisor considers top picks for a clue that's still live. See
+    // docs/HARDENING_PLAN.md P0-5.
+    safeEmitToPlayers(io, members, SOCKET_EVENTS.GAME_BOT_SUGGESTION, {
         team,
         clue: { word: clue.word, number: clue.number },
         advisor: { sessionId: advisor.sessionId, nickname: advisor.nickname },

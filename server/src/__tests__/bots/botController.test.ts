@@ -15,14 +15,14 @@ jest.mock('../../socket/handlers/gameActions', () => ({
 jest.mock('../../services/gameService', () => ({ getGame: jest.fn() }));
 jest.mock('../../services/playerService', () => ({ getTeamMembers: jest.fn(), updatePlayer: jest.fn() }));
 jest.mock('../../services/botService', () => ({ getBotConfig: jest.fn() }));
-jest.mock('../../socket/safeEmit', () => ({ safeEmitToRoom: jest.fn() }));
+jest.mock('../../socket/safeEmit', () => ({ safeEmitToRoom: jest.fn(), safeEmitToPlayers: jest.fn() }));
 jest.mock('../../utils/logger', () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() }));
 
 const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
 const botService = require('../../services/botService');
 const gameActions = require('../../socket/handlers/gameActions');
-const { safeEmitToRoom } = require('../../socket/safeEmit');
+const { safeEmitToRoom, safeEmitToPlayers } = require('../../socket/safeEmit');
 const logger = require('../../utils/logger');
 const { initBotController, stopBotController, tickRoom, reconcileClueMemory } = require('../../bots/botController');
 
@@ -97,9 +97,11 @@ describe('botController.tickRoom', () => {
         expect(gameActions.applyEndTurn).not.toHaveBeenCalled();
     });
 
-    it('emits advisor suggestions for a human clicker but never reveals', async () => {
+    it('emits advisor suggestions to the acting team only, never room-wide', async () => {
         // A live clue, a HUMAN clicker, and an advisor BOT on the team: the advisor
-        // should surface ranked suggestions (game:botSuggestion) and take no action.
+        // should surface ranked suggestions (game:botSuggestion) to red's own
+        // members only — never via a room-wide broadcast the opposing team or
+        // spectators would also receive. See docs/HARDENING_PLAN.md P0-5.
         const advisorGame = {
             ...gameNoClue,
             words: ['BEAR', 'RIVER', 'TIGER', 'MOUNTAIN'],
@@ -107,19 +109,26 @@ describe('botController.tickRoom', () => {
             guessesUsed: 0,
             stateVersion: 3,
         };
-        gameService.getGame.mockResolvedValue(advisorGame);
-        playerService.getTeamMembers.mockResolvedValue([
+        const redTeamMembers = [
             { sessionId: 'human-1', nickname: 'Human', team: 'red', role: 'clicker', isBot: false, connected: true },
             { sessionId: 'adv-1', nickname: 'AdviceBot', team: 'red', role: 'advisor', isBot: true, connected: true },
-        ]);
+        ];
+        gameService.getGame.mockResolvedValue(advisorGame);
+        playerService.getTeamMembers.mockResolvedValue(redTeamMembers);
 
         await tickRoom('ROOM01');
 
         expect(gameActions.applyReveal).not.toHaveBeenCalled();
         expect(gameActions.applyEndTurn).not.toHaveBeenCalled();
-        expect(safeEmitToRoom).toHaveBeenCalledWith(
+        expect(safeEmitToRoom).not.toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            'game:botSuggestion',
+            expect.anything()
+        );
+        expect(safeEmitToPlayers).toHaveBeenCalledWith(
             mockIo,
-            'ROOM01',
+            redTeamMembers,
             'game:botSuggestion',
             expect.objectContaining({
                 team: 'red',
