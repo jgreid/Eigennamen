@@ -136,13 +136,13 @@ Every item here is reachable today, in the default single-instance deployment, w
 
 ---
 
-## Phase 1 — Harden the single-instance production path (next sprint)
+## Phase 1 — Harden the single-instance production path (next sprint) — ✅ Shipped
 
 These are reachable in the currently-deployed single-instance topology (self-hosted Docker, or Fly.io's own shipped default), just less deterministically than Phase 0.
 
 **Sequencing note:** land **P1-9 (real-Redis Lua test harness) first**, ahead of the other Lua-touching items in this phase (P1-4, P1-8) and ideally right after Phase 0 lands — Phase 0's own P0-2 is a Lua change that deserves real execution coverage from day one rather than retrofitted later.
 
-### P1-1 — Gate Express's `trust proxy` on verified topology, not `NODE_ENV`
+### P1-1 — Gate Express's `trust proxy` on verified topology, not `NODE_ENV` — ✅ Shipped
 
 **Severity:** High · **Area:** Auth / network trust
 
@@ -156,9 +156,11 @@ These are reachable in the currently-deployed single-instance topology (self-hos
 
 **Risk:** Behavior change for any self-hosted production deployment that was relying on the old (incorrect) auto-trust — those deployments must now set `TRUST_PROXY=true` explicitly if they do sit behind a real proxy. Call this out in the release notes / `docs/DEPLOYMENT.md`.
 
+**Shipped as:** exactly as planned — `shouldTrustProxy()`/`isFlyDeployment()` extracted into `config/env.ts` as the single source of truth, with `app.ts` and `middleware/auth/clientIP.ts` both calling it (the latter dropped its own now-duplicate copies).
+
 ---
 
-### P1-2 — Give Redis reconnection a self-heal path; make `/health/live` a real check
+### P1-2 — Give Redis reconnection a self-heal path; make `/health/live` a real check — ✅ Shipped
 
 **Severity:** High · **Area:** Backend resilience
 
@@ -172,9 +174,11 @@ These are reachable in the currently-deployed single-instance topology (self-hos
 
 **Risk:** Exiting on terminal Redis failure means a very long-lived process now cycles instead of staying alive-but-degraded — confirm this is the desired tradeoff for every deployment target in `docs/DEPLOYMENT.md` (it is for Fly/Docker/k8s; call it out explicitly for any bare-metal/systemd deployment too).
 
+**Shipped as:** the `reconnectStrategy` → `process.exit(1)` half only; deliberately did **not** make `/health/live` Redis-aware. A liveness probe that depends on a downstream dependency is a known anti-pattern — it causes cascading restarts across every replica the moment Redis blips, instead of one at a time — and `/health/ready` already reports Redis health for routing. The exit-on-exhaustion fix covers the actual self-heal gap directly without that hazard. `reconnectStrategy` is now exported for unit testing.
+
 ---
 
-### P1-3 — Fix embedded-Redis shutdown ordering so the child process can't be orphaned
+### P1-3 — Fix embedded-Redis shutdown ordering so the child process can't be orphaned — ✅ Shipped
 
 **Severity:** High · **Area:** Backend resilience
 
@@ -188,9 +192,11 @@ These are reachable in the currently-deployed single-instance topology (self-hos
 
 **Risk:** None — this only tightens an existing cleanup path.
 
+**Shipped as:** planned, plus a small follow-up commit — the losing arm of each `quit()`-vs-timeout race left a live 3s timer behind once `quit()` won, which surfaced as a Jest `detectOpenHandles` warning once a real-Redis integration test (added for P1-8) exercised `disconnectRedis()` end-to-end. Both timer sites now call `.unref()` so a won race doesn't keep the process/test runner alive, without changing the race's actual timeout behavior.
+
 ---
 
-### P1-4 — Roll back match-round score on `game:abandon`
+### P1-4 — Roll back match-round score on `game:abandon` — ✅ Shipped
 
 **Severity:** Medium-High · **Area:** Game integrity
 
@@ -204,9 +210,11 @@ These are reachable in the currently-deployed single-instance topology (self-hos
 
 **Risk:** Requires a product decision on the *intended* semantics (should abandon really be fully scoreless, or should it optionally still bank a partial "gave up" penalty?) — confirm the "fully scoreless" interpretation is correct before implementing; if not, adjust the target rollback value accordingly rather than assuming.
 
+**Shipped as:** the "fully scoreless" interpretation, matching `abandonGame`'s existing docstring. `roundStartRedMatchScore`/`roundStartBlueMatchScore` (plural, per-team, matching the existing field-naming convention) are snapshotted in `buildGameState` on every round start (fresh round 1 and carried-over rounds alike) and rolled back to in `abandonGame` for match-mode games; a game persisted before the snapshot fields existed falls back to a documented no-op rather than crashing.
+
 ---
 
-### P1-5 — Rate-limit `game:abandon`/`game:clearHistory`; make the failed-join limiter actually block
+### P1-5 — Rate-limit `game:abandon`/`game:clearHistory`; make the failed-join limiter actually block — ✅ Shipped
 
 **Severity:** Medium · **Area:** Backend resilience / DoS
 
@@ -220,9 +228,11 @@ These are reachable in the currently-deployed single-instance topology (self-hos
 
 **Risk:** None — purely additive throttling.
 
+**Shipped as:** exactly as planned — both events added at `game:forfeit`'s existing `{ window: 10000, max: 2 }` ceiling; `trackFailedJoinAttempt` now throws `RateLimitError` on a block, and `roomMembershipHandlers.ts`'s `room:join` catch already propagated thrown errors correctly (no handler change needed there beyond a clarifying comment).
+
 ---
 
-### P1-6 — Auto-recover (or forfeit) a bot seat that exceeds its retry ceiling
+### P1-6 — Auto-recover (or forfeit) a bot seat that exceeds its retry ceiling — ✅ Shipped
 
 **Severity:** High · **Area:** Bot subsystem
 
@@ -236,9 +246,11 @@ These are reachable in the currently-deployed single-instance topology (self-hos
 
 **Risk:** Auto-ending the turn is a product-visible behavior change (previously: silent freeze; after: the team loses their turn) — confirm this is preferable to, say, forfeiting only that team's current turn vs. the whole game before shipping.
 
+**Shipped as:** planned — went with "auto-end just the stuck turn," not a full-game forfeit. On exceeding `MAX_REARM_ATTEMPTS`, `botController` re-fetches the game, force-ends the stuck team's turn via the existing `applyEndTurn` path, and broadcasts `room:warning` with `code: 'BOT_STALLED'` (new `multiplayer.botStalled` i18n key, all 4 locales, shown as a toast) instead of a server-only log. Also added a test locking in the pre-existing assumption that a later successful action fully resets the failure streak.
+
 ---
 
-### P1-7 — Close the bot-seat / human-reconnect race
+### P1-7 — Close the bot-seat / human-reconnect race — ✅ Shipped
 
 **Severity:** High · **Area:** Bot subsystem
 
@@ -252,9 +264,11 @@ These are reachable in the currently-deployed single-instance topology (self-hos
 
 **Risk:** This is a product decision as much as a bug fix — confirm "human reclaims the seat automatically" is the desired UX (vs., say, blocking the reconnect into that seat and demoting to spectator) before implementing.
 
+**Shipped as:** planned — "human reclaims automatically." `roomReconnectionHandlers.ts` now checks on reconnect whether the player's team+role is currently held by a connected bot and evicts it via `botService.removeBot`, broadcasting `room:warning` with `code: 'BOT_SEAT_RECLAIMED'` (new `multiplayer.botSeatReclaimed` i18n key, all 4 locales, shown as a toast). Two pre-existing `roomResync.test.ts` tests needed a `getTeamMembers` mock added, since they hadn't previously exercised this code path.
+
 ---
 
-### P1-8 — Validate bot-originated clues with the same bounds as human clues
+### P1-8 — Validate bot-originated clues with the same bounds as human clues — ✅ Shipped
 
 **Severity:** Medium-High · **Area:** Bot subsystem
 
@@ -268,9 +282,11 @@ These are reachable in the currently-deployed single-instance topology (self-hos
 
 **Risk:** None functionally — this only closes a gap that was already supposed to be closed at one layer.
 
+**Shipped as:** exactly as planned — `isValidClueWordShape`/`isValidClueNumberShape` in `shared/gameRules.ts`, called from both `gameClueSchema` (via `.superRefine`, since Zod v4 dropped `.refine()`'s function-message form used in the original sketch) and `gameService.submitClue` before the Lua script runs. `submitClue.lua` clamps to a `CLUE_NUMBER_MAX = 9` ceiling, matching the script's existing nil-guard convention.
+
 ---
 
-### P1-9 — Stand up a real-Redis Lua test harness; promote a blocking E2E slice
+### P1-9 — Stand up a real-Redis Lua test harness; promote a blocking E2E slice — ✅ Shipped
 
 **Severity:** High · **Area:** Testing / CI
 
@@ -284,9 +300,11 @@ These are reachable in the currently-deployed single-instance topology (self-hos
 
 **Risk:** Slower CI (real Redis start/stop per suite run) — mitigate by reusing a single embedded-Redis instance across the new suite's tests rather than spinning one up per test.
 
+**Shipped as:** planned, landed first per the sequencing note. `__tests__/integration/luaScripts.test.ts` drives `atomicJoin`, `setRole`, `safeTeamSwitch`, `hostTransfer`, `submitClue`, `revealCard`, and `endTurn` against a real embedded Redis, verified to actually catch a deliberately-broken script. For the CI slice, added a new blocking `e2e-smoke` job (a single-browser-context slice of `home.spec.js`) to the `ci-passed` gate's `needs` list, rather than promoting a slice of the existing multiplayer specs — `home.spec.js` was reliable on a clean checkout of main (one pre-existing flaky test excluded via `--grep-invert`), while `game-flow.spec.js` was considered and rejected because 6 of its 9 tests already fail on unmodified main (a pre-existing, unrelated UI bug, out of scope). The full `e2e` job stays `continue-on-error`, unchanged.
+
 ---
 
-### P1-10 — Redact `errorHandler`'s known-error-code branch the same way its fallback branch does
+### P1-10 — Redact `errorHandler`'s known-error-code branch the same way its fallback branch does — ✅ Shipped
 
 **Severity:** Medium · **Area:** Backend resilience
 
@@ -300,9 +318,11 @@ These are reachable in the currently-deployed single-instance topology (self-hos
 
 **Risk:** None.
 
+**Shipped as:** reuses `errors/GameError.ts`'s existing `SAFE_ERROR_CODES` allowlist (the same one the socket path's `sanitizeErrorForClient` already uses) rather than blanket-redacting every known code — a deliberately client-facing message like `ROOM_NOT_FOUND`'s "Room ABC123 not found" must keep showing in production; only codes outside the allowlist (`SERVER_ERROR` today, any future addition by default) get the fallback branch's `isProduction()` gating.
+
 ---
 
-### P1-11 — i18n and bot-advisor bug bundle
+### P1-11 — i18n and bot-advisor bug bundle — ✅ Shipped
 
 **Severity:** Medium (i18n), Low (advisor bug) · **Area:** Frontend / bots
 
@@ -318,9 +338,11 @@ Small, independent, low-risk fixes bundled because none needs its own PR:
 
 **Risk:** None.
 
+**Shipped as:** all three exactly as planned. The new locale-key regression test (`__tests__/frontend/localeKeys.test.ts`) scans every `data-i18n*` attribute in `index.html` — not just the two known-bad keys — against all four locale files, guarding the whole class of bug rather than only the two known instances.
+
 ---
 
-### P1-12 — Remove (or fix) the unsafe, unused `escapeHTML()` helper
+### P1-12 — Remove (or fix) the unsafe, unused `escapeHTML()` helper — ✅ Shipped
 
 **Severity:** Medium · **Area:** Frontend
 
@@ -334,9 +356,11 @@ Small, independent, low-risk fixes bundled because none needs its own PR:
 
 **Risk:** None.
 
+**Shipped as:** planned — deleted, per the "no current call sites" finding. Also removed its now-stale test coverage/mocks and the two `CLAUDE.md` caveats (plus the directory-map reference) that existed only to flag this function's limitation.
+
 ---
 
-### P1-13 — E2E coverage for spectator approval, bot lifecycle, and match-round transitions
+### P1-13 — E2E coverage for spectator approval, bot lifecycle, and match-round transitions — ✅ Shipped
 
 **Severity:** High · **Area:** Testing
 
@@ -352,6 +376,12 @@ Small, independent, low-risk fixes bundled because none needs its own PR:
 **Tests:** These specs are the deliverable.
 
 **Risk:** New E2E specs add to CI wall-clock time — keep them minimal (one happy path each, not exhaustive edge-case coverage) since P1-9 already promotes a slice of E2E into the blocking gate and shouldn't become a bottleneck.
+
+**Shipped as:** three specs as planned, but discovered mid-implementation that `spectator:requestJoin`/`spectator:approveJoin` have zero frontend wiring — no button ever emits `spectator:requestJoin`, and no client-side listener reacts to `spectator:joinRequest`/`joinApproved`/`joinDenied`. A real-browser test can't drive this flow through the UI at all, so `spectator-approval.spec.js` drives the real Socket.IO protocol directly with `socket.io-client` (bypassing the nonexistent UI) against the same dev server the other specs use — the server-side handlers still get real end-to-end coverage; the missing UI itself is out of scope here (it's a feature gap, not the defect this item targets).
+
+Two more pre-existing, previously-unknown E2E bugs surfaced while building these specs, fixed or flagged as noted:
+- `helpers.js`'s `sel.startGameBtn` pointed at `#btn-start-game`, an id that doesn't exist anywhere in the app (confirmed by grep) — the real button is `#btn-new-game`. This was silently breaking "start game button" assertions in several pre-existing specs (`multiplayer.spec.js`, `game-modes.spec.js`, and others), unrelated to any Phase 0/1 code change. Fixed as part of this item since the new specs needed the same button.
+- `selectGameMode()`'s radio-button check targets an element inside a settings panel that test helper never opens first, and a role-switch confirmation modal (`#confirm-modal`) can intercept clicks on `spymasterBtn`/`clickerBtn` mid-game. Both left unfixed — out of this item's scope (adding new coverage, not auditing the other 10 pre-existing specs) — noting them here so they aren't lost.
 
 ---
 
@@ -528,19 +558,19 @@ These were pure documentation corrections — no code behavior changed. Listed h
 | Lock timeout shorter than wrapped operation | Critical | 0 | P0-3 | ✅ Shipped |
 | Disconnect/reconnect race on `connected` flag | Critical | 0 | P0-4 | ✅ Shipped |
 | Advisor suggestions broadcast room-wide | Medium | 0 | P0-5 | ✅ Shipped |
-| `trust proxy` gated on `NODE_ENV` alone | High | 1 | P1-1 | Planned |
-| Redis reconnect has no self-heal; `/health/live` is a no-op | High | 1 | P1-2 | Planned |
-| Embedded Redis can be orphaned on shutdown | High | 1 | P1-3 | Planned |
-| Match abandon keeps banked score | Medium-High | 1 | P1-4 | Planned |
-| No rate limit on abandon/clearHistory; dead anti-enum limiter | Medium | 1 | P1-5 | Planned |
-| Stalled bot freezes the game after 6 retries | High | 1 | P1-6 | Planned |
-| Bot can occupy a seat a reconnecting human still owns | High | 1 | P1-7 | Planned |
-| Bot-originated clues skip length/format/number bounds | Medium-High | 1 | P1-8 | Planned |
-| Lua scripts untested in blocking CI | High | 1 | P1-9 | Planned |
-| `errorHandler` known-error branch skips redaction | Medium | 1 | P1-10 | Planned |
-| Neutral-card / Settings-modal i18n keys; Duet advisor bug | Medium/Low | 1 | P1-11 | Planned |
-| Unsafe unused `escapeHTML()` | Medium | 1 | P1-12 | Planned |
-| No E2E for spectator/bot/match-round flows | High | 1 | P1-13 | Planned |
+| `trust proxy` gated on `NODE_ENV` alone | High | 1 | P1-1 | ✅ Shipped |
+| Redis reconnect has no self-heal; `/health/live` is a no-op | High | 1 | P1-2 | ✅ Shipped |
+| Embedded Redis can be orphaned on shutdown | High | 1 | P1-3 | ✅ Shipped |
+| Match abandon keeps banked score | Medium-High | 1 | P1-4 | ✅ Shipped |
+| No rate limit on abandon/clearHistory; dead anti-enum limiter | Medium | 1 | P1-5 | ✅ Shipped |
+| Stalled bot freezes the game after 6 retries | High | 1 | P1-6 | ✅ Shipped |
+| Bot can occupy a seat a reconnecting human still owns | High | 1 | P1-7 | ✅ Shipped |
+| Bot-originated clues skip length/format/number bounds | Medium-High | 1 | P1-8 | ✅ Shipped |
+| Lua scripts untested in blocking CI | High | 1 | P1-9 | ✅ Shipped |
+| `errorHandler` known-error branch skips redaction | Medium | 1 | P1-10 | ✅ Shipped |
+| Neutral-card / Settings-modal i18n keys; Duet advisor bug | Medium/Low | 1 | P1-11 | ✅ Shipped |
+| Unsafe unused `escapeHTML()` | Medium | 1 | P1-12 | ✅ Shipped |
+| No E2E for spectator/bot/match-round flows | High | 1 | P1-13 | ✅ Shipped |
 | Socket rate limiting is per-instance in-memory | High | 2 | P2-1 | Planned |
 | Turn timer pause/resume/stop wrong across instances | High | 2 | P2-2 | Planned |
 | Bot controller + connection tracker state per-instance | High | 2 | P2-3 | Planned |
