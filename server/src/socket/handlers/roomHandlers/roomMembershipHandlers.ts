@@ -100,7 +100,10 @@ export default function roomMembershipHandlers(io: Server, socket: GameSocket): 
                     isReconnecting: boolean;
                 };
             } catch (error) {
-                // Track failed attempt for rate limiting (prevents room enumeration)
+                // Track failed attempt for rate limiting (prevents room enumeration).
+                // trackFailedJoinAttempt throws RateLimitError once its own ceiling
+                // is exceeded — let that propagate in place of the original error so
+                // repeated probing is actually throttled, not just logged.
                 if (
                     (error as { code?: string }).code === ERROR_CODES.ROOM_NOT_FOUND ||
                     (error as { code?: string }).code === ERROR_CODES.INVALID_INPUT

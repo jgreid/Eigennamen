@@ -11,8 +11,13 @@ jest.mock('../../services/gameService');
 jest.mock('../../services/playerService');
 jest.mock('../../utils/logger');
 const { SAFE_ERROR_CODES, createMockRateLimitHandler } = require('../helpers/mocks');
+// Default: the 'room:join:failed' limiter never blocks. Individual tests can
+// override getSocketRateLimiter's return value to simulate the ceiling being hit.
+const mockJoinFailedLimiter = jest.fn((_socket: unknown, _data: unknown, next: (err?: Error) => void) => next());
+const mockGetSocketRateLimiter = jest.fn(() => ({ getLimiter: () => mockJoinFailedLimiter }));
 jest.mock('../../socket/rateLimitHandler', () => ({
     createRateLimitedHandler: createMockRateLimitHandler(SAFE_ERROR_CODES),
+    getSocketRateLimiter: mockGetSocketRateLimiter,
 }));
 jest.mock('../../socket/socketFunctionProvider', () => ({
     getSocketFunctions: jest.fn(() => ({
@@ -304,6 +309,36 @@ describe('Room Handlers', () => {
             await eventHandlers['room:join']({ roomId: 'TEST-ROOM', nickname: 'Player1' });
 
             expect(roomService.joinRoom).toHaveBeenCalledWith('TEST-ROOM', 'session-1', 'Player1');
+        });
+
+        test('surfaces ROOM_NOT_FOUND when the failed-join limiter has not been exceeded', async () => {
+            roomService.joinRoom.mockRejectedValue({ code: 'ROOM_NOT_FOUND', message: 'Room not found' });
+
+            await eventHandlers['room:join']({ roomId: 'ghost-room', nickname: 'Player1' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'room:error',
+                expect.objectContaining({ code: 'ROOM_NOT_FOUND' })
+            );
+        });
+
+        test('surfaces RATE_LIMITED instead of ROOM_NOT_FOUND once the failed-join limiter is exceeded', async () => {
+            // Regression: trackFailedJoinAttempt previously always resolved regardless
+            // of the limiter's verdict, so repeated room-code probing never actually
+            // got throttled — the client always just saw ROOM_NOT_FOUND again.
+            mockJoinFailedLimiter.mockImplementation((_socket, _data, next) => next(new Error('rate limited')));
+            roomService.joinRoom.mockRejectedValue({ code: 'ROOM_NOT_FOUND', message: 'Room not found' });
+
+            await eventHandlers['room:join']({ roomId: 'ghost-room', nickname: 'Player1' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'room:error',
+                expect.objectContaining({ code: 'RATE_LIMITED' })
+            );
+            expect(mockSocket.emit).not.toHaveBeenCalledWith(
+                'room:error',
+                expect.objectContaining({ code: 'ROOM_NOT_FOUND' })
+            );
         });
     });
 

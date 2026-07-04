@@ -8,6 +8,7 @@ import { SOCKET_EVENTS } from '../../config/constants';
 import { getSocketFunctions } from '../socketFunctionProvider';
 import { getSocketRateLimiter } from '../rateLimitHandler';
 import { isPlayerSpectator } from '../playerContext';
+import { RateLimitError } from '../../errors/GameError';
 
 export async function sendTimerStatus(socket: GameSocket, roomCode: string, context: string): Promise<void> {
     try {
@@ -56,25 +57,33 @@ export async function sendSpymasterViewIfNeeded(
     }
 }
 
+/**
+ * Consume a rate limit token for a failed room:join attempt (room-code enumeration
+ * guard). Throws RateLimitError once the 'room:join:failed' ceiling is exceeded —
+ * the caller must let this propagate instead of swallowing it, or repeated
+ * ROOM_NOT_FOUND/INVALID_INPUT probing is never actually throttled.
+ */
 export async function trackFailedJoinAttempt(socket: GameSocket): Promise<void> {
+    let blocked: Error | undefined;
     try {
         const rateLimiter = getSocketRateLimiter();
         const limiter = rateLimiter.getLimiter('room:join:failed');
-        // Consume a rate limit token for failed attempts
-        await new Promise<void>((resolve) => {
-            limiter(socket, {}, (err: Error | undefined) => {
-                if (err) {
-                    logger.warn('Failed join rate limit exceeded', {
-                        socketId: socket.id,
-                        sessionId: socket.sessionId,
-                    });
-                }
-                resolve();
-            });
+        blocked = await new Promise<Error | undefined>((resolve) => {
+            limiter(socket, {}, (err: Error | undefined) => resolve(err));
         });
     } catch (error) {
-        // Non-critical - log but don't block
+        // Non-critical infrastructure failure (e.g. rate limiter not initialized) —
+        // log but don't block the join failure the caller is already handling.
         logger.debug('Failed to track join attempt', { error: error instanceof Error ? error.message : String(error) });
+        return;
+    }
+
+    if (blocked) {
+        logger.warn('Failed join rate limit exceeded', {
+            socketId: socket.id,
+            sessionId: socket.sessionId,
+        });
+        throw new RateLimitError('Too many failed join attempts, please slow down');
     }
 }
 
