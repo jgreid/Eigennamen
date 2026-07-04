@@ -3,6 +3,7 @@ import type { Request, Response, NextFunction } from 'express';
 import logger from '../utils/logger';
 import { ERROR_CODES } from '../config/constants';
 import { isProduction } from '../config/env';
+import { SAFE_ERROR_CODES } from '../errors/GameError';
 
 const KNOWN_ERROR_CODES: ReadonlySet<string> = new Set(Object.values(ERROR_CODES));
 
@@ -96,10 +97,18 @@ function errorHandler(err: AppError | ZodError, _req: Request, res: Response, _n
             safeDetails = Object.keys(filtered).length > 0 ? filtered : undefined;
         }
 
+        // Same allowlist the socket path (sanitizeErrorForClient) already uses:
+        // a code like SERVER_ERROR can wrap an arbitrary underlying error's
+        // message (stack fragments, internal identifiers), so only known-SAFE
+        // codes get their real message in production — mirroring the fallback
+        // (unknown-error) branch below, which was already production-gated.
+        const isSafeCode = (SAFE_ERROR_CODES as readonly string[]).includes(err.code);
+        const message = isSafeCode ? err.message : isProduction() ? 'Internal server error' : err.message;
+
         return res.status(statusMap[err.code] || 500).json({
             error: {
                 code: err.code,
-                message: err.message,
+                message,
                 ...(safeDetails !== undefined && { details: safeDetails }),
             },
         });
