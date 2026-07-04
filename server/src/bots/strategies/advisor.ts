@@ -13,7 +13,7 @@
  */
 import type { BotClickerView, SkillParams, SeededRng } from './types';
 import type { SemanticBackend } from '../semantics/backend';
-import { defaultSemanticBackend } from '../semantics/backend';
+import { clueRetrieval, defaultSemanticBackend } from '../semantics/backend';
 import { referenceSignal } from '../semantics/properAssociations';
 
 export interface GuessSuggestion {
@@ -76,7 +76,10 @@ export function suggestGuesses(
     const scored: Scored[] = [];
     for (let i = 0; i < view.revealed.length; i++) {
         if (view.revealed[i]) continue;
-        scored.push({ index: i, score: backend.relatedness(view.words[i] as string, clue.word) });
+        // clueRetrieval, not bare relatedness: the advisor advises a HUMAN
+        // clicker, and a human's compound completion competes directly with
+        // associative fit (same model as the greedy clicker).
+        scored.push({ index: i, score: clueRetrieval(backend, clue.word, view.words[i] as string) });
     }
     scored.sort((a, b) => b.score - a.score);
 

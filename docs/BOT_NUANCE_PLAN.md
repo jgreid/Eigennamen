@@ -85,6 +85,17 @@ Phase 0 endgame slice is the measuring stick.
 
 ## Phase 2 — Widen the semantic backend (the keystone)
 
+> **Shipped.** `edgeInfo`/`collocation` on `SemanticBackend` +
+> `clueRetrieval = max(relatedness, collocation)` as the shared guesser
+> retrieval model (spymaster margins, clicker/advisor ranking, harness
+> yardstick); weighted `EdgeMeta` association index; SemanticMap v2
+> (`bots:map` now emits it; v1 still loads); consumers wired per below with
+> `FAME_OF_FACT_WEIGHT` / `CONCRETENESS_WEIGHT`. Gate held: v1 fixtures
+> regression-tested, misfire class D reproduces channel-blind and not
+> channel-aware (`edgeChannels.test.ts`). Status per item in
+> [BOT_CLUE_LESSONS.md](BOT_CLUE_LESSONS.md) (2.9/2.14/2.18 🟡 — data
+> curation for the baked table remains).
+
 New **optional** methods on `SemanticBackend` (`backend.ts:13-37`), so every
 backend stays valid, plus a versioned data format:
 

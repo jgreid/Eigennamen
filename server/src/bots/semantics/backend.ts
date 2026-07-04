@@ -10,10 +10,50 @@
  */
 import { normalizeClueWord } from '../../shared/gameRules';
 
+/**
+ * How a clue retrieves a word — the concreteness gradient (ledger lesson 16):
+ * contents > members/parts > compounds > function/attribute. A 'content' edge
+ * is a thing vividly INSIDE the clue's frame (Cinderella → SLIPPER); 'member'
+ * and 'part' are taxonomic (ANIMAL → BEAR, tree → BARK); 'compound' is phrase
+ * formation (whip + lash); 'function' and 'attribute' are what a thing does or
+ * is like — the weakest, most misfire-prone retrieval path.
+ */
+export type EdgeKind = 'content' | 'member' | 'part' | 'compound' | 'function' | 'attribute';
+
+/**
+ * Per-edge channel data (Phase 2 of docs/BOT_NUANCE_PLAN.md — the keystone
+ * widening). `strength` mirrors relatedness for the direct edge; `kind` is the
+ * concreteness class above; `penetration` is fame-of-fact (ledger lesson 14):
+ * the fraction of guessers who retrieve THIS edge at table speed — distinct
+ * from word commonness (Hooke is a word many know; Hooke→SPRING is an edge few
+ * retrieve). All channels optional: absent data must read as "no adjustment".
+ */
+export interface EdgeInfo {
+    strength: number;
+    kind?: EdgeKind;
+    penetration?: number;
+}
+
 export interface SemanticBackend {
     readonly id: string;
     /** Relatedness of two words in [0, 1]. */
     relatedness(a: string, b: string): number;
+    /**
+     * Channel data for the DIRECT edge between a clue and a word, or null when
+     * the backend has no per-edge record for the pair. Optional: only backends
+     * with weighted edge data (v2 semantic maps) provide it; consumers must
+     * treat a missing method, a null edge, and missing channel fields all as
+     * "no signal, no adjustment".
+     */
+    edgeInfo?(clue: string, word: string): EdgeInfo | null;
+    /**
+     * Phrase/compound completion frequency of the pair in [0, 1] (either order:
+     * "manta ray", "engine box"). This is the completion-entropy source (ledger
+     * lesson 13): a compound reading is AUTOMATIC for a human guesser — it
+     * competes with associative fit directly, whatever the model's relatedness
+     * says. Optional; 0 or a missing method means "no phrase signal".
+     */
+    collocation?(a: string, b: string): number;
     /** Candidate clue words this backend knows about (spymaster vocabulary).
      *  Optional — backends without a fixed vocabulary (e.g. lexical) omit it. */
     vocabulary?(): string[];
@@ -74,6 +114,20 @@ export const lexicalBackend: SemanticBackend = {
         return (2 * overlap) / (ba.length + bb.length);
     },
 };
+
+/**
+ * How strongly a clue actually RETRIEVES a board word for a human guesser: the
+ * best of associative relatedness and phrase completion. A guesser completes
+ * "engine ___" before they reason about categories (misfire class D in the
+ * ledger — member-beats-compound), so every consumer that predicts or models
+ * guessing behaviour must rank by this, not by relatedness alone. Exact no-op
+ * for backends without a collocation channel.
+ */
+export function clueRetrieval(backend: SemanticBackend, clue: string, word: string): number {
+    const rel = backend.relatedness(clue, word);
+    if (!backend.collocation) return rel;
+    return Math.max(rel, backend.collocation(clue, word));
+}
 
 /** The backend used when no semantic asset is configured. */
 export const defaultSemanticBackend: SemanticBackend = lexicalBackend;

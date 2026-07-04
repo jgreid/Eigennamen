@@ -2,9 +2,11 @@
  * Baked word-association table (the "LLM-offline -> baked table" backend, section 20).
  *
  * Each entry maps a CLUE word to the board words (from the standard set) it is
- * semantically related to. Every target is verified to be a real entry in
- * DEFAULT_WORDS (server/src/shared/gameRules.ts); clues whose targets are not on
- * the board are useless, so this table is generated through that filter. The
+ * semantically related to — a plain word is an edge of weight 1, a weighted
+ * entry carries the Phase-2 per-edge channels (see associationIndex.ts).
+ * Every target is verified to be a real entry in DEFAULT_WORDS
+ * (server/src/shared/gameRules.ts); clues whose targets are not on the board
+ * are useless, so this table is generated through that filter. The
  * tableBackend falls back to lexical similarity for any pair not covered here, so
  * custom / out-of-vocabulary word lists still degrade gracefully.
  *
@@ -12,7 +14,9 @@
  * vocabulary. DO NOT edit by hand: add concept -> board-word groups in
  * scripts/generate-associations.mjs and re-run `npm run bots:associations`.
  */
-export const ASSOCIATIONS: Record<string, string[]> = {
+import type { AssociationTarget } from './associationIndex';
+
+export const ASSOCIATIONS: Record<string, AssociationTarget[]> = {
     ANIMAL: [
         'BEAR',
         'LION',

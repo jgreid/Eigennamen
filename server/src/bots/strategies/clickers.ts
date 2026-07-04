@@ -17,7 +17,7 @@
  */
 import type { BotAction, BotClickerView, BotContext, ClickerStrategy, SkillParams, SeededRng } from './types';
 import type { SemanticBackend } from '../semantics/backend';
-import { defaultSemanticBackend } from '../semantics/backend';
+import { clueRetrieval, defaultSemanticBackend } from '../semantics/backend';
 
 function unrevealedIndices(view: BotClickerView): number[] {
     const out: number[] = [];
@@ -145,7 +145,7 @@ function lastTakenScoreEstimate(view: BotClickerView, clueWord: string, backend:
     const ownRevealed: number[] = [];
     for (let i = 0; i < view.revealed.length; i++) {
         if (view.revealed[i] && view.types[i] === view.team) {
-            ownRevealed.push(backend.relatedness(view.words[i] as string, clueWord));
+            ownRevealed.push(clueRetrieval(backend, clueWord, view.words[i] as string));
         }
     }
     if (ownRevealed.length < view.guessesUsed) return null;
@@ -163,11 +163,17 @@ export function makeGreedyClicker(
             const choices = unrevealedIndices(view);
             if (choices.length === 0 || !view.currentClue) return { kind: 'endTurn' };
 
-            // Rank unrevealed cards by relatedness to the clue word.
+            // Rank unrevealed cards by how strongly the clue RETRIEVES them:
+            // associative relatedness or phrase completion, whichever is
+            // stronger (clueRetrieval). A human completes "engine ___" before
+            // reasoning about categories, so when the backend carries a
+            // collocation channel the compound reading competes directly —
+            // this is what makes the greedy clicker a faithful stand-in for a
+            // human guesser in misfire-class-D boards.
             const clueWord = view.currentClue.word;
             const scored = choices.map((index) => ({
                 index,
-                score: backend.relatedness(view.words[index] as string, clueWord),
+                score: clueRetrieval(backend, clueWord, view.words[index] as string),
             }));
             let best = scored[0] as { index: number; score: number };
             let second = -Infinity;

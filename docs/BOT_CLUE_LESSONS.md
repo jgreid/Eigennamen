@@ -225,7 +225,7 @@ gate against the *current* board at the moment it is given. When two analyses
 conflict, the assassin-negative verdict wins unconditionally — the loss function
 is asymmetric (failure E).
 
-**2.9 Completion-entropy term. 🔴** Score `P(completion | clue word)` in both
+**2.9 Completion-entropy term. 🟡 (Phase 2 shipped the mechanism: `SemanticBackend.collocation` channel, `clueRetrieval = max(relatedness, collocation)` on both sides of the clue channel — spymaster margins, clicker/advisor ranking, harness yardstick — and `bots:map` v2 emits per-edge collocation; open: collocation data for the baked default-list table)** Score `P(completion | clue word)` in both
 directions ("X box", "gearbox") from a bigram/collocation source and penalize
 clues whose high-probability completions land on non-own board words; reward
 orphan modifiers whose mass concentrates on the target. Would have red-flagged
@@ -319,7 +319,7 @@ by leaking its own remaining targets in table-talk**.
 
 ### Engineering plan, extended (2.14–2.19)
 
-**2.14 Fame-of-fact weighting. 🔴** Extend 2.7: weight association edges by
+**2.14 Fame-of-fact weighting. 🟡 (Phase 2 shipped the channel: per-edge `penetration` in v2 maps → `SemanticBackend.edgeInfo` → `FAME_OF_FACT_WEIGHT` penalty on the weakest-penetration intended edge; open: penetration curation in the `bots:map` prompt and the baked table)** Extend 2.7: weight association edges by
 human penetration of the *fact*, not just corpus strength or word frequency.
 Guesser-side critical (lesson 14); the table backend's advantage, formalized.
 
@@ -338,7 +338,7 @@ score candidates per-sense, and trigger a frame switch when the current frame's
 best fits are uniformly weak (lesson 20). Surfaces in the advisor as "your
 frame may be wrong," the procedural form of the human's ignored alarm.
 
-**2.18 Concreteness prior. 🔴** Boost parts/members/contents edges over
+**2.18 Concreteness prior. 🟡 (Phase 2 shipped the channel: per-edge `kind` in v2 maps → `EDGE_ABSTRACTNESS` gradient scaled by `CONCRETENESS_WEIGHT` in `scoreClue`; open: kinds for the baked table and the Phase-3 proper-contents restructure)** Boost parts/members/contents edges over
 function/attribute/compound edges in `scoreClue` and the clicker (lesson 16
 completes the gradient begun in lessons 7 and 13).
 

@@ -18,6 +18,7 @@
 import type { GameState, Team, GameMode, RevealResult } from '../../types';
 import type { Entrant } from './types';
 import type { SemanticBackend } from '../semantics/backend';
+import { clueRetrieval } from '../semantics/backend';
 
 import { playEngineGame, type GameEvent } from './playGame';
 import { getSemanticBackend } from '../semantics/selectBackend';
@@ -147,8 +148,12 @@ export interface AnalyzeReport {
     diagnostics: ClueDiagnostics[];
 }
 
+// The yardstick grades clues with the same retrieval model the clicker acts
+// on (relatedness OR phrase completion, whichever is stronger) — identical to
+// bare relatedness for backends without a collocation channel, so existing
+// baselines are unaffected.
 function maxRel(words: readonly string[], clue: string, backend: SemanticBackend): number {
-    return words.length > 0 ? Math.max(...words.map((w) => backend.relatedness(clue, w))) : 0;
+    return words.length > 0 ? Math.max(...words.map((w) => clueRetrieval(backend, clue, w))) : 0;
 }
 
 /**
@@ -184,7 +189,7 @@ export function referenceLead(
     g: BoardGroups,
     backend: SemanticBackend
 ): { safeLead: number; clarity: number; assassinArgmax: boolean; dangerNext: boolean; heat: number } {
-    const ownRel = g.own.map((w) => backend.relatedness(word, w)).sort((a, b) => b - a);
+    const ownRel = g.own.map((w) => clueRetrieval(backend, word, w)).sort((a, b) => b - a);
     const maxOpp = maxRel(g.opp, word, backend);
     const maxNeu = maxRel(g.neutral, word, backend);
     const maxAss = maxRel(g.assassin, word, backend);

@@ -93,13 +93,29 @@ For the given batch of board words, produce:
    of reasoning, no niche domain knowledge. Rate each concept's "commonness" in
    (0, 1]: 1 = an everyday word everyone knows, lower = more obscure.
 
+   For EACH linked word give the per-edge channels:
+   - "weight" in (0, 1]: how strongly the clue retrieves THIS word for a typical
+     adult at table speed. 1 = instant and dominant; 0.5 = plausible but takes a
+     beat; below 0.4 = do not include the edge at all.
+   - "kind": how the clue reaches the word — one of "content" (a thing vividly
+     inside the clue's frame), "member" (taxonomic member of the category),
+     "part" (part/whole), "compound" (the two words form a phrase or compound),
+     "function" (what it does / is used for), "attribute" (a quality it has).
+   - "collocation" in (0, 1], OPTIONAL: only when clue+word form a common phrase
+     or compound in either order ("manta ray", "engine box"), rate how frequent
+     the phrase is. Omit when they don't form a phrase. Phrase completion is
+     AUTOMATIC for guessers, so an honest collocation rating on a weak edge is
+     valuable safety data.
+
 2. "references" — proper-noun / pop-culture clues (films, characters, brands,
    places, events, acronyms), each linking 1-4 of the given board words through
    ONE specific vivid thing. Write each reference in its CANONICAL case exactly
    ("Cinderella", "iPhone", "NASA", "McDonald's") — the game preserves clue
    capitalization and mixed case signals "the specific reference, not the common
    sense". Rate "fame" in (0, 1]: 1 = everyone on earth knows it; only include
-   references most casual players would recognize (fame >= 0.5).
+   references most casual players would recognize (fame >= 0.5). For each linked
+   word give "weight" in (0, 1]: among people who KNOW the reference, how
+   reliably it retrieves this word (1 = the first thing they picture).
 
 Hard rules:
 - Every linked word MUST be copied verbatim from the given board words.
@@ -110,6 +126,30 @@ Hard rules:
   uncovered is better than inventing a weak association for it.
 - Concepts in UPPERCASE. References in canonical display case.
 - Language of the board words: ${language}.`;
+
+const EDGE_KINDS = ['content', 'member', 'part', 'compound', 'function', 'attribute'];
+
+const CONCEPT_EDGE_SCHEMA = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['word', 'weight', 'kind'],
+    properties: {
+        word: { type: 'string' },
+        weight: { type: 'number' },
+        kind: { type: 'string', enum: EDGE_KINDS },
+        collocation: { type: 'number' },
+    },
+};
+
+const REFERENCE_EDGE_SCHEMA = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['word', 'weight'],
+    properties: {
+        word: { type: 'string' },
+        weight: { type: 'number' },
+    },
+};
 
 const MAP_SCHEMA = {
     type: 'object',
@@ -124,7 +164,7 @@ const MAP_SCHEMA = {
                 required: ['clue', 'words', 'commonness'],
                 properties: {
                     clue: { type: 'string' },
-                    words: { type: 'array', items: { type: 'string' } },
+                    words: { type: 'array', items: CONCEPT_EDGE_SCHEMA },
                     commonness: { type: 'number' },
                 },
             },
@@ -137,7 +177,7 @@ const MAP_SCHEMA = {
                 required: ['clue', 'words', 'fame'],
                 properties: {
                     clue: { type: 'string' },
-                    words: { type: 'array', items: { type: 'string' } },
+                    words: { type: 'array', items: REFERENCE_EDGE_SCHEMA },
                     fame: { type: 'number' },
                 },
             },
@@ -217,26 +257,55 @@ function usableClue(clue) {
     return c;
 }
 
-const concepts = new Map(); // normalized clue -> Set(list words)
-const proper = new Map(); // display-case clue -> Set(list words)
+const concepts = new Map(); // normalized clue -> Map(list word -> {weight, kind?, collocation?})
+const proper = new Map(); // display-case clue -> Map(list word -> {weight})
 const properByNorm = new Map(); // normalized -> display-case (dedupe across batches)
-const commonness = new Map(); // display/normalized key -> rating
+const properFame = new Map(); // display-case clue -> fame rating
+const commonness = new Map(); // normalized concept key -> rating
 const covered = new Set();
+
+const clampUnit = (v, def) => Math.min(1, Math.max(0.05, Number(v) || def));
+
+/** Merge a duplicate edge across passes/batches: numeric channels take the
+ *  max (order-independent), the kind is kept from the first edge declaring one. */
+function mergeEdgeInto(edges, word, edge) {
+    const existing = edges.get(word);
+    if (!existing) {
+        edges.set(word, edge);
+        return;
+    }
+    existing.weight = Math.max(existing.weight, edge.weight);
+    if (existing.kind === undefined) existing.kind = edge.kind;
+    if (edge.collocation !== undefined) {
+        existing.collocation =
+            existing.collocation === undefined ? edge.collocation : Math.max(existing.collocation, edge.collocation);
+    }
+}
+
+/** Normalize one {word, weight, ...} item; null when the word is off-list. */
+function usableEdge(item, key) {
+    const w = normalize(item?.word ?? '');
+    if (!wordSet.has(w) || w === key) return null;
+    const edge = { word: w, weight: clampUnit(item.weight, 0.8) };
+    if (EDGE_KINDS.includes(item.kind)) edge.kind = item.kind;
+    if (item.collocation !== undefined) edge.collocation = clampUnit(item.collocation, 0.5);
+    return edge;
+}
 
 function absorb(result) {
     for (const item of result.concepts ?? []) {
         const clue = usableClue(item.clue ?? '');
         if (!clue) continue;
         const key = normalize(clue);
-        const targets = (item.words ?? []).map(normalize).filter((w) => wordSet.has(w) && w !== key);
+        const targets = (item.words ?? []).map((e) => usableEdge(e, key)).filter(Boolean);
         if (targets.length === 0) continue;
-        const set = concepts.get(key) ?? new Set();
+        const edges = concepts.get(key) ?? new Map();
         for (const t of targets) {
-            set.add(t);
-            covered.add(t);
+            mergeEdgeInto(edges, t.word, t);
+            covered.add(t.word);
         }
-        concepts.set(key, set);
-        const c = Math.min(1, Math.max(0.05, Number(item.commonness) || 0.8));
+        concepts.set(key, edges);
+        const c = clampUnit(item.commonness, 0.8);
         commonness.set(key, Math.max(commonness.get(key) ?? 0, c));
     }
     for (const item of result.references ?? []) {
@@ -246,16 +315,16 @@ function absorb(result) {
         const key = normalize(clue);
         const display = properByNorm.get(key) ?? clue;
         properByNorm.set(key, display);
-        const targets = (item.words ?? []).map(normalize).filter((w) => wordSet.has(w) && w !== key);
+        const targets = (item.words ?? []).map((e) => usableEdge(e, key)).filter(Boolean);
         if (targets.length === 0) continue;
-        const set = proper.get(display) ?? new Set();
+        const edges = proper.get(display) ?? new Map();
         for (const t of targets) {
-            set.add(t);
-            covered.add(t);
+            mergeEdgeInto(edges, t.word, { word: t.word, weight: t.weight });
+            covered.add(t.word);
         }
-        proper.set(display, set);
-        const f = Math.min(1, Math.max(0.05, Number(item.fame) || 0.8));
-        commonness.set(display, Math.max(commonness.get(display) ?? 0, f));
+        proper.set(display, edges);
+        const f = clampUnit(item.fame, 0.8);
+        properFame.set(display, Math.max(properFame.get(display) ?? 0, f));
     }
 }
 
@@ -281,15 +350,22 @@ async function main() {
         }
     }
 
+    // Emit the v2 document (per-edge weight/kind/collocation channels;
+    // structured proper entries carrying fame) — the format
+    // server/src/bots/semantics/mapBackend.ts validates as version 2.
+    const sortedEdges = (edges) =>
+        [...edges.values()].sort((a, b) => (a.word < b.word ? -1 : a.word > b.word ? 1 : 0));
     const doc = {
-        version: 1,
+        version: 2,
         language,
         wordlist: basename(wordsPath),
         model,
         words,
-        concepts: Object.fromEntries([...concepts.entries()].sort().map(([k, v]) => [k, [...v].sort()])),
+        concepts: Object.fromEntries([...concepts.entries()].sort().map(([k, v]) => [k, sortedEdges(v)])),
         proper: Object.fromEntries(
-            [...proper.entries()].sort().map(([k, v]) => [k, [...v].sort()])
+            [...proper.entries()]
+                .sort()
+                .map(([k, v]) => [k, { contents: sortedEdges(v), fame: properFame.get(k) ?? 0.8 }])
         ),
         commonness: Object.fromEntries([...commonness.entries()].sort()),
     };
