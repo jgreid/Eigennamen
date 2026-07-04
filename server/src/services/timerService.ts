@@ -232,7 +232,14 @@ export async function startTimer(
                 remainingSeconds: durationSeconds,
             };
         },
-        { lockTimeout: 3000, maxRetries: 5 }
+        // The locked callback runs stopTimer() (one TIMEOUTS.TIMER_OPERATION-budgeted
+        // redis.del) followed by its own redis.set, also budgeted at
+        // TIMEOUTS.TIMER_OPERATION — so the lock's own operation timeout
+        // (lockTimeout - 500, see withLock) must cover both sequential calls at
+        // their worst case, or withLock releases the lock and rejects the caller
+        // while the still-running Redis call can commit afterward. See
+        // docs/HARDENING_PLAN.md P0-3.
+        { lockTimeout: TIMEOUTS.TIMER_OPERATION * 2 + 1000, maxRetries: 5 }
     );
 }
 
