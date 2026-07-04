@@ -537,31 +537,43 @@ export async function disconnectRedis(): Promise<void> {
     pubSubHealth.stopPingInterval();
 
     const clients = [redisClient, pubClient, subClient].filter(Boolean) as RedisClientType[];
-    await Promise.all(
-        clients.map(async (client) => {
-            try {
-                if (client.isOpen) {
-                    await client.quit();
-                }
-            } catch {
-                // Force disconnect if quit fails
+    try {
+        await Promise.all(
+            clients.map(async (client) => {
                 try {
-                    client.disconnect();
+                    if (client.isOpen) {
+                        // Same per-call timeout as cleanupPartialConnections — a hung
+                        // quit() must not block stopEmbeddedRedis() from ever running.
+                        await Promise.race([
+                            client.quit(),
+                            new Promise<void>((_, reject) =>
+                                setTimeout(() => reject(new Error('quit timeout')), 3000)
+                            ),
+                        ]);
+                    }
                 } catch {
-                    // Ignore
+                    // Force disconnect if quit fails or times out
+                    try {
+                        client.disconnect();
+                    } catch {
+                        // Ignore
+                    }
                 }
-            }
-        })
-    );
-    redisClient = pubClient = subClient = null;
+            })
+        );
+    } finally {
+        redisClient = pubClient = subClient = null;
 
-    // Stop embedded Redis process if we started one
-    if (embeddedRedisProcess) {
-        await stopEmbeddedRedis();
-        logger.info('Embedded Redis server stopped');
+        // Always stop the embedded Redis child here, even if something above threw —
+        // a spawned (non-detached) redis-server otherwise survives this process's exit
+        // as an orphan.
+        if (embeddedRedisProcess) {
+            await stopEmbeddedRedis();
+            logger.info('Embedded Redis server stopped');
+        }
+
+        logger.info('Redis disconnected');
     }
-
-    logger.info('Redis disconnected');
 }
 
 export function isUsingMemoryMode(): boolean {
