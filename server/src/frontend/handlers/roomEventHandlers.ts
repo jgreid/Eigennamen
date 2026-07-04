@@ -90,6 +90,10 @@ export function registerRoomHandlers(): void {
             // (docs/HARDENING_PLAN.md P1-6) — this must actually reach the
             // player, not just the server log, or the turn flip looks unexplained.
             showToast(t('multiplayer.botStalled', { team: data.team ?? '' }), 'warning');
+        } else if (data.code === 'BOT_SEAT_RECLAIMED') {
+            // A reconnecting human evicted a bot that was standing in on their
+            // seat (docs/HARDENING_PLAN.md P1-7) — surface why the bot vanished.
+            showToast(t('multiplayer.botSeatReclaimed', { team: data.team ?? '' }), 'info');
         }
     });
 

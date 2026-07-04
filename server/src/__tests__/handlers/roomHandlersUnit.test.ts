@@ -9,6 +9,7 @@
 jest.mock('../../services/roomService');
 jest.mock('../../services/gameService');
 jest.mock('../../services/playerService');
+jest.mock('../../services/botService');
 jest.mock('../../utils/logger');
 const { SAFE_ERROR_CODES, createMockRateLimitHandler } = require('../helpers/mocks');
 // Default: the 'room:join:failed' limiter never blocks. Individual tests can
@@ -54,6 +55,7 @@ jest.mock('../../utils/distributedLock', () => ({
 const roomService = require('../../services/roomService');
 const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
+const botService = require('../../services/botService');
 const _logger = require('../../utils/logger');
 const { getSocketFunctions } = require('../../socket/socketFunctionProvider');
 const { clearGameStateCache } = require('../../socket/playerContext');
@@ -112,6 +114,7 @@ describe('Room Handlers', () => {
             roomCode: null,
         });
         playerService.getPlayersInRoom.mockResolvedValue([]);
+        playerService.getTeamMembers.mockResolvedValue([]);
         playerService.getRoomStats.mockResolvedValue({});
         playerService.invalidateRoomReconnectToken.mockResolvedValue();
         playerService.generateReconnectionToken.mockResolvedValue('token-123');
@@ -121,6 +124,7 @@ describe('Room Handlers', () => {
             tokenData: { roomCode: 'test-room', sessionId: 'session-1' },
         });
         playerService.updatePlayer.mockResolvedValue();
+        botService.removeBot.mockResolvedValue();
 
         // Load handlers
         const roomHandlers = require('../../socket/handlers/roomHandlers');
@@ -705,6 +709,82 @@ describe('Room Handlers', () => {
                     code: expect.any(String),
                 })
             );
+        });
+
+        test('evicts a stand-in bot occupying the reconnecting player seat and warns the room', async () => {
+            // A bot took this player's team+role while they were disconnected
+            // (grace window) — reconnecting must reclaim precedence over it.
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                nickname: 'Player1',
+                team: 'red',
+                role: 'spymaster',
+            });
+            playerService.getTeamMembers.mockResolvedValue([
+                {
+                    sessionId: 'bot-1',
+                    nickname: 'StandInBot',
+                    team: 'red',
+                    role: 'spymaster',
+                    isBot: true,
+                    connected: true,
+                },
+            ]);
+
+            await eventHandlers['room:reconnect']({
+                code: 'test-room',
+                reconnectionToken: validToken,
+            });
+
+            expect(botService.removeBot).toHaveBeenCalledWith('test-room', 'bot-1');
+            expect(mockIo.to().emit).toHaveBeenCalledWith(
+                'room:warning',
+                expect.objectContaining({ code: 'BOT_SEAT_RECLAIMED', team: 'red' })
+            );
+        });
+
+        test('does not touch a disconnected bot record, or a bot on a different role', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                nickname: 'Player1',
+                team: 'red',
+                role: 'spymaster',
+            });
+            playerService.getTeamMembers.mockResolvedValue([
+                { sessionId: 'bot-1', nickname: 'Idle', team: 'red', role: 'spymaster', isBot: true, connected: false },
+                {
+                    sessionId: 'bot-2',
+                    nickname: 'OtherRole',
+                    team: 'red',
+                    role: 'clicker',
+                    isBot: true,
+                    connected: true,
+                },
+            ]);
+
+            await eventHandlers['room:reconnect']({
+                code: 'test-room',
+                reconnectionToken: validToken,
+            });
+
+            expect(botService.removeBot).not.toHaveBeenCalled();
+        });
+
+        test('does not attempt eviction for a spectator (no team/role)', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                nickname: 'Player1',
+                team: null,
+                role: null,
+            });
+
+            await eventHandlers['room:reconnect']({
+                code: 'test-room',
+                reconnectionToken: validToken,
+            });
+
+            expect(playerService.getTeamMembers).not.toHaveBeenCalled();
+            expect(botService.removeBot).not.toHaveBeenCalled();
         });
     });
 

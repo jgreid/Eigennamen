@@ -212,6 +212,12 @@ describe('roomWarning', () => {
         expect(showToast).toHaveBeenCalledWith('multiplayer.botStalled', 'warning');
         expect(mockRequestResync).not.toHaveBeenCalled();
     });
+
+    test('shows a toast on BOT_SEAT_RECLAIMED so an evicted stand-in bot is explained', () => {
+        emit('roomWarning', { code: 'BOT_SEAT_RECLAIMED', message: 'A bot was covering your seat', team: 'blue' });
+        expect(showToast).toHaveBeenCalledWith('multiplayer.botSeatReclaimed', 'info');
+        expect(mockRequestResync).not.toHaveBeenCalled();
+    });
 });
 
 describe('disconnected', () => {

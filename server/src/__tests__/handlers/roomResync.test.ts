@@ -99,6 +99,7 @@ describe('Room Resync and Recovery Handlers', () => {
         });
         gameService.getGame.mockResolvedValue(null);
         playerService.getRoomStats.mockResolvedValue({});
+        playerService.getTeamMembers.mockResolvedValue([]);
 
         // Register handlers
         roomHandlers = require('../../socket/handlers/roomHandlers');

@@ -1,3 +1,4 @@
+import type { Server } from 'socket.io';
 import type { Room, Player, GameState, PlayerGameState, Team } from '../../../types';
 import type { GameSocket, RoomContext } from '../types';
 import type { RoomStats } from '../../../services/playerService';
@@ -5,6 +6,7 @@ import type { RoomStats } from '../../../services/playerService';
 import * as roomService from '../../../services/roomService';
 import * as gameService from '../../../services/gameService';
 import * as playerService from '../../../services/playerService';
+import * as botService from '../../../services/botService';
 import { roomReconnectSchema } from '../../../validators/schemas';
 import logger from '../../../utils/logger';
 import { ERROR_CODES, SOCKET_EVENTS, SESSION_SECURITY } from '../../../config/constants';
@@ -12,8 +14,49 @@ import { createRoomHandler, createPreRoomHandler } from '../../contextHandler';
 import { RoomError, PlayerError, ServerError } from '../../../errors/GameError';
 import { withTimeout, TIMEOUTS } from '../../../utils/timeout';
 import { withLock } from '../../../utils/distributedLock';
+import { safeEmitToRoom } from '../../safeEmit';
 import { incrementCounter, METRIC_NAMES } from '../../../utils/metrics';
 import { sendTimerStatus, sendSpymasterViewIfNeeded, computeFallbackStats } from '../roomHandlerUtils';
+
+/** Roles a bot can ever occupy (services/botService.ts's AddBotOptions). */
+const BOT_ELIGIBLE_ROLES = new Set(['spymaster', 'clicker', 'advisor']);
+
+/**
+ * If a connected bot is currently standing in on the reconnecting player's own
+ * team+role, evict it — a human reclaiming their seat takes precedence over a
+ * bot that was only covering it during the disconnect grace window. Mirrors
+ * the existing "host transfer prefers humans" policy (a bot can't run
+ * host-only functions, so a human already wins precedence there). Without
+ * this, addBot's connected-only occupancy check lets a bot take a merely-
+ * disconnected human's seat, and the human reconnecting into the same seat
+ * verbatim would race the bot's reveals. See docs/HARDENING_PLAN.md P1-7.
+ */
+async function evictStandInBotIfAny(io: Server, roomCode: string, player: Player): Promise<void> {
+    if (!player.team || !player.role || !BOT_ELIGIBLE_ROLES.has(player.role)) return;
+
+    const teamMembers = await playerService.getTeamMembers(roomCode, player.team);
+    const standInBot = teamMembers.find(
+        (p) => p.isBot && p.connected && p.role === player.role && p.sessionId !== player.sessionId
+    );
+    if (!standInBot) return;
+
+    try {
+        await botService.removeBot(roomCode, standInBot.sessionId);
+        logger.info(
+            `Evicted stand-in bot ${standInBot.sessionId} (${standInBot.nickname}) from ${roomCode} — ` +
+                `${player.nickname} reconnected to reclaim ${player.team} ${player.role}`
+        );
+        safeEmitToRoom(io, roomCode, SOCKET_EVENTS.ROOM_WARNING, {
+            code: 'BOT_SEAT_RECLAIMED',
+            message: `${player.nickname} reconnected — a bot was covering their seat while they were away`,
+            team: player.team,
+        });
+    } catch (err) {
+        // Non-fatal: the human still reconnects into their seat even if the
+        // stand-in bot couldn't be removed (e.g. it was already gone).
+        logger.warn(`Failed to evict stand-in bot ${standInBot.sessionId} in ${roomCode}: ${(err as Error).message}`);
+    }
+}
 
 interface RoomReconnectInput {
     code: string;
@@ -32,7 +75,7 @@ interface TokenValidation {
     };
 }
 
-export default function roomReconnectionHandlers(_io: unknown, socket: GameSocket): void {
+export default function roomReconnectionHandlers(io: Server, socket: GameSocket): void {
     /**
      * Request a reconnection token
      */
@@ -121,12 +164,18 @@ export default function roomReconnectionHandlers(_io: unknown, socket: GameSocke
                         throw RoomError.notFound(code);
                     }
 
+                    // A bot may have taken this seat while the human was disconnected
+                    // (grace-window). Evict it now so the reconnecting human doesn't
+                    // race a still-acting bot for the same team+role.
+                    await evictStandInBotIfAny(io, code, player);
+                    const freshPlayers = await playerService.getPlayersInRoom(code).catch(() => players);
+
                     let gameState: PlayerGameState | null = null;
                     if (game) {
                         gameState = gameService.getGameStateForPlayer(game, player);
                     }
 
-                    return { room, player, players, game, gameState };
+                    return { room, player, players: freshPlayers, game, gameState };
                 })();
 
                 const { room, player, players, game, gameState } = await withTimeout(

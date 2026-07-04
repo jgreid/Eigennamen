@@ -189,7 +189,8 @@
         "nicknameCharsOnly": "Solo se permiten letras, números, espacios, guiones y guiones bajos",
         "youAreHost": "¡Ahora eres el anfitrión!",
         "newHost": "{{name}} es ahora el anfitrión",
-        "botStalled": "Un bot del equipo {{team}} se quedó bloqueado, así que su turno terminó automáticamente"
+        "botStalled": "Un bot del equipo {{team}} se quedó bloqueado, así que su turno terminó automáticamente",
+        "botSeatReclaimed": "¡Bienvenido de nuevo! Se eliminó un bot que cubría tu puesto en el equipo {{team}}"
     },
     "settings": {
         "title": "Ajustes",
