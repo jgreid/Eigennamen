@@ -546,9 +546,7 @@ export async function disconnectRedis(): Promise<void> {
                         // quit() must not block stopEmbeddedRedis() from ever running.
                         await Promise.race([
                             client.quit(),
-                            new Promise<void>((_, reject) =>
-                                setTimeout(() => reject(new Error('quit timeout')), 3000)
-                            ),
+                            new Promise<void>((_, reject) => setTimeout(() => reject(new Error('quit timeout')), 3000)),
                         ]);
                     }
                 } catch {

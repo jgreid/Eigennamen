@@ -41,29 +41,33 @@ describe('disconnectRedis shutdown ordering (embedded Redis)', () => {
         }
     });
 
-    it('kills the embedded redis-server child even when a client quit() hangs forever', async () => {
-        await connectRedis();
+    it(
+        'kills the embedded redis-server child even when a client quit() hangs forever',
+        async () => {
+            await connectRedis();
 
-        const client = getRedis() as unknown as { options?: { url?: string }; quit: () => Promise<unknown> };
-        const url = client.options?.url ?? '';
-        const port = Number(url.split(':').pop());
-        expect(Number.isInteger(port)).toBe(true);
+            const client = getRedis() as unknown as { options?: { url?: string }; quit: () => Promise<unknown> };
+            const url = client.options?.url ?? '';
+            const port = Number(url.split(':').pop());
+            expect(Number.isInteger(port)).toBe(true);
 
-        expect(await canConnect(port)).toBe(true);
+            expect(await canConnect(port)).toBe(true);
 
-        // Make quit() hang forever — never resolves, never rejects.
-        client.quit = () => new Promise(() => {});
+            // Make quit() hang forever — never resolves, never rejects.
+            client.quit = () => new Promise(() => {});
 
-        const start = Date.now();
-        await disconnectRedis();
-        const elapsedMs = Date.now() - start;
+            const start = Date.now();
+            await disconnectRedis();
+            const elapsedMs = Date.now() - start;
 
-        // The per-client quit() timeout is 3s; disconnectRedis() must not exceed that
-        // by more than a small margin regardless of how many clients hang.
-        expect(elapsedMs).toBeLessThan(6000);
+            // The per-client quit() timeout is 3s; disconnectRedis() must not exceed that
+            // by more than a small margin regardless of how many clients hang.
+            expect(elapsedMs).toBeLessThan(6000);
 
-        // The embedded redis-server child must be gone — proving stopEmbeddedRedis()
-        // ran in the finally block despite the hung quit().
-        expect(await canConnect(port)).toBe(false);
-    }, CONNECT_TIMEOUT_MS);
+            // The embedded redis-server child must be gone — proving stopEmbeddedRedis()
+            // ran in the finally block despite the hung quit().
+            expect(await canConnect(port)).toBe(false);
+        },
+        CONNECT_TIMEOUT_MS
+    );
 });
