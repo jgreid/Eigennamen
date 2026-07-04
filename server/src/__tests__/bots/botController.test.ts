@@ -241,6 +241,32 @@ describe('clue-debt tracker (reconcileClueMemory, Phase 4.3)', () => {
         expect(tracker.clues.red).toEqual([{ word: 'FRUIT', number: 2, taken: 1, bounced: false }]);
     });
 
+    it('evicts the oldest room beyond the tracking cap (leak guard)', () => {
+        // Register a live clue for the first room, then flood the tracker
+        // with more rooms than the cap. The first room's tracker must be
+        // evicted: reconciling it again yields a FRESH tracker (no finalized
+        // entry from the pre-eviction clue) instead of unbounded growth.
+        reconcileClueMemory('EVICT0', {
+            ...base,
+            revealed: [false, false, false, false],
+            currentClue: { team: 'red', word: 'FRUIT', number: 2 },
+        });
+        for (let i = 1; i <= 500; i++) {
+            reconcileClueMemory(`EVICT${i}`, {
+                ...base,
+                revealed: [false, false, false, false],
+                currentClue: null,
+            });
+        }
+        const tracker = reconcileClueMemory('EVICT0', {
+            ...base,
+            revealed: [true, false, false, false],
+            currentClue: null,
+        });
+        expect(tracker.live).toBeNull();
+        expect(tracker.clues.red).toEqual([]);
+    });
+
     it('resets on a new game and stays empty in duet', () => {
         reconcileClueMemory('R3', {
             ...base,

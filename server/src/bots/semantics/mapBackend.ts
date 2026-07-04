@@ -22,7 +22,7 @@
  *
  * Chain order (selectBackend): vectors? → custom maps → baked table → lexical.
  */
-import { readdirSync, readFileSync } from 'fs';
+import { closeSync, fstatSync, openSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import type { EdgeInfo, EdgeKind, SemanticBackend } from './backend';
 import { lexicalBackend } from './backend';
@@ -67,7 +67,10 @@ export interface SemanticMap {
     [extra: string]: unknown;
 }
 
-const EDGE_KINDS: readonly string[] = ['content', 'member', 'part', 'compound', 'function', 'attribute'];
+// Typed against EdgeKind so the validator cannot drift from the type (a kind
+// accepted here but missing from EDGE_ABSTRACTNESS would otherwise reach the
+// scorer; a kind added to EdgeKind but not here just fail-closes validation).
+const EDGE_KINDS: readonly EdgeKind[] = ['content', 'member', 'part', 'compound', 'function', 'attribute'];
 
 /** A channel value: a number in (0, 1]. */
 const inUnit = (v: unknown): boolean => typeof v === 'number' && v > 0 && v <= 1;
@@ -80,7 +83,9 @@ const isWeightedEdge = (e: unknown): boolean => {
     if (d.weight !== undefined && !inUnit(d.weight)) return false;
     if (d.penetration !== undefined && !inUnit(d.penetration)) return false;
     if (d.collocation !== undefined && !inUnit(d.collocation)) return false;
-    if (d.kind !== undefined && !(typeof d.kind === 'string' && EDGE_KINDS.includes(d.kind))) return false;
+    if (d.kind !== undefined && !(typeof d.kind === 'string' && (EDGE_KINDS as readonly string[]).includes(d.kind))) {
+        return false;
+    }
     return true;
 };
 
@@ -134,6 +139,11 @@ export function isSemanticMap(doc: unknown): doc is SemanticMap {
     return true;
 }
 
+/** Hard ceiling on a single map file. Loading is synchronous (startup /
+ *  first decision), so a runaway file must be skipped, not parsed: a real
+ *  map for a full custom list is tens of KB — 20 MB is already absurd. */
+const MAX_MAP_FILE_BYTES = 20 * 1024 * 1024;
+
 /**
  * Load every *.json semantic map in a directory. Invalid documents are logged
  * and skipped — one bad map must never take the bots down. Returns [] when the
@@ -150,7 +160,25 @@ export function loadSemanticMaps(dir: string): SemanticMap[] {
     for (const file of entries.sort()) {
         const path = join(dir, file);
         try {
-            const doc: unknown = JSON.parse(readFileSync(path, 'utf8'));
+            // Open first, then size-check the DESCRIPTOR: a stat on the path
+            // followed by a read of the path would be a check-then-use race
+            // (the file could be swapped between the two) — fstat on the open
+            // fd sizes exactly the inode the read consumes.
+            const fd = openSync(path, 'r');
+            let raw: string;
+            try {
+                const size = fstatSync(fd).size;
+                if (size > MAX_MAP_FILE_BYTES) {
+                    logger.warn(
+                        `Bot semantic map skipped (file too large: ${size} bytes > ${MAX_MAP_FILE_BYTES}): ${path}`
+                    );
+                    continue;
+                }
+                raw = readFileSync(fd, 'utf8');
+            } finally {
+                closeSync(fd);
+            }
+            const doc: unknown = JSON.parse(raw);
             if (isSemanticMap(doc)) {
                 maps.push(doc);
             } else {

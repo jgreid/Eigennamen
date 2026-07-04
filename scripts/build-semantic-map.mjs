@@ -264,7 +264,14 @@ async function generateForBatch(batch, label) {
     }
     const text = response.content.find((b) => b.type === 'text')?.text ?? '{}';
     try {
-        return JSON.parse(text);
+        const parsed = JSON.parse(text);
+        // Parsable-but-not-an-object (a bare null/number/array) must degrade
+        // to an empty batch, not crash the whole (paid) run inside absorb().
+        if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+            console.warn(`  ${label}: non-object output — skipping batch`);
+            return { concepts: [], references: [] };
+        }
+        return parsed;
     } catch {
         console.warn(`  ${label}: unparsable output — skipping batch`);
         return { concepts: [], references: [] };
@@ -287,7 +294,14 @@ const properRivals = new Map(); // display-case clue -> Map(referent -> {fame, c
 const commonness = new Map(); // normalized concept key -> rating
 const covered = new Set();
 
-const clampUnit = (v, def) => Math.min(1, Math.max(0.05, Number(v) || def));
+// The default applies only when the value is MISSING or non-numeric — an
+// explicit 0 is a no-confidence rating and must clamp to the floor, never be
+// promoted to the default (`Number(v) || def` would do exactly that).
+const clampUnit = (v, def) => {
+    const n = Number(v);
+    if (!Number.isFinite(n) || v === undefined || v === null || v === '') return Math.min(1, Math.max(0.05, def));
+    return Math.min(1, Math.max(0.05, n));
+};
 
 /** Merge a duplicate edge across passes/batches: numeric channels take the
  *  max (order-independent), the kind is kept from the first edge declaring one. */

@@ -112,18 +112,39 @@ const CANDIDATES = {
 
 // 3) Filter to real board words, drop near-empty concepts, dedupe. Plain-string
 //    and weighted-edge entries both pass through; only the word is normalized.
+//    Weighted entries are validated (weight/collocation in (0, 1], kind from
+//    the EdgeKind set) so a typo in CANDIDATES fails loudly here instead of
+//    emitting a table the runtime validators would choke on. Words are also
+//    shape-checked before they reach the generated source (defense in depth —
+//    a quote or backslash in a word would otherwise break the emitted TS).
+const EDGE_KINDS = ['content', 'member', 'part', 'compound', 'function', 'attribute'];
+const inUnit = (v) => typeof v === 'number' && v > 0 && v <= 1;
+const SAFE_WORD = /^[A-Z][A-Z ]*$/;
+
+function validateEntry(clue, entry) {
+    const word = (typeof entry === 'string' ? entry : entry.word).toUpperCase();
+    if (!SAFE_WORD.test(word)) throw new Error(`${clue}: unsafe word ${JSON.stringify(word)}`);
+    if (typeof entry === 'string') return word;
+    if (entry.weight !== undefined && !inUnit(entry.weight)) throw new Error(`${clue}/${word}: bad weight`);
+    if (entry.collocation !== undefined && !inUnit(entry.collocation))
+        throw new Error(`${clue}/${word}: bad collocation`);
+    if (entry.kind !== undefined && !EDGE_KINDS.includes(entry.kind)) throw new Error(`${clue}/${word}: bad kind`);
+    return { ...entry, word };
+}
+
 const out = {};
 const dropped = {};
 for (const [clue, words] of Object.entries(CANDIDATES)) {
+    if (!SAFE_WORD.test(clue.toUpperCase())) throw new Error(`unsafe clue key ${JSON.stringify(clue)}`);
     const kept = [];
     const drop = [];
     const seen = new Set();
     for (const entry of words) {
-        const isPlain = typeof entry === 'string';
-        const W = (isPlain ? entry : entry.word).toUpperCase();
+        const validated = validateEntry(clue, entry);
+        const W = typeof validated === 'string' ? validated : validated.word;
         if (seen.has(W)) continue;
         seen.add(W);
-        if (BOARD.has(W)) kept.push(isPlain ? W : { ...entry, word: W });
+        if (BOARD.has(W)) kept.push(validated);
         else drop.push(W);
     }
     if (kept.length >= 2) out[clue] = kept;
