@@ -130,6 +130,18 @@ fix and not after.
 
 ## Phase 3 — Reference-clue safety (rides on Phase 2 data)
 
+> **Shipped.** Weighted `PROPER_ASSOCIATIONS` contents (Thunderball ⊃
+> POOL/CASINO/SHARK, Tinder ⊃ GOLD, GoldenEye, Hooke @ fame 0.35) +
+> `PROPER_RIVALS` (pull = weight × rival fame) + `PROPER_HYPERNYMS`
+> (`HYPERNYM_SCORE` 0.55, exemplar asymmetry) in the table's reference
+> reading; v2 map `rivals` consumed by the overlay; `bots:map` prompt gains
+> the referent-knows-more-than-you sweep and emits rivals. Gates held
+> (`referenceSafety.test.ts`): the Thunderball board rejects the title clue
+> with POOL blue and embraces it at 3 with the contents own; the brand-tier
+> edge caps the number below the tier word (before/after). Open: rival +
+> exhaustive-content curation across the full baked table (see 2.10/2.16
+> markers in the ledger).
+
 **3.1 External referent-content + rival-referent sweep (2.10 + 2.16)**
 *(lessons 10, 19: Aucassin's STAR; Tinder Gold)*
 Restructure `PROPER_ASSOCIATIONS` (`properAssociations.ts:33`) entries into

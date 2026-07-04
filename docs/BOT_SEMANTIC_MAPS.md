@@ -85,7 +85,12 @@ plain string is still a weight-1 edge, so the two styles mix freely:
     "MOTOR": ["ENGINE", { "word": "BOX", "weight": 0.3, "kind": "compound", "collocation": 0.8 }]
   },
   "proper": {
-    "Vader": { "contents": [{ "word": "SABER", "weight": 1 }], "fame": 0.95 }
+    "Vader": { "contents": [{ "word": "SABER", "weight": 1 }], "fame": 0.95 },
+    "Apollo": {
+      "contents": [{ "word": "MOON", "weight": 1 }],
+      "fame": 0.9,
+      "rivals": [{ "referent": "Apollo Creed", "fame": 0.6, "contents": [{ "word": "FIGHTER", "weight": 1 }] }]
+    }
   },
   "commonness": { "MANTA": 0.7 }
 }
@@ -107,6 +112,11 @@ plain string is still a weight-1 edge, so the two styles mix freely:
   `commonnessBias` knob, so cautious personae stick to the household names in
   your map and The Maverick reaches for the deep cuts. A structured proper
   entry's `fame` plays the same role for that reference.
+- `rivals` (Phase 3) lists OTHER referents the same clue word evokes; their
+  contents pull guesses at `weight × rival fame`, so a spymaster sees that
+  "Apollo" reaches FIGHTER through Apollo Creed before promising a number
+  that sends a guesser there. The builder's prompt sweeps for these
+  automatically ("the referent knows more than you").
 - Maps are plain JSON — hand-edit them freely (add an in-joke reference your
   group loves, delete an association that keeps misfiring). The runtime
   validates the shape on load.

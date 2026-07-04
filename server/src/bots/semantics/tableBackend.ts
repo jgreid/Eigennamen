@@ -36,6 +36,8 @@ import { ASSOCIATIONS } from './associations';
 import { buildAssociationIndex, scoreCommonAssociation } from './associationIndex';
 import {
     PROPER_ASSOCIATIONS,
+    PROPER_RIVALS,
+    PROPER_HYPERNYMS,
     PROPER_FAME,
     DEFAULT_PROPER_FAME,
     caseSignal,
@@ -45,13 +47,11 @@ import {
 /** Concept table + inverted membership index (see associationIndex.ts). */
 const INDEX = buildAssociationIndex(ASSOCIATIONS);
 
-/** Normalized proper-reference lookup: key → related board words. */
-const PROPER_TABLE: Map<string, Set<string>> = new Map(
-    Object.entries(PROPER_ASSOCIATIONS).map(([key, words]) => [
-        normalizeClueWord(key),
-        new Set(words.map((w) => normalizeClueWord(w))),
-    ])
-);
+/** Weighted proper-reference index: key → contents with per-edge weights
+ *  (1 for the classic plain entries, curated lower for second-tier pulls like
+ *  Tinder → GOLD). Only the direct-edge lookups are used — references have no
+ *  co-membership semantics. */
+const PROPER_INDEX = buildAssociationIndex(PROPER_ASSOCIATIONS);
 
 /** Normalized key → display-case key ("CINDERELLA" → "Cinderella"): the case
  *  the spymaster must EMIT for the clue to carry the proper-noun signal. */
@@ -64,15 +64,64 @@ const PROPER_FAME_NORM: Map<string, number> = new Map(
     Object.keys(PROPER_ASSOCIATIONS).map((key) => [normalizeClueWord(key), PROPER_FAME[key] ?? DEFAULT_PROPER_FAME])
 );
 
+/** Normalized rival lookup: key → rivals with normalized weighted contents. */
+const RIVAL_TABLE: Map<string, Array<{ fame: number; contents: Map<string, number> }>> = new Map(
+    Object.entries(PROPER_RIVALS).map(([key, rivals]) => [
+        normalizeClueWord(key),
+        rivals.map((r) => ({
+            fame: r.fame,
+            contents: new Map(
+                r.contents.map((t) =>
+                    typeof t === 'string' ? [normalizeClueWord(t), 1] : [normalizeClueWord(t.word), t.weight ?? 1]
+                )
+            ),
+        })),
+    ])
+);
+
+/** Normalized hypernym lookup: key → type-level board words. */
+const HYPERNYM_TABLE: Map<string, Set<string>> = new Map(
+    Object.entries(PROPER_HYPERNYMS).map(([key, words]) => [
+        normalizeClueWord(key),
+        new Set(words.map((w) => normalizeClueWord(w))),
+    ])
+);
+
 /** A proper-noun reference clue that misses still carries SOME orthographic
  *  noise, but dampened — the reference sense excludes the common sense. */
 const PROPER_MISS_DAMP = 0.5;
 
-/** 1 when the pair is a direct proper-reference association, else 0. */
-function properDirect(a: string, b: string): number {
+/** Type-level reading of a reference ("Thunderball" → NOVEL): real but weak —
+ *  below every content match, above the promise floor (exemplar asymmetry,
+ *  ledger lesson 7). */
+const HYPERNYM_SCORE = 0.55;
+
+/**
+ * Best reading of `other` under a KNOWN reference key (both normalized):
+ * a content edge at its curated weight, the type-level hypernym, or a rival
+ * referent's content pull scaled by the rival's fame — "Apollo" reaches
+ * FIGHTER through Apollo Creed for every guesser who lands on the rival
+ * first, and the spymaster's margin machinery must see that pull (ledger
+ * lessons 7/10/19). Returns 0 when the reference says nothing about `other`.
+ */
+function knownReferenceReading(refKey: string, other: string): number {
+    let best = PROPER_INDEX.table.get(refKey)?.get(other)?.weight ?? 0;
+    if (HYPERNYM_TABLE.get(refKey)?.has(other)) best = Math.max(best, HYPERNYM_SCORE);
+    for (const rival of RIVAL_TABLE.get(refKey) ?? []) {
+        const w = rival.contents.get(other);
+        if (w !== undefined) best = Math.max(best, w * rival.fame);
+    }
+    return best;
+}
+
+/** Best proper reading of a pair with either side as the reference key. */
+function properReading(a: string, b: string): number {
     const A = normalizeClueWord(a);
     const B = normalizeClueWord(b);
-    return PROPER_TABLE.get(A)?.has(B) || PROPER_TABLE.get(B)?.has(A) ? 1 : 0;
+    let best = 0;
+    if (PROPER_INDEX.table.has(A)) best = knownReferenceReading(A, B);
+    if (PROPER_INDEX.table.has(B)) best = Math.max(best, knownReferenceReading(B, A));
+    return best;
 }
 
 /** The common-sense reading: concept table → co-membership → lexical floor. */
@@ -98,11 +147,14 @@ export const tableBackend: SemanticBackend = {
         if (aSig === 'proper' || bSig === 'proper') {
             const reference = aSig === 'proper' ? a : b;
             const other = aSig === 'proper' ? b : a;
-            const entry = PROPER_TABLE.get(normalizeClueWord(reference));
-            if (entry) {
-                // "Alien" means the film, NOT anything foreign: associated words
-                // score full, everything else drops to dampened lexical noise.
-                if (entry.has(normalizeClueWord(other))) return 1;
+            const refKey = normalizeClueWord(reference);
+            if (PROPER_INDEX.table.has(refKey)) {
+                // "Alien" means the film, NOT anything foreign: contents score
+                // their curated weight, type-level hypernyms and rival-referent
+                // pulls their graded reading, everything else drops to dampened
+                // lexical noise.
+                const reading = knownReferenceReading(refKey, normalizeClueWord(other));
+                if (reading > 0) return reading;
                 return lexicalBackend.relatedness(a, b) * PROPER_MISS_DAMP;
             }
             // A reference this table doesn't know: read it like any other word
@@ -110,7 +162,7 @@ export const tableBackend: SemanticBackend = {
             return commonRelatedness(a, b);
         }
         // No signal (legacy ALL-CAPS): the best of both readings.
-        return Math.max(commonRelatedness(a, b), properDirect(a, b));
+        return Math.max(commonRelatedness(a, b), properReading(a, b));
     },
     vocabulary(): string[] {
         // Common concept keys plus display-cased proper references — emitting a

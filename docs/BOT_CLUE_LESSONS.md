@@ -232,7 +232,7 @@ orphan modifiers whose mass concentrates on the target. Would have red-flagged
 ENGINE and FOSSIL and green-lit manta (lessons 13, failures D/E). Natural home:
 the semantics backend, beside `commonness()`.
 
-**2.10 Referent-ambiguity sweep. 🔴** Reference entries in
+**2.10 Referent-ambiguity sweep. 🟡 (Phase 3 shipped the mechanism: `PROPER_RIVALS` — rival referents whose weighted contents pull at weight × rival fame through the table's reference reading, mirrored in v2 map `rivals` and emitted by the `bots:map` sweep; open: rival curation across the full baked table)** Reference entries in
 `properAssociations` / semantic maps should store **rival referents** per clue
 word and *exhaustive* content lists per referent (Thunderball ⊃ pool, casino,
 shark…), so a title-clue collides with its own board-resident contents — and
@@ -249,7 +249,7 @@ downgrade the whole frame's bonus-guess EV rather than just the burned word
 (lesson 9). This is the cross-turn adaptivity the blind guesser showed
 naturally.
 
-**2.13 Hypernym candidates for unknown references. 🔴** Guesser-side: an
+**2.13 Hypernym candidates for unknown references. 🟢 (Phase 3: `PROPER_HYPERNYMS` type-level readings at `HYPERNYM_SCORE` 0.55 — below every content match, above the promise floor; the clicker reaches NOVEL from "Thunderball" without knowing the plot)** Guesser-side: an
 unrecognized proper-noun clue should generate type-membership candidates
 (hypernyms: "is a novel", "is a Bond title") *below* content candidates —
 robustness against human exemplar clues (lesson 7).
@@ -328,7 +328,7 @@ count of targets clearing the guesser-visible strength bar; endgame stragglers
 get deferred or singled, never folded into an inflated N (lesson 18 — would
 have blocked both `Tinder 3`→GOLD and round 2's whole-hand `ENGINE 2`→BOX).
 
-**2.16 External referent-content sweep. 🔴** Reference clues validate against
+**2.16 External referent-content sweep. 🟡 (Phase 3: the `bots:map` prompt now mandates the "referent knows more than you" sweep — exhaustive contents incl. scenes and brand tiers, plus rivals; the ledger's live cases are curated in the baked table (Thunderball ⊃ POOL/CASINO/SHARK, Tinder ⊃ GOLD, GoldenEye, Hooke @ fame 0.35); open: the exhaustive sweep across all ~95 baked references)** Reference clues validate against
 externally curated content lists (the `bots:map` LLM pipeline), including
 product/brand tiers and rival referents (merges with 2.10) — never against the
 cluer's internal knowledge alone (lesson 19).

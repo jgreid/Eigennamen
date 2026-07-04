@@ -190,6 +190,11 @@ export function makeCustomMapBackend(maps: SemanticMap[], fallback: SemanticBack
     const properDisplay = new Map<string, string>();
     const conceptCommonness = new Map<string, number>();
     const properCommonness = new Map<string, number>();
+    // Rival referents per reference key (Phase 3): normalized weighted
+    // contents whose pull is scaled by the rival's fame — same reading rule as
+    // the baked table's PROPER_RIVALS.
+    const mapRivals = new Map<string, Array<{ fame: number; contents: Map<string, number> }>>();
+    const DEFAULT_RIVAL_FAME = 0.5;
 
     for (const map of maps) {
         for (const [key, edges] of Object.entries(map.concepts)) {
@@ -200,8 +205,24 @@ export function makeCustomMapBackend(maps: SemanticMap[], fallback: SemanticBack
             const k = normalizeClueWord(key);
             mergedProper[k] = [...(mergedProper[k] ?? []), ...referenceContents(entry)];
             properDisplay.set(k, key);
-            if (!Array.isArray(entry) && entry.fame !== undefined) {
-                properCommonness.set(k, entry.fame);
+            if (!Array.isArray(entry)) {
+                if (entry.fame !== undefined) properCommonness.set(k, entry.fame);
+                if (entry.rivals && entry.rivals.length > 0) {
+                    const list = mapRivals.get(k) ?? [];
+                    for (const r of entry.rivals) {
+                        list.push({
+                            fame: r.fame ?? DEFAULT_RIVAL_FAME,
+                            contents: new Map(
+                                r.contents.map((e) =>
+                                    typeof e === 'string'
+                                        ? [normalizeClueWord(e), 1]
+                                        : [normalizeClueWord(e.word), e.weight ?? 1]
+                                )
+                            ),
+                        });
+                    }
+                    mapRivals.set(k, list);
+                }
             }
         }
         for (const [key, value] of Object.entries(map.commonness ?? {})) {
@@ -230,6 +251,32 @@ export function makeCustomMapBackend(maps: SemanticMap[], fallback: SemanticBack
     /** Strongest direct proper edge for the pair (either side the reference). */
     const properEdge = (a: string, b: string): EdgeMeta | null => directEdgeMeta(properIndex, a, b);
 
+    /** A rival referent's content pull for `other` under `refKey`, scaled by
+     *  the rival's fame (0 when no rival reaches it). */
+    const rivalPull = (refKey: string, other: string): number => {
+        let best = 0;
+        for (const rival of mapRivals.get(refKey) ?? []) {
+            const w = rival.contents.get(other);
+            if (w !== undefined && w * rival.fame > best) best = w * rival.fame;
+        }
+        return best;
+    };
+
+    /** Best proper reading of a pair — direct edge or rival pull, with either
+     *  side as the reference key (used by the signal-less neutral branch). */
+    const properReading = (a: string, b: string): number => {
+        const A = normalizeClueWord(a);
+        const B = normalizeClueWord(b);
+        let best = 0;
+        if (properIndex.table.has(A)) {
+            best = Math.max(properIndex.table.get(A)?.get(B)?.weight ?? 0, rivalPull(A, B));
+        }
+        if (properIndex.table.has(B)) {
+            best = Math.max(best, properIndex.table.get(B)?.get(A)?.weight ?? 0, rivalPull(B, A));
+        }
+        return best;
+    };
+
     return {
         id: 'custom-map',
         relatedness(a: string, b: string): number {
@@ -247,14 +294,18 @@ export function makeCustomMapBackend(maps: SemanticMap[], fallback: SemanticBack
             }
             if (aSig === 'proper' || bSig === 'proper') {
                 const reference = aSig === 'proper' ? a : b;
-                const entry = properIndex.table.get(normalizeClueWord(reference));
+                const refKey = normalizeClueWord(reference);
+                const entry = properIndex.table.get(refKey);
                 if (entry) {
                     // This overlay KNOWS the reference: authoritative, same
                     // exclusion rule as the baked table. A weighted edge scores
-                    // its curated weight (1 for a v1 edge).
-                    const other = aSig === 'proper' ? b : a;
-                    const edge = entry.get(normalizeClueWord(other));
+                    // its curated weight (1 for a v1 edge); a rival referent's
+                    // content pulls at weight × rival fame.
+                    const other = normalizeClueWord(aSig === 'proper' ? b : a);
+                    const edge = entry.get(other);
                     if (edge) return edge.weight;
+                    const rival = rivalPull(refKey, other);
+                    if (rival > 0) return rival;
                     return lexicalBackend.relatedness(a, b) * PROPER_MISS_DAMP;
                 }
                 // Unknown here — the baked proper table may know it.
@@ -262,7 +313,7 @@ export function makeCustomMapBackend(maps: SemanticMap[], fallback: SemanticBack
             }
             // Neutral: best reading across this overlay and the fallback chain.
             const common = scoreCommonAssociation(index, a, b);
-            return Math.max(common ?? 0, properEdge(a, b)?.weight ?? 0, fallback.relatedness(a, b));
+            return Math.max(common ?? 0, properReading(a, b), fallback.relatedness(a, b));
         },
         vocabulary(): string[] {
             // Map concepts + display-cased references first (they cover the

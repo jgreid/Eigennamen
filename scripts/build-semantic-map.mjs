@@ -117,6 +117,16 @@ For the given batch of board words, produce:
    word give "weight" in (0, 1]: among people who KNOW the reference, how
    reliably it retrieves this word (1 = the first thing they picture).
 
+   THE REFERENT KNOWS MORE THAN YOU: sweep each reference's contents from
+   external knowledge, never just the link you had in mind. List EVERY given
+   board word the reference genuinely evokes — famous scenes, characters,
+   props, product/brand tiers ("Tinder Gold"), locations — even at low weight;
+   a spymaster must see that "Thunderball" lights up POOL and CASINO before
+   promising a number that sends a guesser there. Also list "rivals": OTHER
+   referents the same clue word evokes (Apollo the program vs Apollo Creed),
+   each with its own fame and the given board words ITS contents reach —
+   guessers who resolve the word to the rival will chase those.
+
 Hard rules:
 - Every linked word MUST be copied verbatim from the given board words.
 - A clue must be a SINGLE word (no spaces) and must NOT be one of the board words,
@@ -151,6 +161,17 @@ const REFERENCE_EDGE_SCHEMA = {
     },
 };
 
+const RIVAL_SCHEMA = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['referent', 'fame', 'words'],
+    properties: {
+        referent: { type: 'string' },
+        fame: { type: 'number' },
+        words: { type: 'array', items: REFERENCE_EDGE_SCHEMA },
+    },
+};
+
 const MAP_SCHEMA = {
     type: 'object',
     additionalProperties: false,
@@ -179,6 +200,7 @@ const MAP_SCHEMA = {
                     clue: { type: 'string' },
                     words: { type: 'array', items: REFERENCE_EDGE_SCHEMA },
                     fame: { type: 'number' },
+                    rivals: { type: 'array', items: RIVAL_SCHEMA },
                 },
             },
         },
@@ -261,6 +283,7 @@ const concepts = new Map(); // normalized clue -> Map(list word -> {weight, kind
 const proper = new Map(); // display-case clue -> Map(list word -> {weight})
 const properByNorm = new Map(); // normalized -> display-case (dedupe across batches)
 const properFame = new Map(); // display-case clue -> fame rating
+const properRivals = new Map(); // display-case clue -> Map(referent -> {fame, contents Map})
 const commonness = new Map(); // normalized concept key -> rating
 const covered = new Set();
 
@@ -325,6 +348,21 @@ function absorb(result) {
         proper.set(display, edges);
         const f = clampUnit(item.fame, 0.8);
         properFame.set(display, Math.max(properFame.get(display) ?? 0, f));
+        // Rival referents ("the referent knows more than you" sweep): keep the
+        // ones whose contents actually land on the list. Rival contents do NOT
+        // mark words covered — a rival pull is a hazard edge, not coverage.
+        for (const rival of item.rivals ?? []) {
+            const name = String(rival?.referent ?? '').trim();
+            if (!name) continue;
+            const contents = (rival.words ?? []).map((e) => usableEdge(e, key)).filter(Boolean);
+            if (contents.length === 0) continue;
+            const rivals = properRivals.get(display) ?? new Map();
+            const existing = rivals.get(name) ?? { fame: 0, contents: new Map() };
+            existing.fame = Math.max(existing.fame, clampUnit(rival.fame, 0.5));
+            for (const c of contents) mergeEdgeInto(existing.contents, c.word, { word: c.word, weight: c.weight });
+            rivals.set(name, existing);
+            properRivals.set(display, rivals);
+        }
     }
 }
 
@@ -355,6 +393,16 @@ async function main() {
     // server/src/bots/semantics/mapBackend.ts validates as version 2.
     const sortedEdges = (edges) =>
         [...edges.values()].sort((a, b) => (a.word < b.word ? -1 : a.word > b.word ? 1 : 0));
+    const referenceEntry = (k, edges) => {
+        const entry = { contents: sortedEdges(edges), fame: properFame.get(k) ?? 0.8 };
+        const rivals = properRivals.get(k);
+        if (rivals && rivals.size > 0) {
+            entry.rivals = [...rivals.entries()]
+                .sort()
+                .map(([referent, r]) => ({ referent, fame: r.fame, contents: sortedEdges(r.contents) }));
+        }
+        return entry;
+    };
     const doc = {
         version: 2,
         language,
@@ -362,11 +410,7 @@ async function main() {
         model,
         words,
         concepts: Object.fromEntries([...concepts.entries()].sort().map(([k, v]) => [k, sortedEdges(v)])),
-        proper: Object.fromEntries(
-            [...proper.entries()]
-                .sort()
-                .map(([k, v]) => [k, { contents: sortedEdges(v), fame: properFame.get(k) ?? 0.8 }])
-        ),
+        proper: Object.fromEntries([...proper.entries()].sort().map(([k, v]) => [k, referenceEntry(k, v)])),
         commonness: Object.fromEntries([...commonness.entries()].sort()),
     };
 
