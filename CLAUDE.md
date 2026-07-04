@@ -594,16 +594,17 @@ Run `npm run format` to auto-format, `npm run format:check` to verify.
 
 ## Known Issues (Tracked)
 
-A July 2026 codebase-wide hardening review found a small number of real defects. The full remediation plan — root cause, concrete fix, files touched, tests, sequencing — lives in **[docs/HARDENING_PLAN.md](docs/HARDENING_PLAN.md)**. None of the code fixes below have shipped yet; check that document for current status before assuming any of these are resolved.
+A July 2026 codebase-wide hardening review found a small number of real defects. The full remediation plan — root cause, concrete fix, files touched, tests, sequencing — lives in **[docs/HARDENING_PLAN.md](docs/HARDENING_PLAN.md)**. Phase 0 (the most severe findings) has shipped; check that document for current status on everything else before assuming it's resolved.
 
-The four most severe, all reachable today in the default single-instance deployment:
+Fixed (Phase 0 — see HARDENING_PLAN.md for what changed and why):
 
-- **A spymaster can switch to `clicker` mid-game and act on the board they've already seen** — `canChangeTeamOrRole` (`socket/playerContext.ts`) blocks the analogous team-change and observer cases but not this one. See HARDENING_PLAN.md P0-1 before touching role-change logic.
-- **`game:reveal` doesn't require an active clue** — a turn's initial `guessesAllowed: 0` is ambiguously overloaded with the real "unlimited guesses" sentinel a clue-number-0 produces, so a client can reveal cards before ever giving a clue. See P0-2 before touching `revealCard.lua` or the guess-count logic.
-- **`withLock`'s internal timeout can be shorter than the operation it guards** — the lock releases and the caller is told "failed" while the wrapped write is still in flight and lands afterward. See P0-3 before adding a new `withLock` call site; always size `lockTimeout` to exceed the slowest realistic inner operation.
-- **Disconnect and reconnect can race on a player's `connected` flag** with nothing serializing the two writes, occasionally causing the scheduled cleanup sweep to evict an actively-reconnected player. See P0-4 before touching `services/player/cleanup.ts` or the reconnect handler.
+- ~~A spymaster could switch to `clicker` mid-game and act on the board they'd already seen~~ — `canChangeTeamOrRole` (`socket/playerContext.ts`) now locks a spymaster out of every role change while a game is active, the same way the observer case already was. (P0-1)
+- ~~`game:reveal` didn't require an active clue~~ — both `revealCard.lua` and the socket handler now reject a reveal with no `currentClue` set, distinct from the `guessesAllowed=0`-means-unlimited sentinel. (P0-2)
+- ~~`withLock`'s internal timeout could be shorter than the operation it guards~~ — `timerService.startTimer`'s lock budget is now derived from `TIMEOUTS.TIMER_OPERATION`; `withLock` also logs a diagnostic if this class of race ever fires again. Still size every `lockTimeout` to exceed the slowest realistic inner operation when adding a new `withLock` call site. (P0-3)
+- ~~Disconnect and reconnect could race on a player's `connected` flag~~ — both now serialize through the `player-mutation:<sessionId>` lock, with socket ownership re-checked inside it right before the write. (P0-4)
+- ~~Advisor-bot suggestions broadcast to the whole room~~ — now scoped to the acting team's own members via `safeEmitToPlayers`. (P0-5)
 
-Known scaling-readiness gap: several pieces of per-room/per-IP coordination state (socket-level rate limiting, the bot controller's in-flight guard, turn-timer pause/resume/stop) live in a plain in-process `Map`, not Redis — correct only for a single instance. This is fine for the current deployment (`fly.toml` deliberately keeps exactly one machine) but must be closed before running more than one instance behind a load balancer. See HARDENING_PLAN.md Phase 2.
+Known scaling-readiness gap (Phase 2, not yet started): several pieces of per-room/per-IP coordination state (socket-level rate limiting, the bot controller's in-flight guard, turn-timer pause/resume/stop) live in a plain in-process `Map`, not Redis — correct only for a single instance. This is fine for the current deployment (`fly.toml` deliberately keeps exactly one machine) but must be closed before running more than one instance behind a load balancer. See HARDENING_PLAN.md Phase 2.
 
 ## Key Services
 

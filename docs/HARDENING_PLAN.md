@@ -2,7 +2,7 @@
 
 This is the tracked remediation plan for the codebase-wide hardening review conducted in July 2026. It covers every confirmed finding from that review — game-integrity exploits, concurrency races, scaling-readiness gaps, and quality/documentation drift — with a concrete fix, the files it touches, the tests it needs, and how it sequences against the other items.
 
-**Status of this document:** planning only. Nothing in Phases 0–2 has been implemented yet; only the documentation fixes in [Phase 3 / Doc hygiene](#doc-hygiene-done-this-pass) have landed so far. Treat each item's checkbox as the source of truth for what's actually shipped — update it in the same PR that closes the item.
+**Status of this document:** Phase 0 (all 5 items) has shipped, with regression tests, and the full suite (167 suites / 4181 tests), lint, and typecheck all pass. Phases 1–2 are still planning only. The documentation fixes in [Phase 3 / Doc hygiene](#doc-hygiene-done-this-pass) landed earlier. Treat each item's status marker as the source of truth for what's actually shipped — update it in the same PR that closes the item.
 
 **How the review was conducted:** eight independent passes (game integrity, concurrency, auth/input validation, backend resilience, the bot subsystem, frontend/i18n/accessibility, testing/CI-CD/code quality, and feature discovery) read the source directly, and the two most severe claims (P0-1, P0-2) were independently re-derived by reading `playerContext.ts`, `setRole.lua`, `revealCard.lua`, and the reveal socket handler a second time before being accepted. Baseline at review time: `npm audit` 0 vulnerabilities, lint/typecheck clean, 4,167/4,167 tests passing across 167 suites.
 
@@ -20,11 +20,11 @@ Phases are ordered by how soon the gap can bite, not by which review dimension s
 
 ---
 
-## Phase 0 — Stop the exploitable gameplay bugs (this week)
+## Phase 0 — Stop the exploitable gameplay bugs (this week) — ✅ Shipped
 
-Every item here is reachable today, in the default single-instance deployment, with no timing race required for P0-1/P0-2 and only an ordinary reconnect-timing window for P0-4. These should each ship as their own small PR given the severity — don't bundle them with unrelated work.
+Every item here is reachable today, in the default single-instance deployment, with no timing race required for P0-1/P0-2 and only an ordinary reconnect-timing window for P0-4. All 5 items below have shipped in one PR (with commit-level separation between items) rather than five separate PRs, since this session's workflow is constrained to a single designated branch — each commit is independently revertable if needed.
 
-### P0-1 — Block the spymaster → clicker role swap
+### P0-1 — Block the spymaster → clicker role swap — ✅ Shipped
 
 **Severity:** Critical · **Area:** Game integrity
 
@@ -42,9 +42,11 @@ Every item here is reachable today, in the default single-instance deployment, w
 
 **Risk:** Low — this narrows an existing permission check; it can only make previously-illegal actions rejected, so there's no way for it to newly allow something.
 
+**Shipped as:** broadened during implementation — a spymaster is now blocked from leaving the role *at all* while a game is active (`targetRole !== 'spymaster'`, not just `=== 'clicker'`), mirroring the observer lockout exactly, because the narrower fix left a `spymaster → spectator → clicker` laundering path open (the same class of hole the observer guard exists to close). Shipped error code is `SPYMASTER_CANNOT_CHANGE_ROLE` (analogous naming to the existing `SPYMASTER_CANNOT_CHANGE_TEAM`), not `SPYMASTER_CANNOT_BECOME_CLICKER`. Also fixed a latent bug found while wiring this up: `playerRoleHandlers.ts`'s `PLAYER_SET_ROLE`/`PLAYER_SET_TEAM_ROLE` handlers were discarding `canChangeTeamOrRole`'s returned `code` and always throwing the generic `CANNOT_CHANGE_ROLE_DURING_TURN` — fixed to match the `PLAYER_SET_TEAM` handler's existing pattern of using the specific code when present.
+
 ---
 
-### P0-2 — Require an active clue before a reveal is accepted
+### P0-2 — Require an active clue before a reveal is accepted — ✅ Shipped
 
 **Severity:** Critical · **Area:** Game integrity
 
@@ -64,9 +66,11 @@ Every item here is reachable today, in the default single-instance deployment, w
 
 **Risk:** Low, but this is exactly the kind of fix that most needs the real-Redis Lua test harness (P1-9) rather than a mocked `evalSha` — see the sequencing note at the end of this phase.
 
+**Shipped as:** also restored `services/game/revealEngine.ts`'s `validateRevealPreconditions` — a second, previously-*dead* precondition check (unused by any live code path, only exercised by its own unit test, whose test name literally said "clue tracking removed") that would otherwise have sat there silently contradicting this fix. Touched test files: `__tests__/services/gameServiceExtended.test.ts`, `__tests__/scripts/luaScriptLogic.test.ts` (new Lua source-contract case), `__tests__/handlers/gameHandlers.test.ts`, `__tests__/handlers/gameHandlersExtended.test.ts`. Also discovered and fixed that the bot self-play engine (`bots/engine.ts`, shared by the training/analysis harness) and its tests (`__tests__/bots/engine.test.ts`) never modeled the clue-then-reveal sequence at all — fixed to call `applyEngineClue` before every reveal, same as the real game. The standalone `npm run bots:parity` script (`bots/harness/parity.ts`, not part of `npm test`) was fixed the same way for consistency, though it wasn't part of the blocking test run.
+
 ---
 
-### P0-3 — Fix lock-timeout budgets shorter than the operation they guard
+### P0-3 — Fix lock-timeout budgets shorter than the operation they guard — ✅ Shipped
 
 **Severity:** Critical · **Area:** Concurrency
 
@@ -86,9 +90,11 @@ Every item here is reachable today, in the default single-instance deployment, w
 
 **Risk:** Widening a lock's timeout window means a genuinely stuck operation holds the lock longer before another caller can retry — acceptable, since the alternative (releasing early) is the actual bug.
 
+**Shipped as:** `timerService.startTimer`'s `lockTimeout` is now `TIMEOUTS.TIMER_OPERATION * 2 + 1000` (derived from the config constant, not a hardcoded number) — the `* 2` covers `stopTimer`'s inner `redis.del` plus `startTimer`'s own `redis.set`, both budgeted at `TIMEOUTS.TIMER_OPERATION`, so it stays correct if that env var is ever reconfigured. The diagnostic isn't a static "`operationTimeout < 1000ms`" check as originally sketched — `MIN_LOCK_TIMEOUT`'s existing floor means that condition can structurally never fire. Instead, `withLock` now catches the specific `OPERATION_TIMEOUT` error and logs a `logger.warn` naming the lock key and both timeout values *only when the hazard actually happens* — a more useful, always-correct signal.
+
 ---
 
-### P0-4 — Serialize the disconnect and reconnect writes to a player's `connected` flag
+### P0-4 — Serialize the disconnect and reconnect writes to a player's `connected` flag — ✅ Shipped
 
 **Severity:** Critical · **Area:** Concurrency
 
@@ -108,9 +114,11 @@ Every item here is reachable today, in the default single-instance deployment, w
 
 **Risk:** Low — this only adds serialization around two writes that were already individually atomic; no behavior changes for the non-racing case.
 
+**Shipped as:** `handleDisconnect` (`services/player/cleanup.ts`) now takes an optional `expectedSocketId` param and returns `null` when the write was skipped as stale (instead of a new `cleanup.test.ts` file, tests landed in the existing `__tests__/services/playerService.test.ts`, which already covers this barrel-re-exported function). `disconnectHandler.ts` was extended beyond the original scope: it now actually *uses* `handleDisconnect`'s return value and bails out of every remaining disconnect side effect (room broadcast, host transfer) when stale — previously it ignored the return value entirely, so even a race-proof write alone wouldn't have stopped the disconnect handler from wrongly announcing a still-connected player as disconnected and transferring host away from them. Test files touched: `__tests__/services/playerService.test.ts` (new race-scenario cases), `__tests__/handlers/disconnectHandler.test.ts` (default mock had to change from resolving `undefined` to a truthy player, since the new bail-out logic treats a falsy return as "stale"), `__tests__/handlers/roomHandlersUnit.test.ts` and `__tests__/handlers/roomResync.test.ts` (added a `distributedLock` mock, since `room:reconnect` touches it for the first time; also added a lock-key assertion).
+
 ---
 
-### P0-5 — Scope advisor-bot suggestions to the acting team only
+### P0-5 — Scope advisor-bot suggestions to the acting team only — ✅ Shipped
 
 **Severity:** Medium (bundled into Phase 0 because it's a one-line, zero-risk fix touching the same information-leakage class as P0-1) · **Area:** Game integrity
 
@@ -123,6 +131,8 @@ Every item here is reachable today, in the default single-instance deployment, w
 **Tests:** Assert the emission's recipient list excludes the opposing team's session IDs and any spectators.
 
 **Risk:** None — this only narrows an existing broadcast's audience.
+
+**Shipped as:** used `safeEmitToPlayers(io, members, ...)` — `members` was already the acting team's own roster (`playerService.getTeamMembers(roomCode, team)`, fetched earlier in `tickRoom` for an unrelated reason), so no new lookup was needed; the bug was purely in the emission function choice (`safeEmitToRoom`, room-wide), not in what data was available. Test in `__tests__/bots/botController.test.ts` asserts the exact `members` array was passed as the target and that `safeEmitToRoom` was never called with this event.
 
 ---
 
@@ -511,36 +521,36 @@ These were pure documentation corrections — no code behavior changed. Listed h
 
 ## Cross-reference: finding → phase
 
-| Finding | Severity | Phase | ID |
-|---|---|---|---|
-| Spymaster can switch to clicker mid-game | Critical | 0 | P0-1 |
-| Reveal accepted with no active clue | Critical | 0 | P0-2 |
-| Lock timeout shorter than wrapped operation | Critical | 0 | P0-3 |
-| Disconnect/reconnect race on `connected` flag | Critical | 0 | P0-4 |
-| Advisor suggestions broadcast room-wide | Medium | 0 | P0-5 |
-| `trust proxy` gated on `NODE_ENV` alone | High | 1 | P1-1 |
-| Redis reconnect has no self-heal; `/health/live` is a no-op | High | 1 | P1-2 |
-| Embedded Redis can be orphaned on shutdown | High | 1 | P1-3 |
-| Match abandon keeps banked score | Medium-High | 1 | P1-4 |
-| No rate limit on abandon/clearHistory; dead anti-enum limiter | Medium | 1 | P1-5 |
-| Stalled bot freezes the game after 6 retries | High | 1 | P1-6 |
-| Bot can occupy a seat a reconnecting human still owns | High | 1 | P1-7 |
-| Bot-originated clues skip length/format/number bounds | Medium-High | 1 | P1-8 |
-| Lua scripts untested in blocking CI | High | 1 | P1-9 |
-| `errorHandler` known-error branch skips redaction | Medium | 1 | P1-10 |
-| Neutral-card / Settings-modal i18n keys; Duet advisor bug | Medium/Low | 1 | P1-11 |
-| Unsafe unused `escapeHTML()` | Medium | 1 | P1-12 |
-| No E2E for spectator/bot/match-round flows | High | 1 | P1-13 |
-| Socket rate limiting is per-instance in-memory | High | 2 | P2-1 |
-| Turn timer pause/resume/stop wrong across instances | High | 2 | P2-2 |
-| Bot controller + connection tracker state per-instance | High | 2 | P2-3 |
-| Lua scripts incompatible with Redis Cluster | Medium | 2 | P2-4 |
-| `fly.toml` autoscaler could silently violate single-machine rule | Medium | 2 | P2-5 |
-| `gameService.ts` undecomposed | Low | 3 | P3-1 |
-| `updatePlayer.lua` has no field allowlist | Low | 3 | P3-2 |
-| `release.yml` excess permission | Low | 3 | P3-3 |
-| Dependency upkeep | Low | 3 | P3-4 |
-| CLAUDE.md/.env.example/SECURITY.md/DEPLOYMENT.md/fly.toml/BACKUP_AND_DR.md/TESTING_GUIDE.md drift | Low | — | Doc hygiene |
+| Finding | Severity | Phase | ID | Status |
+|---|---|---|---|---|
+| Spymaster can switch to clicker mid-game | Critical | 0 | P0-1 | ✅ Shipped |
+| Reveal accepted with no active clue | Critical | 0 | P0-2 | ✅ Shipped |
+| Lock timeout shorter than wrapped operation | Critical | 0 | P0-3 | ✅ Shipped |
+| Disconnect/reconnect race on `connected` flag | Critical | 0 | P0-4 | ✅ Shipped |
+| Advisor suggestions broadcast room-wide | Medium | 0 | P0-5 | ✅ Shipped |
+| `trust proxy` gated on `NODE_ENV` alone | High | 1 | P1-1 | Planned |
+| Redis reconnect has no self-heal; `/health/live` is a no-op | High | 1 | P1-2 | Planned |
+| Embedded Redis can be orphaned on shutdown | High | 1 | P1-3 | Planned |
+| Match abandon keeps banked score | Medium-High | 1 | P1-4 | Planned |
+| No rate limit on abandon/clearHistory; dead anti-enum limiter | Medium | 1 | P1-5 | Planned |
+| Stalled bot freezes the game after 6 retries | High | 1 | P1-6 | Planned |
+| Bot can occupy a seat a reconnecting human still owns | High | 1 | P1-7 | Planned |
+| Bot-originated clues skip length/format/number bounds | Medium-High | 1 | P1-8 | Planned |
+| Lua scripts untested in blocking CI | High | 1 | P1-9 | Planned |
+| `errorHandler` known-error branch skips redaction | Medium | 1 | P1-10 | Planned |
+| Neutral-card / Settings-modal i18n keys; Duet advisor bug | Medium/Low | 1 | P1-11 | Planned |
+| Unsafe unused `escapeHTML()` | Medium | 1 | P1-12 | Planned |
+| No E2E for spectator/bot/match-round flows | High | 1 | P1-13 | Planned |
+| Socket rate limiting is per-instance in-memory | High | 2 | P2-1 | Planned |
+| Turn timer pause/resume/stop wrong across instances | High | 2 | P2-2 | Planned |
+| Bot controller + connection tracker state per-instance | High | 2 | P2-3 | Planned |
+| Lua scripts incompatible with Redis Cluster | Medium | 2 | P2-4 | Planned |
+| `fly.toml` autoscaler could silently violate single-machine rule | Medium | 2 | P2-5 | Planned |
+| `gameService.ts` undecomposed | Low | 3 | P3-1 | Planned |
+| `updatePlayer.lua` has no field allowlist | Low | 3 | P3-2 | Planned |
+| `release.yml` excess permission | Low | 3 | P3-3 | Planned |
+| Dependency upkeep | Low | 3 | P3-4 | Planned |
+| CLAUDE.md/.env.example/SECURITY.md/DEPLOYMENT.md/fly.toml/BACKUP_AND_DR.md/TESTING_GUIDE.md drift | Low | — | Doc hygiene | ✅ Shipped |
 
 ## See also
 
