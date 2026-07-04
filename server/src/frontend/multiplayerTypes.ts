@@ -271,6 +271,8 @@ export interface HistoryResultData {
 
 export interface RoomWarningData {
     code?: string;
+    message?: string;
+    team?: 'red' | 'blue';
 }
 
 export interface AckResult {

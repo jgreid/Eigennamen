@@ -15,14 +15,14 @@ jest.mock('../../socket/handlers/gameActions', () => ({
 jest.mock('../../services/gameService', () => ({ getGame: jest.fn() }));
 jest.mock('../../services/playerService', () => ({ getTeamMembers: jest.fn(), updatePlayer: jest.fn() }));
 jest.mock('../../services/botService', () => ({ getBotConfig: jest.fn() }));
-jest.mock('../../socket/safeEmit', () => ({ safeEmitToRoom: jest.fn() }));
+jest.mock('../../socket/safeEmit', () => ({ safeEmitToRoom: jest.fn(), safeEmitToPlayers: jest.fn() }));
 jest.mock('../../utils/logger', () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() }));
 
 const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
 const botService = require('../../services/botService');
 const gameActions = require('../../socket/handlers/gameActions');
-const { safeEmitToRoom } = require('../../socket/safeEmit');
+const { safeEmitToRoom, safeEmitToPlayers } = require('../../socket/safeEmit');
 const logger = require('../../utils/logger');
 const { initBotController, stopBotController, tickRoom, reconcileClueMemory } = require('../../bots/botController');
 
@@ -97,9 +97,11 @@ describe('botController.tickRoom', () => {
         expect(gameActions.applyEndTurn).not.toHaveBeenCalled();
     });
 
-    it('emits advisor suggestions for a human clicker but never reveals', async () => {
+    it('emits advisor suggestions to the acting team only, never room-wide', async () => {
         // A live clue, a HUMAN clicker, and an advisor BOT on the team: the advisor
-        // should surface ranked suggestions (game:botSuggestion) and take no action.
+        // should surface ranked suggestions (game:botSuggestion) to red's own
+        // members only — never via a room-wide broadcast the opposing team or
+        // spectators would also receive. See docs/HARDENING_PLAN.md P0-5.
         const advisorGame = {
             ...gameNoClue,
             words: ['BEAR', 'RIVER', 'TIGER', 'MOUNTAIN'],
@@ -107,19 +109,26 @@ describe('botController.tickRoom', () => {
             guessesUsed: 0,
             stateVersion: 3,
         };
-        gameService.getGame.mockResolvedValue(advisorGame);
-        playerService.getTeamMembers.mockResolvedValue([
+        const redTeamMembers = [
             { sessionId: 'human-1', nickname: 'Human', team: 'red', role: 'clicker', isBot: false, connected: true },
             { sessionId: 'adv-1', nickname: 'AdviceBot', team: 'red', role: 'advisor', isBot: true, connected: true },
-        ]);
+        ];
+        gameService.getGame.mockResolvedValue(advisorGame);
+        playerService.getTeamMembers.mockResolvedValue(redTeamMembers);
 
         await tickRoom('ROOM01');
 
         expect(gameActions.applyReveal).not.toHaveBeenCalled();
         expect(gameActions.applyEndTurn).not.toHaveBeenCalled();
-        expect(safeEmitToRoom).toHaveBeenCalledWith(
+        expect(safeEmitToRoom).not.toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            'game:botSuggestion',
+            expect.anything()
+        );
+        expect(safeEmitToPlayers).toHaveBeenCalledWith(
             mockIo,
-            'ROOM01',
+            redTeamMembers,
             'game:botSuggestion',
             expect.objectContaining({
                 team: 'red',
@@ -182,7 +191,7 @@ describe('botController.tickRoom self-healing (re-arm)', () => {
         expect(gameActions.applyClue).toHaveBeenCalledTimes(2);
     });
 
-    it('stops re-arming after the failure cap instead of spinning forever', async () => {
+    it('stops re-arming after the failure cap, forces the stuck turn to end, and warns the room', async () => {
         gameService.getGame.mockResolvedValue(gameNoClue); // always the bot spymaster's turn
         gameActions.applyClue.mockRejectedValue(new Error('persistent failure'));
 
@@ -195,6 +204,51 @@ describe('botController.tickRoom self-healing (re-arm)', () => {
         // 1 initial attempt + a bounded number of retries, then it gives up loudly.
         expect(gameActions.applyClue).toHaveBeenCalledTimes(7);
         expect(logger.error).toHaveBeenCalled();
+
+        // Ticking is mutation-driven and it's the stuck bot's own turn, so nothing
+        // else would ever unstick the game — giving up must force the turn to end
+        // (docs/HARDENING_PLAN.md P1-6) rather than leaving it silently frozen.
+        expect(gameActions.applyEndTurn).toHaveBeenCalledTimes(1);
+        expect(gameActions.applyEndTurn).toHaveBeenCalledWith(
+            mockIo,
+            'ROOM01',
+            expect.objectContaining({ team: 'red' })
+        );
+        expect(safeEmitToRoom).toHaveBeenCalledWith(
+            mockIo,
+            'ROOM01',
+            'room:warning',
+            expect.objectContaining({ code: 'BOT_STALLED', team: 'red' })
+        );
+    });
+
+    it('resets the failure streak on the next successful action after a prior (non-fatal) failure', async () => {
+        // Locks in the assumption the give-up logic depends on: a success must
+        // fully clear backoff state, not just avoid re-arming this one time.
+        gameService.getGame
+            .mockResolvedValueOnce(gameNoClue) // attempt 1: fails
+            .mockResolvedValueOnce(gameNoClue) // retry: succeeds
+            .mockResolvedValue(gameWithClue); // then clicker's turn, no bot clicker -> clean stop
+        gameActions.applyClue.mockRejectedValueOnce(new Error('transient')).mockResolvedValue({});
+
+        await tickRoom('ROOM01');
+        await jest.advanceTimersByTimeAsync(300); // first backed-off retry succeeds
+
+        expect(gameActions.applyClue).toHaveBeenCalledTimes(2);
+
+        // If the streak weren't cleared on success, a single subsequent failure would
+        // immediately be treated as one attempt closer to the already-exhausted cap
+        // instead of a fresh budget.
+        gameActions.applyClue.mockReset().mockRejectedValue(new Error('persistent failure'));
+        gameService.getGame.mockReset().mockResolvedValue(gameNoClue);
+
+        await tickRoom('ROOM01');
+        for (let i = 0; i < 8; i++) {
+            await jest.advanceTimersByTimeAsync(2200);
+        }
+        // A full fresh set of retries (not just 1 more before giving up) proves the
+        // streak restarted from zero rather than continuing from the earlier failure.
+        expect(gameActions.applyClue).toHaveBeenCalledTimes(7);
     });
 });
 

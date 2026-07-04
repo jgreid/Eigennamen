@@ -60,7 +60,7 @@ import {
     clueResultSchema,
 } from './game/luaGameOps';
 
-import { isClueLegalForBoard } from '../shared/gameRules';
+import { isClueLegalForBoard, isValidClueWordShape, isValidClueNumberShape } from '../shared/gameRules';
 
 // Re-export types for consumers
 export type { CreateGameOptions, RevealResult, EndTurnResult, ForfeitResult };
@@ -242,6 +242,14 @@ function buildGameState(
             base.matchOver = false;
             base.matchWinner = null;
         }
+
+        // Snapshot the match score as it stands at the moment this round begins
+        // (i.e. before any card in it is revealed) — revealCard.lua accrues card
+        // points into redMatchScore/blueMatchScore live on every reveal, so
+        // abandonGame needs this baseline to roll an abandoned round back to a
+        // scoreless do-over instead of letting accrued points stick permanently.
+        base.roundStartRedMatchScore = base.redMatchScore;
+        base.roundStartBlueMatchScore = base.blueMatchScore;
     }
 
     return base;
@@ -358,6 +366,7 @@ export async function revealCard(
                 NOT_YOUR_TURN: PlayerError.notYourTurn(playerTeam),
                 INVALID_INDEX: new ValidationError('Invalid card index'),
                 GAME_PAUSED: GameStateError.gamePaused(),
+                NO_CLUE_GIVEN: GameStateError.noClueGiven(),
             };
 
             const result = await executeLuaScript<RevealResult>(
@@ -446,6 +455,21 @@ export async function submitClue(
     return withLock(
         `reveal:${roomCode}`,
         async () => {
+            // Humans get these bounds at the socket boundary via gameClueSchema
+            // (Zod), but bots call submitClue directly, skipping Zod entirely.
+            // Re-check the same shared bounds here so a bot-originated clue (e.g.
+            // from a hand-edited custom semantic map) can't violate an invariant
+            // every other consumer (display, replay) assumes holds. See
+            // docs/HARDENING_PLAN.md P1-8.
+            const wordShape = isValidClueWordShape(word);
+            if (!wordShape.valid) {
+                throw new ValidationError(wordShape.reason ?? 'Invalid clue');
+            }
+            const numberShape = isValidClueNumberShape(clueNumber);
+            if (!numberShape.valid) {
+                throw new ValidationError(numberShape.reason ?? 'Invalid clue number');
+            }
+
             // Read the board to enforce clue legality. Board words are immutable
             // for the lifetime of a game, so this read is not racy; the Lua op
             // below re-validates turn/game-over/paused atomically.
@@ -556,6 +580,17 @@ export async function abandonGame(roomCode: string): Promise<void> {
                     }
                     game.gameOver = true;
                     game.winner = null;
+                    // Match mode: card points accrue live into redMatchScore/blueMatchScore
+                    // on every reveal (revealCard.lua), independent of round completion.
+                    // Roll back to the snapshot taken when this round started so an
+                    // abandoned round is a scoreless do-over, not a way to bank points
+                    // and keep a permanent edge. Games persisted before the snapshot
+                    // field existed fall back to a no-op (their current score is all
+                    // there is to roll back to).
+                    if (game.gameMode === 'match') {
+                        game.redMatchScore = game.roundStartRedMatchScore ?? game.redMatchScore ?? 0;
+                        game.blueMatchScore = game.roundStartBlueMatchScore ?? game.blueMatchScore ?? 0;
+                    }
                     return {};
                 },
                 'abandonGame'

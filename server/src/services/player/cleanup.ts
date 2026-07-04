@@ -7,9 +7,10 @@ import { REDIS_TTL, PLAYER_CLEANUP } from '../../config/constants';
 import { parseJSON } from '../../utils/parseJSON';
 import { ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT } from '../../scripts';
 import { z } from 'zod';
-import { getPlayer, updatePlayer } from '../playerService';
+import { getPlayer, updatePlayer, getSocketId } from '../playerService';
 import { invalidateRoomReconnectToken, cleanupOrphanedReconnectionTokens } from './reconnection';
 import { setGauge, METRIC_NAMES } from '../../utils/metrics';
+import { withLock } from '../../utils/distributedLock';
 
 // Backpressure: when the cleanup queue exceeds this threshold,
 // additional sweep passes are run to prevent unbounded growth.
@@ -41,8 +42,13 @@ const cleanupEntrySchema = z.object({
  * Note: Token generation is handled by generateReconnectionToken() which
  * should be called before this function in socket/index.ts
  * Schedule player cleanup after grace period
+ *
+ * @param sessionId - The disconnecting player's session ID
+ * @param expectedSocketId - The disconnecting socket's ID, if known. Used to
+ *   re-verify (inside the lock, immediately before the write) that no newer
+ *   socket has since taken over this session — see the race note below.
  */
-export async function handleDisconnect(sessionId: string): Promise<Player | null> {
+export async function handleDisconnect(sessionId: string, expectedSocketId?: string): Promise<Player | null> {
     const redis: RedisClient = getRedis();
     let player: Player | null;
     try {
@@ -56,8 +62,33 @@ export async function handleDisconnect(sessionId: string): Promise<Player | null
         return null;
     }
 
-    // Mark as disconnected but don't remove yet (allow reconnection)
-    await updatePlayer(sessionId, { connected: false, disconnectedAt: Date.now() });
+    // Mark as disconnected but don't remove yet (allow reconnection).
+    //
+    // Serialized against room:reconnect's own connected:true write via the same
+    // player-mutation lock (see roomReconnectionHandlers.ts), with socket
+    // ownership re-checked one last time INSIDE the lock. Without this, a
+    // disconnect and a concurrent reconnect for the same session can race past
+    // each other's own (previously unlocked) writes — whichever lands last wins
+    // even when it's the stale one, leaving an actively-reconnected player
+    // flagged disconnected and, ~10 minutes later, actually evicted by the
+    // scheduled cleanup sweep below. See docs/HARDENING_PLAN.md P0-4.
+    const stale = await withLock(`player-mutation:${sessionId}`, async () => {
+        if (expectedSocketId) {
+            const currentSocketId = await getSocketId(sessionId);
+            if (currentSocketId && currentSocketId !== expectedSocketId) {
+                return true;
+            }
+        }
+        await updatePlayer(sessionId, { connected: false, disconnectedAt: Date.now() });
+        return false;
+    });
+
+    if (stale) {
+        logger.info(
+            `Skipping disconnect for session ${sessionId}: socket ${expectedSocketId} superseded by a newer reconnect`
+        );
+        return null;
+    }
 
     logger.info(`Player ${sessionId} disconnected from room ${player.roomCode}`);
 

@@ -22,7 +22,7 @@ import type { BotClickerView, ClueMemoryEntry } from './strategies/types';
 
 import logger from '../utils/logger';
 import { onGameMutation } from '../socket/gameMutationNotifier';
-import { safeEmitToRoom } from '../socket/safeEmit';
+import { safeEmitToPlayers, safeEmitToRoom } from '../socket/safeEmit';
 import { SOCKET_EVENTS } from '../config/constants';
 import * as gameService from '../services/gameService';
 import * as playerService from '../services/playerService';
@@ -35,6 +35,7 @@ import { resolveSkill } from './presets';
 import { makeRng } from './rng';
 import { playOneAction } from './playOneAction';
 import { applyClue, applyReveal, applyEndTurn } from '../socket/handlers/gameActions';
+import type { GameActor } from '../socket/handlers/gameActions';
 
 /** Per-room de-dupe key for the last advisor suggestion emitted (avoids
  *  re-emitting identical suggestions on every unrelated mutation). */
@@ -186,8 +187,43 @@ const failureStreak = new Map<string, number>();
 /** Per-room pending re-arm timer (at most one in flight). */
 const reArmTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
+/**
+ * Force-end the stuck team's turn and tell the room why, once a room has
+ * exhausted its re-arm budget. Ticking is driven only by game mutations and
+ * it's the stalled bot's own turn, so without this the turn indicator never
+ * advances and no other player can produce a mutation to unstick it — a
+ * deterministic strategy failure in a timer-less room would otherwise brick
+ * the game silently (docs/HARDENING_PLAN.md P1-6).
+ */
+async function giveUpAndForceEndTurn(roomCode: string, lastActor: GameActor | null): Promise<void> {
+    logger.error(
+        `botController giving up on ${roomCode} after ${MAX_REARM_ATTEMPTS} consecutive action failures — forcing the stuck turn to end`
+    );
+    const io = ioRef;
+    if (!io) return;
+    try {
+        const game = await gameService.getGame(roomCode);
+        if (!game || game.gameOver || game.paused) return; // nothing left to force-end
+        const team = game.currentTurn;
+        // Prefer the nickname of the bot whose action actually failed, but the
+        // team is what matters for the endTurn guard — fall back to a generic
+        // identity if the last failure happened before an actor was resolved
+        // (e.g. a getGame/getTeamMembers read failure) or belongs to the other team.
+        const actor: GameActor =
+            lastActor && lastActor.team === team ? lastActor : { sessionId: 'system', nickname: 'Bot', team };
+        await applyEndTurn(io, roomCode, actor);
+        safeEmitToRoom(io, roomCode, SOCKET_EVENTS.ROOM_WARNING, {
+            code: 'BOT_STALLED',
+            message: `A bot on the ${team} team couldn't complete its turn after ${MAX_REARM_ATTEMPTS} attempts, so its turn was ended automatically.`,
+            team,
+        });
+    } catch (err) {
+        logger.error(`botController force-end-turn for ${roomCode} also failed: ${(err as Error).message}`);
+    }
+}
+
 /** Schedule a bounded, backed-off retry of a room that failed mid-cascade. */
-function scheduleReArm(roomCode: string): void {
+async function scheduleReArm(roomCode: string, lastActor: GameActor | null): Promise<void> {
     const streak = (failureStreak.get(roomCode) ?? 0) + 1;
     // Delete-before-set refreshes recency (Map keeps first-insertion order, so
     // a bare re-set would leave an actively-failing room as the OLDEST entry —
@@ -201,7 +237,10 @@ function scheduleReArm(roomCode: string): void {
     // a success/clean-stop to clear its streak.
     evictOldestBeyondCap(failureStreak);
     if (streak > MAX_REARM_ATTEMPTS) {
-        logger.error(`botController giving up on ${roomCode} after ${MAX_REARM_ATTEMPTS} consecutive action failures`);
+        // Reset so a fresh failure streak (e.g. next turn also stalls) gets its
+        // own full retry budget instead of giving up immediately again.
+        clearReArm(roomCode);
+        await giveUpAndForceEndTurn(roomCode, lastActor);
         return;
     }
     if (reArmTimers.has(roomCode)) return; // one pending re-arm at a time
@@ -297,10 +336,15 @@ async function emitAdvisorSuggestions(
     const skill = cfg ? resolveSkill(cfg.skillPreset, seed) : undefined;
     // Public own-remaining count for the late-stretch warning (types[] is
     // unmasked server-side; the count itself is public via the room score,
-    // so no key information reaches the advisor payload).
+    // so no key information reaches the advisor payload). In Duet, blue's own
+    // greens live only in duetTypes — mirrors the same branch playOneAction.ts
+    // uses for the spymaster view, or a blue-side advisor always sees 0 own
+    // cards remaining and trips the late-stretch warning from turn one.
+    const ownTypes =
+        (game.gameMode as GameMode) === 'duet' && team === 'blue' ? (game.duetTypes ?? game.types) : game.types;
     let ownRemaining = 0;
-    for (let i = 0; i < game.types.length; i++) {
-        if (game.types[i] === team && !game.revealed[i]) ownRemaining++;
+    for (let i = 0; i < ownTypes.length; i++) {
+        if (ownTypes[i] === team && !game.revealed[i]) ownRemaining++;
     }
     const suggestions = suggestGuesses(view, getSemanticBackend(), 3, skill, makeRng(seed), { ownRemaining });
     if (suggestions.length === 0) return;
@@ -310,7 +354,12 @@ async function emitAdvisorSuggestions(
     suggestionKeys.delete(roomCode);
     suggestionKeys.set(roomCode, key);
     evictOldestBeyondCap(suggestionKeys);
-    safeEmitToRoom(io, roomCode, SOCKET_EVENTS.GAME_BOT_SUGGESTION, {
+    // Scoped to this team's own members only (not safeEmitToRoom) — these are
+    // suggestions for the acting team's own clicker, and broadcasting them
+    // room-wide would let the opposing team (and spectators) preview which
+    // cards the advisor considers top picks for a clue that's still live. See
+    // docs/HARDENING_PLAN.md P0-5.
+    safeEmitToPlayers(io, members, SOCKET_EVENTS.GAME_BOT_SUGGESTION, {
         team,
         clue: { word: clue.word, number: clue.number },
         advisor: { sessionId: advisor.sessionId, nickname: advisor.nickname },
@@ -344,6 +393,10 @@ export async function tickRoom(roomCode: string): Promise<void> {
     // over/paused, a human's seat, or no move to make). A failure re-arms a
     // retry; a clean stop clears the backoff.
     let actionFailed = false;
+    // The actor whose action most recently failed (or was attempted), so that if
+    // the room eventually gives up, the forced endTurn can be attributed to the
+    // right team/nickname instead of a bare fallback.
+    let lastActor: GameActor | null = null;
     try {
         // Sequential by design: each bot action mutates shared game state under
         // the reveal lock and must complete before the next is computed.
@@ -416,6 +469,7 @@ export async function tickRoom(roomCode: string): Promise<void> {
             }
 
             const actor = { sessionId: seat.sessionId, nickname: seat.nickname, team, role: seat.role };
+            lastActor = actor;
             try {
                 if (action.kind === 'clue') {
                     await applyClue(io, roomCode, actor, action.word, action.number);
@@ -459,7 +513,7 @@ export async function tickRoom(roomCode: string): Promise<void> {
     }
 
     if (actionFailed) {
-        scheduleReArm(roomCode);
+        await scheduleReArm(roomCode, lastActor);
     } else {
         // Clean stop: nothing more for a bot to do right now. Drop any backoff.
         clearReArm(roomCode);

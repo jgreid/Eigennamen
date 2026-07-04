@@ -170,6 +170,21 @@ class DistributedLock {
         }
     }
 
+    /**
+     * Run `fn` while holding the named lock. `fn` is itself raced against an
+     * internal timeout (`lockTimeout - 500ms`) so the lock is never held past its
+     * own TTL — but `withTimeout` cannot cancel `fn()` if it loses that race, only
+     * stop waiting for it. If `fn` is still genuinely running when this timeout
+     * fires, the lock is released and the caller sees a rejection while `fn`'s
+     * Redis calls may still complete and commit afterward — a real state
+     * divergence between what the caller was told and what happened.
+     *
+     * CALLERS MUST size `lockTimeout` to comfortably exceed the slowest realistic
+     * total duration of `fn` (sum of every `withTimeout`/Redis call budget inside
+     * it, not just one), or this race becomes routine instead of a rare edge case.
+     * See docs/HARDENING_PLAN.md P0-3 for the timerService.startTimer instance
+     * this was found from.
+     */
     async withLock<T>(lockKey: string, fn: () => Promise<T>, options: LockOptions = {}): Promise<T> {
         const lockResult = await this.acquire(lockKey, options);
 
@@ -187,6 +202,21 @@ class DistributedLock {
         const operationTimeout = Math.max(lockTimeout - 500, MIN_LOCK_TIMEOUT);
         try {
             return await withTimeout(fn(), operationTimeout, `withLock:${lockKey}`);
+        } catch (error) {
+            if ((error as { code?: string }).code === 'OPERATION_TIMEOUT') {
+                // The lock is about to be released (below) while fn() may still be
+                // running — anything it does after this point (a Redis write, a
+                // mutation-notify) can still land even though the caller is about
+                // to see this as a failure. Loud because this is the exact
+                // divergence class in docs/HARDENING_PLAN.md P0-3.
+                logger.warn(
+                    `withLock:${lockKey} timed out after ${operationTimeout}ms with the wrapped operation ` +
+                        `possibly still running — releasing the lock now. If this recurs, lockTimeout ` +
+                        `(${lockTimeout}ms) is too small for what this callback actually does.`,
+                    { lockKey, lockTimeout, operationTimeout }
+                );
+            }
+            throw error;
         } finally {
             await releaseFn();
         }

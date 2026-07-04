@@ -141,8 +141,19 @@ describe('validateRevealPreconditions', () => {
         }
     });
 
-    test('allows reveal when no clue given (clue tracking removed)', () => {
-        const game = createMockGame({ currentClue: null });
+    test('rejects reveal when no clue has been given this turn', () => {
+        const game = createMockGame({ currentClue: null, guessesAllowed: 0 });
+        expect(() => validateRevealPreconditions(game, 0)).toThrow();
+
+        try {
+            validateRevealPreconditions(game, 0);
+        } catch (error) {
+            expect(error.code).toBe(ERROR_CODES.NO_CLUE_GIVEN);
+        }
+    });
+
+    test('allows reveal when a real clue-number-0 grants unlimited guesses', () => {
+        const game = createMockGame({ currentClue: { word: 'TEST', number: 0 }, guessesAllowed: 0, guessesUsed: 10 });
         expect(() => validateRevealPreconditions(game, 0)).not.toThrow();
     });
 
@@ -821,6 +832,15 @@ describe('revealCard Lua error mapping', () => {
         await expect(revealCard('TEST01', 5)).rejects.toMatchObject({
             code: ERROR_CODES.CARD_ALREADY_REVEALED,
             message: 'Card already revealed',
+        });
+    });
+
+    test('handles NO_CLUE_GIVEN error from Lua script', async () => {
+        mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'NO_CLUE_GIVEN' }));
+
+        await expect(revealCard('TEST01', 5)).rejects.toMatchObject({
+            code: ERROR_CODES.NO_CLUE_GIVEN,
+            message: 'Wait for a clue before revealing a card',
         });
     });
 

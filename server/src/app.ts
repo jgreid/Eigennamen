@@ -19,7 +19,7 @@ import logger from './utils/logger';
 import { setupSwagger } from './config/swagger';
 import { getAllMetrics, setGauge, METRIC_NAMES } from './utils/metrics';
 import { SOCKET } from './config/constants';
-import { isProduction, parseCorsOrigins } from './config/env';
+import { isProduction, parseCorsOrigins, shouldTrustProxy } from './config/env';
 
 // The single source-of-truth entry document, a real file under server/public/.
 const INDEX_HTML = path.join(__dirname, '../public/index.html');
@@ -80,11 +80,15 @@ interface RateLimiterWithMetrics {
 
 const app: ExtendedApp = express() as unknown as ExtendedApp;
 
-// Trust proxy when behind reverse proxy (Fly.io, nginx, etc.)
-// Required for accurate IP detection in rate limiting and logging
-if (isProduction() || process.env.TRUST_PROXY === 'true') {
+// Trust proxy only when a real reverse proxy is actually there — explicitly
+// configured (TRUST_PROXY) or auto-detected on a known platform (Fly.io,
+// Heroku). NOT based on NODE_ENV alone: a self-hosted production deployment
+// with no proxy in front would otherwise let a client spoof X-Forwarded-For
+// and bypass IP-based rate limits. Same source of truth the Socket.io IP
+// resolver uses (middleware/auth/clientIP.ts), so the two can't drift apart.
+if (shouldTrustProxy()) {
     app.set('trust proxy', 1);
-    logger.info('Trust proxy enabled for production deployment');
+    logger.info('Trust proxy enabled (explicit TRUST_PROXY or detected platform)');
 }
 
 // Cached socket count for fast health checks

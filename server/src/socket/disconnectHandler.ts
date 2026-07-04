@@ -210,12 +210,26 @@ async function handleDisconnect(
             );
         }
 
-        // Update player's connected status
-        await withTimeout(
-            playerService.handleDisconnect(socket.sessionId),
+        // Update player's connected status. Pass socket.id so the lock-protected
+        // write can re-verify (right before writing, not just here) that no newer
+        // socket has since taken over this session — see the race note in
+        // services/player/cleanup.ts's handleDisconnect (docs/HARDENING_PLAN.md P0-4).
+        // A null return means the disconnect was stale (superseded by a fresher
+        // reconnect); the rest of this handler's side effects — announcing the
+        // player as disconnected, transferring host away from them — would be
+        // just as wrong in that case, so bail out here too.
+        const disconnectResult = await withTimeout(
+            playerService.handleDisconnect(socket.sessionId, socket.id),
             TIMEOUTS.REDIS_OPERATION,
             `disconnect-handleDisconnect-${socket.sessionId}`
         );
+
+        if (!disconnectResult) {
+            logger.info(
+                `Skipping remaining disconnect side effects for session ${socket.sessionId}: superseded by a newer reconnect`
+            );
+            return;
+        }
 
         // Check if we've been aborted (timed out) — skip remaining non-critical work
         if (abortSignal?.aborted) {

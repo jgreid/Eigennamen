@@ -102,6 +102,37 @@ function crudeStem(word: string): string {
     return word;
 }
 
+/** Result of a structural clue-shape check (see isValidClueWordShape / isValidClueNumberShape). */
+export interface ClueShapeValidation {
+    valid: boolean;
+    reason?: string;
+}
+
+/**
+ * Structural validation for a clue word: non-empty, within CLUE_WORD_MAX_LENGTH,
+ * and a single word (no whitespace). Expects an already-sanitized/trimmed
+ * value — it does not itself strip control characters. Does NOT check
+ * board-word legality (see isClueLegalForBoard, which needs the board).
+ *
+ * Shared by the Zod schema (validators/gameSchemas.ts, human path) and
+ * gameService.submitClue (bot path, which bypasses Zod entirely) so both
+ * layers enforce the same bounds from one source of truth.
+ */
+export function isValidClueWordShape(word: string): ClueShapeValidation {
+    if (word.length < 1) return { valid: false, reason: 'Clue is required' };
+    if (word.length > CLUE_WORD_MAX_LENGTH) return { valid: false, reason: 'Clue is too long' };
+    if (/\s/.test(word)) return { valid: false, reason: 'Clue must be a single word' };
+    return { valid: true };
+}
+
+/** Structural validation for a clue number: a whole number within [0, CLUE_NUMBER_MAX]. */
+export function isValidClueNumberShape(clueNumber: number): ClueShapeValidation {
+    if (!Number.isInteger(clueNumber)) return { valid: false, reason: 'Clue number must be a whole number' };
+    if (clueNumber < 0) return { valid: false, reason: 'Clue number must be at least 0' };
+    if (clueNumber > CLUE_NUMBER_MAX) return { valid: false, reason: `Clue number cannot exceed ${CLUE_NUMBER_MAX}` };
+    return { valid: true };
+}
+
 /**
  * Whether a clue is legal to give for a given board. Mirrors the standard
  * rule that a clue may not reference a word on the board: rejects an exact

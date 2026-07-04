@@ -18,7 +18,12 @@ import type { GameMode, GameState, Team } from '../../types';
 import { connectRedis, getRedis, disconnectRedis } from '../../config/redis';
 import { seededRandom, hashString } from '../../services/game/boardGenerator';
 import * as gameService from '../../services/gameService';
-import { createEngineGame, applyEngineReveal } from '../engine';
+import { createEngineGame, applyEngineClue, applyEngineReveal } from '../engine';
+
+// A clue word guaranteed not to collide with any real board word (see
+// isClueLegalForBoard in shared/gameRules.ts) — number=0 grants unlimited
+// guesses so a fresh clue is only needed when the previous one's turn ended.
+const PARITY_CLUE_WORD = 'PARITYCLUEZZZ';
 
 const MODES: GameMode[] = ['classic', 'duet', 'match'];
 const SEEDS_PER_MODE = Number(process.env.PARITY_SEEDS) || 200;
@@ -87,6 +92,10 @@ async function runOne(mode: GameMode, seed: string): Promise<string | null> {
     for (const index of revealOrder(seed)) {
         if (engine.gameOver) break;
         const team = engine.currentTurn as Team;
+        if (!engine.currentClue) {
+            applyEngineClue(engine, team, PARITY_CLUE_WORD, 0);
+            await gameService.submitClue(ROOM, team, PARITY_CLUE_WORD, 0, 'bot');
+        }
         applyEngineReveal(engine, index);
         await gameService.revealCard(ROOM, index, 'bot', team);
         const luaState = (await gameService.getGame(ROOM)) as GameState;

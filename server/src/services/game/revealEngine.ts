@@ -35,6 +35,14 @@ export function validateRevealPreconditions(game: GameState, index: number): voi
         throw GameStateError.gameOver();
     }
 
+    // guessesAllowed=0 is both the initial "no clue yet" state and the sentinel
+    // for a real clue-number-0 ("unlimited guesses"), so it can't distinguish the
+    // two on its own — require an actual clue to be active. Mirrors the same
+    // check enforced atomically in scripts/revealCard.lua.
+    if (!game.currentClue) {
+        throw GameStateError.noClueGiven();
+    }
+
     if (game.guessesAllowed > 0 && game.guessesUsed >= game.guessesAllowed) {
         throw ValidationError.noGuessesRemaining();
     }

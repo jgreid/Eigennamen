@@ -9,10 +9,16 @@
 jest.mock('../../services/roomService');
 jest.mock('../../services/gameService');
 jest.mock('../../services/playerService');
+jest.mock('../../services/botService');
 jest.mock('../../utils/logger');
 const { SAFE_ERROR_CODES, createMockRateLimitHandler } = require('../helpers/mocks');
+// Default: the 'room:join:failed' limiter never blocks. Individual tests can
+// override getSocketRateLimiter's return value to simulate the ceiling being hit.
+const mockJoinFailedLimiter = jest.fn((_socket: unknown, _data: unknown, next: (err?: Error) => void) => next());
+const mockGetSocketRateLimiter = jest.fn(() => ({ getLimiter: () => mockJoinFailedLimiter }));
 jest.mock('../../socket/rateLimitHandler', () => ({
     createRateLimitedHandler: createMockRateLimitHandler(SAFE_ERROR_CODES),
+    getSocketRateLimiter: mockGetSocketRateLimiter,
 }));
 jest.mock('../../socket/socketFunctionProvider', () => ({
     getSocketFunctions: jest.fn(() => ({
@@ -39,9 +45,17 @@ jest.mock('../../middleware/validation', () => ({
     validateInput: jest.fn((schema, data) => data),
 }));
 
+// room:reconnect now serializes its connected:true write under the same
+// player-mutation lock the disconnect path uses (docs/HARDENING_PLAN.md P0-4) —
+// bypass the real Redis-backed lock in this unit-test context.
+jest.mock('../../utils/distributedLock', () => ({
+    withLock: jest.fn(async (_key: string, fn: () => Promise<unknown>) => fn()),
+}));
+
 const roomService = require('../../services/roomService');
 const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
+const botService = require('../../services/botService');
 const _logger = require('../../utils/logger');
 const { getSocketFunctions } = require('../../socket/socketFunctionProvider');
 const { clearGameStateCache } = require('../../socket/playerContext');
@@ -100,6 +114,7 @@ describe('Room Handlers', () => {
             roomCode: null,
         });
         playerService.getPlayersInRoom.mockResolvedValue([]);
+        playerService.getTeamMembers.mockResolvedValue([]);
         playerService.getRoomStats.mockResolvedValue({});
         playerService.invalidateRoomReconnectToken.mockResolvedValue();
         playerService.generateReconnectionToken.mockResolvedValue('token-123');
@@ -109,6 +124,7 @@ describe('Room Handlers', () => {
             tokenData: { roomCode: 'test-room', sessionId: 'session-1' },
         });
         playerService.updatePlayer.mockResolvedValue();
+        botService.removeBot.mockResolvedValue();
 
         // Load handlers
         const roomHandlers = require('../../socket/handlers/roomHandlers');
@@ -297,6 +313,36 @@ describe('Room Handlers', () => {
             await eventHandlers['room:join']({ roomId: 'TEST-ROOM', nickname: 'Player1' });
 
             expect(roomService.joinRoom).toHaveBeenCalledWith('TEST-ROOM', 'session-1', 'Player1');
+        });
+
+        test('surfaces ROOM_NOT_FOUND when the failed-join limiter has not been exceeded', async () => {
+            roomService.joinRoom.mockRejectedValue({ code: 'ROOM_NOT_FOUND', message: 'Room not found' });
+
+            await eventHandlers['room:join']({ roomId: 'ghost-room', nickname: 'Player1' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'room:error',
+                expect.objectContaining({ code: 'ROOM_NOT_FOUND' })
+            );
+        });
+
+        test('surfaces RATE_LIMITED instead of ROOM_NOT_FOUND once the failed-join limiter is exceeded', async () => {
+            // Regression: trackFailedJoinAttempt previously always resolved regardless
+            // of the limiter's verdict, so repeated room-code probing never actually
+            // got throttled — the client always just saw ROOM_NOT_FOUND again.
+            mockJoinFailedLimiter.mockImplementation((_socket, _data, next) => next(new Error('rate limited')));
+            roomService.joinRoom.mockRejectedValue({ code: 'ROOM_NOT_FOUND', message: 'Room not found' });
+
+            await eventHandlers['room:join']({ roomId: 'ghost-room', nickname: 'Player1' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'room:error',
+                expect.objectContaining({ code: 'RATE_LIMITED' })
+            );
+            expect(mockSocket.emit).not.toHaveBeenCalledWith(
+                'room:error',
+                expect.objectContaining({ code: 'ROOM_NOT_FOUND' })
+            );
         });
     });
 
@@ -663,6 +709,82 @@ describe('Room Handlers', () => {
                     code: expect.any(String),
                 })
             );
+        });
+
+        test('evicts a stand-in bot occupying the reconnecting player seat and warns the room', async () => {
+            // A bot took this player's team+role while they were disconnected
+            // (grace window) — reconnecting must reclaim precedence over it.
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                nickname: 'Player1',
+                team: 'red',
+                role: 'spymaster',
+            });
+            playerService.getTeamMembers.mockResolvedValue([
+                {
+                    sessionId: 'bot-1',
+                    nickname: 'StandInBot',
+                    team: 'red',
+                    role: 'spymaster',
+                    isBot: true,
+                    connected: true,
+                },
+            ]);
+
+            await eventHandlers['room:reconnect']({
+                code: 'test-room',
+                reconnectionToken: validToken,
+            });
+
+            expect(botService.removeBot).toHaveBeenCalledWith('test-room', 'bot-1');
+            expect(mockIo.to().emit).toHaveBeenCalledWith(
+                'room:warning',
+                expect.objectContaining({ code: 'BOT_SEAT_RECLAIMED', team: 'red' })
+            );
+        });
+
+        test('does not touch a disconnected bot record, or a bot on a different role', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                nickname: 'Player1',
+                team: 'red',
+                role: 'spymaster',
+            });
+            playerService.getTeamMembers.mockResolvedValue([
+                { sessionId: 'bot-1', nickname: 'Idle', team: 'red', role: 'spymaster', isBot: true, connected: false },
+                {
+                    sessionId: 'bot-2',
+                    nickname: 'OtherRole',
+                    team: 'red',
+                    role: 'clicker',
+                    isBot: true,
+                    connected: true,
+                },
+            ]);
+
+            await eventHandlers['room:reconnect']({
+                code: 'test-room',
+                reconnectionToken: validToken,
+            });
+
+            expect(botService.removeBot).not.toHaveBeenCalled();
+        });
+
+        test('does not attempt eviction for a spectator (no team/role)', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                nickname: 'Player1',
+                team: null,
+                role: null,
+            });
+
+            await eventHandlers['room:reconnect']({
+                code: 'test-room',
+                reconnectionToken: validToken,
+            });
+
+            expect(playerService.getTeamMembers).not.toHaveBeenCalled();
+            expect(botService.removeBot).not.toHaveBeenCalled();
         });
     });
 

@@ -188,7 +188,9 @@
         "nicknameLength": "Nickname must be {{min}}-{{max}} characters",
         "nicknameCharsOnly": "Only letters, numbers, spaces, hyphens and underscores allowed",
         "youAreHost": "You are now the host!",
-        "newHost": "{{name}} is now the host"
+        "newHost": "{{name}} is now the host",
+        "botStalled": "A bot on the {{team}} team got stuck, so its turn was ended automatically",
+        "botSeatReclaimed": "Welcome back! A bot covering your {{team}} team seat has been removed"
     },
     "settings": {
         "title": "Settings",

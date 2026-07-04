@@ -237,5 +237,64 @@ describe('Error Handler Extended Tests', () => {
 
             expect(response.body.error.details).toBeUndefined();
         });
+
+        // P1-10 regression: the known-error-code branch previously returned
+        // err.message verbatim regardless of environment — only .details went
+        // through the allowlist. SERVER_ERROR can wrap an arbitrary underlying
+        // error (stack fragments, internal identifiers), so it needs the same
+        // production gating the fallback (unknown-error) branch already has.
+        describe('known-error-code branch redaction (P1-10)', () => {
+            it('masks a SERVER_ERROR-coded message in production', async () => {
+                const originalEnv = process.env.NODE_ENV;
+                process.env.NODE_ENV = 'production';
+
+                app.get('/test', (req, res, next) => {
+                    next({ code: ERROR_CODES.SERVER_ERROR, message: 'Redis connection string leaked here' });
+                });
+                app.use(errorHandler);
+
+                const response = await request(app).get('/test').expect(500);
+
+                expect(response.body.error.code).toBe('SERVER_ERROR');
+                expect(response.body.error.message).toBe('Internal server error');
+                expect(response.body.error.message).not.toContain('Redis');
+
+                process.env.NODE_ENV = originalEnv;
+            });
+
+            it('shows the real SERVER_ERROR message in development', async () => {
+                const originalEnv = process.env.NODE_ENV;
+                process.env.NODE_ENV = 'development';
+
+                app.get('/test', (req, res, next) => {
+                    next({ code: ERROR_CODES.SERVER_ERROR, message: 'Detailed internal failure' });
+                });
+                app.use(errorHandler);
+
+                const response = await request(app).get('/test').expect(500);
+
+                expect(response.body.error.message).toBe('Detailed internal failure');
+
+                process.env.NODE_ENV = originalEnv;
+            });
+
+            it('still shows the real message for a known-SAFE code in production', async () => {
+                const originalEnv = process.env.NODE_ENV;
+                process.env.NODE_ENV = 'production';
+
+                app.get('/test', (req, res, next) => {
+                    next({ code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Room ABC123 not found' });
+                });
+                app.use(errorHandler);
+
+                const response = await request(app).get('/test').expect(404);
+
+                // Safe codes are deliberately client-facing — redaction must not
+                // blanket-apply to every known error code, only unsafe ones.
+                expect(response.body.error.message).toBe('Room ABC123 not found');
+
+                process.env.NODE_ENV = originalEnv;
+            });
+        });
     });
 });

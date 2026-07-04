@@ -157,6 +157,10 @@ export class GameStateError extends GameError {
         return new GameStateError('GAME_PAUSED' as ErrorCode, 'Game is currently paused');
     }
 
+    static noClueGiven(): GameStateError {
+        return new GameStateError(ERROR_CODES.NO_CLUE_GIVEN, 'Wait for a clue before revealing a card');
+    }
+
     static corrupted(roomCode: string, context: GameErrorDetails = {}): GameStateError {
         return new GameStateError(ERROR_CODES.SERVER_ERROR, 'Game data corrupted, please start a new game', {
             roomCode,
@@ -240,8 +244,10 @@ export const SAFE_ERROR_CODES: readonly SafeErrorCode[] = [
     'CANNOT_SWITCH_TEAM_DURING_TURN',
     'CANNOT_CHANGE_ROLE_DURING_TURN',
     'SPYMASTER_CANNOT_CHANGE_TEAM',
+    'SPYMASTER_CANNOT_CHANGE_ROLE',
     'GAME_NOT_STARTED',
     'GAME_PAUSED',
+    'NO_CLUE_GIVEN',
 ] as const;
 
 /**

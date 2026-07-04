@@ -213,6 +213,14 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                     throw PlayerError.notClicker();
                 }
 
+                // A turn starts with guessesAllowed=0, which is also the sentinel a
+                // real clue-number-0 uses for "unlimited guesses" — so guessesAllowed
+                // alone can't distinguish "no clue yet" from "unlimited guesses were
+                // granted". Require an actual clue to be active before any reveal.
+                if (!ctx.game.currentClue) {
+                    throw GameStateError.noClueGiven();
+                }
+
                 const connectedTeamMembers = teamMembers.filter((p: Player) => p.connected);
                 if (connectedTeamMembers.length === 0) {
                     throw new GameStateError(

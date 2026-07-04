@@ -10,6 +10,7 @@ const {
     RELEASE_LOCK_SCRIPT,
     EXTEND_LOCK_SCRIPT,
 } = require('../../utils/distributedLock');
+const logger = require('../../utils/logger');
 
 // Mock Redis
 const mockRedis = {
@@ -218,6 +219,56 @@ describe('DistributedLock', () => {
 
             await expect(lock.withLock('test-lock', fn)).rejects.toThrow('Failed to acquire lock');
             expect(fn).not.toHaveBeenCalled();
+        });
+    });
+
+    // Regression (docs/HARDENING_PLAN.md P0-3): withLock's own operation timeout
+    // must not silently release the lock and reject the caller while `fn` is
+    // still genuinely running — that state divergence is exactly what a caller
+    // with too-small a lockTimeout hits. This can't be prevented generically (only
+    // the caller knows how long fn should take), so withLock instead makes the
+    // hazard loud: it releases the lock (as it must, to avoid holding it forever)
+    // but logs a specific diagnostic naming the lock and both timeout values.
+    describe('withLock timeout hazard (P0-3)', () => {
+        beforeEach(() => {
+            jest.useFakeTimers();
+        });
+
+        afterEach(() => {
+            jest.useRealTimers();
+        });
+
+        it('releases the lock and logs a diagnostic warning when fn is still running past the operation timeout', async () => {
+            mockRedis.set.mockResolvedValueOnce('OK'); // acquire
+            mockRedis.eval.mockResolvedValueOnce(1); // release
+
+            const lock = new DistributedLock({ lockTimeout: 2000 });
+            const fn = jest.fn().mockImplementation(() => new Promise(() => {})); // never resolves
+
+            const promise = lock.withLock('test-lock', fn);
+            promise.catch(() => {}); // avoid an unhandled-rejection warning before the assertion below
+
+            await jest.advanceTimersByTimeAsync(2000);
+
+            await expect(promise).rejects.toThrow(/timed out/);
+            expect(logger.warn).toHaveBeenCalledWith(
+                expect.stringContaining('withLock:test-lock timed out'),
+                expect.objectContaining({ lockKey: 'test-lock', lockTimeout: 2000, operationTimeout: 1500 })
+            );
+            expect(mockRedis.eval).toHaveBeenCalled(); // the lock was still released
+        });
+
+        it('does not warn when fn completes within the operation timeout', async () => {
+            mockRedis.set.mockResolvedValueOnce('OK');
+            mockRedis.eval.mockResolvedValueOnce(1);
+
+            const lock = new DistributedLock({ lockTimeout: 2000 });
+            const fn = jest.fn().mockResolvedValue('ok');
+
+            const result = await lock.withLock('test-lock', fn);
+
+            expect(result).toBe('ok');
+            expect(logger.warn).not.toHaveBeenCalledWith(expect.stringContaining('timed out'), expect.anything());
         });
     });
 

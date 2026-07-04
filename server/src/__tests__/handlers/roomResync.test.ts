@@ -34,6 +34,13 @@ jest.mock('../../socket/index', () => ({
     stopTurnTimer: jest.fn().mockResolvedValue(),
 }));
 
+// room:reconnect now serializes its connected:true write under the same
+// player-mutation lock the disconnect path uses (docs/HARDENING_PLAN.md P0-4) —
+// bypass the real Redis-backed lock in this unit-test context.
+jest.mock('../../utils/distributedLock', () => ({
+    withLock: jest.fn(async (_key, fn) => fn()),
+}));
+
 // Mock socketFunctionProvider to provide timer functions
 jest.mock('../../socket/socketFunctionProvider', () => ({
     getSocketFunctions: jest.fn(() => ({
@@ -92,6 +99,7 @@ describe('Room Resync and Recovery Handlers', () => {
         });
         gameService.getGame.mockResolvedValue(null);
         playerService.getRoomStats.mockResolvedValue({});
+        playerService.getTeamMembers.mockResolvedValue([]);
 
         // Register handlers
         roomHandlers = require('../../socket/handlers/roomHandlers');
@@ -407,6 +415,16 @@ describe('Room Resync and Recovery Handlers', () => {
                     players: mockPlayers,
                     you: mockPlayer,
                 })
+            );
+
+            // Regression (docs/HARDENING_PLAN.md P0-4): the connected:true write
+            // must be serialized under the same player-mutation lock the disconnect
+            // path uses, or a racing disconnect can clobber it back to false.
+            const { withLock } = require('../../utils/distributedLock');
+            expect(withLock).toHaveBeenCalledWith('player-mutation:session-456', expect.any(Function));
+            expect(playerService.updatePlayer).toHaveBeenCalledWith(
+                'session-456',
+                expect.objectContaining({ connected: true })
             );
         });
 

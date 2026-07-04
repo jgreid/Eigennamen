@@ -112,4 +112,65 @@ describe('gameService.submitClue', () => {
             code: ERROR_CODES.INVALID_INPUT,
         });
     });
+
+    // Bots call submitClue directly, bypassing gameClueSchema's Zod validation
+    // entirely — these lock in that the service layer re-enforces the same
+    // shape bounds itself (docs/HARDENING_PLAN.md P1-8), never reaching Redis.
+    describe('bot-path shape validation (no Zod in front of this call)', () => {
+        it('rejects an over-length clue word before ever reading game state', async () => {
+            const tooLong = 'A'.repeat(41);
+            await expect(submitClue('TEST01', 'red', tooLong, 2, 'Spy')).rejects.toMatchObject({
+                code: ERROR_CODES.INVALID_INPUT,
+            });
+            // Proves the shape check runs before the game-state read (and thus
+            // before submitClue.lua) — not just before the eventual response.
+            // mockRedis.eval IS still called once, for withLock's own lock-release
+            // script, which is unrelated to submitClue's own Lua op.
+            expect(mockRedis.get).not.toHaveBeenCalled();
+        });
+
+        it('rejects a multi-word clue', async () => {
+            await expect(submitClue('TEST01', 'red', 'TWO WORDS', 2, 'Spy')).rejects.toMatchObject({
+                code: ERROR_CODES.INVALID_INPUT,
+            });
+            expect(mockRedis.get).not.toHaveBeenCalled();
+        });
+
+        it('rejects an empty clue word', async () => {
+            await expect(submitClue('TEST01', 'red', '', 2, 'Spy')).rejects.toMatchObject({
+                code: ERROR_CODES.INVALID_INPUT,
+            });
+            expect(mockRedis.get).not.toHaveBeenCalled();
+        });
+
+        it('rejects a clue number above CLUE_NUMBER_MAX', async () => {
+            await expect(submitClue('TEST01', 'red', 'FRUIT', 10, 'Spy')).rejects.toMatchObject({
+                code: ERROR_CODES.INVALID_INPUT,
+            });
+            expect(mockRedis.get).not.toHaveBeenCalled();
+        });
+
+        it('rejects a negative clue number', async () => {
+            await expect(submitClue('TEST01', 'red', 'FRUIT', -1, 'Spy')).rejects.toMatchObject({
+                code: ERROR_CODES.INVALID_INPUT,
+            });
+            expect(mockRedis.get).not.toHaveBeenCalled();
+        });
+
+        it('rejects a non-integer clue number', async () => {
+            await expect(submitClue('TEST01', 'red', 'FRUIT', 1.5, 'Spy')).rejects.toMatchObject({
+                code: ERROR_CODES.INVALID_INPUT,
+            });
+            expect(mockRedis.get).not.toHaveBeenCalled();
+        });
+
+        it('accepts a clue at exactly the boundary values (CLUE_NUMBER_MAX, max word length)', async () => {
+            mockRedis.eval.mockResolvedValue(
+                JSON.stringify({ success: true, word: 'A'.repeat(40), number: 9, team: 'red', guessesAllowed: 10 })
+            );
+            await expect(submitClue('TEST01', 'red', 'A'.repeat(40), 9, 'Spy')).resolves.toMatchObject({
+                number: 9,
+            });
+        });
+    });
 });

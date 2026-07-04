@@ -47,6 +47,15 @@ if playerTeam and playerTeam ~= '' and game.currentTurn ~= playerTeam then
     return cjson.encode({error = 'NOT_YOUR_TURN'})
 end
 
+-- guessesAllowed=0 is the initial "no clue yet" state, but it's also the
+-- sentinel submitClue.lua sets for a real clue-number-0 ("unlimited guesses"),
+-- so guessesAllowed alone can't tell the two apart. Require an actual clue to
+-- be active (defense in depth — the socket handler checks this too) so a
+-- reveal can never happen before any clue was ever given this turn.
+if not game.currentClue or game.currentClue == cjson.null then
+    return cjson.encode({error = 'NO_CLUE_GIVEN'})
+end
+
 if game.guessesAllowed > 0 and game.guessesUsed >= game.guessesAllowed then
     return cjson.encode({error = 'NO_GUESSES'})
 end

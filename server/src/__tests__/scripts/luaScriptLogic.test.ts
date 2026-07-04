@@ -35,6 +35,18 @@ describe('Lua Script Behavioral Contracts', () => {
             expect(REVEAL_CARD_SCRIPT).toContain("error = 'NO_GUESSES'");
         });
 
+        it('rejects a reveal when no clue is active yet, before checking guessesAllowed', () => {
+            // guessesAllowed=0 is both the initial "no clue" state and the sentinel a
+            // real clue-number-0 uses for "unlimited guesses" — this check must exist
+            // and must run before the guessesAllowed check so it can't be shadowed.
+            expect(REVEAL_CARD_SCRIPT).toContain('not game.currentClue or game.currentClue == cjson.null');
+            expect(REVEAL_CARD_SCRIPT).toContain("error = 'NO_CLUE_GIVEN'");
+            const clueCheckIndex = REVEAL_CARD_SCRIPT.indexOf("error = 'NO_CLUE_GIVEN'");
+            const guessesCheckIndex = REVEAL_CARD_SCRIPT.indexOf("error = 'NO_GUESSES'");
+            expect(clueCheckIndex).toBeGreaterThan(-1);
+            expect(clueCheckIndex).toBeLessThan(guessesCheckIndex);
+        });
+
         it('uses 1-indexed Lua arrays (luaIndex = index + 1)', () => {
             expect(REVEAL_CARD_SCRIPT).toContain('local luaIndex = index + 1');
             expect(REVEAL_CARD_SCRIPT).toContain('game.revealed[luaIndex]');

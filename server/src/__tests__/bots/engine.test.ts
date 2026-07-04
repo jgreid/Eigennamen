@@ -48,6 +48,7 @@ describe('engine rule scenarios', () => {
     it('classic: revealing the assassin loses for the revealing team', () => {
         const g = createEngineGame({ seed: 'assassin', gameMode: 'classic' });
         const team = g.currentTurn;
+        applyEngineClue(g, team, 'SIGNALX', 1);
         const assassinIndex = g.types.indexOf('assassin');
         const res = applyEngineReveal(g, assassinIndex);
         expect(res.gameOver).toBe(true);
@@ -58,6 +59,9 @@ describe('engine rule scenarios', () => {
     it('classic: revealing all your cards wins', () => {
         const g = createEngineGame({ seed: 'win', gameMode: 'classic' });
         const team = g.currentTurn;
+        // number=0 grants unlimited guesses so this single sweep isn't interrupted
+        // by a maxGuesses turn switch (which would clear currentClue mid-loop).
+        applyEngineClue(g, team, 'SIGNALX', 0);
         for (const i of ownIndices(g, team)) {
             if (g.gameOver) break;
             applyEngineReveal(g, i);
@@ -69,6 +73,7 @@ describe('engine rule scenarios', () => {
     it('classic: revealing the opponent/neutral ends the turn', () => {
         const g = createEngineGame({ seed: 'switch', gameMode: 'classic' });
         const team = g.currentTurn;
+        applyEngineClue(g, team, 'SIGNALX', 1);
         const neutralIndex = g.types.indexOf('neutral');
         const res = applyEngineReveal(g, neutralIndex);
         expect(res.turnEnded).toBe(true);
@@ -88,6 +93,7 @@ describe('engine rule scenarios', () => {
 
     it('duet: revealing the assassin is a cooperative loss', () => {
         const g = createEngineGame({ seed: 'duet-a', gameMode: 'duet' });
+        applyEngineClue(g, g.currentTurn, 'SIGNALX', 1);
         const assassinIndex = g.types.indexOf('assassin');
         const res = applyEngineReveal(g, assassinIndex);
         expect(res.gameOver).toBe(true);
@@ -97,6 +103,7 @@ describe('engine rule scenarios', () => {
     it('match: revealing a scored card accumulates the match score', () => {
         const g = createEngineGame({ seed: 'match-score', gameMode: 'match' });
         const team = g.currentTurn;
+        applyEngineClue(g, team, 'SIGNALX', 1);
         const idx = ownIndices(g, team).find((i) => (g.cardScores as number[])[i] !== 0);
         expect(idx).toBeDefined();
         const before = team === 'red' ? g.redMatchScore : g.blueMatchScore;
@@ -128,6 +135,12 @@ describe('engine rule invariants (many seeds, all modes)', () => {
                     // Deterministic policy: reveal the lowest unrevealed index.
                     const idx = g.revealed.findIndex((r) => !r);
                     if (idx < 0) break;
+                    // A real turn always starts with a clue; number=0 grants
+                    // unlimited guesses so this naive policy can freely reveal
+                    // until the turn ends on its own (assassin/opponent/neutral).
+                    if (!g.currentClue) {
+                        applyEngineClue(g, g.currentTurn, 'X', 0);
+                    }
                     applyEngineReveal(g, idx);
                     reveals++;
                 }

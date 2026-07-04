@@ -420,10 +420,12 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
 
             await handlers['player:setRole']({ role: 'spectator' });
 
+            // A spymaster can never leave the role during an active game (not just
+            // during their own turn) — see canChangeTeamOrRole's spymaster lockout.
             expect(mockSocket.emit).toHaveBeenCalledWith(
                 'player:error',
                 expect.objectContaining({
-                    code: 'CANNOT_CHANGE_ROLE_DURING_TURN',
+                    code: 'SPYMASTER_CANNOT_CHANGE_ROLE',
                 })
             );
         });

@@ -204,7 +204,10 @@ describe('Extended Game Handlers Tests', () => {
                 team: 'red',
                 nickname: 'TeamMember1',
             });
-            gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
+            gameService.getGame.mockResolvedValue({
+                currentTurn: 'red',
+                currentClue: { word: 'FRUIT', number: 2 },
+            });
             // Clicker is disconnected
             playerService.getTeamMembers.mockResolvedValue([
                 { sessionId: 'session-456', connected: true, team: 'red', role: 'spectator' },
@@ -263,6 +266,34 @@ describe('Extended Game Handlers Tests', () => {
             expect(gameService.revealCard).not.toHaveBeenCalled();
         });
 
+        test('rejects reveal when no clue has been given yet, even with a connected clicker', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                role: 'clicker',
+                team: 'red',
+                nickname: 'Clicker1',
+            });
+            // Fresh turn: guessesAllowed=0 doubles as "unlimited guesses" once a real
+            // clue exists, so the absence of a clue must be checked separately.
+            gameService.getGame.mockResolvedValue({ currentTurn: 'red', currentClue: null, guessesAllowed: 0 });
+            playerService.getTeamMembers.mockResolvedValue([
+                { sessionId: 'session-456', connected: true, team: 'red', role: 'clicker' },
+            ]);
+
+            const handlers = mockSocket.on.mock.calls;
+            const revealHandler = handlers.find((h) => h[0] === 'game:reveal');
+            await revealHandler[1]({ index: 5 });
+
+            expect(gameService.revealCard).not.toHaveBeenCalled();
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({
+                    code: 'NO_CLUE_GIVEN',
+                })
+            );
+        });
+
         test('rejects reveal when getTeamMembers returns invalid data', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
@@ -298,7 +329,10 @@ describe('Extended Game Handlers Tests', () => {
                 team: 'red',
                 nickname: 'Clicker1',
             });
-            gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
+            gameService.getGame.mockResolvedValue({
+                currentTurn: 'red',
+                currentClue: { word: 'OCEAN', number: 1 },
+            });
             playerService.getTeamMembers.mockResolvedValue([
                 { sessionId: 'session-456', connected: true, team: 'red' },
             ]);
@@ -585,7 +619,10 @@ describe('Extended Game Handlers Tests', () => {
                 team: 'red',
                 nickname: 'Clicker1',
             });
-            gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
+            gameService.getGame.mockResolvedValue({
+                currentTurn: 'red',
+                currentClue: { word: 'STORM', number: 1 },
+            });
             // All team members disconnected (except the current player is marked connected
             // but the filter checks p.connected)
             playerService.getTeamMembers.mockResolvedValue([

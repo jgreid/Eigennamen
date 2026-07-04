@@ -20,7 +20,6 @@ import {
     safeGetItem,
     safeSetItem,
     safeRemoveItem,
-    escapeHTML,
     copyToClipboard,
     generateGameSeed,
     formatGameTimestamp,
@@ -327,24 +326,6 @@ describe('getCardFontClass', () => {
 
     it('handles empty string', () => {
         expect(getCardFontClass('')).toBe('font-lg');
-    });
-});
-
-describe('escapeHTML', () => {
-    it('escapes < and > characters', () => {
-        expect(escapeHTML('<script>alert(1)</script>')).toBe('&lt;script&gt;alert(1)&lt;/script&gt;');
-    });
-
-    it('escapes & character', () => {
-        expect(escapeHTML('foo & bar')).toBe('foo &amp; bar');
-    });
-
-    it('passes through safe strings unchanged', () => {
-        expect(escapeHTML('Hello World')).toBe('Hello World');
-    });
-
-    it('handles empty string', () => {
-        expect(escapeHTML('')).toBe('');
     });
 });
 

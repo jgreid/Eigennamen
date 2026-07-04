@@ -2,7 +2,12 @@ import type { z as ZodType } from 'zod';
 
 import { z } from 'zod';
 import { BOARD_SIZE } from '../config/constants';
-import { CLUE_WORD_MAX_LENGTH, CLUE_NUMBER_MAX, MAX_CUSTOM_WORD_LIST_SIZE } from '../shared/gameRules';
+import {
+    CLUE_WORD_MAX_LENGTH,
+    MAX_CUSTOM_WORD_LIST_SIZE,
+    isValidClueWordShape,
+    isValidClueNumberShape,
+} from '../shared/gameRules';
 import { removeControlChars } from '../utils/sanitize';
 
 const gameStartSchema = z
@@ -49,13 +54,20 @@ const gameClueSchema = z.object({
         .min(1, 'Clue is required')
         .max(CLUE_WORD_MAX_LENGTH, 'Clue is too long')
         .transform((val: string) => removeControlChars(val).trim())
-        .refine((val: string) => val.length >= 1, 'Clue is required')
-        .refine((val: string) => !/\s/.test(val), 'Clue must be a single word'),
+        .superRefine((val: string, ctx) => {
+            const result = isValidClueWordShape(val);
+            if (!result.valid) ctx.addIssue(result.reason ?? 'Invalid clue');
+        }),
+    // isValidClueNumberShape's own integer/range checks are the source of
+    // truth shared with gameService.submitClue's bot path; .int() here just
+    // gives Zod's usual type-coercion-rejection behavior on the raw input.
     number: z
         .number()
         .int('Clue number must be a whole number')
-        .min(0, 'Clue number must be at least 0')
-        .max(CLUE_NUMBER_MAX, `Clue number cannot exceed ${CLUE_NUMBER_MAX}`),
+        .superRefine((val: number, ctx) => {
+            const result = isValidClueNumberShape(val);
+            if (!result.valid) ctx.addIssue(result.reason ?? 'Invalid clue number');
+        }),
 });
 
 // Game history limit schema (for game:getHistory)

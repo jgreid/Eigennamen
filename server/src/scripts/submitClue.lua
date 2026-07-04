@@ -18,7 +18,14 @@
 local gameKey = KEYS[1]
 local word = ARGV[1]
 local number = tonumber(ARGV[2])
+-- Must match CLUE_NUMBER_MAX in shared/gameRules.ts. gameService.submitClue
+-- already rejects an out-of-range number before this script ever runs, so
+-- this clamp is last-resort defense-in-depth for any future direct caller —
+-- consistent with this script's existing nil-guard convention (clamp to a
+-- safe value rather than erroring out). See docs/HARDENING_PLAN.md P1-8.
+local CLUE_NUMBER_MAX = 9
 if number == nil or number < 0 then number = 0 end
+if number > CLUE_NUMBER_MAX then number = CLUE_NUMBER_MAX end
 local spymaster = ARGV[3]
 local expectedTeam = ARGV[4]
 local timestamp = tonumber(ARGV[5])

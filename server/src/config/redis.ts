@@ -203,10 +203,23 @@ async function stopEmbeddedRedis(): Promise<void> {
     });
 }
 
-function reconnectStrategy(retries: number): number | Error {
+/**
+ * Exported for unit testing only (see __tests__/config/redis.test.ts) — every other
+ * caller reaches it exclusively through `createClientOptions`'s `socket.reconnectStrategy`.
+ */
+export function reconnectStrategy(retries: number): number | Error {
     if (retries > 20) {
-        logger.error('Redis max reconnection attempts reached');
-        return new Error('Max reconnection attempts reached');
+        // node-redis permanently stops retrying once this returns an Error —
+        // nothing else in the codebase ever calls connectRedis() again, so the
+        // process would otherwise stay alive indefinitely, pulled from load-
+        // balancer rotation by /health/ready but never self-healing even after
+        // Redis recovers. Exit and let the platform's own "always restart a
+        // crashed process" behavior (Fly Machines, Docker restart policy, k8s)
+        // give the next attempt a completely fresh connection sequence,
+        // instead of building bespoke in-process retry-after-giving-up logic.
+        // See docs/HARDENING_PLAN.md P1-2.
+        logger.error('Redis max reconnection attempts reached — exiting so the platform restarts this process');
+        process.exit(1);
     }
     // Exponential backoff with jitter to prevent thundering herd across instances
     const baseDelay = Math.min(100 * Math.pow(2, retries), 15000);
@@ -356,7 +369,12 @@ async function cleanupPartialConnections(): Promise<void> {
             if (client.isOpen) {
                 await Promise.race([
                     client.quit(),
-                    new Promise<void>((_, reject) => setTimeout(() => reject(new Error('quit timeout')), 3000)),
+                    new Promise<void>((_, reject) => {
+                        const t = setTimeout(() => reject(new Error('quit timeout')), 3000);
+                        // A losing timer must not keep the process alive, nor (with
+                        // detectOpenHandles) look like a leak once quit() wins the race.
+                        if (typeof t.unref === 'function') t.unref();
+                    }),
                 ]);
             }
         } catch (err) {
@@ -524,31 +542,44 @@ export async function disconnectRedis(): Promise<void> {
     pubSubHealth.stopPingInterval();
 
     const clients = [redisClient, pubClient, subClient].filter(Boolean) as RedisClientType[];
-    await Promise.all(
-        clients.map(async (client) => {
-            try {
-                if (client.isOpen) {
-                    await client.quit();
-                }
-            } catch {
-                // Force disconnect if quit fails
+    try {
+        await Promise.all(
+            clients.map(async (client) => {
                 try {
-                    client.disconnect();
+                    if (client.isOpen) {
+                        // Same per-call timeout as cleanupPartialConnections — a hung
+                        // quit() must not block stopEmbeddedRedis() from ever running.
+                        await Promise.race([
+                            client.quit(),
+                            new Promise<void>((_, reject) => {
+                                const t = setTimeout(() => reject(new Error('quit timeout')), 3000);
+                                if (typeof t.unref === 'function') t.unref();
+                            }),
+                        ]);
+                    }
                 } catch {
-                    // Ignore
+                    // Force disconnect if quit fails or times out
+                    try {
+                        client.disconnect();
+                    } catch {
+                        // Ignore
+                    }
                 }
-            }
-        })
-    );
-    redisClient = pubClient = subClient = null;
+            })
+        );
+    } finally {
+        redisClient = pubClient = subClient = null;
 
-    // Stop embedded Redis process if we started one
-    if (embeddedRedisProcess) {
-        await stopEmbeddedRedis();
-        logger.info('Embedded Redis server stopped');
+        // Always stop the embedded Redis child here, even if something above threw —
+        // a spawned (non-detached) redis-server otherwise survives this process's exit
+        // as an orphan.
+        if (embeddedRedisProcess) {
+            await stopEmbeddedRedis();
+            logger.info('Embedded Redis server stopped');
+        }
+
+        logger.info('Redis disconnected');
     }
-
-    logger.info('Redis disconnected');
 }
 
 export function isUsingMemoryMode(): boolean {

@@ -364,6 +364,58 @@ describe('playerContext', () => {
             );
             expect(result.allowed).toBe(true);
         });
+
+        // Regression: a spymaster has seen the FULL unmasked board this game, so —
+        // like the observer case above — they cannot leave the role at all while a
+        // game is active. Previously this only blocked team changes and allowed a
+        // same-team spymaster -> clicker swap (or a spymaster -> spectator ->
+        // clicker launder) to reach a board-acting role with full knowledge.
+        it('blocks spymaster from becoming a clicker during their own team turn', () => {
+            const result = canChangeTeamOrRole(
+                {
+                    player: { role: 'spymaster', team: 'red' },
+                    game: { gameOver: false, currentTurn: 'red' },
+                },
+                { targetRole: 'clicker' }
+            );
+            expect(result.allowed).toBe(false);
+            expect(result.reason).toContain('spymaster');
+            expect(result.code).toBe('SPYMASTER_CANNOT_CHANGE_ROLE');
+        });
+
+        it('blocks spymaster from becoming a clicker when it is NOT their team turn', () => {
+            const result = canChangeTeamOrRole(
+                {
+                    player: { role: 'spymaster', team: 'red' },
+                    game: { gameOver: false, currentTurn: 'blue' },
+                },
+                { targetRole: 'clicker' }
+            );
+            expect(result.allowed).toBe(false);
+            expect(result.code).toBe('SPYMASTER_CANNOT_CHANGE_ROLE');
+        });
+
+        it('blocks spymaster from stepping down to spectator during an active game (closes the launder path)', () => {
+            const result = canChangeTeamOrRole(
+                {
+                    player: { role: 'spymaster', team: 'red' },
+                    game: { gameOver: false, currentTurn: 'blue' },
+                },
+                { targetRole: 'spectator' }
+            );
+            expect(result.allowed).toBe(false);
+        });
+
+        it('allows spymaster to change once the game is over', () => {
+            const result = canChangeTeamOrRole(
+                {
+                    player: { role: 'spymaster', team: 'red' },
+                    game: { gameOver: true, currentTurn: 'red' },
+                },
+                { targetRole: 'clicker' }
+            );
+            expect(result.allowed).toBe(true);
+        });
     });
 
     describe('syncSocketRooms', () => {

@@ -29,7 +29,7 @@ npm run redis:down             # Stop the managed Redis container
 docker compose up -d --build   # Start with Docker (Redis + app)
 
 # Quality gates (all four must pass before submitting a PR)
-npm test                       # All tests (backend + frontend, 167 suites)
+npm test                       # All tests (backend + frontend, 174 suites)
 npm run lint                   # ESLint
 npm run format:check           # Prettier check
 npm run typecheck              # TypeScript check
@@ -37,7 +37,7 @@ npm run typecheck              # TypeScript check
 # Other useful commands
 npm run test:backend           # Backend tests only
 npm run test:frontend          # Frontend tests only
-npm run test:e2e               # Playwright E2E tests (13 specs)
+npm run test:e2e               # Playwright E2E tests (16 specs)
 npm run test:e2e:headed        # E2E with visible browser (debugging)
 npm run test:watch             # TDD watch mode
 npm run test:coverage          # Coverage report
@@ -121,7 +121,7 @@ Eigennamen/
     │   ├── service-worker.js   # Service worker (network-first with offline fallback)
     │   └── admin.html          # Admin dashboard UI
     ├── loadtest/               # Load/stress testing scripts
-    ├── e2e/                    # Playwright E2E tests (13 spec files, .spec.js)
+    ├── e2e/                    # Playwright E2E tests (16 spec files, .spec.js)
     └── src/
         ├── index.ts            # Server entry point (HTTP + WebSocket bootstrap)
         ├── app.ts              # Express 5 app setup (middleware, routes, Swagger)
@@ -249,7 +249,7 @@ Eigennamen/
         │   ├── i18n.ts         # Internationalization
         │   ├── notifications.ts # Audio + tab notifications
         │   ├── url-state.ts    # URL encoding/decoding for standalone mode
-        │   ├── utils.ts        # Clipboard, escapeHTML, DOM utilities
+        │   ├── utils.ts        # Clipboard, seeded RNG, DOM utilities
         │   ├── constants.ts    # Frontend constants (UI timing, selectors)
         │   ├── debug.ts        # Debug logging + state watchers
         │   ├── logger.ts       # Frontend logging utility
@@ -323,7 +323,7 @@ Eigennamen/
         ├── scripts/            # Redis Lua scripts (29 atomic operations)
         │   ├── index.ts        # Barrel export with documented KEYS/ARGV/Returns headers
         │   └── atomicRateLimit.lua # Extracted rate-limit Lua script
-        └── __tests__/          # Jest tests (112 backend + 55 frontend suites)
+        └── __tests__/          # Jest tests (118 backend + 56 frontend suites)
             ├── helpers/        # Test utilities + mock factories (mocks.ts ~721 lines)
             ├── integration/    # Integration tests
             └── frontend/       # Frontend unit tests
@@ -431,7 +431,7 @@ Configured in `config/gameConfig.ts`, rules shared via `shared/gameRules.ts`:
 - **Selectors** — `store/selectors.ts` for derived state
 - **Batch updates** — `store/batch.ts` to group multiple state changes
 - **DOM manipulation** — Direct DOM via `document.getElementById()`, `el.hidden`, `el.textContent`
-- **No innerHTML for user content** — Use `textContent` or `createElement()`. `frontend/utils.ts`'s `escapeHTML()` only escapes `&`/`<`/`>`, not quotes, so it is **not** attribute-injection-safe — it has no current call sites and is slated for removal (see docs/HARDENING_PLAN.md P1-12); don't add a new one
+- **No innerHTML for user content** — Use `textContent` or `createElement()`
 
 ## Socket Events
 
@@ -556,7 +556,7 @@ Run `npm run format` to auto-format, `npm run format:check` to verify.
 - **Validation**: Zod schemas at every entry point with `removeControlChars()` sanitization
 - **NFKC normalization**: Prevents Unicode homoglyph attacks
 - **CSP**: Strict Content-Security-Policy with no `unsafe-inline` in script-src or style-src
-- **No innerHTML for user content**: Use `textContent` or `createElement()` — `escapeHTML()` is not attribute-safe and has no current call sites (see docs/HARDENING_PLAN.md P1-12)
+- **No innerHTML for user content**: Use `textContent` or `createElement()`
 - **JWT**: Minimum 32-character secret enforced in production
 - **Session limits**: 8-hour max lifetime, IP consistency checks
 - **Rate limiting**: Per-event + per-IP; HTTP via express-rate-limit, WebSocket via in-memory per-process counters today (session validation alone is Redis-backed) — making the WebSocket path Redis-backed across instances is tracked in docs/HARDENING_PLAN.md P2-1
@@ -594,16 +594,33 @@ Run `npm run format` to auto-format, `npm run format:check` to verify.
 
 ## Known Issues (Tracked)
 
-A July 2026 codebase-wide hardening review found a small number of real defects. The full remediation plan — root cause, concrete fix, files touched, tests, sequencing — lives in **[docs/HARDENING_PLAN.md](docs/HARDENING_PLAN.md)**. None of the code fixes below have shipped yet; check that document for current status before assuming any of these are resolved.
+A July 2026 codebase-wide hardening review found a small number of real defects. The full remediation plan — root cause, concrete fix, files touched, tests, sequencing — lives in **[docs/HARDENING_PLAN.md](docs/HARDENING_PLAN.md)**. Phases 0 and 1 have both shipped; check that document for current status on everything else before assuming it's resolved.
 
-The four most severe, all reachable today in the default single-instance deployment:
+Fixed (Phase 0 — see HARDENING_PLAN.md for what changed and why):
 
-- **A spymaster can switch to `clicker` mid-game and act on the board they've already seen** — `canChangeTeamOrRole` (`socket/playerContext.ts`) blocks the analogous team-change and observer cases but not this one. See HARDENING_PLAN.md P0-1 before touching role-change logic.
-- **`game:reveal` doesn't require an active clue** — a turn's initial `guessesAllowed: 0` is ambiguously overloaded with the real "unlimited guesses" sentinel a clue-number-0 produces, so a client can reveal cards before ever giving a clue. See P0-2 before touching `revealCard.lua` or the guess-count logic.
-- **`withLock`'s internal timeout can be shorter than the operation it guards** — the lock releases and the caller is told "failed" while the wrapped write is still in flight and lands afterward. See P0-3 before adding a new `withLock` call site; always size `lockTimeout` to exceed the slowest realistic inner operation.
-- **Disconnect and reconnect can race on a player's `connected` flag** with nothing serializing the two writes, occasionally causing the scheduled cleanup sweep to evict an actively-reconnected player. See P0-4 before touching `services/player/cleanup.ts` or the reconnect handler.
+- ~~A spymaster could switch to `clicker` mid-game and act on the board they'd already seen~~ — `canChangeTeamOrRole` (`socket/playerContext.ts`) now locks a spymaster out of every role change while a game is active, the same way the observer case already was. (P0-1)
+- ~~`game:reveal` didn't require an active clue~~ — both `revealCard.lua` and the socket handler now reject a reveal with no `currentClue` set, distinct from the `guessesAllowed=0`-means-unlimited sentinel. (P0-2)
+- ~~`withLock`'s internal timeout could be shorter than the operation it guards~~ — `timerService.startTimer`'s lock budget is now derived from `TIMEOUTS.TIMER_OPERATION`; `withLock` also logs a diagnostic if this class of race ever fires again. Still size every `lockTimeout` to exceed the slowest realistic inner operation when adding a new `withLock` call site. (P0-3)
+- ~~Disconnect and reconnect could race on a player's `connected` flag~~ — both now serialize through the `player-mutation:<sessionId>` lock, with socket ownership re-checked inside it right before the write. (P0-4)
+- ~~Advisor-bot suggestions broadcast to the whole room~~ — now scoped to the acting team's own members via `safeEmitToPlayers`. (P0-5)
 
-Known scaling-readiness gap: several pieces of per-room/per-IP coordination state (socket-level rate limiting, the bot controller's in-flight guard, turn-timer pause/resume/stop) live in a plain in-process `Map`, not Redis — correct only for a single instance. This is fine for the current deployment (`fly.toml` deliberately keeps exactly one machine) but must be closed before running more than one instance behind a load balancer. See HARDENING_PLAN.md Phase 2.
+Fixed (Phase 1 — see HARDENING_PLAN.md for what changed and why, including a few documented deviations from the original plan text):
+
+- ~~`trust proxy` was gated on `NODE_ENV` alone, letting a self-hosted deployment with no real proxy trust a spoofed `X-Forwarded-For`~~ — `shouldTrustProxy()` (`config/env.ts`) is now the single source of truth for both Express and the Socket.io IP resolver. (P1-1)
+- ~~Redis reconnection gave up permanently after 20 attempts with no self-heal~~ — `reconnectStrategy` now exits the process on exhaustion so the platform restarts it with a fresh connection. (P1-2)
+- ~~Embedded Redis's child process could be orphaned if `disconnectRedis()`'s `quit()` calls hung~~ — every `quit()` now races a timeout, and `stopEmbeddedRedis()` always runs in a `finally` block. (P1-3)
+- ~~`game:abandon` in match mode never rolled back the round's banked score~~ — `redMatchScore`/`blueMatchScore` are snapshotted per round and rolled back on abandon. (P1-4)
+- ~~`game:abandon`/`game:clearHistory` had no rate limit, and the failed-join limiter never actually blocked~~ — both are now rate-limited, and `trackFailedJoinAttempt` throws once its ceiling is exceeded. (P1-5)
+- ~~A bot that exhausted its retry ceiling froze the game indefinitely~~ — `botController` now force-ends the stuck turn and broadcasts a `BOT_STALLED` warning. (P1-6)
+- ~~A bot could keep occupying a seat a reconnecting human still owned, racing their actions~~ — reconnect now evicts a connected bot from the player's own seat (`BOT_SEAT_RECLAIMED`). (P1-7)
+- ~~Bot-originated clues skipped the length/format/number-range bounds humans get from Zod~~ — `shared/gameRules.ts`'s `isValidClueWordShape`/`isValidClueNumberShape` are now enforced in `gameService.submitClue` and `submitClue.lua` too. (P1-8)
+- ~~The 29 Redis Lua scripts were never executed against a real Redis in any blocking test~~ — `__tests__/integration/luaScripts.test.ts` now does, and a new `e2e-smoke` job is part of the blocking `ci-passed` gate. (P1-9)
+- ~~`errorHandler`'s known-error-code branch skipped production redaction that its fallback branch already had~~ — now gated the same way via the existing `SAFE_ERROR_CODES` allowlist. (P1-10)
+- ~~Two dead i18n keys (`board.neutralCard`, `game.dangerZone`/`game.forfeitGame`) and a Duet blue-side advisor bug (`ownRemaining` always 0)~~ — all fixed; a new locale-key regression test now scans every `data-i18n*` attribute against all four locale files. (P1-11)
+- ~~The unused `escapeHTML()` helper wasn't attribute-injection-safe~~ — deleted (zero call sites). (P1-12)
+- ~~No E2E coverage existed for spectator approval, bot lifecycle, or match-round transitions~~ — three new specs added; `spectator-approval.spec.js` drives the raw Socket.IO protocol directly since no frontend UI wires those events yet (a separate, undone feature gap, not a defect this item covers). (P1-13)
+
+Known scaling-readiness gap (Phase 2, not yet started): several pieces of per-room/per-IP coordination state (socket-level rate limiting, the bot controller's in-flight guard, turn-timer pause/resume/stop) live in a plain in-process `Map`, not Redis — correct only for a single instance. This is fine for the current deployment (`fly.toml` deliberately keeps exactly one machine) but must be closed before running more than one instance behind a load balancer. See HARDENING_PLAN.md Phase 2.
 
 ## Key Services
 
@@ -658,9 +675,9 @@ See [docs/ADDING_A_FEATURE.md](docs/ADDING_A_FEATURE.md) for a full worked examp
 
 ### Structure
 
-- **Backend unit/integration**: Jest, 112 suites in `server/src/__tests__/`
-- **Frontend unit**: Jest with jsdom, 55 suites in `server/src/__tests__/frontend/`
-- **E2E**: Playwright, 13 specs in `server/e2e/`
+- **Backend unit/integration**: Jest, 118 suites in `server/src/__tests__/`
+- **Frontend unit**: Jest with jsdom, 56 suites in `server/src/__tests__/frontend/`
+- **E2E**: Playwright, 16 specs in `server/e2e/`
 - **Load testing**: Custom scripts in `server/loadtest/`
 
 ### Configuration (jest.config.ts.js)

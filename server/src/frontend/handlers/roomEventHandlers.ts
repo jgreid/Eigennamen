@@ -85,6 +85,15 @@ export function registerRoomHandlers(): void {
                 // Resync failed, stats may remain stale - not critical
                 logger.warn('Auto-resync after stale stats warning failed');
             });
+        } else if (data.code === 'BOT_STALLED') {
+            // A stuck bot seat had its turn force-ended server-side
+            // (docs/HARDENING_PLAN.md P1-6) — this must actually reach the
+            // player, not just the server log, or the turn flip looks unexplained.
+            showToast(t('multiplayer.botStalled', { team: data.team ?? '' }), 'warning');
+        } else if (data.code === 'BOT_SEAT_RECLAIMED') {
+            // A reconnecting human evicted a bot that was standing in on their
+            // seat (docs/HARDENING_PLAN.md P1-7) — surface why the bot vanished.
+            showToast(t('multiplayer.botSeatReclaimed', { team: data.team ?? '' }), 'info');
         }
     });
 

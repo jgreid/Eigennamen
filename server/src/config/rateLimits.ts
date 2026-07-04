@@ -28,6 +28,8 @@ export const RATE_LIMITS: Record<string, RateLimitConfig> = {
     'game:clue': { window: 2000, max: 5 }, // 5 per 2 seconds (spymaster gives one clue per turn)
     'game:endTurn': { window: 2000, max: 3 }, // 3 per 2 seconds
     'game:forfeit': { window: 10000, max: 2 }, // 2 per 10 seconds
+    'game:abandon': { window: 10000, max: 2 }, // 2 per 10 seconds (host only, same ceiling as forfeit)
+    'game:clearHistory': { window: 10000, max: 2 }, // 2 per 10 seconds (host only, Redis write + broadcast)
     'game:pause': { window: 5000, max: 2 }, // 2 per 5 seconds (host only)
     'game:resume': { window: 5000, max: 2 }, // 2 per 5 seconds (host only)
     'game:nextRound': { window: 5000, max: 2 }, // 2 per 5 seconds (host only, match mode)

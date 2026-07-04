@@ -57,6 +57,8 @@ const gameStateSchema = z
         matchRound: z.number().optional(),
         redMatchScore: z.number().optional(),
         blueMatchScore: z.number().optional(),
+        roundStartRedMatchScore: z.number().optional(),
+        roundStartBlueMatchScore: z.number().optional(),
         roundHistory: z.preprocess(emptyObjToArray, z.array(z.unknown())).optional(),
         matchOver: z.boolean().optional(),
         matchWinner: z.string().nullable().optional(),

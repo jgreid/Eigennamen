@@ -70,7 +70,20 @@ const sel = {
     mpIndicatorActive: '[data-testid="mp-indicator"].active',
     roomCode: '[data-testid="room-code"]',
     playerCount: '[data-testid="player-count"]',
+    playerCountBtn: '#mp-player-count-btn',
     playerList: '[data-testid="player-list"]',
+
+    // Bot management (host only; lives inside the expandable player list)
+    botsPanel: '[data-testid="bots-panel"]',
+    botTeamSelect: '[data-testid="bot-team-select"]',
+    botSeatSelect: '[data-testid="bot-seat-select"]',
+    botStyleSelect: '[data-testid="bot-style-select"]',
+    botSkillSelect: '[data-testid="bot-skill-select"]',
+    addBotBtn: '[data-testid="add-bot-btn"]',
+
+    // Clue display (visible to everyone once a spymaster/spymaster-bot clues)
+    clueDisplay: '[data-testid="clue-display"]',
+    suggestionBadge: '.suggestion-badge',
 
     // Multiplayer Modal Form
     modeJoinBtn: '[data-testid="mode-join-btn"]',
@@ -93,8 +106,11 @@ const sel = {
     clickerRedBtn: '#btn-clicker-red',
     clickerBlueBtn: '#btn-clicker-blue',
 
-    // Start game button (dynamically generated in multiplayer)
-    startGameBtn: '#btn-start-game',
+    // Start/new-game button. Room creation auto-starts a game immediately
+    // (see multiplayer.ts), so this button is really only ever the
+    // round/game *transition* control post-round — same element as
+    // newGameBtn below (id="btn-new-game"; #btn-start-game does not exist).
+    startGameBtn: '#btn-new-game',
 
     // Chat (may not exist in all views)
     chatInput: '#chat-input',
@@ -222,4 +238,33 @@ async function becomeCurrentClicker(page) {
     return isRedTurn;
 }
 
-module.exports = { sel, goToGame, clickLocalUntilBoard, createRoom, joinRoom, selectTeam, becomeCurrentClicker };
+/**
+ * Add a bot to a team/seat via the host-only bots panel. Expands the player
+ * list first (the panel lives inside it) if it isn't already open.
+ * @param {import('@playwright/test').Page} page
+ * @param {'red' | 'blue'} team
+ * @param {'spymaster' | 'clicker' | 'advisor'} seat
+ * @param {'smart' | 'cautious' | 'random'} [style]
+ */
+async function addBot(page, team, seat, style = 'smart') {
+    const panel = page.locator(sel.botsPanel);
+    if (!(await panel.isVisible({ timeout: 1000 }).catch(() => false))) {
+        await page.locator(sel.playerCountBtn).click();
+        await panel.waitFor({ state: 'visible', timeout: 5000 });
+    }
+    await page.locator(sel.botTeamSelect).selectOption(team);
+    await page.locator(sel.botSeatSelect).selectOption(seat);
+    await page.locator(sel.botStyleSelect).selectOption(style);
+    await page.locator(sel.addBotBtn).click();
+}
+
+module.exports = {
+    sel,
+    goToGame,
+    clickLocalUntilBoard,
+    createRoom,
+    joinRoom,
+    selectTeam,
+    becomeCurrentClicker,
+    addBot,
+};
