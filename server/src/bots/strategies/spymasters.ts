@@ -426,7 +426,10 @@ function scoreClue(
             if (edge?.penetration !== undefined && edge.penetration < minPenetration) {
                 minPenetration = edge.penetration;
             }
-            if (edge?.kind !== undefined) abstractness += EDGE_ABSTRACTNESS[edge.kind];
+            // `?? 0`: the kind is typed, but edgeInfo data crosses a JSON
+            // boundary — an unknown kind must read as neutral, never as NaN
+            // poisoning every score this candidate touches.
+            if (edge?.kind !== undefined) abstractness += EDGE_ABSTRACTNESS[edge.kind] ?? 0;
         }
         fameOfFactPenalty = FAME_OF_FACT_WEIGHT * style.commonnessBias * (1 - minPenetration);
         abstractnessPenalty = CONCRETENESS_WEIGHT * style.commonnessBias * (abstractness / intended);

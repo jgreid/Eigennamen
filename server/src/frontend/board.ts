@@ -334,6 +334,10 @@ export function renderBotSuggestions(): void {
         c.querySelector('.suggestion-badge')?.remove();
     });
     for (const s of state.botSuggestions) {
+        // Shape-guard server data before it reaches a selector template or
+        // the DOM: only a non-negative integer index is ever interpolated,
+        // and only real numbers render as a confidence.
+        if (!Number.isInteger(s.index) || s.index < 0 || typeof s.confidence !== 'number') continue;
         const card = board.querySelector(`.card[data-index="${s.index}"]`);
         if (!card || card.classList.contains('revealed')) continue;
         const pct = Math.round(Math.max(0, Math.min(1, s.confidence)) * 100);
@@ -343,9 +347,12 @@ export function renderBotSuggestions(): void {
         badge.className = 'suggestion-badge';
         // An advisor caution (late stretch, frame doubt, unresolved reference)
         // is flagged on the badge and detailed in the tooltip. textContent
-        // only — advisory strings never touch innerHTML.
-        badge.textContent = s.warning ? `⚠ ${pct}%` : `${pct}%`;
-        const detail = s.warning ? `${s.reason} — ${s.warning}` : s.reason;
+        // only — advisory strings never touch innerHTML — and non-string
+        // fields degrade to absent rather than rendering "[object Object]".
+        const reason = typeof s.reason === 'string' ? s.reason : '';
+        const warning = typeof s.warning === 'string' ? s.warning : undefined;
+        badge.textContent = warning ? `⚠ ${pct}%` : `${pct}%`;
+        const detail = warning ? `${reason} — ${warning}` : reason;
         badge.title = state.botSuggestionAdvisor ? `${state.botSuggestionAdvisor}: ${detail}` : detail;
         card.appendChild(badge);
     }

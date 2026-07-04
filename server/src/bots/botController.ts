@@ -57,6 +57,25 @@ interface RoomClueTracker {
 }
 const clueMemory = new Map<string, RoomClueTracker>();
 
+/**
+ * Leak guard for the long-lived per-room maps: a room that dies without a
+ * final tick (TTL expiry, abandonment mid-game) never hits the gameOver
+ * cleanup path, so on a long-running server these maps would only grow.
+ * Map insertion order is kept LRU-ish by re-inserting on access; evicting
+ * an active room is harmless — its tracker just rebuilds from the next
+ * snapshot (the memory is a tie-breaker boost, not authoritative state).
+ */
+const MAX_TRACKED_ROOMS = 500;
+/** Per-team clue-entry cap within one game (a real game gives far fewer). */
+const MAX_CLUES_PER_TEAM = 64;
+function evictOldestBeyondCap(map: Map<string, unknown>): void {
+    while (map.size > MAX_TRACKED_ROOMS) {
+        const oldest = map.keys().next().value;
+        if (oldest === undefined) break;
+        map.delete(oldest);
+    }
+}
+
 /** Advance a room's clue-debt tracker to the given game snapshot. Classic
  *  and match only — a duet reveal's classification follows the side-A key,
  *  so the memory stays empty there (mirrors the harness). Exported for
@@ -66,11 +85,21 @@ export function reconcileClueMemory(roomCode: string, game: GameState): RoomClue
     let tracker = clueMemory.get(roomCode);
     if (!tracker || tracker.gameKey !== gameKey) {
         tracker = { gameKey, live: null, clues: { red: [], blue: [] } };
-        clueMemory.set(roomCode, tracker);
+    } else {
+        // Refresh recency (delete + set keeps Map insertion order LRU-ish).
+        clueMemory.delete(roomCode);
     }
+    clueMemory.set(roomCode, tracker);
+    evictOldestBeyondCap(clueMemory);
     if (game.gameMode === 'duet') return tracker;
     const live = game.currentClue;
-    if (tracker.live && (!live || live.word !== tracker.live.word || live.team !== tracker.live.team)) {
+    if (
+        tracker.live &&
+        (!live ||
+            live.word !== tracker.live.word ||
+            live.team !== tracker.live.team ||
+            live.number !== tracker.live.number)
+    ) {
         // The tracked clue ended: classify every card revealed since it
         // arrived (types[] is unmasked server-side).
         let taken = 0;
@@ -80,12 +109,16 @@ export function reconcileClueMemory(roomCode: string, game: GameState): RoomClue
             if (game.types[i] === tracker.live.team) taken++;
             else bounced = true;
         }
-        tracker.clues[tracker.live.team].push({
+        const entries = tracker.clues[tracker.live.team];
+        entries.push({
             word: tracker.live.word,
             number: tracker.live.number,
             taken,
             bounced,
         });
+        // A stalled game ping-ponging clues must not grow the memory without
+        // bound; recent debt is what matters, so the oldest entries yield.
+        if (entries.length > MAX_CLUES_PER_TEAM) entries.splice(0, entries.length - MAX_CLUES_PER_TEAM);
         tracker.live = null;
     }
     if (live && !tracker.live) {
@@ -155,6 +188,9 @@ const reArmTimers = new Map<string, ReturnType<typeof setTimeout>>();
 function scheduleReArm(roomCode: string): void {
     const streak = (failureStreak.get(roomCode) ?? 0) + 1;
     failureStreak.set(roomCode, streak);
+    // Same leak guard as the trackers: a room that dies mid-backoff (or after
+    // giving up) never gets a success/clean-stop to clear its streak.
+    evictOldestBeyondCap(failureStreak);
     if (streak > MAX_REARM_ATTEMPTS) {
         logger.error(`botController giving up on ${roomCode} after ${MAX_REARM_ATTEMPTS} consecutive action failures`);
         return;
@@ -261,6 +297,7 @@ async function emitAdvisorSuggestions(
     if (suggestions.length === 0) return;
 
     suggestionKeys.set(roomCode, key);
+    evictOldestBeyondCap(suggestionKeys);
     safeEmitToRoom(io, roomCode, SOCKET_EVENTS.GAME_BOT_SUGGESTION, {
         team,
         clue: { word: clue.word, number: clue.number },
@@ -333,7 +370,10 @@ export async function tickRoom(roomCode: string): Promise<void> {
                 gameMode: (game.gameMode as GameMode) ?? 'classic',
                 skill,
                 rng: makeRng(seed),
-                memory: { clues: memoryTracker.clues[team] },
+                // Shallow copy: the snapshot handed to a strategy must stay
+                // immutable even if a strategy misbehaves — the tracker is
+                // shared room state.
+                memory: { clues: [...memoryTracker.clues[team]] },
             };
 
             const action = playOneAction(game, seat, strategy, ctx);
