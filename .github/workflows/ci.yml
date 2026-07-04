@@ -218,6 +218,13 @@ jobs:
         if: matrix.node-version != env.NODE_VERSION || steps.cache.outputs.cache-hit != 'true'
         run: npm ci
 
+      # The real-Redis integration suites (luaScripts, redisShutdown, …) run
+      # in memory mode, which spawns an embedded redis-server process, so the
+      # binary must be on PATH. The runner image does not ship it — the E2E
+      # job already installs it for the same reason; the Test job was missed.
+      - name: Install Redis (for embedded memory-mode server)
+        run: sudo apt-get update && sudo apt-get install -y redis-server
+
       - name: Run tests with coverage
         run: npx jest --config jest.config.ts.js --ci --coverage --forceExit
         env:
