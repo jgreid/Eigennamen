@@ -27,7 +27,11 @@ jest.mock('../../utils/logger', () => ({
 
 jest.mock('../../services/playerService', () => ({
     getPlayer: jest.fn(),
-    handleDisconnect: jest.fn().mockResolvedValue(undefined),
+    // Truthy by default (a non-stale disconnect) — handleDisconnect's real
+    // implementation returns null only when superseded by a newer reconnect
+    // (docs/HARDENING_PLAN.md P0-4), and disconnectHandler.ts now bails out of
+    // all remaining disconnect side effects when it sees a falsy return.
+    handleDisconnect: jest.fn().mockResolvedValue({ sessionId: 'sess-1', roomCode: 'ROOM01' }),
     getPlayersInRoom: jest.fn().mockResolvedValue([]),
     getRoomStats: jest.fn().mockResolvedValue({ totalPlayers: 0 }),
     generateReconnectionToken: jest.fn().mockResolvedValue('abc123'),
@@ -116,7 +120,7 @@ describe('disconnectHandler', () => {
 
             await handleDisconnect(mockIo, mockSocket, 'transport close');
 
-            expect(playerService.handleDisconnect).toHaveBeenCalledWith('sess-1');
+            expect(playerService.handleDisconnect).toHaveBeenCalledWith('sess-1', 'sock-1');
         });
 
         it('should mark player as disconnected and notify room', async () => {
@@ -132,7 +136,7 @@ describe('disconnectHandler', () => {
 
             await handleDisconnect(mockIo, mockSocket, 'transport close');
 
-            expect(playerService.handleDisconnect).toHaveBeenCalledWith('sess-1');
+            expect(playerService.handleDisconnect).toHaveBeenCalledWith('sess-1', 'sock-1');
             expect(safeEmitToRoom).toHaveBeenCalledWith(
                 mockIo,
                 'ROOM01',
@@ -365,7 +369,7 @@ describe('disconnectHandler', () => {
                 expect.any(String)
             );
             // Should still proceed with disconnect
-            expect(playerService.handleDisconnect).toHaveBeenCalledWith('sess-1');
+            expect(playerService.handleDisconnect).toHaveBeenCalledWith('sess-1', 'sock-1');
         });
 
         it('should skip room notification when player has no roomCode', async () => {
@@ -380,7 +384,7 @@ describe('disconnectHandler', () => {
 
             await handleDisconnect(mockIo, mockSocket, 'transport close');
 
-            expect(playerService.handleDisconnect).toHaveBeenCalledWith('sess-1');
+            expect(playerService.handleDisconnect).toHaveBeenCalledWith('sess-1', 'sock-1');
             expect(safeEmitToRoom).not.toHaveBeenCalled();
         });
 

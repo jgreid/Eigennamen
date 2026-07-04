@@ -11,6 +11,7 @@ import { ERROR_CODES, SOCKET_EVENTS, SESSION_SECURITY } from '../../../config/co
 import { createRoomHandler, createPreRoomHandler } from '../../contextHandler';
 import { RoomError, PlayerError, ServerError } from '../../../errors/GameError';
 import { withTimeout, TIMEOUTS } from '../../../utils/timeout';
+import { withLock } from '../../../utils/distributedLock';
 import { incrementCounter, METRIC_NAMES } from '../../../utils/metrics';
 import { sendTimerStatus, sendSpymasterViewIfNeeded, computeFallbackStats } from '../roomHandlerUtils';
 
@@ -94,9 +95,17 @@ export default function roomReconnectionHandlers(_io: unknown, socket: GameSocke
                         throw RoomError.notFound(code);
                     }
 
-                    await playerService.updatePlayer(socket.sessionId, {
-                        connected: true,
-                        lastSeen: Date.now(),
+                    // Serialized against a concurrent disconnect's connected:false
+                    // write via the same player-mutation lock (see
+                    // services/player/cleanup.ts's handleDisconnect) — otherwise a
+                    // disconnect racing this reconnect could land its stale write
+                    // last and leave this actively-reconnected player flagged
+                    // disconnected. See docs/HARDENING_PLAN.md P0-4.
+                    await withLock(`player-mutation:${socket.sessionId}`, async () => {
+                        await playerService.updatePlayer(socket.sessionId, {
+                            connected: true,
+                            lastSeen: Date.now(),
+                        });
                     });
 
                     const [player, players, game] = (await Promise.all([

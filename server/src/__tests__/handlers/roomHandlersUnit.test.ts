@@ -39,6 +39,13 @@ jest.mock('../../middleware/validation', () => ({
     validateInput: jest.fn((schema, data) => data),
 }));
 
+// room:reconnect now serializes its connected:true write under the same
+// player-mutation lock the disconnect path uses (docs/HARDENING_PLAN.md P0-4) —
+// bypass the real Redis-backed lock in this unit-test context.
+jest.mock('../../utils/distributedLock', () => ({
+    withLock: jest.fn(async (_key: string, fn: () => Promise<unknown>) => fn()),
+}));
+
 const roomService = require('../../services/roomService');
 const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');

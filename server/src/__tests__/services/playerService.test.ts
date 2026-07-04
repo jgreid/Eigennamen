@@ -707,6 +707,45 @@ describe('Player Service', () => {
 
             expect(result).toBeNull();
         });
+
+        // Regression (docs/HARDENING_PLAN.md P0-4): a disconnect racing a fresher
+        // reconnect for the same session must not clobber connected:true back to
+        // false — expectedSocketId is re-checked against the live socket mapping
+        // INSIDE the player-mutation lock, immediately before the write.
+        test('skips the connected:false write when a newer socket already owns the session', async () => {
+            const player = mockPlayer({ sessionId: 's1' });
+            mockRedis.get.mockImplementation((key) => {
+                if (key === 'player:s1') return Promise.resolve(JSON.stringify(player));
+                if (key === 'session:s1:socket') return Promise.resolve('newer-socket-id');
+                return Promise.resolve(null);
+            });
+
+            const result = await playerService.handleDisconnect('s1', 'stale-socket-id');
+
+            expect(result).toBeNull();
+            // No write, no schedule — this player is not actually disconnected
+            expect(mockRedis.eval).not.toHaveBeenCalled();
+            expect(mockRedis.zAdd).not.toHaveBeenCalled();
+        });
+
+        test('proceeds with the disconnect when expectedSocketId still owns the session', async () => {
+            const player = mockPlayer({ sessionId: 's1' });
+            mockRedis.get.mockImplementation((key) => {
+                if (key === 'player:s1') return Promise.resolve(JSON.stringify(player));
+                if (key === 'session:s1:socket') return Promise.resolve('sock-1');
+                return Promise.resolve(null);
+            });
+            mockRedis.eval.mockResolvedValue(
+                JSON.stringify({ ...player, connected: false, disconnectedAt: Date.now() })
+            );
+            mockRedis.zAdd.mockResolvedValue(1);
+            mockRedis.expire.mockResolvedValue(true);
+
+            const result = await playerService.handleDisconnect('s1', 'sock-1');
+
+            expect(result).not.toBeNull();
+            expect(mockRedis.zAdd).toHaveBeenCalled();
+        });
     });
 
     describe('validateRoomReconnectToken', () => {
