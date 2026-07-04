@@ -269,6 +269,34 @@ describe('Game Handlers', () => {
             );
         });
 
+        test('rejects reveal when no clue has been given this turn', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                role: 'clicker',
+                team: 'red',
+            });
+            // A fresh turn has guessesAllowed=0 and no clue yet — must be rejected
+            // even though guessesAllowed=0 also means "unlimited guesses" once a
+            // real clue-number-0 has been given.
+            gameService.getGame.mockResolvedValue({ currentTurn: 'red', currentClue: null, guessesAllowed: 0 });
+            playerService.getTeamMembers.mockResolvedValue([
+                { sessionId: 'session-456', connected: true, team: 'red', role: 'clicker' },
+            ]);
+
+            const handlers = mockSocket.on.mock.calls;
+            const revealHandler = handlers.find((h) => h[0] === 'game:reveal');
+            await revealHandler[1]({ index: 5 });
+
+            expect(gameService.revealCard).not.toHaveBeenCalled();
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({
+                    message: expect.stringContaining('clue'),
+                })
+            );
+        });
+
         test('reveals card successfully', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
@@ -277,7 +305,10 @@ describe('Game Handlers', () => {
                 team: 'red',
                 nickname: 'TestPlayer',
             });
-            gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
+            gameService.getGame.mockResolvedValue({
+                currentTurn: 'red',
+                currentClue: { word: 'FRUIT', number: 2 },
+            });
             // ISSUE #59 FIX: Mock team members for team validation
             playerService.getTeamMembers.mockResolvedValue([
                 { sessionId: 'session-456', connected: true, team: 'red' },
@@ -313,7 +344,10 @@ describe('Game Handlers', () => {
                 team: 'red',
                 nickname: 'TestPlayer',
             });
-            gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
+            gameService.getGame.mockResolvedValue({
+                currentTurn: 'red',
+                currentClue: { word: 'DANGER', number: 1 },
+            });
             // ISSUE #59 FIX: Mock team members for team validation
             playerService.getTeamMembers.mockResolvedValue([
                 { sessionId: 'session-456', connected: true, team: 'red' },
