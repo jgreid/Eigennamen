@@ -327,10 +327,15 @@ async function emitAdvisorSuggestions(
     const skill = cfg ? resolveSkill(cfg.skillPreset, seed) : undefined;
     // Public own-remaining count for the late-stretch warning (types[] is
     // unmasked server-side; the count itself is public via the room score,
-    // so no key information reaches the advisor payload).
+    // so no key information reaches the advisor payload). In Duet, blue's own
+    // greens live only in duetTypes — mirrors the same branch playOneAction.ts
+    // uses for the spymaster view, or a blue-side advisor always sees 0 own
+    // cards remaining and trips the late-stretch warning from turn one.
+    const ownTypes =
+        (game.gameMode as GameMode) === 'duet' && team === 'blue' ? (game.duetTypes ?? game.types) : game.types;
     let ownRemaining = 0;
-    for (let i = 0; i < game.types.length; i++) {
-        if (game.types[i] === team && !game.revealed[i]) ownRemaining++;
+    for (let i = 0; i < ownTypes.length; i++) {
+        if (ownTypes[i] === team && !game.revealed[i]) ownRemaining++;
     }
     const suggestions = suggestGuesses(view, getSemanticBackend(), 3, skill, makeRng(seed), { ownRemaining });
     if (suggestions.length === 0) return;
