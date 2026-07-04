@@ -51,7 +51,6 @@ jest.mock('../../frontend/i18n', () => ({
 }));
 
 jest.mock('../../frontend/utils', () => ({
-    escapeHTML: jest.fn((str) => str),
     copyToClipboard: jest.fn().mockResolvedValue(true),
 }));
 

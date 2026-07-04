@@ -31,13 +31,6 @@ export async function copyToClipboard(text: string): Promise<boolean> {
     }
 }
 
-// Sanitize string to prevent XSS when inserting into HTML
-export function escapeHTML(str: string): string {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-}
-
 // Seeded random number generator using Mulberry32 algorithm
 // Provides better distribution than Math.sin-based approach
 // Must stay in sync with server-side implementation in gameService.js

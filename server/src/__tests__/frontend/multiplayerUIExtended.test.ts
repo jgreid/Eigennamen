@@ -23,7 +23,6 @@ jest.mock('../../frontend/state', () => ({
 }));
 
 jest.mock('../../frontend/utils', () => ({
-    escapeHTML: (s: string) => s,
     copyToClipboard: (...args: unknown[]) => mockCopyToClipboard(...args),
 }));
 

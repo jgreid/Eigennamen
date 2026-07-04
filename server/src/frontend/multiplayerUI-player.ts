@@ -101,9 +101,8 @@ function buildPlayerLi(p: ServerPlayerData, isMe: boolean, amHost: boolean): HTM
     if (isMe) nameSpan.classList.add('you');
     if (p.team) {
         // Slugify team name into a safe CSS class token: class tokens cannot
-        // contain whitespace and escapeHTML would leave entity references that
-        // don't match any selector. Fold to [a-z0-9-] so arbitrary team names
-        // (Unicode, punctuation, spaces) produce a valid, matchable class.
+        // contain whitespace or arbitrary Unicode/punctuation. Fold to
+        // [a-z0-9-] so arbitrary team names produce a valid, matchable class.
         const slug = p.team
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, '-')

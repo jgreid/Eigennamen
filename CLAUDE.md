@@ -249,7 +249,7 @@ Eigennamen/
         │   ├── i18n.ts         # Internationalization
         │   ├── notifications.ts # Audio + tab notifications
         │   ├── url-state.ts    # URL encoding/decoding for standalone mode
-        │   ├── utils.ts        # Clipboard, escapeHTML, DOM utilities
+        │   ├── utils.ts        # Clipboard, seeded RNG, DOM utilities
         │   ├── constants.ts    # Frontend constants (UI timing, selectors)
         │   ├── debug.ts        # Debug logging + state watchers
         │   ├── logger.ts       # Frontend logging utility
@@ -431,7 +431,7 @@ Configured in `config/gameConfig.ts`, rules shared via `shared/gameRules.ts`:
 - **Selectors** — `store/selectors.ts` for derived state
 - **Batch updates** — `store/batch.ts` to group multiple state changes
 - **DOM manipulation** — Direct DOM via `document.getElementById()`, `el.hidden`, `el.textContent`
-- **No innerHTML for user content** — Use `textContent` or `createElement()`. `frontend/utils.ts`'s `escapeHTML()` only escapes `&`/`<`/`>`, not quotes, so it is **not** attribute-injection-safe — it has no current call sites and is slated for removal (see docs/HARDENING_PLAN.md P1-12); don't add a new one
+- **No innerHTML for user content** — Use `textContent` or `createElement()`
 
 ## Socket Events
 
@@ -556,7 +556,7 @@ Run `npm run format` to auto-format, `npm run format:check` to verify.
 - **Validation**: Zod schemas at every entry point with `removeControlChars()` sanitization
 - **NFKC normalization**: Prevents Unicode homoglyph attacks
 - **CSP**: Strict Content-Security-Policy with no `unsafe-inline` in script-src or style-src
-- **No innerHTML for user content**: Use `textContent` or `createElement()` — `escapeHTML()` is not attribute-safe and has no current call sites (see docs/HARDENING_PLAN.md P1-12)
+- **No innerHTML for user content**: Use `textContent` or `createElement()`
 - **JWT**: Minimum 32-character secret enforced in production
 - **Session limits**: 8-hour max lifetime, IP consistency checks
 - **Rate limiting**: Per-event + per-IP; HTTP via express-rate-limit, WebSocket via in-memory per-process counters today (session validation alone is Redis-backed) — making the WebSocket path Redis-backed across instances is tracked in docs/HARDENING_PLAN.md P2-1
