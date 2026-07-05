@@ -158,6 +158,27 @@ than reading meaning into a non-frequency order). Board-word coverage is
 identical either way; `--freq-top` (default 60 000) bounds how much of the
 reference counts as "common."
 
+The extractor reads only the **leading token** of each `--freq` line (the vectors
+are ignored), so the reference does not have to be an embedding model — any
+frequency-ordered token list works, in the same `token <anything>` per-line
+shape. That matters when GloVe/fastText aren't downloadable: a compact list from
+the [`wordfreq`](https://pypi.org/project/wordfreq/) package (purpose-built for
+commonness) is a strong, tiny reference:
+
+```bash
+python3 - <<'PY'
+import wordfreq
+with open('server/src/bots/data/freq-en.vec', 'w') as f:
+    for w in wordfreq.top_n_list('en', 80000):
+        if 2 <= len(w) <= 15 and all(c.isalpha() or c in "'.-" for c in w):
+            f.write(f"{w.upper()} 1\n")   # placeholder value keeps the row shape
+PY
+node scripts/build-board-vectors.mjs \
+  --in server/src/bots/data/numberbatch-en-19.08.vec \
+  --freq server/src/bots/data/freq-en.vec --freq-top 60000 \
+  --out server/src/bots/data/board-vectors.vec --breadth 40000
+```
+
 ## Supported file format
 
 Standard whitespace-separated word-vectors text, auto-detected:
