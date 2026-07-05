@@ -190,7 +190,8 @@
         "youAreHost": "You are now the host!",
         "newHost": "{{name}} is now the host",
         "botStalled": "A bot on the {{team}} team got stuck, so its turn was ended automatically",
-        "botSeatReclaimed": "Welcome back! A bot covering your {{team}} team seat has been removed"
+        "botSeatReclaimed": "Welcome back! A bot covering your {{team}} team seat has been removed",
+        "serverShutdown": "The server is restarting for an update. This game can't be resumed — you'll be returned to the home screen."
     },
     "settings": {
         "title": "Settings",

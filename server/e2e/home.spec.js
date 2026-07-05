@@ -50,12 +50,10 @@ test.describe('Home Page', () => {
         await expect(page.locator(sel.settingsBtn)).toBeVisible();
     });
 
-    test('has share link input', async ({ page }) => {
-        const shareLink = page.locator(sel.shareLink);
-        await expect(shareLink).toBeVisible();
-
-        const url = await shareLink.inputValue();
-        expect(url).toContain('game=');
+    test('game state is shareable via the URL', async ({ page }) => {
+        // The standalone game is shared by copying the page URL, which encodes
+        // the full board state (there is no dedicated share-link input element).
+        expect(page.url()).toContain('game=');
     });
 });
 

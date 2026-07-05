@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { sel, createRoom, joinRoom, selectTeam } = require('./helpers');
+const { sel, hostRoomWithMode, joinRoom, selectTeam, becomeSpymaster } = require('./helpers');
 
 /**
  * Game Modes E2E Tests
@@ -16,19 +16,9 @@ const { sel, createRoom, joinRoom, selectTeam } = require('./helpers');
 // ---------------------------------------------------------------------------
 
 /**
- * Select a game mode radio button (host only, game mode section must be visible).
- * @param {import('@playwright/test').Page} page
- * @param {'match' | 'classic' | 'duet'} mode
- */
-async function selectGameMode(page, mode) {
-    const radio = page.locator(`input[name="gameMode"][value="${mode}"]`);
-    await radio.check({ force: true });
-    // Wait briefly for the setting to propagate to server
-    await page.waitForTimeout(500);
-}
-
-/**
- * Start a two-player multiplayer game with a specific game mode.
+ * Start a two-player multiplayer game in a specific mode. The host is created
+ * via the setup screen (the only reliable way to pick the mode before the game
+ * auto-starts); host joins red, guest joins blue.
  * Returns { host, guest, roomId, ctx1, ctx2 }.
  * @param {import('@playwright/test').Browser} browser
  * @param {'match' | 'classic' | 'duet'} mode
@@ -39,29 +29,74 @@ async function setupTwoPlayerGame(browser, mode) {
     const host = await ctx1.newPage();
     const guest = await ctx2.newPage();
 
-    const roomId = await createRoom(host, `${mode}Host`);
+    const roomId = await hostRoomWithMode(host, `${mode}Host`, mode);
     await joinRoom(guest, roomId, `${mode}Guest`);
-
-    // Wait for both players to see each other
     await expect(host.locator('body')).toContainText(`${mode}Guest`, { timeout: 5000 });
 
-    // Host selects the game mode
-    await selectGameMode(host, mode);
-
-    // Both pick teams
+    // Both pick teams. The game already auto-started in the chosen mode.
     await selectTeam(host, 'red');
     await selectTeam(guest, 'blue');
 
-    // Host starts the game
-    const startBtn = host.locator(sel.startGameBtn);
-    await expect(startBtn).toBeVisible({ timeout: 5000 });
-    await startBtn.click();
-
-    // Wait for board to render on both pages
     await host.locator(sel.boardCard).first().waitFor({ state: 'visible', timeout: 10000 });
     await guest.locator(sel.boardCard).first().waitFor({ state: 'visible', timeout: 10000 });
 
     return { host, guest, roomId, ctx1, ctx2 };
+}
+
+/**
+ * Reveal a specific card in a multiplayer game: the acting team's spymaster
+ * (page `spy`) gives a clue (required before any reveal, P0-2), then its clicker
+ * (page `clk`) reveals the card at `index`. Both must already be on the team on
+ * turn — `spy` as spymaster, `clk` as clicker.
+ * @param {import('@playwright/test').Page} spy
+ * @param {import('@playwright/test').Page} clk
+ * @param {number} index
+ */
+async function clueThenReveal(spy, clk, index) {
+    await spy.locator(sel.clueWordInput).fill('signal');
+    await spy.locator(sel.clueNumberInput).fill('9');
+    await spy.locator(sel.giveClueBtn).click();
+    await clk.locator(sel.boardCard).nth(index).click();
+}
+
+/**
+ * Read the pure board words via the data-word attribute (card text can include
+ * match-mode score badges like "TABLE+3", which differ between spymaster and
+ * clicker views).
+ * @param {import('@playwright/test').Page} page
+ */
+async function boardWords(page) {
+    return page.locator(sel.boardCard).evaluateAll((els) => els.map((e) => e.getAttribute('data-word') || ''));
+}
+
+/**
+ * Start a two-player game where BOTH players are on the team on turn — host as
+ * spymaster (can read the board + give clues) and guest as clicker (can reveal).
+ * Needed for reveal tests: a multiplayer reveal requires a clue, and one player
+ * cannot be both spymaster and clicker (a spymaster can't switch role mid-game).
+ * @param {import('@playwright/test').Browser} browser
+ * @param {'match' | 'classic' | 'duet'} mode
+ */
+async function setupSameTeamGame(browser, mode) {
+    const ctx1 = await browser.newContext();
+    const ctx2 = await browser.newContext();
+    const host = await ctx1.newPage();
+    const guest = await ctx2.newPage();
+
+    const roomId = await hostRoomWithMode(host, `${mode}SHost`, mode);
+    await joinRoom(guest, roomId, `${mode}SGuest`);
+    await expect(host.locator('body')).toContainText(`${mode}SGuest`, { timeout: 5000 });
+    await host.locator(sel.boardCard).first().waitFor({ state: 'visible', timeout: 10000 });
+    await guest.locator(sel.boardCard).first().waitFor({ state: 'visible', timeout: 10000 });
+
+    const turnText = await host.locator(sel.turnIndicator).textContent();
+    const team = turnText?.includes('Red') ? 'red' : 'blue';
+    await selectTeam(host, team);
+    await host.locator(sel.spymasterBtn).click();
+    await selectTeam(guest, team);
+    await guest.locator(sel.clickerBtn).click();
+
+    return { host, guest, roomId, ctx1, ctx2, team };
 }
 
 /**
@@ -154,28 +189,19 @@ test.describe('Duet Mode', () => {
     });
 
     test('card reveal works in duet mode', async ({ browser }) => {
-        const { host, guest, ctx1, ctx2 } = await setupTwoPlayerGame(browser, 'duet');
+        // Host = spymaster (clues), guest = clicker (reveals); a reveal needs a
+        // clue first and one player can't hold both seats.
+        const { host, guest, ctx1, ctx2 } = await setupSameTeamGame(browser, 'duet');
 
         try {
-            // Determine whose turn it is
-            const turnText = await host.locator(sel.turnIndicator).textContent();
-            const isRedTurn = turnText?.includes('Red') || false;
+            const cardText = await guest.locator(sel.boardCard).first().textContent();
+            await clueThenReveal(host, guest, 0);
 
-            // Active player becomes clicker
-            const activePlayer = isRedTurn ? host : guest;
-            await activePlayer.locator(sel.clickerBtn).click();
+            // Card should be revealed on the acting (guest) player
+            await expect(guest.locator(sel.boardCard).first()).toHaveClass(/revealed/, { timeout: 5000 });
 
-            // Reveal the first unrevealed card
-            const card = activePlayer.locator(sel.boardCardUnrevealed).first();
-            const cardText = await card.textContent();
-            await card.click();
-
-            // Card should be revealed on the active player
-            await expect(card).toHaveClass(/revealed/, { timeout: 5000 });
-
-            // And on the other player too
-            const otherPlayer = isRedTurn ? guest : host;
-            const otherCards = otherPlayer.locator(sel.boardCard);
+            // And on the other (host) player too
+            const otherCards = host.locator(sel.boardCard);
             for (let i = 0; i < 25; i++) {
                 const txt = await otherCards.nth(i).textContent();
                 if (txt?.trim() === cardText?.trim()) {
@@ -204,21 +230,18 @@ test.describe('Classic Mode', () => {
 
             // Host becomes spymaster to verify classic card distribution
             await host.locator(sel.spymasterBtn).click();
-            const typeMap = await getCardTypeMap(host);
 
-            // Classic mode: 9 + 8 + 7 + 1 = 25
-            const total = typeMap.red.length + typeMap.blue.length + typeMap.neutral.length + typeMap.assassin.length;
-            expect(total).toBe(25);
-
-            // One team has 9, the other has 8
-            const teamCounts = [typeMap.red.length, typeMap.blue.length].sort();
-            expect(teamCounts).toEqual([8, 9]);
-
-            // Exactly 1 assassin
-            expect(typeMap.assassin.length).toBe(1);
-
-            // 7 neutral cards
-            expect(typeMap.neutral.length).toBe(7);
+            // Retry the count until the spymaster view has fully rendered every
+            // card's spy-* class (9 + 8 + 7 + 1 = 25).
+            await expect(async () => {
+                const typeMap = await getCardTypeMap(host);
+                const total =
+                    typeMap.red.length + typeMap.blue.length + typeMap.neutral.length + typeMap.assassin.length;
+                expect(total).toBe(25);
+                expect([typeMap.red.length, typeMap.blue.length].sort()).toEqual([8, 9]);
+                expect(typeMap.assassin.length).toBe(1);
+                expect(typeMap.neutral.length).toBe(7);
+            }).toPass({ timeout: 5000 });
         } finally {
             await ctx1.close();
             await ctx2.close();
@@ -226,21 +249,18 @@ test.describe('Classic Mode', () => {
     });
 
     test('assassin card ends game in classic mode', async ({ browser }) => {
-        const { host, ctx1, ctx2 } = await setupTwoPlayerGame(browser, 'classic');
+        // Host = spymaster (reads the assassin + clues), guest = clicker (reveals);
+        // one player can't be both, and a reveal needs a clue first.
+        const { host, guest, ctx1, ctx2 } = await setupSameTeamGame(browser, 'classic');
 
         try {
-            // Find the assassin card via spymaster view
-            await host.locator(sel.spymasterBtn).click();
             const typeMap = await getCardTypeMap(host);
             const assassinIdx = typeMap.assassin[0];
 
-            // Switch to clicker and reveal the assassin
-            await host.locator(sel.clickerBtn).click();
-            const cards = host.locator(sel.boardCard);
-            await cards.nth(assassinIdx).click();
-            await expect(cards.nth(assassinIdx)).toHaveClass(/revealed/, { timeout: 5000 });
+            await clueThenReveal(host, guest, assassinIdx);
+            await expect(guest.locator(sel.boardCard).nth(assassinIdx)).toHaveClass(/revealed/, { timeout: 5000 });
 
-            // Game should be over
+            // Revealing the assassin ends the game for both players.
             await expect(host.locator(sel.turnIndicator)).toHaveClass(/game-over/, { timeout: 5000 });
         } finally {
             await ctx1.close();
@@ -261,10 +281,11 @@ test.describe('Match Mode', () => {
         try {
             await expect(host.locator(sel.boardCard)).toHaveCount(25);
 
-            // Both players should see the same words
-            const hostWords = await host.locator(sel.boardCard).allTextContents();
-            const guestWords = await guest.locator(sel.boardCard).allTextContents();
-            expect(hostWords.map((w) => w.trim())).toEqual(guestWords.map((w) => w.trim()));
+            // Both players should see the same words (compare data-word, not text,
+            // which includes match-mode score badges).
+            const hostWords = await boardWords(host);
+            const guestWords = await boardWords(guest);
+            expect(hostWords).toEqual(guestWords);
         } finally {
             await ctx1.close();
             await ctx2.close();
@@ -272,26 +293,20 @@ test.describe('Match Mode', () => {
     });
 
     test('assassin ends round in match mode and new game button appears', async ({ browser }) => {
-        const { host, ctx1, ctx2 } = await setupTwoPlayerGame(browser, 'match');
+        const { host, guest, ctx1, ctx2 } = await setupSameTeamGame(browser, 'match');
 
         try {
-            // Find the assassin card
-            await host.locator(sel.spymasterBtn).click();
             const typeMap = await getCardTypeMap(host);
             const assassinIdx = typeMap.assassin[0];
 
-            // Switch to clicker and reveal the assassin
-            await host.locator(sel.clickerBtn).click();
-            const cards = host.locator(sel.boardCard);
-            await cards.nth(assassinIdx).click();
-            await expect(cards.nth(assassinIdx)).toHaveClass(/revealed/, { timeout: 5000 });
+            await clueThenReveal(host, guest, assassinIdx);
+            await expect(guest.locator(sel.boardCard).nth(assassinIdx)).toHaveClass(/revealed/, { timeout: 5000 });
 
-            // Game should be over
+            // Round/game should be over
             await expect(host.locator(sel.turnIndicator)).toHaveClass(/game-over/, { timeout: 5000 });
 
             // The "New Game" button should be visible (host can start next round)
-            const newGameBtn = host.locator(sel.newGameBtn);
-            await expect(newGameBtn).toBeVisible({ timeout: 5000 });
+            await expect(host.locator(sel.newGameBtn)).toBeVisible({ timeout: 5000 });
         } finally {
             await ctx1.close();
             await ctx2.close();
@@ -299,19 +314,16 @@ test.describe('Match Mode', () => {
     });
 
     test('match mode next round creates a new board with different words', async ({ browser }) => {
-        const { host, guest, ctx1, ctx2 } = await setupTwoPlayerGame(browser, 'match');
+        const { host, guest, ctx1, ctx2 } = await setupSameTeamGame(browser, 'match');
 
         try {
-            // Capture round 1 words
-            const round1Words = await host.locator(sel.boardCard).allTextContents();
+            // Capture round 1 words (data-word, not text, to avoid match score badges)
+            const round1Words = await boardWords(host);
 
-            // End the round by revealing the assassin
-            await host.locator(sel.spymasterBtn).click();
+            // End the round by revealing the assassin (clue first, guest reveals).
             const typeMap = await getCardTypeMap(host);
             const assassinIdx = typeMap.assassin[0];
-
-            await host.locator(sel.clickerBtn).click();
-            await host.locator(sel.boardCard).nth(assassinIdx).click();
+            await clueThenReveal(host, guest, assassinIdx);
             await expect(host.locator(sel.turnIndicator)).toHaveClass(/game-over/, { timeout: 5000 });
 
             // Start next round via the new game button
@@ -326,15 +338,15 @@ test.describe('Match Mode', () => {
             await host.waitForTimeout(1000);
 
             // Capture round 2 words
-            const round2Words = await host.locator(sel.boardCard).allTextContents();
+            const round2Words = await boardWords(host);
 
             // Words should be different in the new round (extremely unlikely to be the same)
-            expect(round2Words.map((w) => w.trim())).not.toEqual(round1Words.map((w) => w.trim()));
+            expect(round2Words).not.toEqual(round1Words);
 
-            // Guest should also see the new board
+            // Guest should also see the same new board
             await guest.locator(sel.boardCard).first().waitFor({ state: 'visible', timeout: 10000 });
-            const guestRound2Words = await guest.locator(sel.boardCard).allTextContents();
-            expect(guestRound2Words.map((w) => w.trim())).toEqual(round2Words.map((w) => w.trim()));
+            const guestRound2Words = await boardWords(guest);
+            expect(guestRound2Words).toEqual(round2Words);
         } finally {
             await ctx1.close();
             await ctx2.close();

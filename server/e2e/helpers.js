@@ -41,9 +41,14 @@ const sel = {
 
     // Action Buttons
     newGameBtn: '[data-testid="new-game-btn"]',
+    // The game-over modal's own "New Game" button (the action-bar newGameBtn is
+    // behind the modal overlay once the game ends).
+    gameOverNewGameBtn: '[data-action="game-over-new-game"]',
     settingsBtn: '[data-testid="settings-btn"]',
     multiplayerBtn: '[data-testid="multiplayer-btn"]',
     endTurnBtn: '[data-testid="end-turn-btn"]',
+    // The End Turn button opens a confirmation modal; this is its "Yes" button.
+    endTurnConfirmBtn: '[data-action="confirm-yes-end-turn"]',
     spymasterBtn: '[data-testid="spymaster-btn"]',
     clickerBtn: '[data-testid="clicker-btn"]',
     // Spectator mode is now achieved by toggling team buttons (click team again to unassign)
@@ -53,9 +58,6 @@ const sel = {
     // Team Buttons
     teamRedBtn: '[data-testid="team-red-btn"]',
     teamBlueBtn: '[data-testid="team-blue-btn"]',
-
-    // Share
-    shareLink: '[data-testid="share-link"]',
 
     // Modals
     settingsModal: '[data-testid="settings-modal"]',
@@ -84,6 +86,11 @@ const sel = {
     // Clue display (visible to everyone once a spymaster/spymaster-bot clues)
     clueDisplay: '[data-testid="clue-display"]',
     suggestionBadge: '.suggestion-badge',
+
+    // Clue input (spymaster gives a clue; a multiplayer reveal needs one first)
+    clueWordInput: '[data-testid="clue-word-input"]',
+    clueNumberInput: '[data-testid="clue-number-input"]',
+    giveClueBtn: '[data-testid="give-clue-btn"]',
 
     // Multiplayer Modal Form
     modeJoinBtn: '[data-testid="mode-join-btn"]',
@@ -184,6 +191,57 @@ async function createRoom(page, nickname) {
 }
 
 /**
+ * Host a multiplayer room via the setup screen with a specific game mode, so the
+ * auto-started game begins in that mode (the multiplayer modal has no mode
+ * selector, and the settings-modal game-mode section is host-gated and hidden).
+ * @param {import('@playwright/test').Page} page
+ * @param {string} nickname
+ * @param {'match' | 'classic' | 'duet'} mode
+ * @returns {Promise<string>} Room ID
+ */
+async function hostRoomWithMode(page, nickname, mode) {
+    await page.goto('/');
+    await page.locator(sel.setupScreen).waitFor({ state: 'visible', timeout: 10000 });
+    // Let the app-init translation pass settle before interacting — the setup
+    // screen drops clicks that land during it (see clickLocalUntilBoard).
+    await page.locator(sel.setupHostBtn).waitFor({ state: 'visible', timeout: 5000 });
+
+    // Retry the Host card until its form appears (and stays) — dropped clicks
+    // during init otherwise leave the form hidden.
+    const hostForm = page.locator(sel.setupHostForm);
+    const deadline = Date.now() + 20000;
+    while (Date.now() < deadline) {
+        if (await hostForm.isVisible({ timeout: 400 }).catch(() => false)) break;
+        await page
+            .locator(sel.setupHostBtn)
+            .click({ timeout: 2000, force: true })
+            .catch(() => {});
+        await page.waitForTimeout(300);
+    }
+    await hostForm.waitFor({ state: 'visible', timeout: 5000 });
+
+    await page.locator(sel.setupHostNickname).fill(nickname);
+    const roomId = `E2E${Date.now()}${Math.random().toString(36).slice(2, 6)}`.toLowerCase();
+    await page.locator(sel.setupHostRoomId).fill(roomId);
+
+    // The mode radios are custom-styled (the <input> is not directly checkable),
+    // so set the value and fire change via the DOM.
+    await page.evaluate((m) => {
+        const r = /** @type {HTMLInputElement|null} */ (
+            document.querySelector(`input[name="setup-gameMode"][value="${m}"]`)
+        );
+        if (r) {
+            r.checked = true;
+            r.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }, mode);
+
+    await page.locator(sel.setupHostSubmitBtn).click();
+    await page.locator(sel.boardCard).first().waitFor({ state: 'visible', timeout: 15000 });
+    return roomId;
+}
+
+/**
  * Join an existing multiplayer room.
  * @param {import('@playwright/test').Page} page
  * @param {string} roomId
@@ -216,24 +274,50 @@ async function joinRoom(page, roomId, nickname) {
 async function selectTeam(page, team) {
     const btn = page.locator(team === 'red' ? sel.teamRedBtn : sel.teamBlueBtn);
     if (await btn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await btn.click();
-        // Wait for the player list to reflect the team change instead of arbitrary timeout
+        // Team buttons toggle: clicking the team you're already on unassigns it.
+        // Only click when not already selected so this helper is idempotent.
+        const alreadyOn = (await btn.getAttribute('aria-pressed')) === 'true';
+        if (!alreadyOn) {
+            await btn.click();
+        }
+        // Selecting a team enables the role buttons — standalone updates state
+        // synchronously, multiplayer applies an optimistic update — so wait for
+        // that precondition rather than a player-list row that only exists in
+        // multiplayer. This works in both modes and avoids a fixed timeout.
         await page
-            .locator(`${sel.playerList} .${team}-team, ${sel.playerList} [class*="${team}"]`)
-            .first()
-            .waitFor({ state: 'attached', timeout: 5000 })
+            .waitForFunction(
+                () => {
+                    const b = document.querySelector('[data-testid="spymaster-btn"]');
+                    return !!b && !(/** @type {HTMLButtonElement} */ (b).disabled);
+                },
+                { timeout: 5000 }
+            )
             .catch(() => {});
     }
 }
 
 /**
- * Become clicker for the team whose turn it is.
+ * Join a team and take the spymaster seat. The unified role buttons are
+ * disabled until a team is selected, so a team must be chosen first.
+ * @param {import('@playwright/test').Page} page
+ * @param {'red' | 'blue'} [team]
+ */
+async function becomeSpymaster(page, team = 'red') {
+    await selectTeam(page, team);
+    await page.locator(sel.spymasterBtn).click();
+}
+
+/**
+ * Become clicker for the team whose turn it is. The clicker button is disabled
+ * until a team is selected, and end-turn/reveal require being on the team whose
+ * turn it is, so join the current-turn team first.
  * @param {import('@playwright/test').Page} page
  * @returns {Promise<boolean>} true if red turn, false if blue turn
  */
 async function becomeCurrentClicker(page) {
     const turnText = await page.locator(sel.turnIndicator).textContent();
     const isRedTurn = turnText?.includes('Red') || false;
+    await selectTeam(page, isRedTurn ? 'red' : 'blue');
     await page.locator(sel.clickerBtn).click();
     return isRedTurn;
 }
@@ -263,8 +347,10 @@ module.exports = {
     goToGame,
     clickLocalUntilBoard,
     createRoom,
+    hostRoomWithMode,
     joinRoom,
     selectTeam,
+    becomeSpymaster,
     becomeCurrentClicker,
     addBot,
 };

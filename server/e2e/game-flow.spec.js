@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { sel, goToGame, becomeCurrentClicker } = require('./helpers');
+const { sel, goToGame, becomeSpymaster, becomeCurrentClicker } = require('./helpers');
 
 /**
  * Game Flow E2E Tests
@@ -14,26 +14,25 @@ test.describe('Game Flow', () => {
     });
 
     test('can start a new game', async ({ page }) => {
-        const initialUrl = page.url();
-        const initialSeed = new URL(initialUrl).searchParams.get('game');
+        const initialSeed = new URL(page.url()).searchParams.get('game');
 
-        await page.locator(sel.newGameBtn).click();
-
-        await page.waitForURL((url) => {
-            const newSeed = url.searchParams.get('game');
-            return newSeed !== initialSeed;
-        });
-
-        const newUrl = page.url();
-        const newSeed = new URL(newUrl).searchParams.get('game');
-        expect(newSeed).not.toBe(initialSeed);
+        // Landing on '/' with no ?game= seed makes the app start its own local
+        // game first (loadGameFromURL → newGame), which arms a 500ms new-game
+        // debounce. A New Game click inside that window is intentionally
+        // swallowed, so retry the click until the seed actually changes rather
+        // than racing the debounce.
+        await expect(async () => {
+            await page.locator(sel.newGameBtn).click();
+            const newSeed = new URL(page.url()).searchParams.get('game');
+            expect(newSeed).not.toBe(initialSeed);
+        }).toPass({ timeout: 10000 });
     });
 
     test('can become spymaster and see card colors', async ({ page }) => {
         const board = page.locator(sel.board);
         await expect(board).not.toHaveClass(/spymaster-mode/);
 
-        await page.locator(sel.spymasterBtn).click();
+        await becomeSpymaster(page);
         await expect(board).toHaveClass(/spymaster-mode/);
 
         const firstCard = page.locator(sel.boardCard).first();
@@ -44,9 +43,13 @@ test.describe('Game Flow', () => {
     test('can become clicker and click cards', async ({ page }) => {
         await becomeCurrentClicker(page);
 
-        const unrevealedCard = page.locator(sel.boardCardUnrevealed).first();
-        await unrevealedCard.click();
-        await expect(unrevealedCard).toHaveClass(/revealed/);
+        // Use a positionally-stable locator: the ':not(.revealed)' selector's
+        // .first() re-resolves to the NEXT unrevealed card once the click lands,
+        // so it could never observe the revealed class. Card index 0 is stable.
+        const firstCard = page.locator(sel.boardCard).first();
+        await expect(firstCard).not.toHaveClass(/revealed/);
+        await firstCard.click();
+        await expect(firstCard).toHaveClass(/revealed/);
     });
 
     test('end turn button ends the current turn', async ({ page }) => {
@@ -56,11 +59,17 @@ test.describe('Game Flow', () => {
 
         await becomeCurrentClicker(page);
 
+        // End Turn opens a confirmation modal; confirm it to actually end the turn.
         await page.locator(sel.endTurnBtn).click();
+        await page.locator(sel.endTurnConfirmBtn).click();
 
-        const newTurnText = await turnIndicator.textContent();
-        const isNowRedTurn = newTurnText?.includes('Red') || false;
-        expect(isNowRedTurn).not.toBe(wasRedTurn);
+        // The turn flip updates the indicator asynchronously; poll instead of
+        // reading it once immediately after the click.
+        await expect(async () => {
+            const newTurnText = await turnIndicator.textContent();
+            const isNowRedTurn = newTurnText?.includes('Red') || false;
+            expect(isNowRedTurn).not.toBe(wasRedTurn);
+        }).toPass({ timeout: 5000 });
     });
 
     test('URL updates when cards are revealed', async ({ page }) => {
@@ -91,7 +100,7 @@ test.describe('Role Switching', () => {
     test('switching from spymaster to clicker hides card colors', async ({ page }) => {
         const board = page.locator(sel.board);
 
-        await page.locator(sel.spymasterBtn).click();
+        await becomeSpymaster(page);
         await expect(board).toHaveClass(/spymaster-mode/);
 
         await page.locator(sel.clickerBtn).click();
@@ -99,8 +108,9 @@ test.describe('Role Switching', () => {
     });
 
     test('can switch between teams', async ({ page }) => {
-        // Click spymaster (sets role for current turn's team)
-        await page.locator(sel.spymasterBtn).click();
+        // Join a team and take the spymaster seat (the role button is disabled
+        // until a team is selected).
+        await becomeSpymaster(page);
 
         const roleBanner = page.locator(sel.roleBanner);
         await expect(roleBanner).toBeVisible();

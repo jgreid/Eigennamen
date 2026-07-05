@@ -34,16 +34,19 @@ test.describe('Keyboard Navigation', () => {
         await expect(secondCard).toBeFocused();
 
         await page.keyboard.press('ArrowDown');
-        const sixthCard = page.locator(sel.boardCard).nth(5);
-        // ArrowDown from position 1 goes to position 6
-        // (but from secondCard which is index 1, ArrowDown goes to index 6)
-        await expect(sixthCard).toBeFocused();
+        // From index 1 (row 0, col 1), ArrowDown moves down one row on a 5-wide
+        // grid: 1 + 5 = index 6 (the 7th card).
+        const seventhCard = page.locator(sel.boardCard).nth(6);
+        await expect(seventhCard).toBeFocused();
     });
 
     test('Enter key activates focused card', async ({ page }) => {
         await becomeCurrentClicker(page);
 
-        const card = page.locator(sel.boardCardUnrevealed).first();
+        // Card index 0 is a stable locator; ':not(.revealed)'.first() would
+        // re-resolve to the next card once Enter reveals this one.
+        const card = page.locator(sel.boardCard).first();
+        await expect(card).not.toHaveClass(/revealed/);
         await card.focus();
 
         await page.keyboard.press('Enter');
@@ -119,7 +122,13 @@ test.describe('ARIA Labels and Roles', () => {
             if (id) {
                 const label = page.locator(`label[for="${id}"]`);
                 const hasLabel = (await label.count()) > 0;
-                expect(hasLabel || ariaLabel || ariaLabelledBy).toBeTruthy();
+                // An input nested inside a <label> with text is implicitly
+                // labeled (valid WCAG); recognize that too, not just explicit for=.
+                const hasImplicitLabel = await input.evaluate((el) => {
+                    const parentLabel = el.closest('label');
+                    return !!parentLabel && (parentLabel.textContent || '').trim().length > 0;
+                });
+                expect(hasLabel || hasImplicitLabel || ariaLabel || ariaLabelledBy).toBeTruthy();
             }
         }
     });

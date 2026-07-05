@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { sel, goToGame, becomeCurrentClicker } = require('./helpers');
+const { sel, goToGame, becomeSpymaster, becomeCurrentClicker, createRoom, joinRoom, selectTeam } = require('./helpers');
 
 /**
  * Game Mechanics E2E Tests
@@ -72,7 +72,7 @@ test.describe('Turn Switching', () => {
         const isRedTurn = turnText?.includes('Red') || false;
 
         // Become spymaster to find an opposing card
-        await page.locator(sel.spymasterBtn).click();
+        await becomeSpymaster(page);
 
         const cards = page.locator(sel.boardCard);
         const opposingClass = isRedTurn ? 'spy-blue' : 'spy-red';
@@ -106,7 +106,7 @@ test.describe('Turn Switching', () => {
         const isRedTurn = turnText?.includes('Red') || false;
 
         // Become spymaster to find a neutral card
-        await page.locator(sel.spymasterBtn).click();
+        await becomeSpymaster(page);
 
         const cards = page.locator(sel.boardCard);
         let neutralIndex = -1;
@@ -139,7 +139,7 @@ test.describe('Turn Switching', () => {
         const isRedTurn = turnText?.includes('Red') || false;
 
         // Become spymaster to find own team card
-        await page.locator(sel.spymasterBtn).click();
+        await becomeSpymaster(page);
 
         const cards = page.locator(sel.boardCard);
         const ownClass = isRedTurn ? 'spy-red' : 'spy-blue';
@@ -174,20 +174,39 @@ test.describe('Spymaster Restrictions', () => {
         await goToGame(page);
     });
 
-    test('spymaster cannot click cards to reveal them', async ({ page }) => {
-        await page.locator(sel.spymasterBtn).click();
+    test('spymaster cannot click cards to reveal them (multiplayer)', async ({ browser }) => {
+        // The spymaster-cannot-reveal rule is a multiplayer rule — standalone lets
+        // a single player control every seat, so verify it against a real room
+        // where the server rejects a spymaster's reveal.
+        const ctx1 = await browser.newContext();
+        const ctx2 = await browser.newContext();
+        const host = await ctx1.newPage();
+        const guest = await ctx2.newPage();
+        try {
+            const roomId = await createRoom(host, 'RestrictHost');
+            await joinRoom(guest, roomId, 'RestrictGuest');
+            await host.locator(sel.boardCard).first().waitFor({ state: 'visible', timeout: 10000 });
 
-        const card = page.locator(sel.boardCardUnrevealed).first();
-        await card.click();
+            await selectTeam(host, 'red');
+            await host.locator(sel.spymasterBtn).click();
 
-        // Card should NOT be revealed when spymaster clicks
-        await expect(card).not.toHaveClass(/revealed/);
+            // Force the click past actionability checks (spymaster-view cards are
+            // deliberately non-interactive); the server also rejects the reveal,
+            // so the card stays hidden either way.
+            const card = host.locator(sel.boardCard).first();
+            await card.click({ force: true });
+            await host.waitForTimeout(1000);
+            await expect(card).not.toHaveClass(/revealed/);
+        } finally {
+            await ctx1.close();
+            await ctx2.close();
+        }
     });
 
     test('clicking clicker button removes spymaster view', async ({ page }) => {
         const board = page.locator(sel.board);
 
-        await page.locator(sel.spymasterBtn).click();
+        await becomeSpymaster(page);
         await expect(board).toHaveClass(/spymaster-mode/);
 
         await page.locator(sel.clickerBtn).click();
@@ -203,8 +222,10 @@ test.describe('Revealed Cards', () => {
     test('revealed cards cannot be clicked again', async ({ page }) => {
         await becomeCurrentClicker(page);
 
-        const card = page.locator(sel.boardCardUnrevealed).first();
-        const wordBefore = await card.textContent();
+        // Stable card-index-0 locator (':not(.revealed)'.first() would move on
+        // to the next card once this one is revealed).
+        const card = page.locator(sel.boardCard).first();
+        await expect(card).not.toHaveClass(/revealed/);
 
         await card.click();
         await expect(card).toHaveClass(/revealed/);
@@ -220,7 +241,7 @@ test.describe('Revealed Cards', () => {
         const isRedTurn = turnText?.includes('Red') || false;
 
         // Become spymaster to find own team cards
-        await page.locator(sel.spymasterBtn).click();
+        await becomeSpymaster(page);
 
         const cards = page.locator(sel.boardCard);
         const ownClass = isRedTurn ? 'spy-red' : 'spy-blue';
