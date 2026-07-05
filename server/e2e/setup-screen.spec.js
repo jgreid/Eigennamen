@@ -99,7 +99,9 @@ test.describe('Setup Screen Navigation', () => {
         await page.locator(sel.setupJoinBtn).click();
         await expect(page.locator(sel.setupJoinForm)).toBeVisible();
 
-        await page.locator(sel.setupBackBtn).click();
+        // Both forms contain a [data-action="setup-back"] button; scope to the
+        // visible one to avoid a strict-mode multiple-match.
+        await page.locator(sel.setupJoinForm).locator(sel.setupBackBtn).click();
 
         await expect(page.locator(sel.setupBoard)).toBeVisible();
         await expect(page.locator(sel.setupJoinForm)).toBeHidden();
@@ -109,7 +111,7 @@ test.describe('Setup Screen Navigation', () => {
         await page.locator(sel.setupHostBtn).click();
         await expect(page.locator(sel.setupHostForm)).toBeVisible();
 
-        await page.locator(sel.setupBackBtn).click();
+        await page.locator(sel.setupHostForm).locator(sel.setupBackBtn).click();
 
         await expect(page.locator(sel.setupBoard)).toBeVisible();
         await expect(page.locator(sel.setupHostForm)).toBeHidden();

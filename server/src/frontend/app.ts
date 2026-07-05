@@ -64,6 +64,7 @@ import { initColorBlindMode, initKeyboardShortcuts } from './accessibility.js';
 import {
     shouldShowSetupScreen,
     showSetupScreen,
+    hideSetupScreen,
     initSetupScreen,
     handleSetupAction,
     hasSessionStarted,
@@ -397,7 +398,10 @@ async function init(): Promise<void> {
             } else if (shouldShowSetupScreen()) {
                 showSetupScreen();
             } else {
-                // Ensure app layout is visible when skipping setup screen
+                // A game is encoded in the URL (standalone mode): dismiss the
+                // setup screen — which is visible by default — and reveal the
+                // app layout so the board isn't rendered underneath it.
+                hideSetupScreen();
                 const appLayout = document.getElementById('app-layout');
                 if (appLayout) appLayout.hidden = false;
                 loadGameFromURL();

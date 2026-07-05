@@ -158,6 +158,20 @@ setTimeout(function () {
 // --- Service worker registration with update detection ---
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
+        // Snapshot whether this page is ALREADY controlled by a service worker
+        // before we register. This is the guard that distinguishes a first-ever
+        // install from a genuine update:
+        //   • First visit  → controller is null here. The SW's install path calls
+        //     skipWaiting() + clients.claim(), so it activates and sets
+        //     .controller on THIS page a moment later. Reloading on that would
+        //     drop any click the user made in the first second and bounce the
+        //     setup screen back to the board — so we must NOT reload.
+        //   • Return visit → an existing SW already controls the page, so a newly
+        //     activated worker is a real update; reloading gets fresh assets.
+        // (Checking navigator.serviceWorker.controller at activation time instead
+        // is wrong: clients.claim() makes it truthy on the very first load too.)
+        var hadControllerAtLoad = !!navigator.serviceWorker.controller;
+
         navigator.serviceWorker.register('/service-worker.js')
             .then(function (reg) {
                 console.log('SW registered:', reg.scope);
@@ -169,10 +183,10 @@ if ('serviceWorker' in navigator) {
                     var newWorker = reg.installing;
                     if (!newWorker) return;
                     newWorker.addEventListener('statechange', function () {
-                        if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
-                            // A new SW took over — reload to use fresh cached assets.
-                            // Only reload if the page is visible to avoid disrupting
-                            // background tabs.
+                        if (newWorker.state === 'activated' && hadControllerAtLoad) {
+                            // A new SW took over an already-controlled page — reload
+                            // to use fresh cached assets. Only reload if the page is
+                            // visible to avoid disrupting background tabs.
                             if (!document.hidden) {
                                 location.reload();
                             } else {

@@ -323,6 +323,22 @@ async function becomeCurrentClicker(page) {
 }
 
 /**
+ * Expand the collapsible chat panel so the message log + input are interactable.
+ * The panel (`#chat-panel`, `.mp-only`) is revealed once multiplayer is active,
+ * but its body (`#chat-body`, which holds `#chat-input`/`#chat-messages`) starts
+ * collapsed and is toggled open via `#chat-toggle`.
+ * @param {import('@playwright/test').Page} page
+ */
+async function openChat(page) {
+    const body = page.locator('#chat-body');
+    if (await body.isVisible({ timeout: 500 }).catch(() => false)) return;
+    const toggle = page.locator('#chat-toggle');
+    await toggle.waitFor({ state: 'visible', timeout: 5000 });
+    await toggle.click();
+    await body.waitFor({ state: 'visible', timeout: 5000 });
+}
+
+/**
  * Add a bot to a team/seat via the host-only bots panel. Expands the player
  * list first (the panel lives inside it) if it isn't already open.
  * @param {import('@playwright/test').Page} page
@@ -352,5 +368,6 @@ module.exports = {
     selectTeam,
     becomeSpymaster,
     becomeCurrentClicker,
+    openChat,
     addBot,
 };

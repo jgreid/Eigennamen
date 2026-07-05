@@ -53,9 +53,12 @@ function getAdminHashAsync(adminPassword: string): Promise<Buffer> {
 async function basicAuth(req: AdminRequest, res: Response, next: NextFunction): Promise<Response | void> {
     const adminPassword = process.env.ADMIN_PASSWORD;
 
-    // If no admin password is configured, deny all access
+    // If no admin password is configured, deny all access. Still advertise the
+    // Basic scheme so every admin 401 carries a WWW-Authenticate challenge
+    // consistently (the two other 401 branches below already do).
     if (!adminPassword) {
         logger.warn('Admin access attempted but ADMIN_PASSWORD not configured');
+        res.setHeader('WWW-Authenticate', 'Basic realm="Admin Dashboard"');
         return res.status(401).json({
             error: {
                 code: 'ADMIN_NOT_CONFIGURED',

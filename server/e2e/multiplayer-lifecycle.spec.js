@@ -35,12 +35,15 @@ test.describe('Full Multiplayer Game Lifecycle', () => {
             const startBtn = host.locator(sel.startGameBtn);
             await expect(startBtn).toBeVisible({ timeout: 5000 });
 
-            // Guest should NOT see start game button (not host)
+            // The New Game button renders for everyone, but a non-host clicking
+            // it is blocked with a host-only notice rather than starting a game
+            // (confirmNewGame → newGameHostOnly toast).
             const guestStartBtn = guest.locator(sel.startGameBtn);
-            const guestCanSeeStart = await guestStartBtn.isVisible({ timeout: 2000 }).catch(() => false);
-            if (guestCanSeeStart) {
-                const isDisabled = await guestStartBtn.isDisabled().catch(() => true);
-                expect(isDisabled || !guestCanSeeStart).toBeTruthy();
+            if (await guestStartBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+                await guestStartBtn.click();
+                await expect(guest.locator('.toast').filter({ hasText: /host/i }).first()).toBeVisible({
+                    timeout: 3000,
+                });
             }
 
             // Verify room code is displayed
@@ -159,19 +162,10 @@ test.describe('Multiplayer Room Join Errors', () => {
         await page.locator(sel.joinRoomId).fill('NONEXISTENT999');
         await page.locator(sel.mpActionBtn).click();
 
-        // Should show error or stay disconnected
-        const errorVisible = await page
-            .locator('.error-message, .toast-error, [class*="error"]')
-            .first()
-            .isVisible({ timeout: 5000 })
-            .catch(() => false);
-
-        const stillInactive = await page
-            .locator(`${sel.mpIndicator}:not(.active)`)
-            .isVisible({ timeout: 2000 })
-            .catch(() => false);
-
-        expect(errorVisible || stillInactive).toBeTruthy();
+        // The failed join surfaces a persistent "room not found" error in the
+        // modal status and never activates the room indicator.
+        await expect(page.locator(sel.mpStatus)).toContainText(/not found/i, { timeout: 5000 });
+        await expect(page.locator(sel.mpIndicatorActive)).toBeHidden();
     });
 
     test('empty nickname is rejected', async ({ page }) => {
