@@ -63,6 +63,7 @@ import {
     initGameWithWords,
     initGame,
     revealCardFromServer,
+    revealCard,
     checkGameOver,
     updateScoreboard,
     updateTurnIndicator,
@@ -1215,14 +1216,20 @@ describe('abandonAndNewGame', () => {
         expect(state.gameState.seed).toBeTruthy();
     });
 
-    test('calls newGame directly when multiplayer but disconnected', () => {
+    test('does not fall through to a standalone game when multiplayer but disconnected (A3)', () => {
         state.isMultiplayerMode = true;
         (isClientConnected as jest.Mock).mockReturnValue(false);
+        state.newGameDebounce = false;
+        (showToast as jest.Mock).mockClear();
 
         abandonAndNewGame();
 
+        // Neither the server abandon nor the standalone engine runs — the newGame()
+        // guard (A3) shows a reconnecting notice instead of converting the live
+        // multiplayer game into a local standalone one.
         expect(mockAbandonGame).not.toHaveBeenCalled();
-        expect(state.gameState.seed).toBeTruthy();
+        expect(state.gameState.seed).toBeFalsy();
+        expect(showToast).toHaveBeenCalledWith('multiplayer.reconnecting', 'warning');
     });
 
     test('calls abandonGame and registers gameOver listener in multiplayer', () => {
@@ -1534,5 +1541,51 @@ describe('buildStartGameOptions', () => {
             state.activeWords = [`${source}-A`, `${source}-B`];
             expect(buildStartGameOptions()).toEqual({ wordList: state.activeWords });
         }
+    });
+});
+
+describe('multiplayer disconnect guards (A3)', () => {
+    beforeEach(() => {
+        resetGameState();
+        (showToast as jest.Mock).mockClear();
+        (updateURL as jest.Mock).mockClear();
+        (isClientConnected as jest.Mock).mockReturnValue(false);
+        state.isMultiplayerMode = true;
+        state.newGameDebounce = false;
+        state.isHost = false;
+        // A minimal active game the guards can run against.
+        state.gameState.words = SAMPLE_WORDS.slice();
+        state.gameState.types = new Array(BOARD_SIZE).fill('neutral');
+        state.gameState.revealed = new Array(BOARD_SIZE).fill(false);
+        state.gameState.currentTurn = 'red';
+        state.gameState.currentClue = { word: 'CLUE', number: 2 };
+        // Be the current-turn clicker so the reveal/endTurn role guards pass and
+        // execution actually reaches the disconnect guard under test.
+        state.clickerTeam = 'red';
+        state.playerTeam = 'red';
+        state.spymasterTeam = null;
+    });
+
+    test('revealCard does not mutate the board or rewrite the URL while disconnected', () => {
+        revealCard(0);
+        expect(state.gameState.revealed[0]).toBe(false);
+        expect(updateURL).not.toHaveBeenCalled();
+        expect(showToast).toHaveBeenCalledWith('multiplayer.reconnecting', 'warning');
+    });
+
+    test('endTurn does not flip the turn or rewrite the URL while disconnected', () => {
+        endTurn();
+        expect(state.gameState.currentTurn).toBe('red');
+        expect(updateURL).not.toHaveBeenCalled();
+        expect(showToast).toHaveBeenCalledWith('multiplayer.reconnecting', 'warning');
+    });
+
+    test('newGame does not regenerate the board or claim host while disconnected', () => {
+        const wordsBefore = state.gameState.words.slice();
+        newGame();
+        expect(state.gameState.words).toEqual(wordsBefore);
+        expect(state.isHost).toBe(false);
+        expect(updateURL).not.toHaveBeenCalled();
+        expect(showToast).toHaveBeenCalledWith('multiplayer.reconnecting', 'warning');
     });
 });

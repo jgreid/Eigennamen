@@ -20,6 +20,7 @@ import {
     leaveMultiplayerMode,
     detectOfflineChanges,
     domListenerCleanup,
+    updateURLWithRoomCode,
 } from '../multiplayerSync.js';
 import { batch } from '../store/batch.js';
 import type {
@@ -211,6 +212,15 @@ export function registerRoomHandlers(): void {
             updateControls();
             updateRoleBanner();
             updateForfeitButton();
+
+            // Heal the shareable URL back to ?room=CODE. A disconnect-era action
+            // that slipped into the standalone engine (or a stale load) can leave
+            // a standalone ?game=… URL; without this a later refresh would load a
+            // standalone game instead of rejoining the room.
+            const reconnectedRoomCode = data?.room?.code || state.currentRoomId;
+            if (reconnectedRoomCode) {
+                updateURLWithRoomCode(reconnectedRoomCode);
+            }
 
             if (changes.length > 0) {
                 showToast('Reconnected! ' + changes.join('. '), 'info', 6000);

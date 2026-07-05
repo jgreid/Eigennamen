@@ -28,9 +28,11 @@ Phases group by theme; the **Suggested sequencing** section at the end orders th
 
 Deterministic defects reachable in ordinary play. These are the "a user hits this and the game misbehaves" tier.
 
-### A1 — Duet blue spymaster never receives their key card on game start
+### A1 — Duet blue spymaster never receives their key card on game start — **FIXED**
 
 **Severity:** High · **Area:** Game integrity (Duet)
+
+**Resolution (shipped):** took option (a). Extracted the resync/role-change payload logic into a pure `buildSpymasterViewPayload(game, player)` (`socket/handlers/roomHandlerUtils.ts`) and, after the `GAME_STARTED` emission loop (`socket/handlers/gameHandlers.ts`), emit `game:spymasterView` to every seated spymaster/observer via `safeEmitToPlayers` — so a pre-seated Duet blue spymaster gets their key (duetTypes-as-types) immediately at start, exactly as the resync path already delivers it. Unit-tested (`__tests__/handlers/spymasterViewPayload.test.ts`, 8 cases); the existing resync tests regression-cover the refactor.
 
 **Root cause:** `getGameStateForPlayer` (`services/game/revealEngine.ts:337-339`) gives a duet blue spymaster masked `types` (null for unrevealed cards) with the real key only in `duetTypes` — but the board only renders `types`, and the one code path that remaps the blue key into `types` (`sendSpymasterViewIfNeeded`, `socket/handlers/roomHandlerUtils.ts:44`) fires only on role change and resync, never on `game:started` (`socket/handlers/gameHandlers.ts:134-137`). Seats are preserved across games (`resetRolesForNewGame`), so no role-change event ever fires post-start.
 
@@ -60,9 +62,11 @@ Deterministic defects reachable in ordinary play. These are the "a user hits thi
 
 ---
 
-### A3 — While disconnected in multiplayer, board actions fall through to the standalone engine
+### A3 — While disconnected in multiplayer, board actions fall through to the standalone engine — **FIXED**
 
 **Severity:** High · **Area:** Frontend state
+
+**Resolution (shipped):** added the `state.isMultiplayerMode`-guard-and-return (with a `multiplayer.reconnecting` toast) to `revealCard` (`frontend/game/reveal.ts`), `endTurn` and `newGame` (`frontend/game.ts`) right after their existing multiplayer-connected branches, so a disconnected client never records a local reveal, flips the turn, or replaces the board / rewrites the shareable URL to a standalone game. `handleReconnection` (`frontend/handlers/roomEventHandlers.ts`) now calls `updateURLWithRoomCode` so the `?room=CODE` URL heals on reconnect. Unit-tested in `__tests__/frontend/game.test.ts` (no state mutation, no `updateURL`, reconnecting toast) and an existing test that asserted the old fall-through was corrected to the fixed behavior.
 
 **Root cause:** `revealCard`/`endTurn`/`newGame` (`frontend/game/reveal.ts:63`, `frontend/game.ts:415,128`) gate the server path on `state.isMultiplayerMode && isClientConnected()` — when disconnected, execution falls through to the *standalone* branch instead of stopping: reveals are recorded locally as 'neutral', the turn flips, `newGame` replaces the board and sets `isHost=true`, and `url-state.ts` rewrites the shareable URL from `?room=CODE` to standalone `?game=…` params. The reconnection overlay never blocks clicks (`pointer-events: none`), so no UI element prevents this. State heals on the next resync but the URL never does — `handleReconnection` doesn't call `updateURLWithRoomCode`, so a later refresh loads a standalone game instead of rejoining the room.
 

@@ -29,30 +29,50 @@ export async function sendTimerStatus(socket: GameSocket, roomCode: string, cont
     }
 }
 
+export interface SpymasterViewPayload {
+    types: string[];
+    duetTypes?: string[];
+    cardScores?: number[];
+}
+
+/**
+ * Build the perspective-correct `game:spymasterView` payload for a player, or
+ * null if the player doesn't get a full-board view (not a spymaster/observer, or
+ * no live game). Pure and socket-free so both the resync/role-change path and the
+ * game-start path can reuse the exact same masking logic.
+ */
+export function buildSpymasterViewPayload(game: GameState | null, player: Player): SpymasterViewPayload | null {
+    // Spymasters and observers both see the unmasked board. (Observers are
+    // teamless, so they get the base `types` perspective.)
+    const wantsFullBoard = player.role === 'spymaster' || player.role === 'observer';
+    if (!(wantsFullBoard && game && !game.gameOver && game.types)) {
+        return null;
+    }
+    // In Duet mode, Blue spymasters see duetTypes (their perspective),
+    // not types (Red's perspective). Red spymasters always see types.
+    const isDuetBlue = game.gameMode === 'duet' && player.team === 'blue' && game.duetTypes;
+    const typesToSend = isDuetBlue ? game.duetTypes : game.types;
+    const payload: SpymasterViewPayload = {
+        types: typesToSend as string[],
+    };
+    if (game.gameMode === 'match' && game.cardScores) {
+        payload.cardScores = game.cardScores;
+    }
+    // Observers watch the whole duet board, so give them BOTH sides' key cards.
+    if (game.gameMode === 'duet' && player.role === 'observer' && game.duetTypes) {
+        payload.duetTypes = game.duetTypes as string[];
+    }
+    return payload;
+}
+
 export async function sendSpymasterViewIfNeeded(
     socket: GameSocket,
     player: Player,
     game: GameState | null,
     _roomCode: string
 ): Promise<void> {
-    // Spymasters and observers both see the unmasked board. (Observers are
-    // teamless, so they get the base `types` perspective.)
-    const wantsFullBoard = player.role === 'spymaster' || player.role === 'observer';
-    if (wantsFullBoard && game && !game.gameOver && game.types) {
-        // In Duet mode, Blue spymasters see duetTypes (their perspective),
-        // not types (Red's perspective). Red spymasters always see types.
-        const isDuetBlue = game.gameMode === 'duet' && player.team === 'blue' && game.duetTypes;
-        const typesToSend = isDuetBlue ? game.duetTypes : game.types;
-        const payload: { types: string[]; duetTypes?: string[]; cardScores?: number[] } = {
-            types: typesToSend as string[],
-        };
-        if (game.gameMode === 'match' && game.cardScores) {
-            payload.cardScores = game.cardScores;
-        }
-        // Observers watch the whole duet board, so give them BOTH sides' key cards.
-        if (game.gameMode === 'duet' && player.role === 'observer' && game.duetTypes) {
-            payload.duetTypes = game.duetTypes as string[];
-        }
+    const payload = buildSpymasterViewPayload(game, player);
+    if (payload) {
         socket.emit(SOCKET_EVENTS.GAME_SPYMASTER_VIEW, payload);
     }
 }
