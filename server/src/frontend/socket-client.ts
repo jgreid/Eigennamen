@@ -49,6 +49,7 @@ import type { JoinCreateResult } from './multiplayerTypes.js';
         player: null as Player | null,
         connected: false,
         reconnectAttempts: 0,
+        hadUnexpectedDisconnect: false,
         maxReconnectAttempts: 5,
         autoRejoin: true,
         storedNickname: null as string | null,
