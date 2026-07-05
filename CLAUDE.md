@@ -599,6 +599,8 @@ Run `npm run format` to auto-format, `npm run format:check` to verify.
 
 A July 2026 codebase-wide hardening review found a small number of real defects. The full remediation plan — root cause, concrete fix, files touched, tests, sequencing — lives in **[docs/HARDENING_PLAN.md](docs/HARDENING_PLAN.md)**. Phases 0 and 1 have both shipped; check that document for current status on everything else before assuming it's resolved.
 
+A second, deeper review (also July 2026, post-PR #497) produced a follow-up plan of 70 additional items — broken user-facing flows, deploy/ops correctness, accessibility, test/CI signal, and half-built features — in **[docs/IMPROVEMENT_PLAN.md](docs/IMPROVEMENT_PLAN.md)**. It is additive and non-overlapping with HARDENING_PLAN.md; all items are currently `Planned`.
+
 Fixed (Phase 0 — see HARDENING_PLAN.md for what changed and why):
 
 - ~~A spymaster could switch to `clicker` mid-game and act on the board they'd already seen~~ — `canChangeTeamOrRole` (`socket/playerContext.ts`) now locks a spymaster out of every role change while a game is active, the same way the observer case already was. (P0-1)
@@ -781,3 +783,4 @@ Key env vars (see `server/.env.example` for full list):
 | [docs/SETUP_SCREEN_GUIDE.md](docs/SETUP_SCREEN_GUIDE.md) | User-facing setup screen walkthrough |
 | [docs/WINDOWS_SETUP.md](docs/WINDOWS_SETUP.md) | Windows development setup |
 | [docs/HARDENING_PLAN.md](docs/HARDENING_PLAN.md) | Tracked remediation plan from the July 2026 hardening review — root cause, fix, tests, and sequencing for every open finding |
+| [docs/IMPROVEMENT_PLAN.md](docs/IMPROVEMENT_PLAN.md) | Follow-up review plan (70 items) — broken flows, deploy/ops, a11y/i18n, test signal, half-built features; additive to HARDENING_PLAN.md |
