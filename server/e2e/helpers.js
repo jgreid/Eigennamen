@@ -41,6 +41,9 @@ const sel = {
 
     // Action Buttons
     newGameBtn: '[data-testid="new-game-btn"]',
+    // The game-over modal's own "New Game" button (the action-bar newGameBtn is
+    // behind the modal overlay once the game ends).
+    gameOverNewGameBtn: '[data-action="game-over-new-game"]',
     settingsBtn: '[data-testid="settings-btn"]',
     multiplayerBtn: '[data-testid="multiplayer-btn"]',
     endTurnBtn: '[data-testid="end-turn-btn"]',
@@ -55,9 +58,6 @@ const sel = {
     // Team Buttons
     teamRedBtn: '[data-testid="team-red-btn"]',
     teamBlueBtn: '[data-testid="team-blue-btn"]',
-
-    // Share
-    shareLink: '[data-testid="share-link"]',
 
     // Modals
     settingsModal: '[data-testid="settings-modal"]',
@@ -86,6 +86,11 @@ const sel = {
     // Clue display (visible to everyone once a spymaster/spymaster-bot clues)
     clueDisplay: '[data-testid="clue-display"]',
     suggestionBadge: '.suggestion-badge',
+
+    // Clue input (spymaster gives a clue; a multiplayer reveal needs one first)
+    clueWordInput: '[data-testid="clue-word-input"]',
+    clueNumberInput: '[data-testid="clue-number-input"]',
+    giveClueBtn: '[data-testid="give-clue-btn"]',
 
     // Multiplayer Modal Form
     modeJoinBtn: '[data-testid="mode-join-btn"]',
@@ -218,7 +223,12 @@ async function joinRoom(page, roomId, nickname) {
 async function selectTeam(page, team) {
     const btn = page.locator(team === 'red' ? sel.teamRedBtn : sel.teamBlueBtn);
     if (await btn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await btn.click();
+        // Team buttons toggle: clicking the team you're already on unassigns it.
+        // Only click when not already selected so this helper is idempotent.
+        const alreadyOn = (await btn.getAttribute('aria-pressed')) === 'true';
+        if (!alreadyOn) {
+            await btn.click();
+        }
         // Selecting a team enables the role buttons — standalone updates state
         // synchronously, multiplayer applies an optimistic update — so wait for
         // that precondition rather than a player-list row that only exists in

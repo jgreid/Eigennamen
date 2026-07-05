@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { sel, goToGame, createRoom, joinRoom, selectTeam, becomeCurrentClicker } = require('./helpers');
+const { sel, goToGame, createRoom, joinRoom, selectTeam, becomeSpymaster, becomeCurrentClicker } = require('./helpers');
 
 /**
  * Eigennamen (Default) Mode — Comprehensive E2E Tests
@@ -51,7 +51,7 @@ test.describe('Eigennamen Win Condition', () => {
         const isRedTurn = turnText?.includes('Red') || false;
 
         // Enter spymaster view to map card types
-        await page.locator(sel.spymasterBtn).click();
+        await becomeSpymaster(page);
         const typeMap = await getCardTypeMap(page);
 
         // The starting team always has 9 cards
@@ -78,7 +78,7 @@ test.describe('Eigennamen Win Condition', () => {
         await goToGame(page);
 
         // Find the assassin card
-        await page.locator(sel.spymasterBtn).click();
+        await becomeSpymaster(page);
         const typeMap = await getCardTypeMap(page);
         const assassinIdx = typeMap.assassin[0];
 
@@ -94,7 +94,7 @@ test.describe('Eigennamen Win Condition', () => {
         await goToGame(page);
 
         // Trigger game over via assassin
-        await page.locator(sel.spymasterBtn).click();
+        await becomeSpymaster(page);
         const typeMap = await getCardTypeMap(page);
         const assassinIdx = typeMap.assassin[0];
 
@@ -102,10 +102,12 @@ test.describe('Eigennamen Win Condition', () => {
         await page.locator(sel.boardCard).nth(assassinIdx).click();
         await expect(page.locator(sel.turnIndicator)).toHaveClass(/game-over/, { timeout: 5000 });
 
-        // Try to click an unrevealed card — it should NOT become revealed
+        // Try to click an unrevealed card — it should NOT become revealed. The
+        // board is locked after game over so the card isn't actionable; force the
+        // click to prove even a forced click doesn't reveal it.
         const unrevealed = page.locator(sel.boardCardUnrevealed).first();
         if ((await unrevealed.count()) > 0) {
-            await unrevealed.click();
+            await unrevealed.click({ force: true });
             await expect(unrevealed).not.toHaveClass(/revealed/);
         }
     });
@@ -114,17 +116,18 @@ test.describe('Eigennamen Win Condition', () => {
         await goToGame(page);
 
         // Trigger game over
-        await page.locator(sel.spymasterBtn).click();
+        await becomeSpymaster(page);
         const typeMap = await getCardTypeMap(page);
         await becomeCurrentClicker(page);
         await page.locator(sel.boardCard).nth(typeMap.assassin[0]).click();
         await expect(page.locator(sel.turnIndicator)).toHaveClass(/game-over/, { timeout: 5000 });
 
-        // Start a new game
-        await page.locator(sel.newGameBtn).click();
-
-        // Board should reset — no game-over indicator
-        await expect(page.locator(sel.turnIndicator)).not.toHaveClass(/game-over/, { timeout: 5000 });
+        // Start a new game. Standalone game-over shows no modal, so click the
+        // action-bar New Game button, retrying past the new-game debounce.
+        await expect(async () => {
+            await page.locator(sel.newGameBtn).click();
+            await expect(page.locator(sel.turnIndicator)).not.toHaveClass(/game-over/, { timeout: 2000 });
+        }).toPass({ timeout: 10000 });
 
         // All cards should be unrevealed
         const revealed = page.locator(`${sel.boardCard}.revealed`);
@@ -137,7 +140,7 @@ test.describe('Eigennamen Win Condition', () => {
         const turnText = await page.locator(sel.turnIndicator).textContent();
         const isRedTurn = turnText?.includes('Red') || false;
 
-        await page.locator(sel.spymasterBtn).click();
+        await becomeSpymaster(page);
         const typeMap = await getCardTypeMap(page);
 
         // Non-starting team has 8 cards
@@ -147,6 +150,7 @@ test.describe('Eigennamen Win Condition', () => {
         // End the starting team's turn first so the non-starting team can play
         await becomeCurrentClicker(page);
         await page.locator(sel.endTurnBtn).click();
+        await page.locator(sel.endTurnConfirmBtn).click();
 
         // Verify turn switched
         const newTurnText = await page.locator(sel.turnIndicator).textContent();
@@ -181,7 +185,7 @@ test.describe('Eigennamen Turn Indicator', () => {
     test('turn indicator shows winner after game over', async ({ page }) => {
         await goToGame(page);
 
-        await page.locator(sel.spymasterBtn).click();
+        await becomeSpymaster(page);
         const typeMap = await getCardTypeMap(page);
 
         // Starting team has 9 cards — reveal all of them to win
@@ -212,7 +216,7 @@ test.describe('Eigennamen Turn Indicator', () => {
         const scoreEl = page.locator(isRedTurn ? sel.redRemaining : sel.blueRemaining);
         const initialScore = Number(await scoreEl.textContent());
 
-        await page.locator(sel.spymasterBtn).click();
+        await becomeSpymaster(page);
         const typeMap = await getCardTypeMap(page);
         const ownCards = isRedTurn ? typeMap.red : typeMap.blue;
 
@@ -248,38 +252,35 @@ test.describe('Eigennamen Multiplayer Gameplay', () => {
 
             await expect(host.locator('body')).toContainText('RevealGuest', { timeout: 5000 });
 
-            // Both players pick a team
-            await selectTeam(host, 'red');
-            await selectTeam(guest, 'blue');
-
-            // Host starts the game
-            const startBtn = host.locator(sel.startGameBtn);
-            await expect(startBtn).toBeVisible({ timeout: 5000 });
-            await startBtn.click();
-
-            // Wait for board to appear on both pages
+            // The game auto-started on room creation — no separate start step.
             await host.locator(sel.boardCard).first().waitFor({ state: 'visible', timeout: 10000 });
             await guest.locator(sel.boardCard).first().waitFor({ state: 'visible', timeout: 10000 });
 
-            // Determine whose turn it is
+            // A multiplayer reveal requires an active clue first (P0-2), so both
+            // players join the team on turn: host clues as spymaster, guest
+            // reveals as clicker. This also exercises reveal sync between them.
             const turnText = await host.locator(sel.turnIndicator).textContent();
-            const isRedTurn = turnText?.includes('Red') || false;
+            const startTeam = turnText?.includes('Red') ? 'red' : 'blue';
+            await selectTeam(host, startTeam);
+            await host.locator(sel.spymasterBtn).click();
+            await selectTeam(guest, startTeam);
+            await guest.locator(sel.clickerBtn).click();
 
-            // The player on the current turn's team becomes clicker
-            const activePlayer = isRedTurn ? host : guest;
-            await activePlayer.locator(sel.clickerBtn).click();
+            // Host (spymaster) gives a clue so the clicker may reveal.
+            await host.locator(sel.clueWordInput).fill('signal');
+            await host.locator(sel.clueNumberInput).fill('1');
+            await host.locator(sel.giveClueBtn).click();
 
-            // Click the first unrevealed card
-            const firstCard = activePlayer.locator(sel.boardCardUnrevealed).first();
+            // Guest (clicker) reveals the first card (stable index-0 locator).
+            const firstCard = guest.locator(sel.boardCard).first();
             const cardText = await firstCard.textContent();
             await firstCard.click();
 
-            // Card should become revealed on the active player
+            // Card should become revealed on the acting player
             await expect(firstCard).toHaveClass(/revealed/, { timeout: 5000 });
 
             // And also on the other player
-            const otherPlayer = isRedTurn ? guest : host;
-            const matchingCards = otherPlayer.locator(sel.boardCard);
+            const matchingCards = host.locator(sel.boardCard);
             // Find the same card by text
             let otherIdx = -1;
             for (let i = 0; i < 25; i++) {
@@ -311,10 +312,6 @@ test.describe('Eigennamen Multiplayer Gameplay', () => {
             await selectTeam(host, 'red');
             await selectTeam(guest, 'blue');
 
-            const startBtn = host.locator(sel.startGameBtn);
-            await expect(startBtn).toBeVisible({ timeout: 5000 });
-            await startBtn.click();
-
             await host.locator(sel.boardCard).first().waitFor({ state: 'visible', timeout: 10000 });
             await guest.locator(sel.boardCard).first().waitFor({ state: 'visible', timeout: 10000 });
 
@@ -343,10 +340,6 @@ test.describe('Eigennamen Multiplayer Gameplay', () => {
             await selectTeam(host, 'red');
             await selectTeam(guest, 'blue');
 
-            const startBtn = host.locator(sel.startGameBtn);
-            await expect(startBtn).toBeVisible({ timeout: 5000 });
-            await startBtn.click();
-
             await host.locator(sel.boardCard).first().waitFor({ state: 'visible', timeout: 10000 });
             await guest.locator(sel.boardCard).first().waitFor({ state: 'visible', timeout: 10000 });
 
@@ -361,6 +354,8 @@ test.describe('Eigennamen Multiplayer Gameplay', () => {
             const endTurnBtn = activePlayer.locator(sel.endTurnBtn);
             await expect(endTurnBtn).toBeVisible({ timeout: 5000 });
             await endTurnBtn.click();
+            // End Turn opens a confirmation dialog; confirm it to end the turn.
+            await activePlayer.locator(sel.endTurnConfirmBtn).click();
 
             // Turn should switch for the host
             await expect(host.locator(sel.turnIndicator)).not.toContainText(wasRedTurn ? 'Red' : 'Blue', {
@@ -389,10 +384,6 @@ test.describe('Eigennamen Multiplayer Gameplay', () => {
 
             await selectTeam(host, 'red');
             await selectTeam(guest, 'blue');
-
-            const startBtn = host.locator(sel.startGameBtn);
-            await expect(startBtn).toBeVisible({ timeout: 5000 });
-            await startBtn.click();
 
             await host.locator(sel.boardCard).first().waitFor({ state: 'visible', timeout: 10000 });
             await guest.locator(sel.boardCard).first().waitFor({ state: 'visible', timeout: 10000 });

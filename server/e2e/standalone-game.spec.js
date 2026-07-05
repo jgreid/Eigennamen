@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { sel, goToGame, becomeCurrentClicker } = require('./helpers');
+const { sel, goToGame, becomeSpymaster, becomeCurrentClicker } = require('./helpers');
 
 /**
  * Standalone Game E2E Tests
@@ -27,36 +27,31 @@ test.describe('Standalone Game Board', () => {
         const cards = page.locator(sel.boardCard);
         const wordsBefore = await cards.allTextContents();
 
-        await page.locator(sel.newGameBtn).click();
-
-        await page
-            .waitForURL(
-                (url) => {
-                    return url.searchParams.get('game') !== new URL(page.url()).searchParams.get('game');
-                },
-                { timeout: 5000 }
-            )
-            .catch(() => {});
-
-        const wordsAfter = await cards.allTextContents();
-        const same = wordsBefore.every((w, i) => w === wordsAfter[i]);
-        expect(same).toBe(false);
+        // Retry past the 500ms new-game debounce armed by the app's own initial
+        // local-game start (see loadGameFromURL → newGame).
+        await expect(async () => {
+            await page.locator(sel.newGameBtn).click();
+            const wordsAfter = await cards.allTextContents();
+            const same = wordsBefore.every((w, i) => w === wordsAfter[i]);
+            expect(same).toBe(false);
+        }).toPass({ timeout: 10000 });
     });
 
-    test('share link contains full game state', async ({ page }) => {
-        const shareLink = page.locator(sel.shareLink);
-        const url = await shareLink.inputValue();
-
+    test('game state is encoded in the shareable URL', async ({ page }) => {
+        // Standalone mode encodes the whole game in the page URL — that URL is
+        // the "share link" (there is no separate share input element).
+        const url = page.url();
         expect(url).toContain('game=');
         expect(() => new URL(url)).not.toThrow();
     });
 
     test('loading a shared URL restores the same board', async ({ page, context }) => {
-        const shareLink = page.locator(sel.shareLink);
-        const sharedUrl = await shareLink.inputValue();
+        const sharedUrl = page.url();
+        expect(sharedUrl).toContain('game=');
 
         const page2 = await context.newPage();
         await page2.goto(sharedUrl);
+        await page2.locator(sel.boardCard).first().waitFor({ state: 'visible', timeout: 5000 });
 
         const words1 = await page.locator(sel.boardCard).allTextContents();
         const words2 = await page2.locator(sel.boardCard).allTextContents();
@@ -81,7 +76,10 @@ test.describe('Standalone Game Board', () => {
     test('revealing a card updates the board', async ({ page }) => {
         await becomeCurrentClicker(page);
 
-        const card = page.locator(sel.boardCardUnrevealed).first();
+        // Stable card-index-0 locator (':not(.revealed)'.first() would move on
+        // to the next card once this one is revealed).
+        const card = page.locator(sel.boardCard).first();
+        await expect(card).not.toHaveClass(/revealed/);
         await card.click();
         await expect(card).toHaveClass(/revealed/);
     });
@@ -93,7 +91,7 @@ test.describe('Standalone Spymaster View', () => {
     });
 
     test('spymaster sees all card types', async ({ page }) => {
-        await page.locator(sel.spymasterBtn).click();
+        await becomeSpymaster(page);
         await expect(page.locator(sel.board)).toHaveClass(/spymaster-mode/);
 
         const cards = page.locator(sel.boardCard);
@@ -119,7 +117,9 @@ test.describe('Standalone Spymaster View', () => {
         const turnText = await page.locator(sel.turnIndicator).textContent();
         const redStarts = turnText?.includes('Red') || false;
 
-        await page.locator(sel.spymasterBtn).click();
+        // Standalone spymaster view shows every card's color regardless of which
+        // team's seat you take, so joining red is fine for counting the layout.
+        await becomeSpymaster(page);
 
         const cards = page.locator(sel.boardCard);
         let redCount = 0;
@@ -142,7 +142,7 @@ test.describe('Standalone Spymaster View', () => {
     });
 
     test('blue spymaster sees same layout as red spymaster', async ({ page }) => {
-        await page.locator(sel.spymasterBtn).click();
+        await becomeSpymaster(page);
         const cards = page.locator(sel.boardCard);
         const firstView = [];
         for (let i = 0; i < 25; i++) {
@@ -164,7 +164,7 @@ test.describe('Game Over Detection', () => {
         await goToGame(page);
 
         // Become spymaster to find assassin
-        await page.locator(sel.spymasterBtn).click();
+        await becomeSpymaster(page);
 
         const cards = page.locator(sel.boardCard);
         let assassinIndex = -1;
