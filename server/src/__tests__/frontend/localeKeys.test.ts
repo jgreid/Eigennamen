@@ -77,6 +77,32 @@ describe('locale key regressions (P1-11)', () => {
         });
     });
 
+    describe('room:warning toast keys hardcoded in roomEventHandlers.ts (IMPROVEMENT_PLAN B5)', () => {
+        // These t() calls live in TS, so the data-i18n scanner above cannot see
+        // them; guard the whole set so a missing translation can't ship silently
+        // (the SERVER_SHUTDOWN warning was previously dropped entirely).
+        const keys = ['multiplayer.botStalled', 'multiplayer.botSeatReclaimed', 'multiplayer.serverShutdown'];
+
+        it.each(keys)('%s resolves in every locale', (key) => {
+            for (const lang of LOCALES) {
+                expect(resolvesToString(localeData[lang] as Record<string, unknown>, key)).toBe(true);
+            }
+        });
+
+        it('the shutdown warning is emitted with a { code } the client actually handles', () => {
+            const socketSource = fs.readFileSync(path.join(__dirname, '../../socket/index.ts'), 'utf-8');
+            const handlerSource = fs.readFileSync(
+                path.join(__dirname, '../../frontend/handlers/roomEventHandlers.ts'),
+                'utf-8'
+            );
+            // Server emits the { code, message } shape, not the old dropped `type` key.
+            expect(socketSource).toContain("code: 'SERVER_SHUTDOWN'");
+            expect(socketSource).not.toContain("type: 'server_shutdown'");
+            // Client has a matching branch.
+            expect(handlerSource).toContain("data.code === 'SERVER_SHUTDOWN'");
+        });
+    });
+
     describe('settings modal data-i18n keys are correct (not the phantom game.* variants)', () => {
         const html = fs.readFileSync(path.join(PUBLIC_DIR, 'index.html'), 'utf-8');
 

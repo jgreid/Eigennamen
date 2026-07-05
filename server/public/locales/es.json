@@ -190,7 +190,8 @@
         "youAreHost": "¡Ahora eres el anfitrión!",
         "newHost": "{{name}} es ahora el anfitrión",
         "botStalled": "Un bot del equipo {{team}} se quedó bloqueado, así que su turno terminó automáticamente",
-        "botSeatReclaimed": "¡Bienvenido de nuevo! Se eliminó un bot que cubría tu puesto en el equipo {{team}}"
+        "botSeatReclaimed": "¡Bienvenido de nuevo! Se eliminó un bot que cubría tu puesto en el equipo {{team}}",
+        "serverShutdown": "El servidor se está reiniciando para una actualización. Esta partida no puede reanudarse; volverás a la pantalla de inicio."
     },
     "settings": {
         "title": "Ajustes",

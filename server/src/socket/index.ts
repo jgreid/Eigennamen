@@ -223,10 +223,12 @@ async function cleanupSocketModule(): Promise<void> {
         if (connectedCount > 0) {
             // Notify all connected sockets before disconnecting
             try {
+                // Use the { code, message } shape every other room:warning uses —
+                // the client handler branches on `data.code`, so the previous
+                // `type`-keyed payload matched no branch and was silently dropped.
                 io.emit(SOCKET_EVENTS.ROOM_WARNING, {
-                    type: 'server_shutdown',
-                    message: 'Server is restarting. You will be reconnected automatically.',
-                    timestamp: Date.now(),
+                    code: 'SERVER_SHUTDOWN',
+                    message: 'The server is restarting for an update.',
                 });
             } catch (emitErr) {
                 logger.warn('Failed to emit shutdown warning:', (emitErr as Error).message);

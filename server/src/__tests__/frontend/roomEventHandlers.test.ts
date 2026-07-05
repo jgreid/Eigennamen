@@ -218,6 +218,17 @@ describe('roomWarning', () => {
         expect(showToast).toHaveBeenCalledWith('multiplayer.botSeatReclaimed', 'info');
         expect(mockRequestResync).not.toHaveBeenCalled();
     });
+
+    test('shows a localized toast on SERVER_SHUTDOWN so a deploy restart is explained (B5)', () => {
+        emit('roomWarning', { code: 'SERVER_SHUTDOWN', message: 'The server is restarting for an update.' });
+        expect(showToast).toHaveBeenCalledWith('multiplayer.serverShutdown', 'warning');
+        expect(mockRequestResync).not.toHaveBeenCalled();
+    });
+
+    test('falls back to the server message for an unrecognized warning code', () => {
+        emit('roomWarning', { code: 'FUTURE_CODE', message: 'Something the client does not know yet' });
+        expect(showToast).toHaveBeenCalledWith('Something the client does not know yet', 'warning');
+    });
 });
 
 describe('disconnected', () => {

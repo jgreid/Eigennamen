@@ -94,6 +94,14 @@ export function registerRoomHandlers(): void {
             // A reconnecting human evicted a bot that was standing in on their
             // seat (docs/HARDENING_PLAN.md P1-7) — surface why the bot vanished.
             showToast(t('multiplayer.botSeatReclaimed', { team: data.team ?? '' }), 'info');
+        } else if (data.code === 'SERVER_SHUTDOWN') {
+            // The server is restarting (e.g. a deploy). In memory mode the game
+            // cannot be resumed, so tell the player why it's about to vanish.
+            showToast(t('multiplayer.serverShutdown'), 'warning');
+        } else if (data.message) {
+            // Unknown warning code: surface the server-provided message rather
+            // than silently dropping it, so future codes degrade gracefully.
+            showToast(data.message, 'warning');
         }
     });
 
