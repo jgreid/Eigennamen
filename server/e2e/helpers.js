@@ -191,6 +191,57 @@ async function createRoom(page, nickname) {
 }
 
 /**
+ * Host a multiplayer room via the setup screen with a specific game mode, so the
+ * auto-started game begins in that mode (the multiplayer modal has no mode
+ * selector, and the settings-modal game-mode section is host-gated and hidden).
+ * @param {import('@playwright/test').Page} page
+ * @param {string} nickname
+ * @param {'match' | 'classic' | 'duet'} mode
+ * @returns {Promise<string>} Room ID
+ */
+async function hostRoomWithMode(page, nickname, mode) {
+    await page.goto('/');
+    await page.locator(sel.setupScreen).waitFor({ state: 'visible', timeout: 10000 });
+    // Let the app-init translation pass settle before interacting — the setup
+    // screen drops clicks that land during it (see clickLocalUntilBoard).
+    await page.locator(sel.setupHostBtn).waitFor({ state: 'visible', timeout: 5000 });
+
+    // Retry the Host card until its form appears (and stays) — dropped clicks
+    // during init otherwise leave the form hidden.
+    const hostForm = page.locator(sel.setupHostForm);
+    const deadline = Date.now() + 20000;
+    while (Date.now() < deadline) {
+        if (await hostForm.isVisible({ timeout: 400 }).catch(() => false)) break;
+        await page
+            .locator(sel.setupHostBtn)
+            .click({ timeout: 2000, force: true })
+            .catch(() => {});
+        await page.waitForTimeout(300);
+    }
+    await hostForm.waitFor({ state: 'visible', timeout: 5000 });
+
+    await page.locator(sel.setupHostNickname).fill(nickname);
+    const roomId = `E2E${Date.now()}${Math.random().toString(36).slice(2, 6)}`.toLowerCase();
+    await page.locator(sel.setupHostRoomId).fill(roomId);
+
+    // The mode radios are custom-styled (the <input> is not directly checkable),
+    // so set the value and fire change via the DOM.
+    await page.evaluate((m) => {
+        const r = /** @type {HTMLInputElement|null} */ (
+            document.querySelector(`input[name="setup-gameMode"][value="${m}"]`)
+        );
+        if (r) {
+            r.checked = true;
+            r.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }, mode);
+
+    await page.locator(sel.setupHostSubmitBtn).click();
+    await page.locator(sel.boardCard).first().waitFor({ state: 'visible', timeout: 15000 });
+    return roomId;
+}
+
+/**
  * Join an existing multiplayer room.
  * @param {import('@playwright/test').Page} page
  * @param {string} roomId
@@ -296,6 +347,7 @@ module.exports = {
     goToGame,
     clickLocalUntilBoard,
     createRoom,
+    hostRoomWithMode,
     joinRoom,
     selectTeam,
     becomeSpymaster,
