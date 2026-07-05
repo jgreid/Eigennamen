@@ -3,10 +3,10 @@
  *
  * A SemanticBackend scores how related two words are in [0, 1]. The default
  * `lexicalBackend` needs NO external assets — it uses character-bigram overlap
- * (Dice coefficient) as a floor heuristic. Phase 3 adds embedding-backed
- * implementations (ConceptNet Numberbatch, fastText subword) behind this same
- * interface; greedyClicker and the future embeddingSpymaster consume it without
- * change.
+ * (Dice coefficient) as a floor heuristic. Embedding-backed implementations
+ * (ConceptNet Numberbatch, fastText subword — see vectorBackend.ts) sit behind
+ * this same interface; greedyClicker and embeddingSpymaster consume any backend
+ * unchanged.
  */
 import { normalizeClueWord } from '../../shared/gameRules';
 

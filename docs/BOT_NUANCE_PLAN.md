@@ -1,25 +1,27 @@
 # Bot Nuance Plan — from the Play-Session Ledger to Code
 
 Companion to [BOT_CLUE_LESSONS.md](BOT_CLUE_LESSONS.md). That document is the
-*ledger* — 36 lessons and 7 catalogued failure modes from five human-vs-AI play
-sessions. This one is the *build sheet*: open plan items (2.8–2.24) mapped to the
-exact functions, constants, and data structures that host it, sequenced into
-phases with the metric that gates each change.
+*ledger* — 41 lessons and 9 catalogued failure modes (A–I) from six human-vs-AI
+play sessions. This one is the *build sheet*: open plan items (2.8–2.28) mapped
+to the exact functions, constants, and data structures that host it, sequenced
+into phases with the metric that gates each change.
 
 All paths relative to `server/src/bots/`. Line anchors are as of the round-3
 audit; treat them as landmarks, not contracts.
 
-## The keystone constraint
+## The keystone constraint (resolved in Phase 2)
 
 Five items (completion entropy 2.9, referent sweeps 2.10/2.16, fame-of-fact
-2.14, concreteness 2.18, and richer endgame context) are blocked by one root
-limitation: `SemanticBackend.relatedness(a, b)` (`semantics/backend.ts:13`)
-returns a **bare scalar**, and the underlying stores are **unweighted
-membership sets** (`associationIndex.ts` `Map<string, Set<string>>`;
-`PROPER_ASSOCIATIONS` `Record<string, string[]>` with fame in a separate
-per-key map). There is no per-edge weight, no edge-kind, no phrase/direction
-channel. Phase 2 widens this interface once; everything downstream threads
-through it. Do not implement the blocked items piecemeal ahead of it.
+2.14, concreteness 2.18, and richer endgame context) were once blocked by one
+root limitation: `SemanticBackend.relatedness(a, b)` returned a **bare scalar**
+over **unweighted membership sets**, with no per-edge weight, edge-kind, or
+phrase/direction channel. **Phase 2 widened this interface** and everything
+downstream now threads through it: `SemanticBackend` carries optional
+`edgeInfo?`/`collocation?` channels (`semantics/backend.ts`), and the
+association store is a weighted `Map<string, Map<string, EdgeMeta>>`
+(`associationIndex.ts`) rather than `Map<string, Set<string>>`. The remaining
+open items below build on those channels; they are no longer blocked on the
+interface itself.
 
 ---
 
@@ -237,9 +239,65 @@ ledger Part 7 for the derivations).
 Re-run the full `bots:analyze` roster (`analyze.ts:353-359`) against the
 Phase 0 baselines; retune personas (`personas.ts` style knobs) where the new
 terms shifted equilibria — the assassin gate and berth ramp stay
-persona-independent. Then **round 4** of human play: the human against the
-improved bots, with the advisor live — the validation round the first three
-sessions earned.
+persona-independent. Then the **live validation round** of human play: the human
+against the improved bots, with the advisor live — the round the five prior
+sessions earned (it became Round 6, the embeddings bench, in the ledger).
+
+> **Retune half — verified no-op (evidence, not assumption).** Roster on
+> `phase5-roster` (8 games/pair, classic): the four competent personae all
+> pass every gate — delivery 94–100%, leak ≤ 2%, misfire ≤ 5%, assassin 0%,
+> `ceilUse` 0.52–0.64, overreach 0%. The only two flags are BY DESIGN, not
+> regressions: **apprentice** (the beginner) carries its intended
+> assassin-exposure / weak-coverage profile, flat vs the Phase-4 baseline
+> (assassin 2.7–2.8%), and **maverick** (off-kilter, low `commonnessBias`)
+> shows a borderline selection gap (`ceilUse` 0.52) that is its creative
+> identity, not a defect — on the `ph4-gate` seed it isn't even flagged
+> (0.59). A seed-matched run against the Phase-4 baseline is **bit-identical**
+> across all six personae, so the Phase 2–4 scoring terms + the hardening
+> fixes shifted no equilibrium: each term was gated at introduction and the
+> cumulative effect is stable. Per the "measure before tuning" guardrail, no
+> knob is changed — manufacturing a tune without a demonstrated problem would
+> be fiddling. The persona ladder is validated as healthy; the remaining half
+> is the live human-play validation round.
+
+## Phase 6 — Embeddings clue-hygiene (generation, not selection)
+
+> Ledger Round 6: the vector backend validated the *scoring* half of §20
+> (`COLD 3`→leak became `WATER 2`→safe) but regressed the *generation* half —
+> `nearest()` proposes junk that `isClueLegalForBoard` waves through. These
+> items harden candidate GENERATION; they do not touch the scorer.
+
+**6.1 Candidate-quality filter (2.25). 🟢 (implemented)**
+`makeBoardSafetyCheck`/`isClueBoardSafe` (`strategies/spymasters.ts`) rejects
+(a) tokens using a non-ASCII letter absent from every board word (ASCII
+punctuation preserved, so `McDonald's` survives) and (b) long same-script
+cognates of a board word (diacritic-folded shared prefix ≥ 6 + Levenshtein ≤ 2
+on words ≥ 6 long — conservative, since an orthographic test can't distinguish
+`REVOLUCION`↔`REVOLUTION` from `PLANT`↔`PLANE`). The board-derived predicate is
+built once per decision and reused, wired into `generateClueCandidates`' `legal()`
+choke point beside `isClueLegalForBoard`, so both `nearest()`-generated and
+`vocabulary()`-scanned candidates are filtered before scoring. Unit-tested in
+`__tests__/bots/clueBoardSafe.test.ts` (accented + long-cognate positives;
+punctuation, short-look-alike, and ASCII-letter negatives). Lessons 37/38.
+
+**6.2 Model-order-independent commonness prior (2.26). 🟢 (implemented in
+tooling)** `scripts/build-board-vectors.mjs --freq <freq-ordered.vec>
+[--freq-top N]`: the breadth sample is drawn only from the frequency reference's
+common region (obscurities never become candidates) and the output is written
+most-common-first, so the runtime loader (`vectorBackend.ts`) detects a
+frequency ordering and re-enables its rank→commonness prior. Without `--freq`
+the output is alphabetical and the prior stays off — no faked signal. Documented
+in [BOT_EMBEDDINGS.md](BOT_EMBEDDINGS.md). Lesson 39.
+
+**6.3 Board-geometry / proximity prior (2.27). 🔴** No engine component sees the
+5×5 layout. Would need the board index geometry threaded into `BotSpymasterView`
+/ `BotClickerView`, then a spatial-cohesion term rewarding clues whose intended
+targets are grid-adjacent (and a guesser-side assist read). Lesson 40.
+
+**6.4 Spymaster anti-satisficing (2.28). 🔴** `scoreClue` already ranks
+candidates, but nothing prefers a *tighter* single over a merely-workable one,
+and there is no cross-turn clue-quality memory. Would extend the Phase-4
+`BotSeatMemory` with a per-seat clue-tightness baseline. Lesson 41.
 
 ## Traceability
 
@@ -254,6 +312,9 @@ sessions earned.
 | Lesson 9 (clue debt) | 4.3 |
 | Lesson 15 / failure G (table-talk discipline) | 4.2 discipline rule |
 | Board-luck caveat | 0.2 |
+| Lessons 37/38 / failure H (cognate leak) | 6.1 |
+| Lesson 39 / failure I (untaxed obscurity) | 6.2 |
+| Lessons 40, 41 (proximity, satisficing) | 6.3, 6.4 (open) |
 
 **Standing guardrails:** all changes live in the strategy/semantics layer —
 `npm run bots:parity` must stay green anyway; every stochastic path stays on

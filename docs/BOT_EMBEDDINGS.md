@@ -19,9 +19,14 @@ Relatedness resolves through a fallback chain, strongest first:
    instead of merely scoring a fixed list — the main reason embeddings produce
    much stronger, more creative clues. Table/lexical backends omit `nearest()`,
    so the spymaster falls back to scanning the fixed `vocabulary()` there.
-2. **Baked association table** (`tableBackend.ts`) — a curated clue→words map.
+2. **Custom semantic maps** (`mapBackend.ts`) — an overlay built offline for a
+   specific custom word list by `npm run bots:map` (see
+   [BOT_SEMANTIC_MAPS.md](BOT_SEMANTIC_MAPS.md)). Present only when a maps
+   directory is configured; pairs a map knows score at table quality, everything
+   else drops to ↓.
+3. **Baked association table** (`tableBackend.ts`) — a curated clue→words map.
    Unknown pairs drop to ↓.
-3. **Lexical** (`backend.ts`) — Sørensen–Dice over character bigrams. Always
+4. **Lexical** (`backend.ts`) — Sørensen–Dice over character bigrams. Always
    available, language-agnostic, weak.
 
 The choice is made once, lazily, in `selectBackend.ts` (`getSemanticBackend()`),
@@ -93,6 +98,87 @@ download is large (GloVe ~830 MB zip); after that the git-ignored
 The same env var applies to the headless trainer (`npm run bots:train`), so you
 can benchmark a vector-backed spymaster against table-backed bots.
 
+## Board-restricted vectors (recommended: small & full-coverage)
+
+A generic `--trim N` keeps the model's first N vectors — fine for GloVe/fastText
+(frequency-ordered, so N = the N most common words) but wasteful for a word
+game and **broken for Numberbatch**, whose alphabetical order makes a first-N
+cut keep only the early alphabet (missing most board words). `COLD↔PENGUIN` —
+the everyday lateral the offline table can't see — only helps if PENGUIN and
+COLD both have vectors.
+
+`scripts/build-board-vectors.mjs` (`npm run bots:embeddings:board`) distils a
+downloaded model down to exactly what the game needs:
+
+1. **Guaranteed** — every single-token board word across all locales
+   (`DEFAULT_WORDS` + `wordlist-{de,es,fr}.txt`) and every baked association
+   concept key, so scored *and* generated clues are graded by real vectors.
+2. **Breadth** — a sample of the rest of the model's word-like English tokens
+   (default 40 000), so the spymaster's `nearest()` clue generation has a wide
+   candidate pool.
+
+```bash
+# from repo root, after fetching a model (Numberbatch fits this task best —
+# it's a common-sense knowledge graph, so COLD~PENGUIN is a real edge):
+scripts/fetch-bot-embeddings.sh numberbatch
+node scripts/build-board-vectors.mjs \
+  --in server/src/bots/data/numberbatch-en-19.08.vec \
+  --out server/src/bots/data/board-vectors.vec --breadth 40000
+export BOT_EMBEDDINGS_PATH=src/bots/data/board-vectors.vec   # relative to server/
+```
+
+The result is a few tens of MB (vs. hundreds), loads in ~35 MB RAM, and covers
+every English board/concept word. `--breadth` trades file size for clue-
+generation richness (≈25 MB at 15 000, ≈66 MB at 40 000) — board-word coverage
+is unaffected either way, so the leak-closing benefit holds at any breadth.
+
+### Commonness prior with an alphabetical source (`--freq`)
+
+An alphabetical source like Numberbatch carries no frequency signal, so the
+runtime loader disables its rank-based commonness prior and nothing taxes an
+obscure generated clue (e.g. `OVERBOUGHT`), and a uniform stride can sample such
+words into the candidate pool in the first place. Pass a frequency-ordered
+reference — any GloVe/fastText `.vec`, whose lines are most-frequent-first — to
+close both ends model-independently:
+
+```bash
+scripts/fetch-bot-embeddings.sh glove          # a frequency-ordered reference
+node scripts/build-board-vectors.mjs \
+  --in server/src/bots/data/numberbatch-en-19.08.vec \
+  --freq server/src/bots/data/glove.6B.100d.vec --freq-top 60000 \
+  --out server/src/bots/data/board-vectors.vec --breadth 40000
+```
+
+With `--freq` the breadth sample is drawn **only** from the reference's common
+region (so obscurities never become candidates), and the output is written
+**most-common-first** so the loader detects a frequency ordering and re-enables
+its commonness prior — grading whatever survives by real word frequency. Without
+`--freq` the output is alphabetical and the loader leaves the prior off (rather
+than reading meaning into a non-frequency order). Board-word coverage is
+identical either way; `--freq-top` (default 60 000) bounds how much of the
+reference counts as "common."
+
+The extractor reads only the **leading token** of each `--freq` line (the vectors
+are ignored), so the reference does not have to be an embedding model — any
+frequency-ordered token list works, in the same `token <anything>` per-line
+shape. That matters when GloVe/fastText aren't downloadable: a compact list from
+the [`wordfreq`](https://pypi.org/project/wordfreq/) package (purpose-built for
+commonness) is a strong, tiny reference:
+
+```bash
+python3 - <<'PY'
+import wordfreq
+with open('server/src/bots/data/freq-en.vec', 'w') as f:
+    for w in wordfreq.top_n_list('en', 80000):
+        if 2 <= len(w) <= 15 and all(c.isalpha() or c in "'.-" for c in w):
+            f.write(f"{w.upper()} 1\n")   # placeholder value keeps the row shape
+PY
+node scripts/build-board-vectors.mjs \
+  --in server/src/bots/data/numberbatch-en-19.08.vec \
+  --freq server/src/bots/data/freq-en.vec --freq-top 60000 \
+  --out server/src/bots/data/board-vectors.vec --breadth 40000
+```
+
 ## Supported file format
 
 Standard whitespace-separated word-vectors text, auto-detected:
@@ -144,7 +230,7 @@ warning and falls back to the baked table, so a misconfigured deploy still runs.
 | Env var | Default | Purpose |
 |---------|---------|---------|
 | `BOT_EMBEDDINGS_PATH` | _(unset)_ | Path to the vectors file. Unset ⇒ baked table. |
-| `BOT_EMBEDDINGS_MAX_WORDS` | `50000` | Cap on vectors loaded into memory. Files are frequency-ordered, so the cap keeps the most common words. The loader reads in bounded chunks and stops at the cap — a multi-GB file is never slurped whole. |
+| `BOT_EMBEDDINGS_MAX_WORDS` | `50000` | Cap on vectors loaded into memory. The loader reads in bounded chunks and stops at the cap — a multi-GB file is never slurped whole. For **frequency-ordered** files (GloVe/fastText) the cap keeps the most common words; for **alphabetical** files (Numberbatch) it keeps the early alphabet AND the loader disables its commonness prior — so build a `board-vectors.vec` with `npm run bots:embeddings:board` (optionally `--freq`) instead of relying on a raw cap. |
 | `BOT_EMBEDDINGS_VOCAB_CAP` | `2000` | Cap on the spymaster's clue candidate list (embedding vocab ∪ table vocab). Larger ⇒ richer clues, slower per-turn scan. |
 
 ## Licensing

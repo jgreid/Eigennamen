@@ -53,6 +53,7 @@ npm run bots:train             # Headless bot self-play harness (strategy tuning
 npm run bots:analyze           # Clue-giving diagnostics: per-persona gap report (--mode/--games/--seed)
 npm run bots:parity            # Verify bot engine vs Lua game-op parity
 npm run bots:embeddings        # Download bot word-embedding model only (no server start)
+npm run bots:embeddings:board  # Distil a big embedding model down to the board vocabulary (board-vectors asset)
 npm run bots:associations      # Regenerate the offline bot association table (semantics fallback)
 npm run bots:map               # Build an LLM-curated semantic map for a custom word list (--words <file>)
 ```
@@ -75,6 +76,7 @@ Eigennamen/
 │   ├── dev-bots.mjs            # Cross-platform bot-embeddings setup (Win/macOS/Linux, pure Node)
 │   ├── ensure-redis.mjs        # Ensure a local Redis (reuse, else managed Docker container)
 │   ├── build-semantic-map.mjs  # LLM-built semantic map for a custom word list (npm run bots:map)
+│   ├── build-board-vectors.mjs # Distil a big embedding model to the game vocabulary (npm run bots:embeddings:board)
 │   ├── generate-associations.mjs # Regenerate the bot association table (concept→board-word map)
 │   ├── fetch-bot-embeddings.sh # Manual word-embedding download (incl. ConceptNet Numberbatch)
 │   ├── fly-launch.sh           # Fly.io deployment
@@ -591,6 +593,7 @@ Run `npm run format` to auto-format, `npm run format:check` to verify.
 - **Bot-only room cleanup**: `leaveRoom` tears the room down when no humans remain (bots are first-class players that never disconnect, so a bots-only room would otherwise linger until TTL).
 - **addBot seat serialization**: `addBot` runs its seat-occupancy check and join under a per-room `bot-manage:` lock so two simultaneous `bot:add` calls can't both seat the same team+role.
 - **Multiplayer custom word lists**: `game.ts`'s `buildStartGameOptions()` forwards the host's active Settings-menu word list (`state.activeWords`) on every multiplayer `game:start`/auto-start call whenever `state.wordSource !== 'default'`, so a prepared custom/combined list (see `docs/BOT_SEMANTIC_MAPS.md`) reaches hosted rooms the same way it already worked in standalone mode. The client parser cap and the `game:start` Zod schema's max both read `MAX_CUSTOM_WORD_LIST_SIZE` (`shared/gameRules.ts`) so the two bounds can't drift apart.
+- **Embeddings clue hygiene**: with a `nearest()`-capable vector backend the spymaster GENERATES candidates from the whole model, which surfaces junk that passes `isClueLegalForBoard` (a substring/stem test). `isClueBoardSafe` (`bots/strategies/spymasters.ts`), wired into `generateClueCandidates`' legality choke point, additionally rejects cross-language cognates / orthographic near-duplicates of a board word (diacritic-folded shared-prefix + bounded edit distance — the `REVOLUCIÓN`/`REVOLUTION` self-leak) and tokens using a non-ASCII letter absent from the board (board-derived, so a Spanish board keeps its accents while an English board rejects them). Separately, `build-board-vectors.mjs --freq <freq-ordered.vec>` restores a **commonness prior** for alphabetical sources (Numberbatch): it restricts the breadth sample to a frequency reference's common region and writes the file most-common-first so `vectorBackend.ts` re-enables its rank→commonness rarity tax (docs/BOT_CLUE_LESSONS.md Round 6).
 
 ## Known Issues (Tracked)
 

@@ -39,6 +39,7 @@
     "bots:parity": "ts-node --transpile-only src/bots/harness/parity.ts",
     "bots:embeddings": "node ../scripts/dev-bots.mjs --no-run",
     "bots:associations": "node ../scripts/generate-associations.mjs",
+    "bots:embeddings:board": "node ../scripts/build-board-vectors.mjs",
     "bots:map": "node ../scripts/build-semantic-map.mjs",
     "dev:bots": "node ../scripts/dev-bots.mjs",
     "redis:up": "node ../scripts/ensure-redis.mjs",

@@ -476,3 +476,85 @@ survived going big was the same offense the ledger has endorsed since lesson 4
 sides came from theories: the panel's theory of a scorpion, the guesser's
 theory of a stray, the spymaster's theory that a category could be stretched
 into a quad. When in doubt, the surface is the strategy.
+
+---
+
+## Part 8 — Round 6: the embeddings bench
+
+Sixth session, protocol change: the human clued and the **AI spymaster** was
+put on the bench directly — a word-embedding backend (ConceptNet Numberbatch,
+board-restricted via `build-board-vectors.mjs`) swapped in for the offline table
+to prove the "real embeddings" path closes the lateral-association gap the table
+structurally can't see. It did: the everyday lateral `COLD~PENGUIN` — invisible
+to the baked table — now scores, and a board that had leaked a **`COLD 3`**
+(the third card an opponent's) re-scored to a safe **`WATER 2`** once the vectors
+graded it. The scoring half of §20 is validated. But the *generation* half
+regressed in a way the table never could: `nearest()` over a 40k-token model
+proposes candidates the fixed-vocabulary scan never would, and two classes of
+that pool are junk that sails through `isClueLegalForBoard`.
+
+### New lessons (37–41)
+
+| # | Lesson | Illustration |
+|---|--------|--------------|
+| 37 | **Embeddings fix selection, not the candidate set.** Real vectors close the relatedness blind spot (the table's missing laterals), so *scoring* improves — but `nearest()` GENERATES from the whole model, and a poisoned candidate can't be scored back to safety once it's the argmax. The upgrade moves the failure surface from "couldn't see the link" to "offered a word it shouldn't own." | `COLD 3`→leak became `WATER 2`→safe (scoring win), the same turn the generator started surfacing `REVOLUCIÓN` and `OVERBOUGHT` (generation loss). |
+| 38 | **Cross-language cognates leak through legality.** `isClueLegalForBoard` rejects exact/substring/stem collisions; a cognate in another language is none of those, so it passes — yet a guesser reads it straight back to the board word it mirrors. Orthographic near-duplicates (shared root + tiny edit distance) and wrong-language accented tokens must be filtered at *generation*, board-derived so the test stays language-agnostic (an English board rejects the accent a Spanish board keeps). | `REVOLUCIÓN` proposed for a board holding `REVOLUTION`: folded edit distance 1, not a substring — legal, and a total self-leak. |
+| 39 | **An alphabetical vector source silently disables the commonness prior.** Numberbatch is the best common-sense source *because* it's a knowledge graph — but it's ordered alphabetically, so file rank is not frequency and the loader turns its rarity tax OFF. Obscure words then generate as clues untaxed. The prior must key off a frequency signal the vector source itself doesn't carry. | `OVERBOUGHT` (a real but deep-cut word) rode into the candidate pool from the breadth sample and scored without a rarity penalty, because commonness was disabled for the alphabetical file. |
+| 40 | **Board geometry is signal the engine ignores (the proximity rule).** Humans clue and find words that sit *adjacent* on the 5×5 grid more readily than words scattered across it; a weak semantic link survives when the two cards are neighbours. The engine models only the word graph — the board's spatial layout is invisible to it. | `TEACHER`→`SCHOOL` was "nothing even close" on relatedness, yet playable because the two sat adjacent — a proximity assist the bot neither gives nor reads. *(Logged, not implemented — see 2.27.)* |
+| 41 | **The spymaster satisfices.** A stretch single where a tighter clue existed is the cluing-side dual of lesson 12 (generation ≠ selection): the bot took the first workable line rather than the best the generator could reach. | `STOCK` on round 2 was a stretch for one word when a cleaner single was available — "why such a stretch clue for 1 word?" *(Logged, not implemented — see 2.28.)* |
+
+### Where the AI failed (H–I) and what held
+
+- **H: `REVOLUCIÓN` (cognate self-leak).** The generator's top neighbour of an
+  own card was the board word itself in another language. Root cause is lesson
+  38: legality is a substring test, and a cognate isn't a substring. Fixed by
+  the candidate-quality filter (2.25).
+- **I: `OVERBOUGHT` (untaxed obscurity).** A breadth-sample deep cut scored with
+  no rarity penalty because the alphabetical source disabled the prior (lesson
+  39). Fixed at the asset layer by the `--freq` commonness reference (2.26).
+- **What held:** the embeddings closed the lateral gap they were brought in for
+  — `COLD~PENGUIN` grades, and the `COLD 3`→`WATER 2` re-score is the leak-to-
+  safe flip that proves the scoring path. Every failure this round was a
+  *generation-hygiene* defect layered on top of a scoring *win*.
+
+### Engineering additions (2.25–2.28)
+
+**2.25 Candidate-quality filter. 🟢 (implemented: `makeBoardSafetyCheck` /
+`isClueBoardSafe` in `spymasters.ts`, wired into `generateClueCandidates`'
+legality choke point, precomputed once per decision)** Reject, at generation,
+clue candidates that (a) use a non-ASCII letter absent from every board word (a
+wrong-language token — kills `REVOLUCIÓN` via its `Ó`; ASCII punctuation in a
+reference like `McDonald's` is preserved) or (b) are a long same-script cognate
+of a board word (diacritic-folded shared prefix ≥ 6 + edit distance ≤ 2 on words
+≥ 6 long — catches `REVOLUCION`↔`REVOLUTION` while leaving short look-alikes like
+`PLANT`↔`PLANE` alone, since an orthographic test can't tell a leak from a
+coincidence and dropping a good clue has a real cost). Board-derived, so
+language-agnostic (lessons 37/38).
+
+**2.26 Model-order-independent commonness prior. 🟢 (implemented in tooling:
+`build-board-vectors.mjs --freq <freq-ordered.vec>`)** Distil the vectors from
+the knowledge-graph source (edge quality) but take the *ordering* from a
+frequency-ordered reference: the breadth sample is restricted to that
+reference's common region (obscurities never become candidates), and the output
+is written most-common-first so the runtime loader re-enables its rank→commonness
+prior. The prior no longer depends on the embedding source's own order (lesson
+39). Without `--freq` the output is alphabetical and the prior stays off — no
+faked signal.
+
+**2.27 Board-geometry / proximity prior. 🔴** Model the 5×5 adjacency and reward
+clues whose intended targets cluster spatially (and read the assist when
+guessing): a weak-but-adjacent link is more findable than a strong-but-scattered
+one (lesson 40). Nothing in the engine sees the board layout today.
+
+**2.28 Spymaster anti-satisficing. 🔴** When the best generated single is a
+stretch, prefer a tighter alternative over the first workable line, and carry a
+cross-turn clue-quality sense so round-2 clues aren't stretchier than round-1's
+(lesson 41; the cluing-side dual of the advisor thesis in lesson 12).
+
+**Round-6 through-line:** upgrading the backend is not upgrading the bot. Real
+embeddings paid off exactly where promised — the laterals a curated table can't
+enumerate — and cost exactly where a bigger, blinder generator always does: it
+will hand you a word in the wrong language, or a word no one knows, unless you
+filter the candidate set before you score it. Selection was never the whole
+game; the candidate set is half of it, and this round is where that half came
+due.

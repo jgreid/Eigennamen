@@ -326,6 +326,7 @@ export interface BotContext {
     readonly teamNames: { red: string; blue: string };
     readonly skill: SkillParams;
     readonly rng: SeededRng;
+    readonly memory?: BotSeatMemory; // within-game clue-debt memory (absent = no adjustment)
 }
 
 /** Spymaster view: full unmasked types[] (+ duetTypes/cardScores per mode). */
@@ -647,10 +648,15 @@ server/src/bots/
 │   ├── types.ts            # BotAction, Spymaster/ClickerStrategy, views, SeededRng, SkillParams (+ style knobs), StyleParams/resolveStyle, BotContext, BotConfig
 │   ├── registry.ts         # strategyId → StrategyFactory; one entry per type
 │   ├── clickers.ts         # clicker strategies (random/greedy/cautious/duet/match-aware)
-│   └── spymasters.ts       # spymaster strategies (random/numberOnly/embedding/mctsLite/match-aware)
+│   ├── spymasters.ts       # spymaster strategies (random/numberOnly/embedding/mctsLite/match-aware)
+│   ├── advisor.ts          # advisor role: ranked guess suggestions, never acts
+│   └── clueFrame.ts        # sense/frame-switch resolution shared by clicker + advisor
 ├── semantics/
-│   ├── backend.ts          # SemanticBackend interface: relatedness(a,b), vectorize(word)
+│   ├── backend.ts          # SemanticBackend interface: relatedness + edgeInfo?/collocation? channels
+│   ├── associationIndex.ts # weighted EdgeMeta index (Map<string, Map<string, EdgeMeta>>)
 │   ├── tableBackend.ts     # baked curated association table (dictionary-word fallback)
+│   ├── properAssociations.ts # clue-capitalization PROPER_ASSOCIATIONS/RIVALS/HYPERNYMS reference table
+│   ├── mapBackend.ts       # custom semantic-map overlay (npm run bots:map)
 │   ├── vectorBackend.ts    # pre-trained word vectors (fastText/GloVe/word2vec/Numberbatch)
 │   ├── selectBackend.ts    # lazy backend selection via BOT_EMBEDDINGS_PATH
 │   └── associations.ts     # baked clue→board-word table for the default list (generated; see §20)
