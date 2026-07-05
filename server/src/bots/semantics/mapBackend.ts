@@ -17,8 +17,8 @@
  *    pre-Phase-2 behaviour.
  *  - v2: weighted edges carrying the per-edge channels (weight, kind,
  *    penetration, collocation) behind SemanticBackend.edgeInfo/collocation,
- *    and structured proper entries ({ contents, fame, rivals? } — rivals are
- *    validated and carried for Phase 3's rival-referent sweep).
+ *    and structured proper entries ({ contents, fame, rivals? }) whose rivals
+ *    are consumed by this backend's rival-referent sweep (mapRivals/rivalPull).
  *
  * Chain order (selectBackend): vectors? → custom maps → baked table → lexical.
  */
@@ -42,8 +42,8 @@ export type SemanticMapEdge =
     string | { word: string; weight?: number; kind?: EdgeKind; penetration?: number; collocation?: number };
 
 /** A v2 structured proper entry. `rivals` (other referents the same clue word
- *  evokes, whose contents also pull guesses) are validated and carried here
- *  but consumed in Phase 3's rival-referent sweep. */
+ *  evokes, whose contents also pull guesses) are validated on load and consumed
+ *  by the rival-referent sweep (mapRivals/rivalPull), scaled by the rival's fame. */
 export interface SemanticMapReference {
     contents: SemanticMapEdge[];
     /** Recognizability of the reference itself in (0, 1]. */

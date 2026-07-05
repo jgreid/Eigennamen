@@ -42,7 +42,8 @@ export interface MatchResult {
 export interface TournamentSpec {
     entrants: Entrant[];
     gameMode: GameMode;
-    /** Games per ordered pair direction (each pair plays this many as red and blue). */
+    /** Games per UNORDERED entrant pair; colors alternate (g % 2) for fairness,
+     *  so this is the total games each pair plays, not a per-direction count. */
     gamesPerPair: number;
     baseSeed: string;
     /** Optional custom word pool (defaults to the standard set). */
