@@ -558,3 +558,88 @@ will hand you a word in the wrong language, or a word no one knows, unless you
 filter the candidate set before you score it. Selection was never the whole
 game; the candidate set is half of it, and this round is where that half came
 due.
+
+---
+
+## Part 9 — Round 7: quantifying the signal-strength cliff (batch self-play, not human play)
+
+Seventh session, protocol change again: no human at the table this time.
+Reviewing single-seed bot-vs-bot transcripts (`embeddingSpymaster` +
+`greedyClicker`, offline association table — no `BOT_EMBEDDINGS_PATH`
+configured) surfaced two Guardian-persona (`temperature: 0.15`) misfires in one
+game: `Camelot 1` → STOCK (neutral) and `LOCK 1` → CHICK (neutral). Manually
+scoring the candidate pool at each clue moment showed the two misfires had
+different root causes — `LOCK→CHICK` was a real target (SOCK, 0.667) beaten by
+temperature noise on a ~6% roll; `Camelot→STOCK` was a **table-coverage gap**:
+every candidate except the real target (PILOT) scored a flat 0.000, and PILOT
+itself only scored 0.200 — too weak, in *absolute* terms, for the temperature-
+0.15 softmax to reliably favor it over the crowd of zero-scoring rivals. That
+prompted a batch measurement: does a clue's best-real-target score, at the
+moment it's given, predict the clicker's hit rate — independent of which
+persona is guessing?
+
+It does, sharply. Across 300 self-play games (3657 total clues), bucketing
+every Guardian-clicker guess by the table backend's best real-target score at
+clue time:
+
+| Best real-target score | Guesses | Own-hit rate | Miss rate |
+|---|---|---|---|
+| [0.0–0.1) | 22 | 22.7% | 77.3% |
+| [0.1–0.3) | 127 | 40.2% | 59.8% |
+| [0.3–0.6) | 308 | 61.7% | 38.3% |
+| [0.6–1.0] | 1744 | 92.5% | 7.5% |
+
+(Strategist/red is deterministic argmax and never misses, so the table is
+Guardian/blue guesses only — mixing in a zero-temperature persona would pad
+every bucket with trivial hits and hide the effect.) And this isn't a rare
+edge case: **310 of the 3657 clues (8.5%) had literally zero nonzero-scoring
+candidate anywhere on the board except one weak real target** — the exact
+`Camelot→PILOT` shape, at 8-9% frequency.
+
+### New lesson (42)
+
+| # | Lesson | Illustration |
+|---|--------|--------------|
+| 42 | **A clue's miss rate is gated by its weakest link's absolute strength, not just persona difficulty.** The clicker's temperature-softmax weighs candidates by their *relative* gap to the best score, scaled by a fixed `temperature` — but it is blind to how weak that best score is in *absolute* terms. A best-real-target score of 0.2 with a runner-up at 0.0 gets nowhere near the same confidence as 0.667 vs 0.333, at the identical temperature, because the softmax normalizes over however many near-zero rivals are still on the board. Persona-independent: a nonzero-temperature clicker facing a thin-coverage clue is closer to a coin flip (or worse) than its nominal difficulty would suggest. | `Camelot 1`→PILOT (real target, 0.200, only nonzero candidate) landed only ~24% of the softmax mass; `LOCK 1`→SOCK (real target, 0.667, next-best 0.333) landed ~76%. Same persona, same temperature, very different reliability — because the *table's* coverage of "Camelot" is thin and "LOCK" is not. |
+
+### Root cause, contrasted with Round 6
+
+This is a different mechanism from lesson 41's `HISTORY→STOCK` stretch-clue
+example: that was the **spymaster** manufacturing a spurious second target
+from the lexical (bigram-overlap) fallback when the table had no real
+HISTORY↔STOCK signal (table score for the pair == lexical score exactly,
+confirming the fallback fired, not a curated entry). Lesson 42 is the
+**clicker** side of the same underlying gap: table coverage for many clue
+words — especially proper-noun references, per lesson 39's "encyclopedic
+player" framing — is thin enough that even the *correct* target sits barely
+above the lexical floor, and no amount of persona tuning changes how a fixed-
+temperature softmax handles a weak absolute signal.
+
+### Engineering addition (2.29)
+
+**2.29 Signal-strength floor on clue selection. 🔴** `scoreClue` (or the
+spymaster's candidate legality/ranking step) should treat "the best-scoring
+candidate for this intended target barely clears the table's floor" as a
+distinct risk factor, independent of `assassinCaution`/`defenseBias` — a
+clue whose real-target score sits in the empirically-measured coin-flip-or-
+worse range (below ~0.3, where hit rate is under 50%) is a bad clue to give
+*even when the assassin/opponent margin looks completely safe*, because the
+risk isn't misdirection, it's the guesser's confidence collapsing on a thin
+read. Natural home: alongside 2.2's rarity/ambiguity term, but scored on the
+target's own strength rather than the halo's heat. Would directly flag both
+`Camelot 1` (spymaster side: don't give a clue whose only real target sits at
+0.2) and predict `LOCK 1`'s residual risk (clicker side: even a "good" clue at
+0.667 isn't argmax-safe at nonzero temperature). Measurement to validate a fix:
+rerun the bucketed hit-rate table above and confirm the low buckets either
+shrink in frequency (spymaster avoids them) or shift right (clicker reads them
+better) without regressing `npm run bots:parity` or the existing
+`bots:analyze` metrics.
+
+**Round-7 through-line:** the ledger has so far treated "how good is this
+clue" as a question about the *halo* — what else it might hit. This round adds
+a second axis measured directly from batch play, not narrated from a human
+session: how good is this clue at hitting what it's *for*, in absolute terms,
+independent of anything it might accidentally also hit. A clue can pass every
+assassin/opponent gate in this document and still be a bad clue, because the
+gates all ask "what's the worst it touches" and none of them ask "how
+confident is the read on the thing it's aimed at."
