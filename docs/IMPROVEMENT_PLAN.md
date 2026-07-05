@@ -589,6 +589,12 @@ The E2E suite is the plan's protective infrastructure: D1 unblocks trustworthy v
 
 **Risk / Notes:** The core standalone gameplay loop currently has zero working E2E coverage — regressions in reveal/end-turn/url-state ship undetected. This item is the plan's single highest-leverage testing investment.
 
+**Progress (2026-07-05):** Seven specs brought fully green against a real browser + server (and verified in CI — the six committed before game-modes all passed there): `accessibility` (16/16, incl. a real a11y fix — an unlabeled range input), `standalone-game` (12/12), `game-mechanics` (11/11), `home`, `eigennamen-mode` (14/14), `game-flow` (9/9), and `game-modes` (8/8). The recurring root causes fixed: role buttons disabled until a team is joined (idempotent `selectTeam` + `becomeSpymaster`), End-Turn/New-Game confirmation modals, dynamic `:not(.revealed).first()` locators, the 500ms new-game debounce, room-creation auto-start (the erroneous `startGameBtn` clicks), the multiplayer clue-before-reveal rule (P0-2) and spymaster/clicker split (P0-1), the removed `share-link` element, and match-mode score badges in card text.
+
+The full CI run also surfaced **additional pre-existing failures beyond the originally-scoped specs** (the local baseline was killed before reaching them): `setup-screen.spec.js` (~10 tests — all the D2 click-drop; the *right* fix is the D2 product bug, not more test retries), `multiplayer.spec.js` / `multiplayer-lifecycle.spec.js` / `multiplayer-extended.spec.js` (~8 — chat/room-settings/lifecycle, causes not yet triaged), and `security.spec.js` (2 — the admin `WWW-Authenticate` assertion needs `ADMIN_PASSWORD` set in the E2E job; the traversal one is a URL-normalization quirk — both CI-config, not product bugs). These remain for a follow-up pass; the `--max-failures`/blocking-gate promotion in step (d) is gated on them.
+
+A new sub-finding surfaced while fixing game-modes, worth its own tracking: **the setup-screen host applies the game mode via `updateSettings({gameMode})` which races the room-creation auto-start** — a host selecting Duet/Classic can get a Match game. The E2E helper works around it, but it's a real product race (see the note under G-series / consider a Phase A item).
+
 ---
 
 ### D2 — The setup screen drops clicks during app-init translation (papered over by an E2E retry loop)
