@@ -44,6 +44,8 @@ const sel = {
     settingsBtn: '[data-testid="settings-btn"]',
     multiplayerBtn: '[data-testid="multiplayer-btn"]',
     endTurnBtn: '[data-testid="end-turn-btn"]',
+    // The End Turn button opens a confirmation modal; this is its "Yes" button.
+    endTurnConfirmBtn: '[data-action="confirm-yes-end-turn"]',
     spymasterBtn: '[data-testid="spymaster-btn"]',
     clickerBtn: '[data-testid="clicker-btn"]',
     // Spectator mode is now achieved by toggling team buttons (click team again to unassign)
@@ -217,23 +219,44 @@ async function selectTeam(page, team) {
     const btn = page.locator(team === 'red' ? sel.teamRedBtn : sel.teamBlueBtn);
     if (await btn.isVisible({ timeout: 3000 }).catch(() => false)) {
         await btn.click();
-        // Wait for the player list to reflect the team change instead of arbitrary timeout
+        // Selecting a team enables the role buttons — standalone updates state
+        // synchronously, multiplayer applies an optimistic update — so wait for
+        // that precondition rather than a player-list row that only exists in
+        // multiplayer. This works in both modes and avoids a fixed timeout.
         await page
-            .locator(`${sel.playerList} .${team}-team, ${sel.playerList} [class*="${team}"]`)
-            .first()
-            .waitFor({ state: 'attached', timeout: 5000 })
+            .waitForFunction(
+                () => {
+                    const b = document.querySelector('[data-testid="spymaster-btn"]');
+                    return !!b && !(/** @type {HTMLButtonElement} */ (b).disabled);
+                },
+                { timeout: 5000 }
+            )
             .catch(() => {});
     }
 }
 
 /**
- * Become clicker for the team whose turn it is.
+ * Join a team and take the spymaster seat. The unified role buttons are
+ * disabled until a team is selected, so a team must be chosen first.
+ * @param {import('@playwright/test').Page} page
+ * @param {'red' | 'blue'} [team]
+ */
+async function becomeSpymaster(page, team = 'red') {
+    await selectTeam(page, team);
+    await page.locator(sel.spymasterBtn).click();
+}
+
+/**
+ * Become clicker for the team whose turn it is. The clicker button is disabled
+ * until a team is selected, and end-turn/reveal require being on the team whose
+ * turn it is, so join the current-turn team first.
  * @param {import('@playwright/test').Page} page
  * @returns {Promise<boolean>} true if red turn, false if blue turn
  */
 async function becomeCurrentClicker(page) {
     const turnText = await page.locator(sel.turnIndicator).textContent();
     const isRedTurn = turnText?.includes('Red') || false;
+    await selectTeam(page, isRedTurn ? 'red' : 'blue');
     await page.locator(sel.clickerBtn).click();
     return isRedTurn;
 }
@@ -265,6 +288,7 @@ module.exports = {
     createRoom,
     joinRoom,
     selectTeam,
+    becomeSpymaster,
     becomeCurrentClicker,
     addBot,
 };
