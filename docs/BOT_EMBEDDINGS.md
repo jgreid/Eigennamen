@@ -93,6 +93,40 @@ download is large (GloVe ~830 MB zip); after that the git-ignored
 The same env var applies to the headless trainer (`npm run bots:train`), so you
 can benchmark a vector-backed spymaster against table-backed bots.
 
+## Board-restricted vectors (recommended: small & full-coverage)
+
+A generic `--trim N` keeps the model's first N vectors — fine for GloVe/fastText
+(frequency-ordered, so N = the N most common words) but wasteful for a word
+game and **broken for Numberbatch**, whose alphabetical order makes a first-N
+cut keep only the early alphabet (missing most board words). `COLD↔PENGUIN` —
+the everyday lateral the offline table can't see — only helps if PENGUIN and
+COLD both have vectors.
+
+`scripts/build-board-vectors.mjs` (`npm run bots:embeddings:board`) distils a
+downloaded model down to exactly what the game needs:
+
+1. **Guaranteed** — every single-token board word across all locales
+   (`DEFAULT_WORDS` + `wordlist-{de,es,fr}.txt`) and every baked association
+   concept key, so scored *and* generated clues are graded by real vectors.
+2. **Breadth** — a uniform stride sample of the rest of the model's word-like
+   English tokens (default 40 000), so the spymaster's `nearest()` clue
+   generation has an alphabet-wide candidate pool.
+
+```bash
+# from repo root, after fetching a model (Numberbatch fits this task best —
+# it's a common-sense knowledge graph, so COLD~PENGUIN is a real edge):
+scripts/fetch-bot-embeddings.sh numberbatch
+node scripts/build-board-vectors.mjs \
+  --in server/src/bots/data/numberbatch-en-19.08.vec \
+  --out server/src/bots/data/board-vectors.vec --breadth 40000
+export BOT_EMBEDDINGS_PATH=src/bots/data/board-vectors.vec   # relative to server/
+```
+
+The result is a few tens of MB (vs. hundreds), loads in ~35 MB RAM, and covers
+every English board/concept word. `--breadth` trades file size for clue-
+generation richness (≈25 MB at 15 000, ≈66 MB at 40 000) — board-word coverage
+is unaffected either way, so the leak-closing benefit holds at any breadth.
+
 ## Supported file format
 
 Standard whitespace-separated word-vectors text, auto-detected:
