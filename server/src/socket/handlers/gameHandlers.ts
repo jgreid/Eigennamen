@@ -27,6 +27,7 @@ import { withTimeout, TIMEOUTS } from '../../utils/timeout';
 import { getSocketFunctions } from '../socketFunctionProvider';
 import { safeEmitToRoom, safeEmitToPlayers } from '../safeEmit';
 import { saveCompletedGameHistory, handleMatchRoundFinalization } from './gameHandlerUtils';
+import { buildSpymasterViewPayload } from './roomHandlerUtils';
 import { applyClue, applyReveal, applyEndTurn } from './gameActions';
 
 /**
@@ -135,6 +136,20 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                     game: gameService.getGameStateForPlayer(game, p),
                     gameMode,
                 }));
+
+                // Give each seated spymaster/observer their perspective-correct
+                // key immediately. getGameStateForPlayer masks a Duet BLUE
+                // spymaster's board (their key lives in duetTypes, which the client
+                // renders only after a game:spymasterView), and sendSpymasterViewIfNeeded
+                // fires only on role-change/resync — never on start. Since seats are
+                // preserved across games, a pre-seated blue spymaster would otherwise
+                // never receive their key until a manual resync/reconnect.
+                const spymasterViewers = players.filter((p: Player) => p.role === 'spymaster' || p.role === 'observer');
+                if (spymasterViewers.length > 0) {
+                    safeEmitToPlayers(io, spymasterViewers, SOCKET_EVENTS.GAME_SPYMASTER_VIEW, (p: Player) =>
+                        buildSpymasterViewPayload(game, p)
+                    );
+                }
 
                 // Broadcast each player's role so all clients re-sync spymaster/
                 // clicker state for the new game. Seats are preserved, so broadcast

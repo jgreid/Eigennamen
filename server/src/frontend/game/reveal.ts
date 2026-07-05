@@ -104,6 +104,15 @@ export function revealCard(index: number): void {
         return;
     }
 
+    // In multiplayer mode but currently disconnected: do NOT fall through to the
+    // standalone engine below, which would record a local (wrong) reveal, flip the
+    // turn, and rewrite the shareable URL to a standalone game. Wait for the
+    // reconnect/resync to restore authoritative state.
+    if (state.isMultiplayerMode) {
+        showToast(t('multiplayer.reconnecting'), 'warning');
+        return;
+    }
+
     state.gameState.revealed[index] = true;
     const type = state.gameState.types[index];
 

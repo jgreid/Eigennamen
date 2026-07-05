@@ -165,6 +165,14 @@ export function newGame(): void {
         return;
     }
 
+    // Multiplayer but disconnected: don't fall through to the standalone engine,
+    // which would replace the board, set isHost=true, reset roles, and rewrite the
+    // shareable URL from ?room=CODE to a standalone ?game=… link. Wait for reconnect.
+    if (state.isMultiplayerMode) {
+        showToast(t('multiplayer.reconnecting'), 'warning');
+        return;
+    }
+
     // Standalone mode: generate game locally
     const seed = generateGameSeed();
     if (initGame(seed, state.activeWords)) {
@@ -415,6 +423,14 @@ export function endTurn(): void {
     if (state.isMultiplayerMode && isClientConnected()) {
         EigennamenClient.endTurn();
         // Don't update local state - wait for server confirmation via turnEnded event
+        return;
+    }
+
+    // Multiplayer but disconnected: don't flip the turn locally (the server is
+    // authoritative and will resync on reconnect). Falling through would desync
+    // the turn and rewrite the shareable URL to a standalone game.
+    if (state.isMultiplayerMode) {
+        showToast(t('multiplayer.reconnecting'), 'warning');
         return;
     }
 

@@ -109,6 +109,7 @@ jest.mock('../../frontend/multiplayerSync', () => ({
     syncLocalPlayerState: jest.fn(),
     leaveMultiplayerMode: jest.fn(),
     detectOfflineChanges: jest.fn(() => []),
+    updateURLWithRoomCode: jest.fn(),
     domListenerCleanup: [],
 }));
 
