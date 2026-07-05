@@ -218,6 +218,12 @@ jobs:
         if: matrix.node-version != env.NODE_VERSION || steps.cache.outputs.cache-hit != 'true'
         run: npm ci
 
+      # __tests__/integration/ boots a real embedded redis-server (REDIS_URL=memory)
+      # rather than mocking config/redis — the same binary requirement the
+      # e2e/e2e-smoke jobs below already document: the runner image doesn't ship it.
+      - name: Install Redis (for embedded memory-mode server)
+        run: sudo apt-get update && sudo apt-get install -y redis-server
+
       - name: Run tests with coverage
         run: npx jest --config jest.config.ts.js --ci --coverage --forceExit
         env:
