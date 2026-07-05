@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { sel, goToGame, createRoom, joinRoom } = require('./helpers');
+const { sel, goToGame, createRoom, joinRoom, openChat } = require('./helpers');
 
 /**
  * Extended Multiplayer E2E Tests
@@ -129,10 +129,12 @@ test.describe('Chat Between Players', () => {
             const roomId = await createRoom(player1, 'Chatter1');
             await joinRoom(player2, roomId, 'Chatter2');
 
+            await openChat(player1);
             const chatInput1 = player1.locator(sel.chatInput);
             await chatInput1.fill('Hello from Player 1!');
             await chatInput1.press('Enter');
 
+            await openChat(player2);
             const chat2 = player2.locator(sel.chatMessages);
             await expect(chat2).toContainText('Hello from Player 1!', { timeout: 5000 });
 

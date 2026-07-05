@@ -363,13 +363,19 @@ test.describe('Static File Security', () => {
     });
 
     test('directory traversal attempts are blocked', async ({ request }) => {
-        const response = await request.get('/../../etc/passwd', {
+        // URL-encode the traversal so it reaches the server intact — a plain
+        // "/../../etc/passwd" is normalized to "/etc/passwd" by the client before
+        // it is ever sent. express.static confines requests to the public root,
+        // so a traversal can never disclose /etc/passwd; it falls through to the
+        // SPA catch-all (index.html, 200). The security guarantee under test is
+        // that the sensitive file's contents are never returned.
+        const response = await request.get('/..%2f..%2f..%2f..%2fetc%2fpasswd', {
             failOnStatusCode: false,
         });
 
-        // Should not return sensitive file contents
-        expect(response.status()).not.toBe(200);
         const text = await response.text();
         expect(text).not.toContain('root:');
+        expect(text).not.toContain('/bin/bash');
+        expect(text).not.toContain('daemon:');
     });
 });

@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { sel, goToGame, createRoom } = require('./helpers');
+const { sel, goToGame, createRoom, openChat } = require('./helpers');
 
 /**
  * Multiplayer E2E Tests
@@ -65,11 +65,13 @@ test.describe('Chat Functionality', () => {
     });
 
     test('chat input is visible when in room', async ({ page }) => {
+        await openChat(page);
         const chatInput = page.locator(sel.chatInput);
         await expect(chatInput).toBeVisible();
     });
 
     test('can send a chat message', async ({ page }) => {
+        await openChat(page);
         const chatInput = page.locator(sel.chatInput);
         await chatInput.fill('Hello, world!');
         await chatInput.press('Enter');
@@ -79,6 +81,7 @@ test.describe('Chat Functionality', () => {
     });
 
     test('chat messages show sender name', async ({ page }) => {
+        await openChat(page);
         const chatInput = page.locator(sel.chatInput);
         await chatInput.fill('Test message');
         await chatInput.press('Enter');
@@ -99,8 +102,11 @@ test.describe('Room Settings', () => {
     });
 
     test('host badge is visible for room creator', async ({ page }) => {
-        const hostBadge = page.locator('.host-badge');
-        await expect(hostBadge).toBeVisible();
+        // A "Host" badge renders in both the role banner and the player list;
+        // the player-list copy sits inside the collapsed player panel, so assert
+        // on the always-visible role-banner one (scoped to avoid a strict match).
+        const hostBadge = page.locator(sel.roleBanner).locator('.host-badge');
+        await expect(hostBadge.first()).toBeVisible();
     });
 });
 
@@ -165,8 +171,12 @@ test.describe('Two-Player Game Flow', () => {
             await player1.locator(sel.multiplayerBtn).click();
             await player1.locator(sel.modeCreateBtn).click();
 
-            await player1.locator(sel.createNickname).fill('Host');
-            const roomId = `STARTTEST${Date.now()}`;
+            // "Host" is a reserved nickname (shared/validation RESERVED_NAMES),
+            // so use a non-reserved name or room creation is rejected.
+            await player1.locator(sel.createNickname).fill('HostPlayer');
+            // Room IDs are capped at 20 chars (createRoomIdSchema); a 13-digit
+            // timestamp leaves 7 for the prefix — "START" keeps us under the cap.
+            const roomId = `START${Date.now()}`;
             await player1.locator(sel.createRoomId).fill(roomId);
             await player1.locator(sel.mpActionBtn).click();
 
