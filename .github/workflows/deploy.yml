@@ -42,6 +42,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+        with:
+          # Deploy exactly the commit CI validated, not whatever HEAD happens to
+          # be on main at event time (a later push could otherwise be shipped
+          # without having passed CI). Falls back to github.sha for workflow_dispatch.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup Fly.io CLI
         uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
@@ -66,12 +71,15 @@ jobs:
         run: |
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Wait for the new deployment to be healthy
+          # Wait for the new deployment to be healthy.
+          # /health/ready returns HTTP 200 {"status":"ready"} when every
+          # dependency is up and HTTP 503 {"status":"degraded"} otherwise — so
+          # curl's -f (fail on >=400) makes its exit code the health signal.
+          # (The old `grep -q "ok"` never matched: no success body contains "ok".)
           sleep 10
 
           for i in $(seq 1 30); do
-            HEALTH=$(curl -sf https://eigennamen.fly.dev/health/ready 2>/dev/null || echo "unreachable")
-            if echo "$HEALTH" | grep -q "ok"; then
+            if curl -fsS -o /dev/null https://eigennamen.fly.dev/health/ready 2>/dev/null; then
               echo "Deployment healthy after ${i}0s"
               echo "- **Status**: Healthy" >> $GITHUB_STEP_SUMMARY
               exit 0
@@ -97,11 +105,14 @@ jobs:
             echo "Deployment failed. Check logs with: \`flyctl logs --app eigennamen\`" >> $GITHUB_STEP_SUMMARY
           fi
 
-  # Rollback job - only available via manual trigger
+  # Rollback job - runs whenever a deploy fails, for BOTH the auto (workflow_run)
+  # and manual (workflow_dispatch) paths. It needs only FLY_API_TOKEN (no
+  # checkout), so it works under workflow_run too. Requires the health-check fix
+  # above to be meaningful — otherwise a false "unhealthy" would revert a good release.
   rollback:
     name: Rollback
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && failure()
+    if: failure()
     needs: deploy
     environment: ${{ github.event.inputs.environment || 'production' }}
 
