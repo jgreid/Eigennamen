@@ -8,8 +8,8 @@ import type { TimerInfo } from './socketFunctionProvider';
 import logger from '../utils/logger';
 import { authenticateSocket, getClientIP } from '../middleware/socketAuth';
 import * as timerService from '../services/timerService';
-import { registerRoomCleanup } from '../services/playerService';
-import { cleanupRoom } from '../services/roomService';
+import { registerRoomCleanup, registerHostRepair, startCleanupTask, stopCleanupTask } from '../services/playerService';
+import { cleanupRoom, ensureRoomHasHost } from '../services/roomService';
 import { SOCKET_EVENTS, SOCKET } from '../config/constants';
 import {
     getSocketRateLimiter,
@@ -178,6 +178,11 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
     // Start periodic cleanups
     startRateLimitCleanup();
     startConnectionsCleanup(socketServer);
+    // The scheduled player-cleanup sweep (disconnected-player removal, orphaned
+    // room + reconnection-token cleanup, and draining the scheduled:player:cleanup
+    // zset). Without this it never ran in production — players were only reaped by
+    // key-TTL, ghost players held seats, and the zset grew unbounded (B1).
+    startCleanupTask();
 
     // Periodic sweep of stale local timer entries (piggybacks on the same cadence)
     timerSweepIntervalRef = setInterval(() => {
@@ -188,8 +193,10 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
     // Register socket functions for edge case of no connections yet
     ensureSocketFunctionsRegistered(socketFns);
 
-    // Wire up room cleanup callback to break playerService ↔ roomService circular dependency
+    // Wire up room cleanup + host-repair callbacks to break the
+    // playerService ↔ roomService circular dependency
     registerRoomCleanup(cleanupRoom);
+    registerHostRepair(ensureRoomHasHost);
 
     // Initialize the server-side bot controller (reacts to game mutations)
     initBotController(socketServer);
@@ -210,6 +217,7 @@ async function cleanupSocketModule(): Promise<void> {
     stopBotController();
     stopRateLimitCleanup();
     stopConnectionsCleanup();
+    stopCleanupTask();
 
     // Clear timer sweep interval to prevent callbacks after shutdown
     if (timerSweepIntervalRef) {

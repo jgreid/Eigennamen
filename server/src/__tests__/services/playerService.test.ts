@@ -1327,21 +1327,23 @@ describe('Player Service', () => {
             expect(count).toBe(0);
         });
 
-        test('checks for orphaned room when no players remaining', async () => {
+        test('checks for orphaned room when no humans remaining', async () => {
             const entry = JSON.stringify({ sessionId: 's1', roomCode: 'ORPHAN' });
             const player = mockPlayer({ sessionId: 's1', connected: false, roomCode: 'ORPHAN' });
 
             mockRedis.eval.mockResolvedValueOnce([entry]);
             mockRedis.eval.mockResolvedValueOnce(0);
             mockRedis.eval.mockResolvedValueOnce(JSON.stringify(player));
-            mockRedis.sCard.mockResolvedValue(0);
+            // B9: the empty-room check now counts HUMANS via getPlayersInRoom
+            // (which reads the players set), not the raw sCard, so a bots-only
+            // room is still torn down.
+            mockRedis.sMembers.mockResolvedValue([]);
             mockRedis.exists.mockResolvedValue(0); // room already gone
 
             const count = await playerService.processScheduledCleanups();
 
             expect(count).toBe(1);
-            // sCard was called to check remaining players
-            expect(mockRedis.sCard).toHaveBeenCalledWith('room:ORPHAN:players');
+            expect(mockRedis.sMembers).toHaveBeenCalledWith('room:ORPHAN:players');
         });
 
         test('handles reconnection token cleanup failure', async () => {

@@ -76,6 +76,9 @@ jest.mock('../../services/playerService', () => ({
     handleDisconnect: jest.fn().mockResolvedValue(),
     updatePlayer: jest.fn().mockResolvedValue(),
     registerRoomCleanup: jest.fn(),
+    registerHostRepair: jest.fn(),
+    startCleanupTask: jest.fn(),
+    stopCleanupTask: jest.fn(),
 }));
 
 // Mock timer service
@@ -304,6 +307,20 @@ describe('Socket Index Module', () => {
 
             // After cleanup, getIO should throw
             expect(() => socketMod.getIO()).toThrow('Socket.io not initialized');
+        });
+
+        test('starts the scheduled player-cleanup sweep on init and stops it on cleanup (B1)', () => {
+            jest.resetModules();
+            const playerService = require('../../services/playerService');
+            const socketMod = require('../../socket/index');
+
+            socketMod.initializeSocket(server);
+            // The sweep must actually be started — pre-B1 it had zero production
+            // call sites, so disconnected players/rooms/tokens were never reaped.
+            expect(playerService.startCleanupTask).toHaveBeenCalled();
+
+            socketMod.cleanupSocketModule();
+            expect(playerService.stopCleanupTask).toHaveBeenCalled();
         });
     });
 

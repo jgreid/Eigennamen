@@ -710,4 +710,88 @@ describe('Real-Redis Lua script integration', () => {
             ).rejects.toThrow(/concurrent/i);
         });
     });
+
+    describe('ensureRoomHasHost (A10 lazy host repair)', () => {
+        it('promotes a connected human when the recorded host record is gone', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            await joinRoom(code, 'p2', 'Player2');
+
+            // Simulate the host being reaped by grace-period cleanup / key-TTL
+            // expiry: the room still records host-1, but the player record is gone.
+            await getRedis().del('player:host-1');
+
+            const newHost = await roomService.ensureRoomHasHost(code);
+            expect(newHost).toBe('p2');
+
+            const room = await roomService.getRoom(code);
+            expect(room?.hostSessionId).toBe('p2');
+            const p2 = await playerService.getPlayer('p2');
+            expect(p2?.isHost).toBe(true);
+        });
+
+        it('is a no-op when the host record still exists', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            await joinRoom(code, 'p2', 'Player2');
+
+            const result = await roomService.ensureRoomHasHost(code);
+            expect(result).toBe('host-1');
+            const room = await roomService.getRoom(code);
+            expect(room?.hostSessionId).toBe('host-1');
+        });
+
+        it('returns null when no connected human remains to promote', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            await joinRoom(code, 'p2', 'Player2');
+            await playerService.updatePlayer('p2', { connected: false });
+            await getRedis().del('player:host-1');
+
+            expect(await roomService.ensureRoomHasHost(code)).toBeNull();
+        });
+    });
+
+    describe('processScheduledCleanups tears down bot-only rooms (B9)', () => {
+        it('removes a room once its last human is cleaned up, even if a bot remains', async () => {
+            // Wire the real room-cleanup fn so the sweep can tear down.
+            playerService.registerRoomCleanup(roomService.cleanupRoom);
+
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'human-1', { nickname: 'Human' });
+
+            // Seat a bot as a first-class player in the room.
+            const redis = getRedis();
+            const botId = `bot-${code}`;
+            await redis.set(
+                `player:${botId}`,
+                JSON.stringify({
+                    sessionId: botId,
+                    roomCode: code,
+                    nickname: 'Bot',
+                    team: 'red',
+                    role: 'clicker',
+                    isHost: false,
+                    connected: true,
+                    isBot: true,
+                    lastSeen: Date.now(),
+                    createdAt: Date.now(),
+                })
+            );
+            await redis.sAdd(`room:${code}:players`, botId);
+
+            // The last human disconnects and its cleanup is due.
+            await playerService.updatePlayer('human-1', { connected: false });
+            await redis.zAdd('scheduled:player:cleanup', [
+                { score: 0, value: JSON.stringify({ sessionId: 'human-1', roomCode: code }) },
+            ]);
+
+            await playerService.processScheduledCleanups();
+
+            // Human gone, and with only a bot left the room was torn down (pre-B9 it
+            // lingered because the bot counted as an occupant).
+            expect(await playerService.getPlayer('human-1')).toBeNull();
+            expect(await roomService.getRoom(code)).toBeNull();
+        });
+    });
 });

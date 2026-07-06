@@ -151,11 +151,19 @@ export default function roomReconnectionHandlers(io: Server, socket: GameSocket)
                         });
                     });
 
-                    const [player, players, game] = (await Promise.all([
+                    // A10: if this room's host was reaped (grace-period cleanup or
+                    // key-TTL expiry) while nobody connected could take over, the
+                    // room is otherwise hostless forever. Now that this player is
+                    // connected again, repair it — they (or another connected human)
+                    // are promoted so the room is controllable again.
+                    await roomService.ensureRoomHasHost(code);
+
+                    const [freshRoom, player, players, game] = (await Promise.all([
+                        roomService.getRoom(code),
                         playerService.getPlayer(socket.sessionId),
                         playerService.getPlayersInRoom(code),
                         gameService.getGame(code),
-                    ])) as [Player | null, Player[], GameState | null];
+                    ])) as [Room | null, Player | null, Player[], GameState | null];
 
                     if (!player) {
                         throw PlayerError.notFound(socket.sessionId);
@@ -175,7 +183,7 @@ export default function roomReconnectionHandlers(io: Server, socket: GameSocket)
                         gameState = gameService.getGameStateForPlayer(game, player);
                     }
 
-                    return { room, player, players: freshPlayers, game, gameState };
+                    return { room: freshRoom ?? room, player, players: freshPlayers, game, gameState };
                 })();
 
                 const { room, player, players, game, gameState } = await withTimeout(

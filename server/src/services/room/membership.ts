@@ -241,3 +241,84 @@ export async function leaveRoom(code: string, sessionId: string): Promise<LeaveR
 
     return { newHostId, roomDeleted };
 }
+
+/**
+ * Lazy host repair (A10): if a room's recorded `hostSessionId` no longer resolves
+ * to an existing player — because the host was removed by grace-period cleanup or
+ * key-TTL expiry with no connected candidate at that instant, so no deferred
+ * transfer was left — the room is hostless forever and nobody can start a game,
+ * change settings, kick, add bots, or pause it. Promote the first connected human
+ * (bots can't run host functions). A no-op when the host record still exists.
+ *
+ * Returns the (possibly new) host session id, or null if the room is gone or has
+ * no connected human to promote (a human-less room is torn down by cleanup; a
+ * bots-only room can't be hosted anyway).
+ */
+export async function ensureRoomHasHost(code: string): Promise<string | null> {
+    const redis: RedisClient = getRedis();
+    const normalized = normalizeRoomCode(code);
+
+    const room = await getRoom(normalized);
+    if (!room) return null;
+
+    // Host record still exists → nothing to repair.
+    if (room.hostSessionId) {
+        const currentHost = await playerService.getPlayer(room.hostSessionId);
+        if (currentHost) return room.hostSessionId;
+    }
+
+    const players = await playerService.getPlayersInRoom(normalized);
+    const candidate = players.find((p) => p.connected && !p.isBot);
+    if (!candidate) return null;
+
+    // Promote under the host-transfer lock so we don't race disconnectHandler /
+    // leaveRoom doing their own transfer.
+    const lockKey = `lock:host-transfer:${normalized}`;
+    const lockValue = `repair:${candidate.sessionId}:${Date.now()}`;
+    let lockAcquired = false;
+    try {
+        const lockResult = await withTimeout(
+            redis.set(lockKey, lockValue, { NX: true, EX: LOCKS.HOST_TRANSFER }),
+            TIMEOUTS.REDIS_OPERATION,
+            `ensureRoomHasHost-lock-${normalized}`
+        );
+        lockAcquired = lockResult === 'OK' || !!lockResult;
+        if (!lockAcquired) {
+            // Another handler is transferring host right now — let it win.
+            return room.hostSessionId ?? null;
+        }
+
+        // Re-read inside the lock to avoid acting on stale state.
+        const fresh = await getRoom(normalized);
+        if (!fresh) return null;
+        if (fresh.hostSessionId) {
+            const stillHost = await playerService.getPlayer(fresh.hostSessionId);
+            if (stillHost) return fresh.hostSessionId; // repaired by someone else meanwhile
+        }
+
+        fresh.hostSessionId = candidate.sessionId;
+        await withTimeout(
+            redis.set(`room:${normalized}`, JSON.stringify(fresh), { EX: REDIS_TTL.ROOM }),
+            TIMEOUTS.REDIS_OPERATION,
+            `ensureRoomHasHost-set-${normalized}`
+        );
+        await playerService.updatePlayer(candidate.sessionId, { isHost: true });
+        logger.info(`Lazy host repair: promoted ${candidate.sessionId} to host of room ${normalized}`);
+        return candidate.sessionId;
+    } catch (err) {
+        logger.error(`ensureRoomHasHost failed for room ${normalized}: ${(err as Error).message}`);
+        return null;
+    } finally {
+        if (lockAcquired) {
+            try {
+                await withTimeout(
+                    redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [lockValue] }),
+                    TIMEOUTS.REDIS_OPERATION,
+                    `ensureRoomHasHost-release-${normalized}`
+                );
+            } catch {
+                /* best-effort */
+            }
+        }
+    }
+}

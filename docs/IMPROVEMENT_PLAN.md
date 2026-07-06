@@ -179,9 +179,11 @@ Deterministic defects reachable in ordinary play. These are the "a user hits thi
 
 ---
 
-### A10 — A room whose host is removed by grace-period expiry is bricked (no host ever again)
+### A10 — A room whose host is removed by grace-period expiry is bricked (no host ever again) — **FIXED**
 
 **Severity:** Medium · **Area:** Concurrency / room lifecycle
+
+**Resolution (shipped):** added `ensureRoomHasHost(code)` (`services/room/membership.ts`) — a lazy host repair that, when the recorded `hostSessionId` no longer resolves to an existing player, promotes the first *connected human* (bots can't run host functions) under the `host-transfer:` lock, re-reading inside the lock to avoid racing `disconnectHandler`/`leaveRoom`; it's a no-op when the host record still exists. Wired into both halves the plan called for: (1) lazy repair on `room:reconnect` and `room:resync` (the robust catch-all that also covers the TTL-expiry path no sweep can see — the reconnecting player becomes host); (2) proactive repair in the cleanup sweep — when it removes a player and humans remain, it runs the same repair (injected via `registerHostRepair` to avoid the playerService↔roomService cycle). Real-Redis tests cover promote-on-host-gone, no-op-when-host-exists, and null-when-no-connected-human.
 
 **Root cause:** Host transfer runs only inside `handleDisconnect`'s host-transfer lock and only if a *connected* candidate exists at that instant (`disconnectHandler.ts:313-341`); when none does, no deferred transfer, retry, or marker is left. Both later removal paths (`atomicCleanupDisconnectedPlayer.lua:33`, key TTL expiry) do no host work. Scenario: both humans blip; host's player key expires after the grace window; player B reconnects — `room.hostSessionId` now references a nonexistent session forever, so nobody can start a game, change settings, kick, add bots, or pause, until the room's own TTL.
 
@@ -227,9 +229,11 @@ Deterministic defects reachable in ordinary play. These are the "a user hits thi
 
 Server lifecycle, background maintenance, and the deploy pipeline. B1 and B5 are the two highest-leverage items in this entire plan.
 
-### B1 — The scheduled player-cleanup sweep is never started
+### B1 — The scheduled player-cleanup sweep is never started — **FIXED**
 
 **Severity:** Medium (High consequence, trivial fix) · **Area:** Backend lifecycle
+
+**Resolution (shipped):** `initializeSocket()` now calls `startCleanupTask()` alongside the other periodic sweeps, and `cleanupSocketModule()` calls `stopCleanupTask()`; the interval is `unref()`'d so it can't hold the process open. Defense in depth: `handleDisconnect` refreshes a TTL (`REDIS_TTL.ROOM`) on the `scheduled:player:cleanup` zset on every disconnect, so even if the sweep were ever stopped again the key self-expires instead of growing unbounded and wedging Redis under `noeviction`. `socketIndex.test.ts` asserts the sweep is started on init and stopped on cleanup (pre-B1 it had zero production call sites). This also re-activates the reconnection-token orphan cleanup (D3) and disconnected-player reaping, which run *inside* this sweep.
 
 **Root cause:** `startCleanupTask()` (`services/player/cleanup.ts:276`) is defined, re-exported, and called **only from tests** — repo-wide grep confirms zero production call sites. `socket/index.ts:178-186` starts `startRateLimitCleanup`, `startConnectionsCleanup`, and the timer sweep, but never this one. Consequences: disconnected players are removed only by key-TTL expiry (never proactively), ghost players hold team seats for the life of every room, orphaned-room teardown never runs, token-orphan cleanup never runs, and the `scheduled:player:cleanup` zset grows monotonically — under memory-mode's `--maxmemory 256mb --maxmemory-policy noeviction` (`config/redis.ts:100-103`), accumulated entries eventually cause Redis to reject **all** writes.
 
@@ -356,9 +360,11 @@ Server lifecycle, background maintenance, and the deploy pipeline. B1 and B5 are
 
 ---
 
-### B9 — Scheduled cleanup counts bots as room occupants, so bot-populated rooms are never torn down
+### B9 — Scheduled cleanup counts bots as room occupants, so bot-populated rooms are never torn down — **FIXED**
 
 **Severity:** Low · **Area:** Room lifecycle
+
+**Resolution (shipped):** `processScheduledCleanups`' empty-room check now counts **humans** via `getPlayersInRoom(...).filter((p) => !p.isBot)` instead of the raw `sCard`, so a room whose last human is reaped is torn down (with its bot records) even while bots remain — matching `leaveRoom`'s humans-remaining rule. Landed together with B1 (which makes the sweep run at all). Real-Redis test: the last human in a bot-populated room is cleaned up and the room is torn down.
 
 **Root cause:** `processScheduledCleanups`' empty-room check (`cleanup.ts:226`) uses `sCard` on the players set — bots are first-class players, so a room whose last *human* disconnects (rather than clicking leave) is never treated as empty, inconsistent with `leaveRoom`'s humans-remaining rule (`membership.ts:236`). The room, its bot player records, and `bot:<sid>:cfg` keys linger for the full room TTL.
 

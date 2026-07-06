@@ -446,12 +446,14 @@ export async function atomicHostTransfer(
 // module properties, preserving test mockability via direct assignment.
 import {
     registerRoomCleanup as _registerRoomCleanup,
+    registerHostRepair as _registerHostRepair,
     handleDisconnect as _handleDisconnect,
     processScheduledCleanups as _processScheduledCleanups,
     startCleanupTask as _startCleanupTask,
     stopCleanupTask as _stopCleanupTask,
 } from './player/cleanup';
 export const registerRoomCleanup = _registerRoomCleanup;
+export const registerHostRepair = _registerHostRepair;
 export const handleDisconnect = _handleDisconnect;
 export const processScheduledCleanups = _processScheduledCleanups;
 export const startCleanupTask = _startCleanupTask;
