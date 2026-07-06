@@ -6,6 +6,7 @@
  */
 
 const { randomUUID: uuidv4 } = require('crypto');
+const { WatchError } = require('redis');
 
 type AnyRecord = Record<string, any>;
 
@@ -18,6 +19,9 @@ function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
     const sortedSets = new Map<string, Array<{ score: number; value: string }>>();
     const lists = new Map<string, string[]>();
     const watchers = new Set<string>();
+    // Snapshot of each watched key's value at watch() time, so exec() can detect
+    // a dirty WATCH (node-redis v5 throws WatchError; ioredis returned null).
+    const watchSnapshots = new Map<string, string | undefined>();
     const subscriptions = new Map<string, Array<(message: string) => void>>();
 
     const mockRedis: AnyRecord = {
@@ -43,6 +47,7 @@ function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
                 if (storage.delete(key)) deleted++;
                 if (sets.delete(key)) deleted++;
                 if (lists.delete(key)) deleted++;
+                if (sortedSets.delete(key)) deleted++;
             }
             return deleted;
         }),
@@ -98,11 +103,21 @@ function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
             if (!sortedSets.has(key)) sortedSets.set(key, []);
             const sorted = sortedSets.get(key)!;
             const itemsArray = Array.isArray(items) ? items : [items];
+            let added = 0;
             for (const item of itemsArray) {
-                sorted.push({ score: item.score, value: item.value });
+                // Upsert by member — real ZADD updates an existing member's score
+                // rather than duplicating it (the mock used to push duplicates).
+                const existing = sorted.find((e) => e.value === item.value);
+                if (existing) {
+                    existing.score = item.score;
+                } else {
+                    sorted.push({ score: item.score, value: item.value });
+                    added++;
+                }
             }
             sorted.sort((a, b) => a.score - b.score);
-            return itemsArray.length;
+            // ZADD (without CH) returns the count of NEW members, not updated ones.
+            return added;
         }),
         zRem: jest.fn(async (key: string, ...members: Array<string | string[]>) => {
             const sorted = sortedSets.get(key);
@@ -136,10 +151,18 @@ function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
             if (options.LIMIT) {
                 items = items.slice(options.LIMIT.offset, options.LIMIT.offset + options.LIMIT.count);
             }
-            if (options.WITHSCORES) {
-                return items.map((i) => ({ value: i.value, score: i.score }));
-            }
+            // node-redis v5 zRange returns bare members only — WITHSCORES is not a
+            // zRange option there (use zRangeWithScores). Mirror that so the mock
+            // can't certify a WITHSCORES-on-zRange bug as passing (D4).
             return items.map((i) => i.value);
+        }),
+        zRangeWithScores: jest.fn(async (key: string, start: number, end: number) => {
+            const sorted = sortedSets.get(key);
+            if (!sorted) return [];
+            const items = [...sorted];
+            const startIdx = start < 0 ? Math.max(0, items.length + start) : start;
+            const endIdx = end < 0 ? items.length + end + 1 : end + 1;
+            return items.slice(startIdx, endIdx).map((i) => ({ value: i.value, score: i.score }));
         }),
         zRangeByScore: jest.fn(async (key: string, min: number, max: number, options: AnyRecord = {}) => {
             const sorted = sortedSets.get(key);
@@ -194,10 +217,12 @@ function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
         // Transaction operations
         watch: jest.fn(async (key: string) => {
             watchers.add(key);
+            watchSnapshots.set(key, storage.get(key));
             return 'OK';
         }),
         unwatch: jest.fn(async () => {
             watchers.clear();
+            watchSnapshots.clear();
             return 'OK';
         }),
         multi: jest.fn(() => {
@@ -226,15 +251,26 @@ function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
                     return chain;
                 },
                 async exec() {
-                    const results: Array<[Error | null, unknown]> = [];
+                    // node-redis v5 semantics: exec() THROWS WatchError if any
+                    // WATCHed key changed since watch(); otherwise it returns raw
+                    // replies (NOT ioredis [err, result] tuples). WATCH is consumed
+                    // by exec() either way.
+                    let dirty = false;
+                    for (const wKey of watchers) {
+                        if (watchSnapshots.get(wKey) !== storage.get(wKey)) {
+                            dirty = true;
+                            break;
+                        }
+                    }
+                    watchers.clear();
+                    watchSnapshots.clear();
+                    if (dirty) {
+                        throw new WatchError();
+                    }
+                    const results: unknown[] = [];
                     // Sequential execution required - commands must run in order for transaction semantics
                     for (const { cmd, args } of commands) {
-                        try {
-                            const result = await self[cmd](...args);
-                            results.push([null, result]);
-                        } catch (e) {
-                            results.push([e as Error, null]);
-                        }
+                        results.push(await self[cmd](...args));
                     }
                     return results;
                 },
@@ -303,6 +339,7 @@ function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
             sortedSets.clear();
             lists.clear();
             watchers.clear();
+            watchSnapshots.clear();
             subscriptions.clear();
         },
         _resetMocks: () => {

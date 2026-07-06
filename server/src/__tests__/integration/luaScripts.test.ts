@@ -18,6 +18,7 @@ import { connectRedis, disconnectRedis, getRedis } from '../../config/redis';
 import * as roomService from '../../services/roomService';
 import { joinRoom } from '../../services/room/membership';
 import * as gameService from '../../services/gameService';
+import { executeGameTransaction } from '../../services/game/luaGameOps';
 import * as playerService from '../../services/playerService';
 import { setTeam, setRole } from '../../services/player/mutations';
 import * as timerService from '../../services/timerService';
@@ -621,6 +622,92 @@ describe('Real-Redis Lua script integration', () => {
             const history = await gameHistoryService.getGameHistory(code);
             expect(history.length).toBe(1);
             expect(history[0]?.id).toBe(entry?.id);
+        });
+
+        it('getHistoryStats reports real oldest/newest scores after two saves (D4)', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            const game = await gameService.createGame(code, { gameMode: 'classic', seed: `${code}-stats` });
+
+            const older = await gameHistoryService.saveGameResult(code, {
+                ...game,
+                id: `${code}-older`,
+                gameOver: true,
+                winner: 'red',
+            });
+            const newer = await gameHistoryService.saveGameResult(code, {
+                ...game,
+                id: `${code}-newer`,
+                gameOver: true,
+                winner: 'blue',
+            });
+            expect(older).not.toBeNull();
+            expect(newer).not.toBeNull();
+
+            const stats = await gameHistoryService.getHistoryStats(code);
+            expect(stats.count).toBe(2);
+            // Pre-D4-fix these were always null: getHistoryStats passed WITHSCORES to
+            // zRange, which node-redis v5 silently ignores, so no scores came back.
+            expect(stats.oldest).not.toBeNull();
+            expect(stats.newest).not.toBeNull();
+            expect(Number.isFinite(stats.oldest?.timestamp)).toBe(true);
+            expect(Number.isFinite(stats.newest?.timestamp)).toBe(true);
+            expect(stats.newest?.timestamp).toBeGreaterThanOrEqual(stats.oldest?.timestamp as number);
+        });
+    });
+
+    describe('WATCH/MULTI optimistic-lock retry (B3)', () => {
+        it('retries a dirty WATCH conflict and still commits the mutation', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            await gameService.createGame(code, { gameMode: 'classic', seed: `${code}-b3` });
+            const gameKey = `room:${code}:game`;
+            const redis = getRedis();
+
+            let calls = 0;
+            const result = await executeGameTransaction(
+                gameKey,
+                async (g) => {
+                    calls++;
+                    if (calls === 1) {
+                        // Dirty the WATCHed key AFTER watch()+get() but before exec().
+                        // node-redis v5 makes exec() throw WatchError; the fix must
+                        // treat that as the retry signal (pre-fix it propagated and
+                        // the write was lost).
+                        const raw = (await redis.get(gameKey)) as string;
+                        await redis.set(gameKey, raw);
+                    }
+                    g.redScore = (g.redScore ?? 0) + 1;
+                    return g.redScore;
+                },
+                'b3-retry'
+            );
+
+            expect(calls).toBeGreaterThanOrEqual(2); // proves it retried
+            expect(result).toBe(1);
+            const after = await gameService.getGame(code);
+            expect(after?.redScore).toBe(1); // committed exactly once, not lost
+        });
+
+        it('throws concurrent-modification when every attempt hits a dirty WATCH', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            await gameService.createGame(code, { gameMode: 'classic', seed: `${code}-b3x` });
+            const gameKey = `room:${code}:game`;
+            const redis = getRedis();
+
+            await expect(
+                executeGameTransaction(
+                    gameKey,
+                    async (g) => {
+                        const raw = (await redis.get(gameKey)) as string;
+                        await redis.set(gameKey, raw); // dirty on every attempt
+                        g.redScore = (g.redScore ?? 0) + 1;
+                        return g.redScore;
+                    },
+                    'b3-exhaust'
+                )
+            ).rejects.toThrow(/concurrent/i);
         });
     });
 });

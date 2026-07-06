@@ -7,6 +7,7 @@ import { withTimeout, TIMEOUTS } from '../../utils/timeout';
 import { parseJSON, tryParseJSON } from '../../utils/parseJSON';
 import { REDIS_TTL, GAME_HISTORY, RETRY_CONFIG } from '../../config/constants';
 import { GameStateError, ServerError } from '../../errors/GameError';
+import { isWatchError } from '../../utils/isWatchError';
 import { REVEAL_CARD_SCRIPT, END_TURN_SCRIPT, SUBMIT_CLUE_SCRIPT } from '../../scripts';
 
 // Re-export Lua scripts from centralized barrel
@@ -322,6 +323,19 @@ export async function executeGameTransaction<T>(
                 await redis.unwatch();
             } catch {
                 /* don't mask original error */
+            }
+            // node-redis v5 THROWS WatchError from exec() on a dirty WATCH
+            // instead of returning null (the `txResult === null` check above is
+            // ioredis-era and never fires on v5). Treat it as the same retry
+            // condition so a genuine optimistic-lock conflict re-reads and
+            // retries rather than surfacing as a lost write / generic error.
+            if (isWatchError(error)) {
+                retries++;
+                if (retries < MAX_TRANSACTION_RETRIES) {
+                    const delay = TRANSACTION_BASE_DELAY_MS * Math.pow(2, retries - 1);
+                    await new Promise((resolve) => setTimeout(resolve, delay));
+                }
+                continue;
             }
             throw error;
         }

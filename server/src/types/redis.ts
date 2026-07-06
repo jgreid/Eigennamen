@@ -53,12 +53,12 @@ export interface RedisClient {
     // ── Sorted set commands ──────────────────────────────────────────
     zAdd(key: string, member: { score: number; value: string }, options?: { NX?: boolean }): Promise<number>;
     zRem(key: string, member: string | string[]): Promise<number>;
-    zRange(
-        key: string,
-        start: number,
-        stop: number,
-        options?: { REV?: boolean; WITHSCORES?: boolean }
-    ): Promise<string[] | Array<{ value: string; score: number }>>;
+    // NOTE: node-redis v5's zRange has NO WITHSCORES option (its builder handles
+    // only BY/REV/LIMIT) — it always returns bare members. Use zRangeWithScores
+    // when scores are needed. Declaring WITHSCORES here previously masked a real
+    // bug in getHistoryStats (D4).
+    zRange(key: string, start: number, stop: number, options?: { REV?: boolean }): Promise<string[]>;
+    zRangeWithScores(key: string, start: number, stop: number): Promise<Array<{ value: string; score: number }>>;
     zRangeByScore(
         key: string,
         min: number,
