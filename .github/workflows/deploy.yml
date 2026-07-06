@@ -7,37 +7,36 @@ on:
     types: [completed]
     branches: [main]
 
-  # Manual deployment trigger
+  # Manual deployment trigger (production only). A `staging` input used to exist,
+  # but there is no staging Fly app — selecting it ran a full PRODUCTION deploy
+  # (restarting the one prod machine, discarding all live games) while merely
+  # labeling the run "staging". Re-add a real staging target per
+  # docs/IMPROVEMENT_PLAN.md B12 (a dedicated app + fly.staging.toml threaded
+  # through every step) before offering the choice again.
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Deployment environment'
-        required: true
-        default: 'production'
-        type: choice
-        options:
-          - production
-          - staging
 
 permissions:
   contents: read
 
 concurrency:
-  group: deploy-${{ github.event.inputs.environment || 'production' }}
+  group: deploy-production
   cancel-in-progress: false  # Never cancel an in-progress deployment
 
 jobs:
   deploy:
     name: Deploy to Fly.io
     runs-on: ubuntu-latest
-    # Only deploy if CI succeeded (for workflow_run trigger) or manual trigger
+    # Deploy only on a green CI run on main, or a manual dispatch that is itself
+    # run FROM main. Without the `github.ref == 'refs/heads/main'` guard a
+    # workflow_dispatch could ship any branch straight to production with no
+    # lint/typecheck/test/e2e gate (B11).
     if: >
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main')
 
     environment:
-      name: ${{ github.event.inputs.environment || 'production' }}
+      name: production
       url: https://eigennamen.fly.dev
 
     steps:
@@ -55,7 +54,7 @@ jobs:
         run: |
           echo "## Deployment" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Environment**: ${{ github.event.inputs.environment || 'production' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: production" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
 
@@ -114,7 +113,7 @@ jobs:
     runs-on: ubuntu-latest
     if: failure()
     needs: deploy
-    environment: ${{ github.event.inputs.environment || 'production' }}
+    environment: production
 
     steps:
       - name: Setup Fly.io CLI
