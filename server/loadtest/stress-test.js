@@ -162,7 +162,9 @@ function createClient(config, roomCode, nickname, metrics) {
                 async createRoom() {
                     const createStart = Date.now();
                     metrics.events.sent++;
-                    socket.emit('room:create', { roomId: roomCode, settings: { nickname } });
+                    // nickname is a TOP-LEVEL field on room:create (roomCreateSchema),
+                    // not nested under settings — the old shape failed validation. D5.
+                    socket.emit('room:create', { roomId: roomCode, nickname });
 
                     return new Promise((res) => {
                         const createTimeout = setTimeout(() => {
@@ -182,6 +184,52 @@ function createClient(config, roomCode, nickname, metrics) {
                             metrics.events.received++;
                             res(false);
                         });
+                    });
+                },
+                // Perform one sustain-phase action and WAIT for its server
+                // response, recording real latency / received / error samples.
+                // The old sustain loop fire-and-forgot these emits with no
+                // listeners, so metrics.latencies/errors got zero samples during
+                // the "sustained load" phase — the report reflected only ramp-up. D5.
+                async performSustainAction(n) {
+                    const actions = [
+                        { event: 'player:setTeam', data: { team: n % 2 === 0 ? 'red' : 'blue' }, ok: 'player:updated' },
+                        { event: 'player:setRole', data: { role: 'spectator' }, ok: 'player:updated' },
+                        { event: 'room:resync', data: {}, ok: 'room:resynced' },
+                    ];
+                    const a = actions[n % actions.length];
+                    const start = Date.now();
+                    metrics.events.sent++;
+                    socket.emit(a.event, a.data);
+
+                    return new Promise((res) => {
+                        const cleanup = () => {
+                            socket.off(a.ok, onOk);
+                            socket.off('player:error', onErr);
+                            socket.off('room:error', onErr);
+                        };
+                        const onOk = () => {
+                            clearTimeout(to);
+                            metrics.events.received++;
+                            metrics.recordLatency(Date.now() - start);
+                            cleanup();
+                            res();
+                        };
+                        const onErr = (e) => {
+                            clearTimeout(to);
+                            metrics.events.received++;
+                            metrics.recordError({ message: `${a.event} error: ${(e && (e.code || e.message)) || e}` });
+                            cleanup();
+                            res();
+                        };
+                        const to = setTimeout(() => {
+                            metrics.recordError({ message: `${a.event} response timeout` });
+                            cleanup();
+                            res();
+                        }, 5000);
+                        socket.once(a.ok, onOk);
+                        socket.once('player:error', onErr);
+                        socket.once('room:error', onErr);
                     });
                 },
                 disconnect() {
@@ -257,30 +305,15 @@ async function run() {
     let actionCount = 0;
 
     while (Date.now() < endTime) {
-        // Each connected client performs an action
-        for (const client of clients) {
-            if (!client || !client.socket.connected) continue;
-
-            const action = actionCount % 3;
-            const actionStart = Date.now();
-            metrics.events.sent++;
-
-            if (action === 0) {
-                // Set team
-                client.socket.emit('player:setTeam', { team: actionCount % 2 === 0 ? 'red' : 'blue' });
-            } else if (action === 1) {
-                // Set role
-                client.socket.emit('player:setRole', { role: 'spectator' });
-            } else {
-                // Request resync
-                client.socket.emit('room:resync');
-            }
-
-            actionCount++;
-        }
-
-        // Wait between action bursts
-        await sleep(1000);
+        // Each connected client performs an action AND waits for its response,
+        // so latency/received/error metrics accumulate real samples during the
+        // sustain phase (not just ramp-up). Run the batch concurrently.
+        await Promise.all(
+            clients.map((client) => {
+                if (!client || !client.socket.connected) return Promise.resolve();
+                return client.performSustainAction(actionCount++);
+            })
+        );
 
         const remaining = Math.ceil((endTime - Date.now()) / 1000);
         if (remaining >= 0 && remaining % 10 === 0) {
@@ -298,7 +331,14 @@ async function run() {
     // Report
     metrics.report();
 
-    process.exit(metrics.errors.length > 0 ? 1 : 0);
+    // Fail loudly if the run measured nothing (e.g. every action rejected, or
+    // the sustain phase recorded no samples) rather than reporting an empty
+    // success. D5.
+    const noSamples = metrics.latencies.length === 0;
+    if (noSamples) {
+        console.error('\nFAIL: no latency samples recorded — the load phases measured nothing');
+    }
+    process.exit(noSamples || metrics.errors.length > 0 ? 1 : 0);
 }
 
 run().catch(console.error);

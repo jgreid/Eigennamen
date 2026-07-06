@@ -6,6 +6,26 @@ This directory contains two types of load tests:
 - **k6 scripts** (`room-flow.js`, `websocket-game.js`) for high-concurrency HTTP/WebSocket benchmarking
 - **Node.js scripts** (`stress-test.js`, `memory-leak-test.js`) for Socket.io-native testing and memory analysis
 
+## Running the server for load tests (important)
+
+All of these drive traffic from a single (local) IP, so the server's per-IP
+protections will otherwise reject most of it. Start the target server with both
+relaxed:
+
+```bash
+LOADTEST_RELAX_RATE_LIMITS=true MAX_CONNECTIONS_PER_IP=500 REDIS_URL=memory npm run dev
+```
+
+- `LOADTEST_RELAX_RATE_LIMITS=true` bypasses the per-IP HTTP **and** socket rate
+  limits (e.g. the 5-room/min `room:create` cap). It is **fail-closed in
+  production** — setting it on a `NODE_ENV=production` server is ignored, so it
+  can never weaken a live deployment's DoS protection.
+- `MAX_CONNECTIONS_PER_IP` raises the per-IP concurrent-connection cap (default
+  10) so many simultaneous test sockets aren't rejected.
+
+Without these, expect `Too many requests` / `Too many connections from this IP`
+and the tests will (correctly) fail rather than report empty successes.
+
 ## Prerequisites
 
 ### k6 (for room-flow.js and websocket-game.js)

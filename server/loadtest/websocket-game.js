@@ -59,11 +59,22 @@ export const options = {
         },
     },
     thresholds: {
-        ws_connect_latency: ['p(95)<500'],
-        ws_message_latency: ['p(95)<200'],
-        room_create_latency: ['p(95)<500'],
-        game_action_latency: ['p(95)<100'],
+        // `count>0` guards fail the threshold if the metric got no samples,
+        // instead of a green "pass" on zero data. Applied to the metrics the
+        // current single-connection flow actually populates. D5.
+        ws_connect_latency: ['p(95)<500', 'count>0'],
+        ws_message_latency: ['p(95)<200', 'count>0'],
+        room_create_latency: ['p(95)<500', 'count>0'],
         ws_errors: ['count<100'],
+        // NOTE (D5): game_action_latency (card reveal) and chat_latency are NOT
+        // asserted here — a single connection can't drive the reveal path
+        // (`game:start` is never emitted, the server forbids spymaster reveals,
+        // and P0-1 blocks mid-game role changes), so those metrics get zero
+        // samples. Asserting `p(95)<100` on them "passed" on zero data — a lie.
+        // Exercising the reveal/clue hot path needs a PAIRED-VU rework: one
+        // spymaster connection emitting game:start + game:clue, one clicker
+        // connection on the same team emitting game:reveal, correlating
+        // send→game:cardRevealed. Tracked as the remaining D5 sub-item.
     },
 };
 
