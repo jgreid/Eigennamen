@@ -144,12 +144,21 @@ export default function roomReconnectionHandlers(io: Server, socket: GameSocket)
                     // disconnect racing this reconnect could land its stale write
                     // last and leave this actively-reconnected player flagged
                     // disconnected. See docs/HARDENING_PLAN.md P0-4.
-                    await withLock(`player-mutation:${socket.sessionId}`, async () => {
-                        await playerService.updatePlayer(socket.sessionId, {
-                            connected: true,
-                            lastSeen: Date.now(),
-                        });
-                    });
+                    await withLock(
+                        `player-mutation:${socket.sessionId}`,
+                        async () => {
+                            await playerService.updatePlayer(socket.sessionId, {
+                                connected: true,
+                                lastSeen: Date.now(),
+                            });
+                        },
+                        // updatePlayer is REDIS_OPERATION-budgeted; the default 5000ms
+                        // lockTimeout (4500ms usable) can be under it, letting the lock
+                        // release while the connected:true write commits in the
+                        // background — racing the disconnect path's connected:false on
+                        // the same lock (P0-4). Size the lock to cover it. B2 / P0-3.
+                        { lockTimeout: TIMEOUTS.REDIS_OPERATION + 1000 }
+                    );
 
                     // A10: if this room's host was reaped (grace-period cleanup or
                     // key-TTL expiry) while nobody connected could take over, the

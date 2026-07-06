@@ -281,7 +281,10 @@ export async function rotateRolesForNextRound(roomCode: string): Promise<Player[
         await Promise.all(
             updates.map(({ sessionId, role }) =>
                 withLock(`player-mutation:${sessionId}`, async () => updatePlayer(sessionId, { role }), {
-                    lockTimeout: 3000,
+                    // updatePlayer is REDIS_OPERATION-budgeted; 3000ms (2500ms usable)
+                    // is under it, so a slow write could release the lock while the role
+                    // update commits in the background. Size the lock to cover it. B2.
+                    lockTimeout: TIMEOUTS.REDIS_OPERATION + 1000,
                     maxRetries: 5,
                 })
             )

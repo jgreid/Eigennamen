@@ -65,7 +65,14 @@ function createTimerExpireCallback(
                             throw endTurnErr;
                         }
                     },
-                    { lockTimeout: 5000, maxRetries: 3 }
+                    // Budget the lock for the slowest realistic inner work: getGame
+                    // (TIMEOUTS.REDIS_OPERATION) plus endTurn, which acquires its own
+                    // reveal lock (LOCKS.CARD_REVEAL). The old 5000ms gave the callback
+                    // only 4500ms (lockTimeout - 500), far under endTurn's 15s reveal
+                    // lock — so a slow endTurn would abort/release this lock while it
+                    // committed the turn flip in the background with NO broadcast and
+                    // no timer restart (clients stuck on the wrong turn). B2 / P0-3.
+                    { lockTimeout: TIMEOUTS.REDIS_OPERATION + LOCKS.CARD_REVEAL * 1000 + 1000, maxRetries: 3 }
                 );
             } catch (lockError) {
                 // If lock acquisition fails, another instance is handling this expiration
@@ -220,7 +227,12 @@ async function handleDisconnect(
         // just as wrong in that case, so bail out here too.
         const disconnectResult = await withTimeout(
             playerService.handleDisconnect(socket.sessionId, socket.id),
-            TIMEOUTS.REDIS_OPERATION,
+            // handleDisconnect is composite work — a player-mutation lock
+            // (getSocketId + updatePlayer) plus a scheduled-cleanup zAdd — not a
+            // single Redis call, so bound it at the composite SOCKET_HANDLER budget
+            // rather than a single REDIS_OPERATION that its own inner ops can each
+            // consume in full. B2.
+            TIMEOUTS.SOCKET_HANDLER,
             `disconnect-handleDisconnect-${socket.sessionId}`
         );
 
@@ -340,7 +352,16 @@ async function handleDisconnect(
                                 }
                             }
                         },
-                        { lockTimeout: LOCKS.HOST_TRANSFER * 1000, maxRetries: 5 }
+                        // The locked callback runs three sequential REDIS_OPERATION-
+                        // budgeted calls (getPlayer + getPlayersInRoom +
+                        // atomicHostTransfer). LOCKS.HOST_TRANSFER (3s) gave the
+                        // callback only 2500ms — under even one of them — so a slow
+                        // Redis could abort/release the lock while atomicHostTransfer
+                        // committed a host change in the background with no
+                        // room:hostChanged broadcast. Size it to cover all three. B2.
+                        // (LOCKS.HOST_TRANSFER still bounds the single-op manual locks
+                        // in services/room/membership.ts, which is correct there.)
+                        { lockTimeout: 3 * TIMEOUTS.REDIS_OPERATION + 1000, maxRetries: 5 }
                     );
                 } catch (hostTransferError) {
                     // If lock acquisition fails, another instance is handling this transfer

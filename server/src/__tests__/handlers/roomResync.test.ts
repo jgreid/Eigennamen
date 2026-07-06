@@ -421,7 +421,13 @@ describe('Room Resync and Recovery Handlers', () => {
             // must be serialized under the same player-mutation lock the disconnect
             // path uses, or a racing disconnect can clobber it back to false.
             const { withLock } = require('../../utils/distributedLock');
-            expect(withLock).toHaveBeenCalledWith('player-mutation:session-456', expect.any(Function));
+            // The lock now carries an explicit lockTimeout sized to updatePlayer's
+            // REDIS_OPERATION budget (B2), so assert the 3-arg form.
+            expect(withLock).toHaveBeenCalledWith(
+                'player-mutation:session-456',
+                expect.any(Function),
+                expect.objectContaining({ lockTimeout: expect.any(Number) })
+            );
             expect(playerService.updatePlayer).toHaveBeenCalledWith(
                 'session-456',
                 expect.objectContaining({ connected: true })
