@@ -127,26 +127,14 @@ export function t(key: string, params: Record<string, string | number> = {}): st
 
     if (typeof value !== 'string') return key;
 
-    // Interpolate {{param}} placeholders with HTML escaping to prevent XSS
+    // Interpolate {{param}} placeholders. Do NOT HTML-escape: every consumer of
+    // t() renders the result with textContent (never innerHTML — that's the
+    // project-wide XSS guarantee), so escaping here only corrupts the display —
+    // a clue like "McDonald's" would show as "McDonald&#39;s" and screen readers
+    // would speak "ampersand hash three nine" (C4).
     return value.replace(/\{\{(\w+)\}\}/g, (_: string, name: string) => {
         if (params[name] === undefined) return `{{${name}}}`;
-        const raw = String(params[name]);
-        return raw.replace(/[&<>"']/g, (ch: string) => {
-            switch (ch) {
-                case '&':
-                    return '&amp;';
-                case '<':
-                    return '&lt;';
-                case '>':
-                    return '&gt;';
-                case '"':
-                    return '&quot;';
-                case "'":
-                    return '&#39;';
-                default:
-                    return ch;
-            }
-        });
+        return String(params[name]);
     });
 }
 

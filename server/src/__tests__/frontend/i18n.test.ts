@@ -196,6 +196,33 @@ describe('i18n module', () => {
                 expect(mod.t('nope')).toBe('nope');
             });
         });
+
+        test('interpolates special characters verbatim without HTML-escaping (C4)', async () => {
+            await jest.isolateModulesAsync(async () => {
+                mockFetch.mockReset();
+                mockFetch.mockResolvedValue({
+                    ok: true,
+                    json: async () => ({
+                        game: { clueGivenAnnounce: 'Clue from {{team}}: {{word}} ({{number}}).' },
+                    }),
+                });
+
+                const mod = await import('../../frontend/i18n');
+                await mod.setLanguage('en');
+
+                // Consumers render t() output via textContent, so params must NOT be
+                // HTML-escaped — a clue like "McDonald's" must stay literal, not
+                // become "McDonald&#39;s".
+                const out = mod.t('game.clueGivenAnnounce', { team: 'Red', word: "McDonald's", number: 2 });
+                expect(out).toBe("Clue from Red: McDonald's (2).");
+                expect(out).not.toContain('&#39;');
+
+                // Ampersand and angle brackets pass through unescaped too.
+                const amp = mod.t('game.clueGivenAnnounce', { team: 'Blue', word: 'Tom & Jerry', number: 1 });
+                expect(amp).toBe('Clue from Blue: Tom & Jerry (1).');
+                expect(amp).not.toContain('&amp;');
+            });
+        });
     });
 
     describe('translatePage', () => {
