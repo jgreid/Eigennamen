@@ -147,6 +147,29 @@ interface ModalStackEntry {
 const modalStack: ModalStackEntry[] = [];
 const MAX_MODAL_STACK_SIZE = 10;
 
+// Shared selector for focusable elements inside a modal. Excludes :disabled form
+// controls — .focus() on a disabled element is a no-op, so focusing one (e.g. the
+// replay modal's #replay-prev at step 0) silently leaves keyboard/SR focus behind
+// the overlay. Kept in sync with the Tab focus-trap in handleModalKeydown. C8.
+const MODAL_FOCUSABLE_SELECTOR =
+    'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
+
+// Focus the first genuinely focusable element inside a container, preferring a
+// visible one (offsetParent is null for display:none — and, under jsdom, for
+// everything, so fall back to the first enabled candidate rather than emptying
+// the list). Falls back to the container itself so the SR reading position always
+// enters the dialog. C8.
+function focusFirstFocusable(container: HTMLElement): void {
+    const candidates = Array.from(container.querySelectorAll<HTMLElement>(MODAL_FOCUSABLE_SELECTOR));
+    const visible = candidates.filter((el) => el.offsetParent !== null);
+    const target = visible[0] ?? candidates[0] ?? container;
+    if (target === container && !container.hasAttribute('tabindex')) {
+        // Make the fallback container programmatically focusable.
+        container.setAttribute('tabindex', '-1');
+    }
+    target.focus();
+}
+
 export function openModal(modalId: string): void {
     const modal = document.getElementById(modalId);
     if (!modal) return;
@@ -195,13 +218,11 @@ export function openModal(modalId: string): void {
         state.modalListenersActive = true;
     }
 
-    // Focus first focusable element in modal
-    const focusableElements = modal.querySelectorAll(
-        'button, input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])'
-    );
-    if (focusableElements.length > 0) {
-        setTimeout(() => (focusableElements[0] as HTMLElement).focus(), 50);
-    }
+    // Focus the first focusable element, evaluated at focus time (inside the
+    // setTimeout) so a control disabled at open — e.g. the replay modal's
+    // #replay-prev at step 0 — is skipped rather than swallowing focus and
+    // stranding keyboard/SR focus behind the overlay. C8.
+    setTimeout(() => focusFirstFocusable(modal), 50);
 }
 
 export function closeModal(modalId: string): void {
@@ -245,13 +266,9 @@ export function closeModal(modalId: string): void {
         if (isInActiveModal || !state.activeModal) {
             (previousFocus as HTMLElement).focus();
         } else if (state.activeModal) {
-            // Focus first focusable element in the now-active modal
-            const focusableElements = state.activeModal.querySelectorAll(
-                'button, input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])'
-            );
-            if (focusableElements.length > 0) {
-                (focusableElements[0] as HTMLElement).focus();
-            }
+            // Focus the first genuinely focusable element in the now-active modal
+            // (skips disabled controls, falls back to the modal). C8.
+            focusFirstFocusable(state.activeModal);
         }
     }
 }
@@ -275,9 +292,7 @@ export function handleModalKeydown(e: KeyboardEvent): void {
         // prev/next buttons at a boundary) Tab wrapping would stick and the trap
         // would break. :disabled only applies to form controls, which is exactly
         // what needs excluding here (anchors/[tabindex] are never :disabled).
-        const focusableElements = state.activeModal.querySelectorAll(
-            'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
-        );
+        const focusableElements = state.activeModal.querySelectorAll(MODAL_FOCUSABLE_SELECTOR);
         if (focusableElements.length === 0) return;
 
         const firstElement = focusableElements[0] as HTMLElement;

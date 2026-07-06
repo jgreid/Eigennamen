@@ -60,13 +60,12 @@
       aria-atomic="true"
     ></div>
 
-    <!-- Toast notification container -->
-    <div
-      id="toast-container"
-      class="toast-container"
-      role="alert"
-      aria-live="polite"
-    ></div>
+    <!-- Toast notification container. Visual-only: NOT a live region. Screen
+         readers hear toasts through the dedicated #sr-announcements region via
+         showToast's announceToScreenReader() call, which adds "Error:"/"Warning:"
+         context and controlled timing. Making the container itself role="alert"/
+         aria-live spoke every toast twice (C2). -->
+    <div id="toast-container" class="toast-container"></div>
 
     <!-- Reconnection overlay -->
     <div
@@ -1765,7 +1764,7 @@
       </div>
     </div>
 
-    <script type="module" src="/js/modules/app.js?v=7d042af1"></script>
+    <script type="module" src="/js/modules/app.js?v=b2973b7e"></script>
     <!-- Fallback: detect if the ES module failed to load + service worker registration -->
     <script src="/js/app-fallback.js"></script>
   </body>
