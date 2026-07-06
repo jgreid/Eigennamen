@@ -77,6 +77,24 @@ describe('Reconnection Service', () => {
             expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Cleaned up 1 orphaned'));
         });
 
+        it('handles node-redis v5 scanIterator yielding a batch (array) of keys per iteration', async () => {
+            // node-redis v5 changed scanIterator to yield an ARRAY of keys per
+            // iteration (v4 yielded individual keys). The old loop treated each
+            // yield as a single string, so `key.replace(...)` threw and the outer
+            // catch silently cleaned nothing. This asserts the batch shape works.
+            mockRedis.scanIterator.mockReturnValue(
+                (async function* () {
+                    yield ['reconnect:session:orphan-1', 'reconnect:session:orphan-2'];
+                })()
+            );
+            mockRedis.eval.mockResolvedValue(1); // both orphaned → cleaned
+
+            const cleaned = await cleanupOrphanedReconnectionTokens();
+
+            expect(cleaned).toBe(2);
+            expect(mockRedis.eval).toHaveBeenCalledTimes(2);
+        });
+
         it('should handle orphaned session with no token mapping', async () => {
             mockRedis.scanIterator.mockReturnValue(
                 (async function* () {

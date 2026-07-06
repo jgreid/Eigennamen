@@ -85,5 +85,9 @@ export interface RedisClient {
     // ── Scan ─────────────────────────────────────────────────────────
     // cursor return type is number in redis v5+ (was string in v4)
     scan?(cursor: number, options: { MATCH: string; COUNT: number }): Promise<{ cursor: number; keys: string[] }>;
-    scanIterator?(options: { MATCH: string; COUNT?: number }): AsyncIterable<string>;
+    // node-redis v5 yields a BATCH (array) of keys per iteration (v4 yielded
+    // individual keys). Callers must iterate the array — see
+    // cleanupOrphanedReconnectionTokens, which silently no-op'd when this was
+    // typed as AsyncIterable<string>.
+    scanIterator?(options: { MATCH: string; COUNT?: number }): AsyncIterable<string[]>;
 }

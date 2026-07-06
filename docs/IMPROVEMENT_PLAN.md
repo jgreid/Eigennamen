@@ -622,19 +622,26 @@ Separately, opening a standalone game URL (`?game=…`) left the setup screen (v
 
 ---
 
-### D3 — Extend the real-Redis Lua harness to the 18 scripts still never executed in blocking CI — **IN PROGRESS**
+### D3 — Extend the real-Redis Lua harness to the 18 scripts still never executed in blocking CI — **FIXED**
 
 **Severity:** Medium · **Area:** Testing
 
-**Progress (shipped):** the harness now also exercises `revealCard.lua`'s **duet** branch against embedded Redis — a green revealed from the acting team's own perspective counts toward `greenFound`; a both-sides bystander spends a timer token and passes the turn without ending the game; and the A6 cross-perspective dead-green path ends the game with `winner=null`/`endReason='unreachable'`. This was pulled forward to satisfy the A6 gate ("validate the new Lua reveal logic against real Redis first, per P1-9"). The broader sweep of the remaining scripts below is still open.
+**Resolution (shipped):** `__tests__/integration/luaScripts.test.ts` now drives, against embedded Redis, every script the harness previously skipped — through the real service functions wherever one exists, and by direct `eval` where none does:
 
-**Root cause:** P1-9 covered the 7 highest-risk scripts (plus 4 more run transitively). Still never executed against real Redis in any blocking test: the 4 timer scripts (`atomicAddTime`/`PauseTimer`/`ResumeTimer`/`TimerStatus`), the 5 token/session scripts (`atomicGenerateReconnectToken`, `atomicValidateReconnectToken`, `invalidateToken`, `cleanupOrphanedToken`, `atomicSetSocketMapping`), `extendLock`, `atomicRateLimit`, `atomicCleanupDisconnectedPlayer`, `safeCleanupOrphans`, `atomicRemovePlayer`, `atomicSetRoomStatus`, `atomicUpdateSettings`, `atomicRefreshTtl`, `atomicSaveGameHistory`. A KEYS/ARGV indexing bug or nil-guard regression in a reconnect-token or lock script passes all backend tests today.
+- **Reveal (duet):** `revealCard.lua`'s duet branch — a green from the acting team's own perspective counts toward `greenFound`; a both-sides bystander spends a token and passes the turn; the A6 cross-perspective dead-green path ends with `winner=null`/`endReason='unreachable'`.
+- **Token/session family:** `atomicGenerateReconnectToken` (issue + idempotent repeat), `atomicValidateReconnectToken` (single-use consume + `SESSION_MISMATCH` without consuming), `invalidateToken`, `cleanupOrphanedToken` (orphan deleted, live token kept), `atomicSetSocketMapping` (+ non-existent-player refusal), `atomicRemovePlayer`.
+- **Player lifecycle:** `safeCleanupOrphans` (via `getPlayersInRoom` — a set entry with no backing player key is pruned), `atomicCleanupDisconnectedPlayer` (via `processScheduledCleanups` — disconnected player removed, reconnected one spared).
+- **Timers:** `atomicTimerStatus`, `atomicAddTime`, `atomicPauseTimer`, `atomicResumeTimer` (+ null-for-no-timer cases).
+- **Auth-adjacent:** `atomicRateLimit` (per-IP counter increments and blocks past the ceiling), `extendLock` (owner extends; a released lock refuses re-extension).
+- **Room/history:** `atomicUpdateSettings`, `atomicRefreshTtl` (TTL bumped back up), `atomicSetRoomStatus` (direct `eval` — it has no production caller), `atomicSaveGameHistory` (round-trips through the room index).
 
-**Fix:** Extend `__tests__/integration/luaScripts.test.ts` with cases for all 18, following P1-9's acceptance pattern (each case first verified to fail against a deliberately broken script). Prioritize the token family and `extendLock`/`atomicRateLimit` (auth-adjacent), then timers (which A11/P2-2 will modify). (Duet `revealCard.lua` coverage already landed — see Progress above.)
+**Bug this surfaced — and fixed:** the `cleanupOrphanedToken` case failed on first run because **`cleanupOrphanedReconnectionTokens` never cleaned anything under node-redis v5.** v5's `scanIterator` yields a *batch* (array) of keys per iteration; the loop (`reconnection.ts:215`) treated each yield as a single key string, so `key.replace(...)` threw on the array and the surrounding `catch` swallowed it — the function silently returned 0 every run. Impact was capped by the 5-minute token TTL (orphans self-expire), which is why it went unnoticed. Fixed by normalizing the yield (`Array.isArray(page) ? page : [page]`) so it works on both v4 and v5, and corrected the `AsyncIterable<string>` → `AsyncIterable<string[]>` type in `types/redis.ts:88` (the wrong type is what let this compile). A unit test (`reconnection.test.ts`) now mocks the v5 array shape so it can't regress. This is exactly the KEYS/ARGV-class silent failure D3 was written to catch.
 
-**Touches:** `__tests__/integration/luaScripts.test.ts`
+**Root cause (original):** P1-9 covered the 7 highest-risk scripts (plus 4 run transitively); the rest had never executed against real Redis in any blocking test, so a shape/indexing/nil-guard regression passed the whole backend suite. Now closed.
 
-**Tests:** This item is the tests.
+**Touches:** `__tests__/integration/luaScripts.test.ts`, `services/player/reconnection.ts`, `types/redis.ts`, `__tests__/services/reconnection.test.ts`
+
+**Tests:** This item is the tests (23 new real-Redis cases + 1 unit regression for the scanIterator batch shape).
 
 ---
 
