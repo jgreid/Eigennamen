@@ -188,6 +188,20 @@ export function translatePage(): void {
             (el as HTMLOptGroupElement).label = translated;
         }
     });
+
+    // Handle data-i18n-arialabel for aria-label attributes. Without this the
+    // primary navigation surface for screen-reader users stays English in
+    // de/es/fr (skip link, board region, clue inputs, chat, replay controls…).
+    const ariaLabels = document.querySelectorAll('[data-i18n-arialabel]');
+    ariaLabels.forEach((el) => {
+        const key = el.getAttribute('data-i18n-arialabel');
+        if (!key) return;
+
+        const translated = t(key);
+        if (translated !== key) {
+            el.setAttribute('aria-label', translated);
+        }
+    });
 }
 
 /**

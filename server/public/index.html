@@ -83,7 +83,7 @@
     </div>
 
     <!-- Game Setup Screen (shown on initial load) -->
-    <div class="setup-screen" id="setup-screen" data-testid="setup-screen" role="main" aria-label="Game setup">
+    <div class="setup-screen" id="setup-screen" data-testid="setup-screen" role="main" data-i18n-arialabel="aria.gameSetup" aria-label="Game setup">
       <div class="setup-board-container">
         <h1 class="setup-title">Eigennamen</h1>
         <p class="setup-subtitle">Play with friends online or offline</p>
@@ -243,14 +243,14 @@
             class="game-title-btn"
             data-action="open-help"
             title="Help & Rules"
-            aria-label="Eigennamen - Click for Help & Rules"
+            data-i18n-arialabel="aria.logoHelp" aria-label="Eigennamen - Click for Help & Rules"
           >
             <h1 class="game-title">Eigennamen</h1>
           </button>
         </div>
         <div class="status-bar-center">
           <!-- Scoreboard with clickable team names for team selection -->
-          <div class="scoreboard" role="group" aria-label="Red team score">
+          <div class="scoreboard" role="group" data-i18n-arialabel="aria.redTeamScore" aria-label="Red team score">
             <button
               type="button"
               class="score red"
@@ -282,7 +282,7 @@
                 id="timer-display"
                 data-testid="timer-display"
                 role="timer"
-                aria-label="Time remaining"
+                data-i18n-arialabel="aria.timeRemaining" aria-label="Time remaining"
               >
                 <span class="timer-icon" aria-hidden="true">⏱️</span>
                 <span class="timer-value" id="timer-value">--:--</span>
@@ -294,7 +294,7 @@
               id="match-scoreboard"
               hidden
               role="group"
-              aria-label="Eigennamen scores"
+              data-i18n-arialabel="aria.scoreboard" aria-label="Eigennamen scores"
             >
               <span class="match-round">R<span id="match-round">1</span></span>
               <span class="match-score red-match"
@@ -321,7 +321,7 @@
             </div>
           </div>
 
-          <div class="scoreboard" role="group" aria-label="Blue team score">
+          <div class="scoreboard" role="group" data-i18n-arialabel="aria.blueTeamScore" aria-label="Blue team score">
             <button
               type="button"
               class="score blue"
@@ -372,7 +372,7 @@
               class="player-count-btn"
               id="mp-player-count-btn"
               title="Click to see players"
-              aria-label="Show player list"
+              data-i18n-arialabel="aria.showPlayerList" aria-label="Show player list"
               aria-expanded="false"
             >
               <span id="mp-player-count" data-testid="player-count"
@@ -447,14 +447,14 @@
                 <div class="bots-panel-grid">
                   <label class="bots-field">
                     <span data-i18n="bots.team">Team</span>
-                    <select id="bot-team-select" data-testid="bot-team-select" aria-label="Bot team">
+                    <select id="bot-team-select" data-testid="bot-team-select" data-i18n-arialabel="aria.botTeam" aria-label="Bot team">
                       <option value="red" data-i18n="bots.teamRed">Red</option>
                       <option value="blue" data-i18n="bots.teamBlue">Blue</option>
                     </select>
                   </label>
                   <label class="bots-field">
                     <span data-i18n="bots.seat">Seat</span>
-                    <select id="bot-seat-select" data-testid="bot-seat-select" aria-label="Bot seat">
+                    <select id="bot-seat-select" data-testid="bot-seat-select" data-i18n-arialabel="aria.botSeat" aria-label="Bot seat">
                       <option value="spymaster" data-i18n="roles.spymaster">Spymaster</option>
                       <option value="clicker" data-i18n="roles.clicker">Clicker</option>
                       <option value="advisor" data-i18n="roles.advisor">Advisor</option>
@@ -462,7 +462,7 @@
                   </label>
                   <label class="bots-field">
                     <span data-i18n="bots.style">Style</span>
-                    <select id="bot-style-select" data-testid="bot-style-select" aria-label="Bot style">
+                    <select id="bot-style-select" data-testid="bot-style-select" data-i18n-arialabel="aria.botStyle" aria-label="Bot style">
                       <option value="smart" data-i18n="bots.styleSmart">Smart</option>
                       <option value="cautious" data-i18n="bots.styleCautious">Cautious</option>
                       <option value="random" data-i18n="bots.styleRandom">Random</option>
@@ -470,7 +470,7 @@
                   </label>
                   <label class="bots-field">
                     <span data-i18n="bots.skill">Skill</span>
-                    <select id="bot-skill-select" data-testid="bot-skill-select" aria-label="Bot skill or persona">
+                    <select id="bot-skill-select" data-testid="bot-skill-select" data-i18n-arialabel="aria.botSkill" aria-label="Bot skill or persona">
                       <optgroup label="Difficulty" data-i18n-label="bots.difficultyGroup">
                         <option value="intermediate" data-i18n="bots.skillIntermediate" selected>Intermediate</option>
                         <option value="expert" data-i18n="bots.skillExpert">Expert</option>
@@ -539,7 +539,7 @@
             class="controls"
             id="controls"
             role="toolbar"
-            aria-label="Game controls"
+            data-i18n-arialabel="aria.gameControls" aria-label="Game controls"
           >
           <div class="role-controls" id="role-controls">
             <div class="role-buttons-row">
@@ -594,7 +594,7 @@
                 autocomplete="off"
                 autocorrect="off"
                 spellcheck="false"
-                aria-label="Clue word"
+                data-i18n-arialabel="aria.clueWord" aria-label="Clue word"
               />
               <input
                 type="number"
@@ -604,7 +604,7 @@
                 min="0"
                 max="9"
                 value="1"
-                aria-label="Number of cards"
+                data-i18n-arialabel="aria.numberOfCards" aria-label="Number of cards"
               />
               <button
                 type="submit"
@@ -648,7 +648,7 @@
               data-testid="settings-btn"
               data-action="open-settings"
               title="Settings"
-              aria-label="Settings"
+              data-i18n-arialabel="accessibility.settings" aria-label="Settings"
             >
               <span class="btn-icon" aria-hidden="true">⚙</span>
               <span class="btn-label" data-i18n="nav.settings">Settings</span>
@@ -660,7 +660,7 @@
               data-testid="multiplayer-btn"
               data-action="open-multiplayer"
               title="Play Online"
-              aria-label="Play Online"
+              data-i18n-arialabel="accessibility.playOnline" aria-label="Play Online"
             >
               <span class="btn-icon" aria-hidden="true">🌐</span>
               <span class="btn-label" data-i18n="nav.playOnline"
@@ -674,7 +674,7 @@
               data-testid="history-btn"
               data-action="open-history"
               title="Game History"
-              aria-label="Game History"
+              data-i18n-arialabel="accessibility.gameHistory" aria-label="Game History"
               hidden
             >
               <span class="btn-icon" aria-hidden="true">📜</span>
@@ -708,7 +708,7 @@
               id="chat-messages"
               role="log"
               aria-live="polite"
-              aria-label="Chat messages"
+              data-i18n-arialabel="aria.chatMessages" aria-label="Chat messages"
             ></div>
             <div class="chat-input-row">
               <input
@@ -718,7 +718,7 @@
                 placeholder="Type a message..."
                 maxlength="500"
                 autocomplete="off"
-                aria-label="Chat message input"
+                data-i18n-arialabel="aria.chatInput" aria-label="Chat message input"
               />
               <label class="chat-team-only" title="Send to team only">
                 <input type="checkbox" id="chat-team-only" />
@@ -728,7 +728,7 @@
                 type="button"
                 class="chat-send-btn"
                 id="chat-send-btn"
-                aria-label="Send message"
+                data-i18n-arialabel="aria.sendMessage" aria-label="Send message"
               >
                 Send
               </button>
@@ -758,7 +758,7 @@
             id="board"
             data-testid="game-board"
             role="grid"
-            aria-label="Eigennamen game board"
+            data-i18n-arialabel="board.boardAriaLabel" aria-label="Eigennamen game board"
           >
             <div
               id="board-loading"
@@ -790,7 +790,7 @@
             id="gamelog-entries"
             role="log"
             aria-live="polite"
-            aria-label="Game log: clues and guessed words"
+            data-i18n-arialabel="aria.gameLog" aria-label="Game log: clues and guessed words"
           ></ol>
           <p class="gamelog-empty" id="gamelog-empty" data-i18n="gameLog.empty">
             No clues or guesses yet.
@@ -983,7 +983,7 @@
                       max="600"
                       step="10"
                       value="120"
-                      aria-label="Turn timer duration in seconds"
+                      data-i18n-arialabel="aria.turnTimerDuration" aria-label="Turn timer duration in seconds"
                     />
                     <span class="turn-timer-value" id="turn-timer-value"
                       >120s</span
@@ -1705,7 +1705,7 @@
             class="replay-btn"
             id="replay-prev"
             title="Previous Move"
-            aria-label="Previous move"
+            data-i18n-arialabel="aria.replayPrevious" aria-label="Previous move"
           >
             &#9664;
           </button>
@@ -1714,7 +1714,7 @@
             class="replay-btn"
             id="replay-play"
             title="Play/Pause"
-            aria-label="Play or pause replay"
+            data-i18n-arialabel="aria.replayPlayPause" aria-label="Play or pause replay"
           >
             &#9654;
           </button>
@@ -1723,7 +1723,7 @@
             class="replay-btn"
             id="replay-next"
             title="Next Move"
-            aria-label="Next move"
+            data-i18n-arialabel="aria.replayNext" aria-label="Next move"
           >
             &#9654;
           </button>
@@ -1732,7 +1732,7 @@
             class="replay-btn replay-speed-btn"
             id="replay-speed"
             title="Playback Speed"
-            aria-label="Playback speed"
+            data-i18n-arialabel="aria.replaySpeed" aria-label="Playback speed"
           >
             1x
           </button>
@@ -1742,7 +1742,7 @@
             class="replay-btn replay-share-btn"
             id="replay-share"
             title="Copy Replay Link"
-            aria-label="Copy replay link"
+            data-i18n-arialabel="aria.replayCopyLink" aria-label="Copy replay link"
           >
             🔗
           </button>
@@ -1765,7 +1765,7 @@
       </div>
     </div>
 
-    <script type="module" src="/js/modules/app.js?v=5326378d"></script>
+    <script type="module" src="/js/modules/app.js?v=a2a94044"></script>
     <!-- Fallback: detect if the ES module failed to load + service worker registration -->
     <script src="/js/app-fallback.js"></script>
   </body>

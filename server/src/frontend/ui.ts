@@ -1,4 +1,5 @@
 import { state } from './state.js';
+import { t } from './i18n.js';
 
 import { UI } from './constants.js';
 
@@ -59,7 +60,7 @@ export function showToast(message: string, type: string = 'error', duration: num
     closeBtn.type = 'button';
     closeBtn.className = 'toast-close';
     closeBtn.dataset.action = 'dismiss-toast';
-    closeBtn.setAttribute('aria-label', 'Dismiss notification');
+    closeBtn.setAttribute('aria-label', t('aria.dismissNotification'));
     closeBtn.textContent = '\u00D7';
     closeBtn.addEventListener('click', () => dismissToast(toast));
 

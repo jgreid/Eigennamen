@@ -39,7 +39,13 @@ describe('locale key regressions (P1-11)', () => {
     describe('every data-i18n* attribute in index.html resolves in all locales', () => {
         const html = fs.readFileSync(path.join(PUBLIC_DIR, 'index.html'), 'utf-8');
         const keys = new Set<string>();
-        for (const attr of ['data-i18n', 'data-i18n-placeholder', 'data-i18n-title', 'data-i18n-label']) {
+        for (const attr of [
+            'data-i18n',
+            'data-i18n-placeholder',
+            'data-i18n-title',
+            'data-i18n-label',
+            'data-i18n-arialabel',
+        ]) {
             const re = new RegExp(`${attr}="([^"]+)"`, 'g');
             let m: RegExpExecArray | null;
             while ((m = re.exec(html)) !== null) {
@@ -193,5 +199,53 @@ describe('locale key regressions (P1-11)', () => {
                 expect(offenders).toEqual([]);
             }
         );
+    });
+
+    describe('aria-label i18n (IMPROVEMENT_PLAN C6)', () => {
+        const html = fs.readFileSync(path.join(PUBLIC_DIR, 'index.html'), 'utf-8');
+
+        // aria-labels that are intentionally left un-i18n'd (language-neutral or
+        // set dynamically from state at runtime). Empty today — every static
+        // aria-label in index.html carries a data-i18n-arialabel companion.
+        const ALLOWLIST = new Set<string>();
+
+        const ariaLabels = Array.from(html.matchAll(/aria-label="([^"]*)"/g)).map((m) => m[1] as string);
+        const companionCount = (html.match(/data-i18n-arialabel="/g) || []).length;
+
+        it('found a realistic number of aria-labels and companions', () => {
+            expect(ariaLabels.length).toBeGreaterThan(20);
+            expect(companionCount).toBeGreaterThan(20);
+        });
+
+        // Every static aria-label must be paired with a data-i18n-arialabel key
+        // (or explicitly allowlisted) so screen-reader users get a translated
+        // label in de/es/fr — the primary navigation surface for blind users.
+        it('every static aria-label element has a data-i18n-arialabel companion', () => {
+            // Each companion is stamped immediately before its aria-label, so the
+            // two counts must match once allowlisted bare labels are excluded.
+            const bare = ariaLabels.filter((label) => ALLOWLIST.has(label));
+            expect(ariaLabels.length - bare.length).toBe(companionCount);
+        });
+
+        // The toast dismiss button is created dynamically, so it can't use the
+        // attribute mechanism — it must resolve its label via t() at build time.
+        it('the dynamic toast-dismiss label is routed through t()', () => {
+            const uiSource = fs.readFileSync(path.join(__dirname, '../../frontend/ui.ts'), 'utf-8');
+            expect(uiSource).toContain("t('aria.dismissNotification')");
+            expect(uiSource).not.toContain("'Dismiss notification'");
+            for (const lang of LOCALES) {
+                expect(resolvesToString(localeData[lang] as Record<string, unknown>, 'aria.dismissNotification')).toBe(
+                    true
+                );
+            }
+        });
+
+        // translatePage() must actually apply the aria-label branch, or the
+        // stamped attributes are inert.
+        it('translatePage() handles the data-i18n-arialabel attribute', () => {
+            const i18nSource = fs.readFileSync(path.join(__dirname, '../../frontend/i18n.ts'), 'utf-8');
+            expect(i18nSource).toContain('data-i18n-arialabel');
+            expect(i18nSource).toContain("setAttribute('aria-label'");
+        });
     });
 });

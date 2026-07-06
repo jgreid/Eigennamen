@@ -280,6 +280,24 @@ describe('i18n module', () => {
             });
         });
 
+        test('translates data-i18n-arialabel attributes', async () => {
+            await jest.isolateModulesAsync(async () => {
+                mockFetch.mockReset();
+                mockFetch.mockResolvedValue({
+                    ok: true,
+                    json: async () => ({ aria: { sendMessage: 'Send message' } }),
+                });
+
+                const mod = await import('../../frontend/i18n');
+                await mod.setLanguage('en');
+
+                document.body.innerHTML =
+                    '<button data-i18n-arialabel="aria.sendMessage" aria-label="old">Send</button>';
+                mod.translatePage();
+                expect(document.querySelector('button')!.getAttribute('aria-label')).toBe('Send message');
+            });
+        });
+
         test('does not change text when key not found', () => {
             document.body.innerHTML = '<span data-i18n="missing.key">Original</span>';
             translatePage();
