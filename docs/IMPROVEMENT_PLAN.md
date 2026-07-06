@@ -396,9 +396,11 @@ Server lifecycle, background maintenance, and the deploy pipeline. B1 and B5 are
 
 ---
 
-### B11 — `workflow_dispatch` deploys bypass the entire CI gate and can ship any branch
+### B11 — `workflow_dispatch` deploys bypass the entire CI gate and can ship any branch — **FIXED**
 
 **Severity:** Medium · **Area:** CI/CD
+
+**Resolution (shipped):** the dispatch disjunct in the job `if:` is now `(github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')`, so a `workflow_dispatch` invoked from any non-main branch is rejected before any deploy step runs. Combined with the existing `workflow_run` path (already restricted to a green CI run on `main`), production can now only ever ship a commit that reached `main` through the PR/CI gate. The recommended defense-in-depth complement — a deployment-branch policy on the `production` GitHub Environment restricting it to `main` — is a repo-settings change (not a file), left as an operator follow-up; the in-workflow guard stands on its own.
 
 **Root cause:** The job `if:` (`deploy.yml:34-37`) makes `github.event_name == 'workflow_dispatch'` a standalone disjunct — the CI-success condition applies only to the `workflow_run` path. A dispatch can be invoked on any branch, and the bare checkout (line 44) ships that ref via `flyctl deploy --strategy immediate` with no lint/typecheck/test/e2e gate — and, in memory mode, the immediate restart discards all live games for a build that may not even boot.
 
@@ -410,9 +412,11 @@ Server lifecycle, background maintenance, and the deploy pipeline. B1 and B5 are
 
 ---
 
-### B12 — The `staging` deploy environment option deploys the production Fly app
+### B12 — The `staging` deploy environment option deploys the production Fly app — **FIXED**
 
 **Severity:** Medium · **Area:** CI/CD
+
+**Resolution (shipped, option a):** the `workflow_dispatch.inputs.environment` choice block is removed — `workflow_dispatch` now takes no inputs, so the only deploy target is production. Every downstream reference that read `inputs.environment` is hardcoded to `production`: the `concurrency.group` (`deploy-production`), the deploy job's `environment.name`, the pre-deploy summary echo, and the rollback job's `environment`. This closes the trap where selecting "staging" silently ran a full production deploy (restarting the single prod machine, discarding all live games) under a "staging" label. A guiding comment on the `workflow_dispatch:` key documents the option-(b) path — a real `eigennamen-staging` app + `fly.staging.toml` threaded through the deploy step, environment `url`, health-verify curl, **and** the rollback image path — for whoever re-adds a genuine staging target later.
 
 **Root cause:** `deploy.yml:12-20` offers `production`/`staging` dispatch choices and labels the GitHub environment accordingly, but the deploy step (57-61) runs a bare `flyctl deploy --remote-only --strategy immediate` with no `--app`/`--config` override — it always resolves `app = "eigennamen"` from `fly.toml:19`. The environment URL and health-verify target are likewise hardcoded to production. Selecting "staging" performs a full production deploy (restarting the single production machine, discarding all live games) while the run is *labeled* staging.
 
