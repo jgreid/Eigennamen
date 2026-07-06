@@ -36,6 +36,8 @@ export function getErrorMessage(error: ServerErrorData): string {
             "Spymasters can't switch roles during an active game — you've seen the whole board",
         MUST_JOIN_TEAM: 'Join a team first by clicking a team score, then select a role',
         ROLE_TAKEN: 'That role is already taken \u2014 try the other role or wait for it to open',
+        SPECTATORS_NOT_ALLOWED:
+            'This room isn\u2019t accepting spectators while a game is in progress \u2014 try again after the game ends',
         ROOM_NOT_FOUND: 'Room not found \u2014 it may have expired. Check the Room ID or create a new room',
         PLAYER_NOT_FOUND: 'Session expired \u2014 please refresh the page and rejoin',
         INVALID_INPUT: 'Invalid request \u2014 please check your input and try again',

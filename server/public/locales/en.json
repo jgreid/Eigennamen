@@ -254,7 +254,9 @@
         "duetDesc": "2 player co-op",
         "match": "Eigennamen",
         "matchDesc": "Multi-round scoring",
-        "turnTimer": "Turn Timer"
+        "turnTimer": "Turn Timer",
+        "allowSpectators": "Allow Spectators",
+        "allowSpectatorsHint": "When off, new players can’t join once a game is in progress."
     },
     "wordList": {
         "default": "Default Words",

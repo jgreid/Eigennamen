@@ -94,6 +94,14 @@ export class RoomError extends GameError {
     static gameInProgress(roomCode: string): RoomError {
         return new RoomError(ERROR_CODES.GAME_IN_PROGRESS, 'A game is already in progress', { roomCode });
     }
+
+    static spectatorsNotAllowed(roomCode: string): RoomError {
+        return new RoomError(
+            ERROR_CODES.SPECTATORS_NOT_ALLOWED,
+            'This room is not accepting spectators while a game is in progress',
+            { roomCode }
+        );
+    }
 }
 
 /**
@@ -241,6 +249,7 @@ export const SAFE_ERROR_CODES: readonly SafeErrorCode[] = [
     'SESSION_EXPIRED',
     'PLAYER_NOT_FOUND',
     'GAME_IN_PROGRESS',
+    'SPECTATORS_NOT_ALLOWED',
     'CANNOT_SWITCH_TEAM_DURING_TURN',
     'CANNOT_CHANGE_ROLE_DURING_TURN',
     'SPYMASTER_CANNOT_CHANGE_TEAM',

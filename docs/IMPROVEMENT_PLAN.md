@@ -866,9 +866,11 @@ Each of these carries either real runtime cost or a misleading API surface today
 
 ---
 
-### F2 — `allowSpectators` is accepted, persisted, and exposed — but enforced nowhere and settable nowhere
+### F2 — `allowSpectators` is accepted, persisted, and exposed — but enforced nowhere and settable nowhere — **FIXED (finish path)**
 
 **Severity:** Medium · **Area:** Feature gap
+
+**Resolution (shipped — finish path):** `allowSpectators` is now enforced at the join boundary and settable from the UI. `services/room/membership.ts`'s `joinRoom` rejects a **brand-new** joiner with the new `SPECTATORS_NOT_ALLOWED` error (`RoomError.spectatorsNotAllowed`, added to the safe-code allowlist + a client-facing message) when `room.settings.allowSpectators === false` **and** a game is in progress (`getGame` returns a non-`gameOver` game) — the only case where a new joiner is a necessarily-true spectator. Pre-game lobby joins are unaffected (they still pick a team), a finished game is unaffected, and an existing member reconnecting with a lost player hash is let through (guarded by an `sIsMember` check on the players set, so the gate never blocks a legitimate reconnect). The settings Game tab gained a host-only **Allow Spectators** toggle (`#allow-spectators-toggle`, wired through `room:settings` alongside gameMode/turnTimer) with a hint line and `syncAllowSpectatorsUI` to reflect server state on `settingsUpdated`; i18n keys ×4 (`roomSettings.allowSpectators` + hint). Tests: five `joinRoom` cases in `roomServiceExtended.test.ts` (mid-game reject, pre-game allow, game-over allow, returning-member allow, spectators-enabled allow). Deciding this together with F6 (spectator approval) remains the plan — F6 is the next tranche.
 
 **What exists:** the setting in `roomSchemas.ts:18`, `atomicUpdateSettings.lua:37`, room defaults (`roomService.ts:62`), REST/admin exposure, Swagger. **What's missing:** any enforcement at join or role-change, any UI control. A host who sets `allowSpectators: false` via the API believes spectators are blocked; anyone with the code still joins and receives all broadcasts.
 

@@ -254,7 +254,9 @@
         "duetDesc": "Cooperativo para 2",
         "match": "Eigennamen",
         "matchDesc": "Puntuación multironda",
-        "turnTimer": "Temporizador de turno"
+        "turnTimer": "Temporizador de turno",
+        "allowSpectators": "Permitir espectadores",
+        "allowSpectatorsHint": "Si se desactiva, los nuevos jugadores no pueden unirse una vez que la partida está en curso."
     },
     "wordList": {
         "default": "Palabras predeterminadas",

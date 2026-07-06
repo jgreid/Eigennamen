@@ -13,6 +13,7 @@ import {
     hideReconnectionOverlay,
     syncGameModeUI,
     syncTurnTimerUI,
+    syncAllowSpectatorsUI,
 } from '../multiplayerUI.js';
 import {
     syncGameStateFromServer,
@@ -304,6 +305,11 @@ export function registerRoomHandlers(): void {
             // Sync turn timer UI
             syncTurnTimerUI(data.settings.turnTimer ?? null);
 
+            // Sync allow-spectators toggle (F2)
+            if ('allowSpectators' in data.settings) {
+                syncAllowSpectatorsUI(data.settings.allowSpectators);
+            }
+
             // Update multiplayer indicator
             updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
 
@@ -354,6 +360,17 @@ export function registerRoomHandlers(): void {
         };
         timerRange.addEventListener('input', rangeHandler);
         domListenerCleanup.push({ element: timerRange, event: 'input', handler: rangeHandler });
+    }
+
+    // Allow-spectators toggle handler (F2) — host-only
+    const spectatorsToggle = document.getElementById('allow-spectators-toggle') as HTMLInputElement | null;
+    if (spectatorsToggle) {
+        const spectatorsHandler = () => {
+            if (!getClient()?.player?.isHost) return;
+            EigennamenClient.updateSettings({ allowSpectators: spectatorsToggle.checked });
+        };
+        spectatorsToggle.addEventListener('change', spectatorsHandler);
+        domListenerCleanup.push({ element: spectatorsToggle, event: 'change', handler: spectatorsHandler });
     }
 
     // Handle room stats updates (spectator count, team counts)

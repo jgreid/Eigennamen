@@ -126,6 +126,7 @@ export interface SettingsUpdatedData {
     settings?: {
         gameMode?: string;
         turnTimer?: number | null;
+        allowSpectators?: boolean;
         [key: string]: unknown;
     };
 }
