@@ -16,6 +16,7 @@
  */
 
 import { logger } from './logger.js';
+import { CONNECTION } from './constants.js';
 import { safeSetStorage, safeRemoveStorage } from './socket-client-storage.js';
 import {
     loadSocketIO,
@@ -50,7 +51,9 @@ import type { JoinCreateResult } from './multiplayerTypes.js';
         connected: false,
         reconnectAttempts: 0,
         hadUnexpectedDisconnect: false,
-        maxReconnectAttempts: 5,
+        // Bound for the INITIAL connection only (see doConnect). Ongoing
+        // auto-reconnect uses CONNECTION.MAX_RECONNECT_ATTEMPTS instead.
+        maxReconnectAttempts: CONNECTION.INITIAL_CONNECT_ATTEMPTS,
         autoRejoin: true,
         storedNickname: null as string | null,
         listeners: {} as ListenerMap,
