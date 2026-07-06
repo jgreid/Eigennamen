@@ -9,7 +9,6 @@ import { getPlayerContext, syncSocketRooms } from './playerContext';
 import { createRateLimitedHandler } from './rateLimitHandler';
 import { validateInput } from '../middleware/validation';
 import { withTimeout, TIMEOUTS } from '../utils/timeout';
-import { updatePlayer } from '../services/playerService';
 
 export interface HandlerResult {
     player?: Player;
@@ -39,16 +38,12 @@ function createContextHandler<T = unknown>(
         const validated = schema ? (validateInput(schema, data) as T) : ((data || {}) as T);
         const ctx: PlayerContextResult = await getPlayerContext(socket, contextOptions);
 
-        // Update lastSeen for idle detection (fire-and-forget, non-critical).
-        // Promise.resolve wraps a sync or async return; `void` + `.catch` mark it
-        // intentionally not awaited and swallow any rejection.
-        if (ctx?.player?.sessionId) {
-            try {
-                void Promise.resolve(updatePlayer(ctx.player.sessionId, { lastSeen: Date.now() })).catch(() => {});
-            } catch {
-                // Ignore — lastSeen is best-effort
-            }
-        }
+        // NOTE: the old per-event `updatePlayer(lastSeen)` write was removed (F5).
+        // It fed a `getIdlePlayers`/`PLAYER_IDLE_WARNING` idle feature that was
+        // never wired up (zero callers, never emitted) — a full player read-modify-
+        // write on the hottest path for nothing. Its one real side effect,
+        // refreshing the acting player's `player:<id>` TTL, now rides on the
+        // debounced room-TTL refresh (atomicRefreshTtl.lua) fired on game mutations.
 
         // Snapshot previous player state before handler modifies it
         const previousPlayer = ctx.player ? { ...ctx.player } : null;

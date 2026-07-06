@@ -797,6 +797,27 @@ describe('startNextRound', () => {
         expect(nextRound.firstTeamHistory).toHaveLength(2);
     });
 
+    test('re-does an abandoned round rather than skipping it (A12)', async () => {
+        // Round 2 was abandoned: game:abandon rolls back the round's score (P1-4)
+        // and leaves gameOver=true, but writes NO roundHistory entry — so only
+        // round 1 is in history while matchRound is still 2. The old
+        // `matchRound + 1` advanced to round 3, permanently skipping the do-over
+        // and desyncing matchRound from history. Deriving from history re-does
+        // round 2.
+        const currentGame = createMatchGameState({
+            gameOver: true,
+            winner: null,
+            matchRound: 2,
+            roundHistory: [makeRoundResult({ roundNumber: 1, roundWinner: 'red' })],
+            firstTeamHistory: ['red', 'blue'],
+        });
+
+        const nextRound = await startNextRound('MATCHABANDON', currentGame);
+
+        // Next round is 2 (the do-over), NOT 3, keeping matchRound === history.length + 1.
+        expect(nextRound.matchRound).toBe(2);
+    });
+
     test('alternates first team from previous round', async () => {
         const currentGame = createMatchGameState({
             gameOver: true,

@@ -91,7 +91,6 @@ export const SOCKET_EVENTS = {
     PLAYER_KICK: 'player:kick',
     PLAYER_KICKED: 'player:kicked',
     PLAYER_UPDATED: 'player:updated',
-    PLAYER_IDLE_WARNING: 'player:idleWarning',
     PLAYER_DISCONNECTED: 'player:disconnected',
     PLAYER_ERROR: 'player:error',
 

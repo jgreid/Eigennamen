@@ -214,16 +214,6 @@ export async function getPlayersInRoom(roomCode: string): Promise<Player[]> {
 }
 
 /**
- * Get players in a room who have been idle longer than the threshold.
- * Default threshold is 3 minutes (180000ms).
- */
-export async function getIdlePlayers(roomCode: string, thresholdMs: number = 180000): Promise<Player[]> {
-    const players = await getPlayersInRoom(roomCode);
-    const now = Date.now();
-    return players.filter((p) => p.connected && p.lastSeen && now - p.lastSeen > thresholdMs);
-}
-
-/**
  * Prepare player roles for a new game while preserving teams.
  *
  * Players — human and bot alike — KEEP their team + role across a new game, so a

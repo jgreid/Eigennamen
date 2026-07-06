@@ -207,6 +207,22 @@ describe('Room Routes', () => {
     });
 
     describe('GET /api/rooms/:code', () => {
+        it('shares the enumeration rate limiter with /:code/exists (I1)', () => {
+            // The richer /:code endpoint used to have only validateParams, so an
+            // attacker could enumerate room codes here at the general 100/min rate
+            // while /exists was throttled. Both GET routes must now sit behind the
+            // same per-IP limiter — compare their middleware-chain depth.
+            const routeLayers = roomRoutes.stack.filter((l) => l.route);
+            const existsRoute = routeLayers.find((l) => l.route.path === '/:code/exists');
+            const infoRoute = routeLayers.find((l) => l.route.path === '/:code');
+            expect(existsRoute).toBeDefined();
+            expect(infoRoute).toBeDefined();
+            // /:code now carries [roomExistsLimiter, validateParams, handler], the
+            // same chain length as /:code/exists.
+            expect(infoRoute.route.stack.length).toBe(existsRoute.route.stack.length);
+            expect(infoRoute.route.stack.length).toBeGreaterThanOrEqual(3);
+        });
+
         it('should return room info for existing room', async () => {
             // Use lowercase for storage since getRoom normalizes to lowercase
             const roomCode = 'xyz789';

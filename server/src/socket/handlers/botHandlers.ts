@@ -1,7 +1,6 @@
 import type { Server } from 'socket.io';
 import type { Player } from '../../types';
 import type { GameSocket, RoomContext } from './types';
-import type { ZodType } from 'zod';
 
 import * as botService from '../../services/botService';
 import * as playerService from '../../services/playerService';
@@ -12,19 +11,14 @@ import { createHostHandler } from '../contextHandler';
 import { safeEmitToRoom } from '../safeEmit';
 import { notifyGameMutation } from '../gameMutationNotifier';
 import { botAddSchema, botRemoveSchema } from '../../validators/schemas';
+import type { BotAddInput, BotRemoveInput } from '../../validators/schemas';
 import logger from '../../utils/logger';
 
-interface BotAddInput {
-    team: 'red' | 'blue';
-    role: 'spymaster' | 'clicker';
-    strategyId: string;
-    skillPreset: string;
-    nickname?: string;
-}
-
-interface BotRemoveInput {
-    sessionId: string;
-}
+// Use the Zod-inferred input types (G5) instead of hand-written local copies.
+// The old local `BotAddInput` dropped `advisor` from the role union and forced
+// `botAddSchema as ZodType<BotAddInput>`, so an `advisor` bot passed validation
+// but was typed as an impossible role at the handler — the cast silently hid the
+// mismatch. The inferred types stay in lockstep with the schema.
 
 /**
  * Bot management handlers (host only): add or remove server-side bot players.
@@ -40,7 +34,7 @@ function botHandlers(io: Server, socket: GameSocket): void {
         createHostHandler(
             socket,
             SOCKET_EVENTS.BOT_ADD,
-            botAddSchema as ZodType<BotAddInput>,
+            botAddSchema,
             async (ctx: RoomContext, validated: BotAddInput) => {
                 const bot: Player = await botService.addBot(ctx.roomCode, {
                     team: validated.team,
@@ -77,7 +71,7 @@ function botHandlers(io: Server, socket: GameSocket): void {
         createHostHandler(
             socket,
             SOCKET_EVENTS.BOT_REMOVE,
-            botRemoveSchema as ZodType<BotRemoveInput>,
+            botRemoveSchema,
             async (ctx: RoomContext, validated: BotRemoveInput) => {
                 await botService.removeBot(ctx.roomCode, validated.sessionId);
 
