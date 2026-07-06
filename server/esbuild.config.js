@@ -160,6 +160,59 @@ function updateServiceWorkerVersion() {
     console.log(`Updated service-worker.js: CACHE=eigennamen-v${pkg.version}`);
 }
 
+/**
+ * Rewrite service-worker.js's OFFLINE_ASSETS with the FULL set of assets the app
+ * needs to run offline. Hand-maintaining this list rotted (it precached no JS at
+ * all, only 6 of 9 stylesheets, and no locale bundles), so a PWA installed after
+ * one visit opened offline to a dead, unstyled page. We derive it from the built
+ * output instead:
+ *   - every same-origin script/stylesheet/icon/manifest URL index.html references,
+ *     WITH its ?v= query so precache keys match the browser's request URLs,
+ *   - the emitted code-split chunks (imported by app.js, never named in index.html),
+ *   - the locale JSON bundles (fetched at runtime by i18n, also not in index.html).
+ * Cache keys must equal request URLs, so this runs AFTER the ?v= stampers.
+ */
+function updateServiceWorkerAssets() {
+    const swPath = path.join(__dirname, 'public/service-worker.js');
+    const indexPath = path.join(__dirname, 'public/index.html');
+    let sw, html, appJs;
+    try {
+        sw = fs.readFileSync(swPath, 'utf8');
+        html = fs.readFileSync(indexPath, 'utf8');
+        appJs = fs.readFileSync(path.join(appConfig.outdir, 'app.js'), 'utf8');
+    } catch {
+        console.warn('Service worker asset precache update skipped: missing service-worker.js, index.html, or app.js');
+        return;
+    }
+
+    const assets = new Set(['/', '/index.html', '/manifest.json']);
+
+    // Same-origin script src / link href (keep the ?v= query if present).
+    const refRe = /(?:src|href)="(\/[^"?#]+(?:\?v=[A-Za-z0-9]+)?)"/g;
+    let m;
+    while ((m = refRe.exec(html)) !== null) {
+        if (/\.(?:js|css|svg|png|webmanifest|json)(?:\?|$)/.test(m[1])) assets.add(m[1]);
+    }
+
+    // Code-split chunks imported by app.js (e.g. chunks/history-XXXX.js).
+    const chunkRe = /chunks\/[A-Za-z0-9._-]+\.js/g;
+    let c;
+    while ((c = chunkRe.exec(appJs)) !== null) assets.add(`/js/modules/${c[0]}`);
+
+    // Locale bundles are fetched at runtime by i18n, so they aren't in index.html.
+    for (const lang of ['en', 'de', 'es', 'fr']) assets.add(`/locales/${lang}.json`);
+
+    const list = [...assets].map((u) => `    '${u}'`).join(',\n');
+    const pattern = /const OFFLINE_ASSETS = \[[\s\S]*?\];/;
+    if (!pattern.test(sw)) {
+        console.warn('Service worker asset update skipped: could not find OFFLINE_ASSETS');
+        return;
+    }
+    sw = sw.replace(pattern, `const OFFLINE_ASSETS = [\n${list}\n];`);
+    fs.writeFileSync(swPath, sw, 'utf8');
+    console.log(`Updated service-worker.js: OFFLINE_ASSETS (${assets.size} entries)`);
+}
+
 async function build() {
     if (isWatch) {
         const [appCtx, socketCtx] = await Promise.all([
@@ -177,6 +230,7 @@ async function build() {
         updateScriptVersion(path.join(__dirname, 'public/js/socket.io.min.js'), '/js/socket.io.min.js');
         updateAppJsVersion();
         updateServiceWorkerVersion();
+        updateServiceWorkerAssets();
         if (isAnalyze) {
             console.log('\n=== App Bundle Analysis ===');
             console.log(await esbuild.analyzeMetafile(appResult.metafile));
