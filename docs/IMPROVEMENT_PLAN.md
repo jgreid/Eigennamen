@@ -340,9 +340,11 @@ Server lifecycle, background maintenance, and the deploy pipeline. B1 and B5 are
 
 ---
 
-### B7 — `release.yml` interpolates the `release_notes` dispatch input directly into a shell script
+### B7 — `release.yml` interpolates the `release_notes` dispatch input directly into a shell script — **FIXED**
 
 **Severity:** Low · **Area:** CI/CD hygiene
+
+**Resolution (shipped):** the "Generate changelog" step now passes the input via `env: RELEASE_NOTES: ${{ inputs.release_notes }}` and references `"$RELEASE_NOTES"` in the script body, so bash treats the value as data rather than executing it. No `${{ inputs.release_notes }}` interpolation remains inside any `run:` block.
 
 **Root cause:** `.github/workflows/release.yml:77-78` uses `${{ inputs.release_notes }}` inside a `run:` block — GitHub Actions substitutes the value into the script text before bash parses it, so shell metacharacters in the input become code in a job holding `contents: write`. Only collaborators can trigger `workflow_dispatch`, which bounds the exposure — but it's the exact pattern GitHub's own hardening guide says to avoid, and this repo otherwise follows that guide (SHA-pinned actions, scoped permissions).
 
@@ -452,9 +454,11 @@ Server lifecycle, background maintenance, and the deploy pipeline. B1 and B5 are
 
 ---
 
-### B14 — Graceful-shutdown budget exceeds Fly's default 5s kill timeout, and an open SSE stream blocks `server.close()` forever
+### B14 — Graceful-shutdown budget exceeds Fly's default 5s kill timeout, and an open SSE stream blocks `server.close()` forever — **FIXED**
 
 **Severity:** Low · **Area:** Backend lifecycle
+
+**Resolution (shipped):** `fly.toml` now sets `kill_timeout = 15` (comfortably above the 10s in-process force-exit), so Fly no longer SIGKILLs the app before its own graceful path completes. And the shutdown handler (`server/src/index.ts`) calls `server.closeAllConnections()` right after `server.close(...)`: `cleanupSocketModule()` already drains Socket.io clients gracefully, but a long-lived HTTP response (the admin SSE stats stream) kept its socket open and blocked `close()`'s callback — and thus the clean Redis disconnect — until SIGKILL. Destroying the residual connections lets the callback fire promptly.
 
 **Root cause:** `fly.toml` sets no `kill_timeout`, so Fly's 5s default applies. The shutdown path spends up to 2,000ms in the socket drain, then awaits `server.close()`'s callback before the Redis disconnect (3,000ms race) and `exit(0)`. Nothing calls `server.closeAllConnections()`/`closeIdleConnections()`, so an open long-lived response — the admin dashboard's `/admin/api/stats/stream` SSE — keeps the `close` callback from ever firing. With the dashboard open, the process always dies by SIGKILL mid-cleanup; the 10s in-process force-exit net (`index.ts:118`) is dead code under Fly.
 
