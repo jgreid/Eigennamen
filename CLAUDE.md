@@ -322,7 +322,7 @@ Eigennamen/
         │   ├── chatSchemas.ts  # chatMessageSchema (1-500 chars), spectatorChatSchema
         │   ├── botSchemas.ts   # botAddSchema, botRemoveSchema, botConfigSchema
         │   └── timerSchemas.ts # timerAddTimeSchema (10-300 seconds)
-        ├── scripts/            # Redis Lua scripts (29 atomic operations)
+        ├── scripts/            # Redis Lua scripts (30 atomic operations)
         │   ├── index.ts        # Barrel export with documented KEYS/ARGV/Returns headers
         │   └── atomicRateLimit.lua # Extracted rate-limit Lua script
         └── __tests__/          # Jest tests (122 backend + 57 frontend suites)
@@ -384,7 +384,7 @@ GameError (base) — code, details, timestamp
 - **External Redis** — Full features, multi-instance scaling via pub/sub, data persistence
 - **Memory mode** (`REDIS_URL=memory`) — Spawns embedded redis-server, single instance, data lost on restart
 
-**29 Lua scripts** for atomic operations (all in `scripts/`):
+**30 Lua scripts** for atomic operations (all in `scripts/`):
 
 | Category | Scripts |
 |----------|---------|
@@ -393,7 +393,7 @@ GameError (base) — code, details, timestamp
 | Room | `ATOMIC_CREATE_ROOM_SCRIPT`, `ATOMIC_JOIN_SCRIPT`, `ATOMIC_SET_ROOM_STATUS_SCRIPT`, `ATOMIC_REMOVE_PLAYER_SCRIPT`, `ATOMIC_UPDATE_SETTINGS_SCRIPT`, `HOST_TRANSFER_SCRIPT` |
 | TTL | `ATOMIC_REFRESH_TTL_SCRIPT`, `ATOMIC_PERSIST_GAME_STATE_SCRIPT` |
 | Player lifecycle | `ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT`, `ATOMIC_SET_SOCKET_MAPPING_SCRIPT`, `ATOMIC_VALIDATE_RECONNECT_TOKEN_SCRIPT`, `ATOMIC_GENERATE_RECONNECT_TOKEN_SCRIPT`, `INVALIDATE_TOKEN_SCRIPT`, `CLEANUP_ORPHANED_TOKEN_SCRIPT`, `SAFE_CLEANUP_ORPHANS_SCRIPT` |
-| Timer | `ATOMIC_ADD_TIME_SCRIPT`, `ATOMIC_TIMER_STATUS_SCRIPT`, `ATOMIC_PAUSE_TIMER_SCRIPT`, `ATOMIC_RESUME_TIMER_SCRIPT` |
+| Timer | `ATOMIC_ADD_TIME_SCRIPT`, `ATOMIC_TIMER_STATUS_SCRIPT`, `ATOMIC_PAUSE_TIMER_SCRIPT`, `ATOMIC_RESUME_TIMER_SCRIPT`, `ATOMIC_EXPIRE_TIMER_SCRIPT` |
 | History | `ATOMIC_SAVE_GAME_HISTORY_SCRIPT` |
 | Rate Limiting | `ATOMIC_RATE_LIMIT_SCRIPT` |
 | Locking | `RELEASE_LOCK_SCRIPT`, `EXTEND_LOCK_SCRIPT` |

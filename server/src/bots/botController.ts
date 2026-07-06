@@ -423,8 +423,21 @@ export async function tickRoom(roomCode: string): Promise<void> {
                 break; // human's turn, or no bot in that seat
             }
 
-            const cfg = await botService.getBotConfig(seat.sessionId);
-            if (!cfg) break;
+            // If a seated bot's config key is lost or corrupt (getBotConfig returns
+            // null), do NOT stop the tick cleanly — that leaves it the bot's turn
+            // with no move ever computed and no re-arm, freezing the game behind a
+            // turn indicator that never advances (B4). Degrade to a default config
+            // instead, mirroring the advisor path's null-cfg handling: resolveSkill
+            // falls back to 'intermediate' and resolveClicker/resolveSpymaster fall
+            // back to a random strategy, so the bot still acts and the turn advances.
+            let cfg = await botService.getBotConfig(seat.sessionId);
+            if (!cfg) {
+                logger.warn(
+                    `Bot ${seat.sessionId} (${seat.nickname}) in room ${roomCode} has no resolvable config; ` +
+                        `falling back to a default intermediate config so the turn is not stalled (B4)`
+                );
+                cfg = { strategyId: '', skillPreset: 'intermediate', seed: 0 };
+            }
 
             // Deterministic per-decision seed: (botSeed, gameSeed, stateVersion).
             const seed = hashString(`${cfg.seed}:${game.seed}:${game.stateVersion ?? 0}`);

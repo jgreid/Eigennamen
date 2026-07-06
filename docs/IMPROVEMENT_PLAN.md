@@ -199,9 +199,11 @@ Deterministic defects reachable in ordinary play. These are the "a user hits thi
 
 ---
 
-### A11 — Timer expiry races `addTime`/`pause`: the expiry callback acts on stale state
+### A11 — Timer expiry races `addTime`/`pause`: the expiry callback acts on stale state — **FIXED**
 
 **Severity:** Medium · **Area:** Concurrency / timers
+
+**Resolution (shipped):** each armed `setTimeout` is now stamped with the `endTime` it was scheduled for (both the `startTimer` and `addTime` arm sites), and the expiry callback runs a new compare-and-delete Lua (`atomicExpireTimer.lua`, `ATOMIC_EXPIRE_TIMER_SCRIPT`) instead of a bare `redis.del`. The script deletes-and-signals `'EXPIRED'` only when the stored timer still matches the armed `endTime` and is not paused; otherwise it returns `'SUPERSEDED'` (extended/restarted), `'PAUSED'`, `'GONE'`, or `'CORRUPTED_DATA'` and the callback no-ops (no turn end, and it leaves the newer local entry alone). So a stale timeout can no longer delete a freshly-extended timer or end a turn that was just granted more time. Fake-timer regression tests cover addTime-races-expiry and pause-races-expiry; four real-Redis cases in `luaScripts.test.ts` drive the EXPIRED/SUPERSEDED/PAUSED/GONE branches against embedded Redis. This is the concrete, testable slice of HARDENING_PLAN P2-2's "make expiry Redis-authoritative" mechanism.
 
 **Root cause:** The local expiry callback (`timerService.ts:126,494`) unconditionally deletes the Redis timer key and ends the turn without revalidating. Add time at T−ε: the Lua extend succeeds (`atomicAddTime.lua:44`, endTime now +30s), but the already-fired timeout's callback deletes the freshly-extended timer and ends the turn that was just granted more time.
 
@@ -285,9 +287,11 @@ Server lifecycle, background maintenance, and the deploy pipeline. B1 and B5 are
 
 ---
 
-### B4 — A seated bot with a missing/corrupt config silently stalls the game — the stall class P1-6 fixed, via a path P1-6 doesn't cover
+### B4 — A seated bot with a missing/corrupt config silently stalls the game — the stall class P1-6 fixed, via a path P1-6 doesn't cover — **FIXED**
 
 **Severity:** Medium · **Area:** Bot subsystem
+
+**Resolution (shipped):** `tickRoom`'s null-config branch no longer breaks cleanly. Following the plan's preferred "degrade instead of stall" option, a `null` `getBotConfig` now falls back to a default config (`{ strategyId: '', skillPreset: 'intermediate', seed: 0 }`) with a `warn` log, mirroring the advisor path's null-cfg handling: `resolveSkill` defaults an unknown preset to `intermediate`, and `resolveClicker`/`resolveSpymaster` already fall back to a random strategy for an unknown id, so the bot still acts and the turn advances instead of freezing behind a never-advancing turn indicator. Regression test: a seated spymaster bot whose `getBotConfig` resolves `null` still emits a clue (via `applyClue`) and logs the degradation, rather than the old silent clean stop.
 
 **Root cause:** `tickRoom` (`bots/botController.ts:426-427`) breaks cleanly on a null config (`if (!cfg) break`), leaving `actionFailed=false`, so the tail runs `clearReArm` — no log, no re-arm, no `BOT_STALLED` force-end. `getBotConfig` (`botService.ts:201-215`) returns null on a missing key or corrupt/schema-invalid JSON. If a seated bot's cfg key is lost while its player record survives, it's the bot's turn and no further mutation will ever arrive: the game freezes behind a turn indicator that never advances.
 

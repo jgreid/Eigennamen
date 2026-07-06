@@ -90,11 +90,22 @@ describe('Timer Service Extended Tests', () => {
             try {
                 const timer = JSON.parse(timerData);
 
+                // Compare-and-delete expiry script (A11): also 1-arg, so match it by
+                // content before the timer-status branch claims all 1-arg evals.
+                if (typeof script === 'string' && script.includes('SUPERSEDED')) {
+                    if (timer.paused) return 'PAUSED';
+                    const expectedEndTime = parseInt(options.arguments[0], 10);
+                    if (timer.endTime !== expectedEndTime) return 'SUPERSEDED';
+                    delete mockRedis._storage[key];
+                    return 'EXPIRED';
+                }
+
                 // Timer status script: 1 argument (now timestamp)
                 if (
                     options.arguments.length === 1 &&
                     !isNaN(parseInt(options.arguments[0], 10)) &&
-                    !script.includes('claimed')
+                    !script.includes('claimed') &&
+                    !script.includes('SUPERSEDED')
                 ) {
                     const now = parseInt(options.arguments[0], 10);
 

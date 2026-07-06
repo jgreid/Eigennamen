@@ -89,8 +89,24 @@ describe('Timer Service', () => {
                 // AddTime script passes 4 arguments (secondsToAdd, instanceId, now, ttlBuffer).
                 const isPauseTimerScript = typeof script === 'string' && script.includes('ALREADY_PAUSED');
                 const isResumeTimerScript = typeof script === 'string' && script.includes('NOT_PAUSED');
+                // Compare-and-delete expiry script (A11) — also 1-arg, so detect it
+                // by content before the timer-status branch claims all 1-arg evals.
+                const isExpireTimerScript = typeof script === 'string' && script.includes('SUPERSEDED');
                 const isTimerStatusScript =
-                    options.arguments.length === 1 && !isResumeTimerScript && !isPauseTimerScript;
+                    options.arguments.length === 1 &&
+                    !isResumeTimerScript &&
+                    !isPauseTimerScript &&
+                    !isExpireTimerScript;
+
+                if (isExpireTimerScript) {
+                    // Simulate ATOMIC_EXPIRE_TIMER_SCRIPT: expire only if the stored
+                    // timer still matches the armed endTime and is not paused.
+                    if (timer.paused) return 'PAUSED';
+                    const expectedEndTime = parseInt(options.arguments[0], 10);
+                    if (timer.endTime !== expectedEndTime) return 'SUPERSEDED';
+                    delete mockRedis._storage[key];
+                    return 'EXPIRED';
+                }
 
                 if (isPauseTimerScript) {
                     // Simulate ATOMIC_PAUSE_TIMER_SCRIPT
@@ -398,6 +414,53 @@ describe('Timer Service', () => {
         test('returns null for non-existent timer', async () => {
             const result = await timerService.addTime('NONEXISTENT', 30, jest.fn());
             expect(result).toBeNull();
+        });
+    });
+
+    // A11: a setTimeout armed for one endTime can fire AFTER the timer it was armed
+    // for was extended (addTime) or paused. The compare-and-delete expiry must then
+    // be a no-op — it must not delete the extended timer or end the just-extended turn.
+    describe('stale expiry guard (A11)', () => {
+        test('a stale timeout firing after the timer was extended does not end the turn', async () => {
+            const onExpire = jest.fn();
+            const { endTime: armedEndTime } = await timerService.startTimer('ROOM1', 30, onExpire);
+
+            // Simulate addTime's Lua landing (endTime pushed out) while the ORIGINAL
+            // timeout — armed for the pre-extension endTime — is still pending. We
+            // mutate storage directly so the original timeout survives to fire (the
+            // real race: the timeout fires before addTime's clearTimeout runs).
+            const key = 'timer:ROOM1';
+            const stored = JSON.parse(mockRedis._storage[key]);
+            stored.endTime = armedEndTime + 30000;
+            mockRedis._storage[key] = JSON.stringify(stored);
+
+            jest.advanceTimersByTime(30000);
+            await flushPromises();
+
+            // The stale timeout must NOT end the turn, and the extended timer survives.
+            expect(onExpire).not.toHaveBeenCalled();
+            expect(mockRedis._storage[key]).toBeDefined();
+            expect(JSON.parse(mockRedis._storage[key]).endTime).toBe(armedEndTime + 30000);
+        });
+
+        test('a stale timeout firing after the timer was paused does not end the turn', async () => {
+            const onExpire = jest.fn();
+            await timerService.startTimer('ROOM1', 30, onExpire);
+
+            // Simulate pause landing (paused flag set) while the original timeout is
+            // still pending — resume, not this stale timeout, owns a paused timer.
+            const key = 'timer:ROOM1';
+            const stored = JSON.parse(mockRedis._storage[key]);
+            stored.paused = true;
+            stored.remainingWhenPaused = 5;
+            stored.pausedAt = Date.now();
+            mockRedis._storage[key] = JSON.stringify(stored);
+
+            jest.advanceTimersByTime(30000);
+            await flushPromises();
+
+            expect(onExpire).not.toHaveBeenCalled();
+            expect(mockRedis._storage[key]).toBeDefined();
         });
     });
 
