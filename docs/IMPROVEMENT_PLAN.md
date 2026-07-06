@@ -519,9 +519,11 @@ The a11y items C1/C2 together make timed multiplayer rooms essentially unusable 
 
 ---
 
-### C4 — `t()` HTML-escapes interpolation params that every consumer renders as text — clues display as literal entities
+### C4 — `t()` HTML-escapes interpolation params that every consumer renders as text — clues display as literal entities — **FIXED**
 
 **Severity:** Medium · **Area:** i18n / display correctness
+
+**Resolution (shipped):** removed the HTML-escaping loop from `t()`'s interpolator (`frontend/i18n.ts`) — it now inserts `String(params[name])` verbatim. Verified there is **zero** `innerHTML` usage anywhere in the frontend (the only mention is a comment; the project-wide `textContent` convention is the actual XSS guarantee, and `ui.test.ts` proves `showToast` renders `<script>` inertly via `textContent`), so escaping only corrupted the display. A clue like "McDonald's 2" now renders literally instead of "McDonald&#39;s (2)" / being spoken as "ampersand hash three nine" by screen readers. Test: `t('game.clueGivenAnnounce', {word: "McDonald's"/"Tom & Jerry", …})` returns the literal characters with no `&#39;`/`&amp;`.
 
 **Root cause:** `t()`'s interpolator (`frontend/i18n.ts:130-150`) replaces `[&<>"']` in params with HTML entities "to prevent XSS" — but the codebase never renders `t()` output with innerHTML (the project-wide textContent convention is the actual XSS guarantee). A clue "McDonald's 2" (legal through `gameClueSchema`, and producible by bots via the proper-noun table) toasts as `McDonald&#39;s (2)` and screen readers speak "ampersand hash three nine". Same corruption in card aria-labels for any custom word with an apostrophe/ampersand.
 
