@@ -345,6 +345,11 @@ export async function deleteRoom(code: string): Promise<void> {
 }
 
 // Membership functions (extracted to room/membership.ts)
-import { joinRoom as _joinRoom, leaveRoom as _leaveRoom } from './room/membership';
+import {
+    joinRoom as _joinRoom,
+    leaveRoom as _leaveRoom,
+    ensureRoomHasHost as _ensureRoomHasHost,
+} from './room/membership';
 export const joinRoom = _joinRoom;
 export const leaveRoom = _leaveRoom;
+export const ensureRoomHasHost = _ensureRoomHasHost;

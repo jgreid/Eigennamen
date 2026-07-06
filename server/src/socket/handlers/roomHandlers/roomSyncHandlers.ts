@@ -20,6 +20,11 @@ export default function roomSyncHandlers(_io: unknown, socket: GameSocket): void
         SOCKET_EVENTS.ROOM_RESYNC,
         createRoomHandler(socket, SOCKET_EVENTS.ROOM_RESYNC, null, async (ctx: RoomContext) => {
             const statePromise = (async () => {
+                // A10: repair a room left hostless by grace/TTL reaping of the host
+                // before we snapshot it, so the resynced state carries a valid host.
+                // No-op when the host record still exists.
+                await roomService.ensureRoomHasHost(ctx.roomCode);
+
                 const [room, players] = (await Promise.all([
                     roomService.getRoom(ctx.roomCode),
                     playerService.getPlayersInRoom(ctx.roomCode),

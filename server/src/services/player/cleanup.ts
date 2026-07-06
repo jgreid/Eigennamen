@@ -7,7 +7,7 @@ import { REDIS_TTL, PLAYER_CLEANUP } from '../../config/constants';
 import { parseJSON } from '../../utils/parseJSON';
 import { ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT } from '../../scripts';
 import { z } from 'zod';
-import { getPlayer, updatePlayer, getSocketId } from '../playerService';
+import { getPlayer, updatePlayer, getSocketId, getPlayersInRoom } from '../playerService';
 import { invalidateRoomReconnectToken, cleanupOrphanedReconnectionTokens } from './reconnection';
 import { setGauge, METRIC_NAMES } from '../../utils/metrics';
 import { withLock } from '../../utils/distributedLock';
@@ -23,12 +23,25 @@ const CLEANUP_MAX_ITEMS_PER_CYCLE = 1000;
 // Set via registerRoomCleanup() during server initialization.
 let _roomCleanupFn: ((roomCode: string) => Promise<void>) | null = null;
 
+// Late-bound host-repair callback (A10), same injection pattern. When cleanup
+// removes a player who was the room's host and humans remain, promote a new host
+// so the room isn't left permanently uncontrollable.
+let _hostRepairFn: ((roomCode: string) => Promise<string | null>) | null = null;
+
 /**
  * Register the room cleanup function (called during server init to break
  * the playerService <-> roomService circular dependency).
  */
 export function registerRoomCleanup(fn: (roomCode: string) => Promise<void>): void {
     _roomCleanupFn = fn;
+}
+
+/**
+ * Register the host-repair function (roomService.ensureRoomHasHost), late-bound
+ * for the same circular-dependency reason as registerRoomCleanup.
+ */
+export function registerHostRepair(fn: (roomCode: string) => Promise<string | null>): void {
+    _hostRepairFn = fn;
 }
 
 const cleanupEntrySchema = z.object({
@@ -107,6 +120,21 @@ export async function handleDisconnect(sessionId: string, expectedSocketId?: str
         logger.error(`Failed to schedule cleanup for player ${sessionId}:`, (scheduleError as Error).message);
         // Don't throw — player is already marked disconnected; the TTL backup below
         // and periodic cleanup will still handle eventual removal.
+    }
+
+    // Defense in depth: bound the schedule zset's lifetime, refreshed on every
+    // disconnect. Entries are due within the grace period (~10 min) and drained
+    // by the sweep, so this never expires a live entry — but if the sweep is ever
+    // stopped/broken again (B1), the key self-expires instead of growing forever
+    // and eventually wedging Redis under noeviction.
+    try {
+        await withTimeout(
+            redis.expire('scheduled:player:cleanup', REDIS_TTL.ROOM),
+            TIMEOUTS.REDIS_OPERATION,
+            `handleDisconnect-scheduleTtl-${sessionId}`
+        );
+    } catch (ttlError) {
+        logger.warn(`Failed to refresh cleanup-schedule TTL:`, (ttlError as Error).message);
     }
 
     // Also set a shorter TTL on the player key as backup
@@ -223,12 +251,18 @@ export async function processScheduledCleanups(limit: number = 50): Promise<numb
                 // and waste memory until their TTL expires.
                 if (roomCode && _roomCleanupFn) {
                     try {
-                        const remainingCount = await withTimeout(
-                            redis.sCard(`room:${roomCode}:players`),
+                        // Count HUMANS remaining, not the raw set size: bots are
+                        // first-class players, so a room whose last human was just
+                        // reaped would never be treated as empty and would linger
+                        // (with its bot records + bot:<sid>:cfg keys) for the full
+                        // room TTL. Mirror leaveRoom's humans-remaining rule (B9).
+                        const remaining = await withTimeout(
+                            getPlayersInRoom(roomCode),
                             TIMEOUTS.REDIS_OPERATION,
-                            `processCleanups-sCard-${roomCode}`
+                            `processCleanups-players-${roomCode}`
                         );
-                        if (remainingCount === 0) {
+                        const humansRemaining = remaining.filter((p) => !p.isBot).length;
+                        if (humansRemaining === 0) {
                             const roomExists = await withTimeout(
                                 redis.exists(`room:${roomCode}`),
                                 TIMEOUTS.REDIS_OPERATION,
@@ -236,8 +270,14 @@ export async function processScheduledCleanups(limit: number = 50): Promise<numb
                             );
                             if (roomExists === 1) {
                                 await _roomCleanupFn(roomCode);
-                                logger.info(`Cleaned up orphaned room ${roomCode} (no players remaining)`);
+                                logger.info(`Cleaned up room ${roomCode} (no humans remaining)`);
                             }
+                        } else if (_hostRepairFn) {
+                            // Occupants remain: if the player we just removed was the
+                            // room's host, promote a connected human so the room isn't
+                            // left permanently hostless (A10). No-op if the host record
+                            // still exists or no connected human remains.
+                            await _hostRepairFn(roomCode);
                         }
                     } catch (roomCleanupError) {
                         logger.warn(
@@ -342,6 +382,9 @@ export function startCleanupTask(): void {
             cleanupRunning = false;
         }
     }, PLAYER_CLEANUP.INTERVAL_MS);
+    // Don't let the sweep keep the process alive on shutdown (matches the other
+    // periodic sweeps); stopCleanupTask() clears it explicitly.
+    cleanupInterval.unref?.();
 
     logger.info('Player cleanup task started');
 }
