@@ -573,17 +573,15 @@ The a11y items C1/C2 together make timed multiplayer rooms essentially unusable 
 
 ---
 
-### C6 — No i18n mechanism exists for `aria-label` — 27 hardcoded English labels
+### C6 — No i18n mechanism exists for `aria-label` — 27 hardcoded English labels — **FIXED**
 
 **Severity:** Medium · **Area:** Accessibility × i18n
 
-**Root cause:** `translatePage()` (`i18n.ts:156-203`) handles `data-i18n`, `-placeholder`, `-title`, and `-label` (optgroups) — but not `aria-label`. `index.html` carries 27 English aria-labels (skip link, board region, clue inputs, chat, replay controls, …): the primary navigation surface for blind users stays English in de/es/fr.
+**Resolution (shipped):** `translatePage()` (`i18n.ts`) gained a `data-i18n-arialabel` branch mirroring the `-title` branch — it reads the key, resolves it via `t()`, and applies it with `setAttribute('aria-label', …)`. All 28 static aria-labels in `index.html` were stamped with `data-i18n-arialabel` companions: 24 new `aria.*` keys, plus reuse of `board.boardAriaLabel` (the board region, already overwritten at runtime by `board.ts`) and `accessibility.settings`/`playOnline`/`gameHistory` for the three that already had matching strings. `ui.ts`'s dynamically-created toast-dismiss button — which the attribute mechanism can't reach — now resolves its label via `t('aria.dismissNotification')`. 25 keys × 4 locales added (378 × 4, parity held). No import cycle: `i18n.ts` imports only `state`/`logger`, so `ui.ts → i18n.ts` is safe.
 
-**Fix:** Add a `data-i18n-arialabel` branch to `translatePage()` mirroring the `-title` branch; stamp the attributes; add ~27 keys × 4 locales. Two adjustments: `index.html:768`'s board label is already overwritten at runtime by `board.ts:239` via `t('board.boardAriaLabel')` — reuse that key; and fix `ui.ts:62`'s runtime-hardcoded "Dismiss notification" via `t()`, since the attribute mechanism can't reach dynamically created elements.
+**Tests:** `localeKeys.test.ts` gained a C6 block: `data-i18n-arialabel` is now in the resolves-in-every-locale attribute scan, the count of static aria-labels must equal the count of `data-i18n-arialabel` companions (minus an explicit — currently empty — allowlist), the toast-dismiss label is asserted to route through `t()` (and not the old literal), and `translatePage()` is asserted to carry the aria-label branch. `i18n.test.ts` gained a functional jsdom test that `translatePage()` actually rewrites a stamped element's `aria-label`.
 
-**Touches:** `frontend/i18n.ts`, `public/index.html`, all four locale files, `frontend/ui.ts`
-
-**Tests:** Extend `localeKeys.test.ts`: every aria-label in `index.html` either has a `data-i18n-arialabel` companion or sits on an allowlist of language-neutral labels.
+**Touches:** `frontend/i18n.ts`, `frontend/ui.ts`, `public/index.html`, all four locale files, `__tests__/frontend/{localeKeys,i18n}.test.ts`, rebuilt frontend bundle.
 
 ---
 
