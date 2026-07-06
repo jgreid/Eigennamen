@@ -665,6 +665,23 @@ describe('history module', () => {
 
             expect(result).toBe(true);
             expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'success');
+            // A9: the replay must actually be surfaced, not just rendered into a
+            // hidden modal. renderReplayData alone fills the DOM; the modal has to
+            // be opened for the user to see anything.
+            expect(mockOpenModal).toHaveBeenCalledWith('replay-modal');
+        });
+
+        test('does not open the modal on a failed load (A9)', async () => {
+            window.history.replaceState({}, '', 'http://localhost/?replay=game123&room=ROOM1');
+
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: false,
+                status: 404,
+            }) as any;
+
+            await checkURLForReplayLoad();
+
+            expect(mockOpenModal).not.toHaveBeenCalled();
         });
 
         test('returns false and shows error on 404', async () => {

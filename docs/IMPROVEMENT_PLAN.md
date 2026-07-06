@@ -151,9 +151,11 @@ Deterministic defects reachable in ordinary play. These are the "a user hits thi
 
 ---
 
-### A8 — Client clicker-fallback invites spymasters/advisors/observers to click a board the server will reject
+### A8 — Client clicker-fallback invites spymasters/advisors/observers to click a board the server will reject — **FIXED**
 
 **Severity:** Medium · **Area:** Frontend state
+
+**Resolution (shipped):** both fallback checks — `board.ts` `canClickCards()` and `selectors.ts` `isClickerFallback()` — now exclude the three roles the server forbids from revealing (`!state.spymasterTeam && !state.isObserver && !state.isAdvisor`) before granting a disconnected-clicker fallback. Advisor is now tracked explicitly: `stateTypes.ts` gains `isAdvisor`, `setPlayerRole` sets it (`role === 'advisor'`) alongside `isObserver`, and `clearPlayerRole` resets it — previously advisor collapsed into the roleless `else` branch and was indistinguishable from a plain team member. A plain team member (a `spectator` role that still holds a team) is unaffected and keeps the fallback. Unit tests cover all three exclusions plus the plain-member positive case in both `board.test.ts` and `selectors.test.ts`, and advisor/observer tracking in `stateMutations.test.ts`.
 
 **Root cause:** When the team clicker disconnects, `board.ts` `canClickCards()` (lines 95-103) and `selectors.ts` `isClickerFallback()` (140-145) grant clicker rights to *any* player whose `playerTeam` matches `currentTurn` — no role exclusion — while the server explicitly forbids exactly those roles (`gameHandlers.ts:204`). The spymaster's board loses the no-click class, cards show pending "revealing" spinners, End Turn lights up — and every action bounces with a generic error toast, each bounce also clearing all pending reveal flags via the shared error handler.
 
@@ -165,9 +167,11 @@ Deterministic defects reachable in ordinary play. These are the "a user hits thi
 
 ---
 
-### A9 — Shared replay links never show the replay
+### A9 — Shared replay links never show the replay — **FIXED**
 
 **Severity:** Medium · **Area:** Frontend state / replay
+
+**Resolution (shipped):** three coordinated changes so a `?replay=X&room=Y` link actually surfaces the replay and nothing else renders over/under it. (1) `checkURLForReplayLoad` now calls `openModal('replay-modal')` after `renderReplayData` succeeds — previously it only filled the hidden modal's DOM, so the user saw a "Replay loaded" toast and nothing else. (2) `checkURLForRoomJoin` short-circuits when `?replay` is present — the replay reuses the `room` param, and the join modal would otherwise pop on top. (3) `app.ts` init gains a `replay` branch: because `shouldShowSetupScreen()` returns false for a link carrying a `room` param, the old fall-through reached `loadGameFromURL()` which — with no `game` seed — called `newGame()`, spinning up a throwaway random board *underneath* the replay; the new branch keeps the setup screen as a clean backdrop instead. `history.test.ts` asserts the modal opens on a mocked 200 and stays closed on a 404; `multiplayer.test.ts` asserts the join modal is skipped when `?replay` is present even with a valid room.
 
 **Root cause:** `checkURLForReplayLoad` (`frontend/history-replay.ts:416-465`) fetches the replay, renders it into the modal DOM, toasts "Replay loaded", strips the URL params — but never opens the modal (the sole `openModal('replay-modal')` call site is `history.ts:153`, a path this flow never reaches). Meanwhile the same URL's `?room=` param triggers the join-room modal and a fresh local game renders underneath.
 

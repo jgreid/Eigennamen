@@ -454,6 +454,14 @@ export function initMultiplayerModal(): void {
 }
 
 export function checkURLForRoomJoin(): void {
+    // A shared replay link is `?replay=<gameId>&room=<roomCode>` — it reuses the
+    // same `room` param the join flow reads. When `replay` is present the replay
+    // loader (checkURLForReplayLoad) owns this URL; popping the join modal on top
+    // would render a fresh local game underneath the replay. Let the replay win. (A9)
+    if (new URLSearchParams(window.location.search).has('replay')) {
+        return;
+    }
+
     const roomCode = getRoomCodeFromURL();
     const roomValidation = validateRoomCode(roomCode ?? '');
     if (roomCode && roomValidation.valid) {

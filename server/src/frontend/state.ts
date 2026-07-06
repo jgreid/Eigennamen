@@ -92,6 +92,7 @@ const _rawState: AppState = {
     clickerTeam: null,
     playerTeam: null,
     isObserver: false,
+    isAdvisor: false,
     roleChange: { phase: 'idle' },
     botSuggestions: [],
     botSuggestionAdvisor: null,

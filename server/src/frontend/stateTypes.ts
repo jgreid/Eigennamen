@@ -164,6 +164,8 @@ export interface AppState {
     playerTeam: string | null;
     /** True when the local player is an observer (full board, no participation). */
     isObserver: boolean;
+    /** True when the local player is an advisor (suggests guesses, never acts on the board). */
+    isAdvisor: boolean;
     roleChange: RoleChangeState;
 
     /** Advisor-bot guess suggestions for the current clue (advisory only). */
