@@ -138,8 +138,20 @@ export const UI = {
  * Connection-related constants
  */
 export const CONNECTION = {
-    // Reconnection settings
-    MAX_RECONNECT_ATTEMPTS: 5,
+    // Auto-reconnect budget for an ALREADY-ESTABLISHED session that drops
+    // (WiFi roam, laptop sleep, mobile handoff). The socket.io Manager retries
+    // with capped backoff (RECONNECT_DELAY_MAX_MS), so this is a retry ceiling,
+    // not a busy loop. Sized to outlast the server's recovery windows — the
+    // 2-min connection-state-recovery window and the multi-minute reconnect
+    // token grace — so a transient outage doesn't permanently kill a session
+    // the server would still accept (I4). Was 5 (~15-20s), which gave up long
+    // before the server did.
+    MAX_RECONNECT_ATTEMPTS: Infinity,
+    // Bound for the INITIAL handshake only: if the very first connection can't
+    // reach the server, give up after this many tries (~15-20s) so Host/Join
+    // surfaces an error instead of spinning forever. Distinct from the
+    // auto-reconnect budget above, which only matters once connected.
+    INITIAL_CONNECT_ATTEMPTS: 5,
     RECONNECT_DELAY_MS: 1000,
     RECONNECT_DELAY_MAX_MS: 5000,
 

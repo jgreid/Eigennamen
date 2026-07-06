@@ -1147,45 +1147,33 @@ I1 is the one security-classed finding of this review with a concrete external-p
 
 ---
 
-### I2 — Server and client pick Socket.io transports by different predicates; an HTTP-served production deploy can't connect at all
+### I2 — Server and client pick Socket.io transports by different predicates; an HTTP-served production deploy can't connect at all — **FIXED**
 
 **Severity:** Low · **Area:** Network / defect
 
-**Root cause:** Server chooses `isProduction() ? ['websocket'] : ['polling','websocket']` (`serverConfig.ts:34`); client chooses by page scheme `url.startsWith('https://') ? ['websocket'] : ['polling','websocket']` (`socket-client-connection.ts:114-115`). They diverge when `NODE_ENV=production` but the page is served over plain HTTP (a self-hosted Docker/LAN deployment): the client opens with a polling handshake, the websocket-only server rejects it, and engine.io-client doesn't advance transports without `tryAllTransports` — so multiplayer is entirely non-functional with only a generic `connect_error`. (The Fly HTTPS deployment and the `NODE_ENV=development` docker-compose default are unaffected, which is why it's latent.)
+**Resolution (shipped):** The client now opens with `transports: ['websocket', 'polling']` (websocket-first) plus `tryAllTransports: true`, regardless of page scheme (`socket-client-connection.ts`). Websocket-first connects against the websocket-only production server whether the page is HTTP or HTTPS — closing the self-hosted-HTTP-prod dead-connection hole — and `tryAllTransports` keeps polling as a genuine fallback for proxies that block websockets. The server's deliberate Fly-motivated websocket-only production setting is untouched. A unit test asserts the `io()` call now carries `['websocket','polling']` + `tryAllTransports`.
 
-**Fix:** Make the client resilient regardless of scheme: `transports: ['websocket', 'polling']` (websocket first) with `tryAllTransports: true` — websocket-first succeeds against the production websocket-only server whether the page is HTTP or HTTPS, and polling stays as fallback. Keeps the server's deliberate Fly-motivated websocket-only production setting intact.
-
-**Touches:** `server/src/frontend/socket-client-connection.ts`
-
-**Tests:** Integration test connecting a default client to a `NODE_ENV=production` server over HTTP and asserting the connection succeeds.
+**Touches:** `server/src/frontend/socket-client-connection.ts`, `__tests__/frontend/socket-client-connection.test.ts`
 
 ---
 
-### I3 — `connectionStateRecovery` is silently inert whenever the Redis adapter is installed
+### I3 — `connectionStateRecovery` is silently inert whenever the Redis adapter is installed — **FIXED**
 
 **Severity:** Low · **Area:** Network / resilience
 
-**Root cause:** `serverConfig.ts:43-48` enables Socket.io connection-state recovery (2-min window), but `serverConfig.ts:70-71` then installs `@socket.io/redis-adapter` for non-memory deployments — whose `RedisAdapter` does not implement `persistSession`/`restoreSession`, so `socket.recovered` is always false and missed packets are never replayed. In the documented external-Redis tier, recovery never happens; every blip takes the full `room:reconnect`/resync path (compounding A2/I4).
-
-**Fix:** Minimal correct fix: in the non-memory branch, log a startup notice that connection-state recovery is inactive with the pub/sub adapter and reconnection relies solely on the app-level `room:reconnect`/resync flow. If recovery is actually wanted on that tier, migrate to `@socket.io/redis-streams-adapter` (which implements the session hooks). Do **not** simply drop the `connectionStateRecovery` block — it still works in memory mode.
+**Resolution (shipped):** The non-memory adapter branch (`serverConfig.ts`) now logs an explicit startup notice that Socket.io `connectionStateRecovery` is inactive with the Redis pub/sub adapter (the `RedisAdapter` implements no `persistSession`/`restoreSession`, so `socket.recovered` is always false) and that reconnection relies on the app-level `room:reconnect`/`room:resync` flow. The `connectionStateRecovery` block is deliberately kept — it still works in memory mode. Migrating to `@socket.io/redis-streams-adapter` (which implements the session hooks) remains the path if native recovery is wanted on the external-Redis tier; the notice documents the current reality so it's no longer silent. Log-only, non-behavioral change (no dedicated startup-spin-up test, consistent with other observability-only changes).
 
 **Touches:** `server/src/socket/serverConfig.ts`
 
-**Tests:** Startup assertion that the notice logs when a Redis adapter is installed.
-
 ---
 
-### I4 — Client abandons auto-reconnect after ~15–20s while the server holds session state for minutes
+### I4 — Client abandons auto-reconnect after ~15–20s while the server holds session state for minutes — **FIXED**
 
 **Severity:** Low · **Area:** Network / resilience
 
-**Root cause:** The client stops retrying permanently after 5 attempts (`constants.ts:142-144`, ~15–20s), while the server sizes its windows an order of magnitude larger (2-min connection-recovery window; multi-minute disconnect grace). Any outage longer than ~20s (WiFi roam, laptop sleep, mobile handoff) permanently kills automatic reconnection even though the server would still accept the same session.
+**Resolution (shipped):** The auto-reconnect budget and the initial-handshake budget are now **two distinct constants**, because they have opposite UX needs. `CONNECTION.MAX_RECONNECT_ATTEMPTS` (was 5) is now `Infinity` and drives the socket.io Manager's `reconnectionAttempts` — with capped backoff (`RECONNECT_DELAY_MAX_MS`) it's a retry ceiling, not a busy loop — so an established session that blips (WiFi roam, sleep, mobile handoff) keeps retrying as long as the tab is open, outlasting the server's 2-min recovery window and multi-minute reconnect-token grace. A new `CONNECTION.INITIAL_CONNECT_ATTEMPTS` (5) bounds only the *first* handshake (`doConnect`'s reject path, via `host.maxReconnectAttempts` imported from the constant per the plan's note), so Host/Join still fails fast (~15-20s) against a genuinely down server instead of spinning forever. Also fixed a spam regression the naive `Infinity` would introduce: `connect_error` now emits its toast-triggering `'error'` event only while the initial connection is unsettled — once connected, background reconnect failures are silent (the reconnection overlay shown on `'disconnected'` communicates status), so a long outage no longer fires a toast every ~5s. Pairs with A2 (which fixes what happens *when* a reconnect succeeds). Four unit tests cover the transport config, the `Infinity` budget, the bounded initial-connect reject, and the no-post-connect-spam behavior.
 
-**Fix:** Raise the client budget to cover the server window: `reconnectionAttempts: Infinity` (or ≈24+, `ceil(MAX_DISCONNECTION_DURATION_MS / RECONNECT_DELAY_MAX_MS)`), keeping `reconnectionDelayMax: 5000`. **Also** fix `socket-client.ts:51-52`, which hard-codes `maxReconnectAttempts: 5` instead of importing `CONNECTION.MAX_RECONNECT_ATTEMPTS` — changing only `constants.ts` would have no effect. Pairs with A2 (which fixes what happens *when* a reconnect succeeds).
-
-**Touches:** `server/src/frontend/constants.ts`, `server/src/frontend/socket-client.ts`, `socket-client-connection.ts`
-
-**Tests:** Simulate a 60s outage; assert the client is still retrying (not permanently stopped) and rejoins on recovery.
+**Touches:** `server/src/frontend/constants.ts`, `server/src/frontend/socket-client.ts`, `server/src/frontend/socket-client-connection.ts`, `__tests__/frontend/socket-client-connection.test.ts`
 
 ---
 

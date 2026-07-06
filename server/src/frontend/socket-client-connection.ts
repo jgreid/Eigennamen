@@ -6,6 +6,7 @@
  */
 
 import { logger } from './logger.js';
+import { CONNECTION } from './constants.js';
 import { safeGetStorage, safeRemoveStorage } from './socket-client-storage.js';
 import { registerAllEventListeners } from './socket-client-events.js';
 import type {
@@ -117,10 +118,10 @@ export function doConnect(
 
         const url = serverUrl || window.location.origin;
 
-        // Production (HTTPS) uses websocket only for better Fly.io compatibility
-        // Development (HTTP) uses polling + websocket for easier debugging
-        const isSecure = url.startsWith('https://');
-        const transports = isSecure ? ['websocket'] : ['polling', 'websocket'];
+        // Track whether the INITIAL connection has been settled (resolved or
+        // rejected). Used to bound the initial handshake and to suppress
+        // per-attempt error emits during background auto-reconnect (I4).
+        let settled = false;
 
         // Tear down any pre-existing socket before creating a new one. During a
         // transient disconnect the old socket.io Manager keeps auto-reconnecting;
@@ -143,11 +144,20 @@ export function doConnect(
             auth: {
                 sessionId: host.sessionId,
             },
-            transports: transports,
+            // WebSocket-first with a polling fallback, regardless of page scheme.
+            // The production server is websocket-only (serverConfig.ts), so a
+            // scheme-based choice (`polling` first for HTTP pages) left a
+            // self-hosted HTTP+production deploy unable to connect at all — the
+            // client opened with polling, the server rejected it, and engine.io
+            // never advanced transports. websocket-first connects against that
+            // server on HTTP or HTTPS; `tryAllTransports` keeps polling as a
+            // genuine fallback for proxies that block websockets (I2).
+            transports: ['websocket', 'polling'],
+            tryAllTransports: true,
             reconnection: true,
-            reconnectionAttempts: host.maxReconnectAttempts,
-            reconnectionDelay: 1000,
-            reconnectionDelayMax: 5000,
+            reconnectionAttempts: CONNECTION.MAX_RECONNECT_ATTEMPTS,
+            reconnectionDelay: CONNECTION.RECONNECT_DELAY_MS,
+            reconnectionDelayMax: CONNECTION.RECONNECT_DELAY_MAX_MS,
             ...options.socketOptions,
         }) as unknown as SocketClientInstance;
         host.socket = socket;
@@ -175,6 +185,7 @@ export function doConnect(
                 });
             }
 
+            settled = true;
             resolve(socket);
         });
 
@@ -200,7 +211,16 @@ export function doConnect(
             host.createInProgress = false;
             host.joinInProgress = false;
 
+            // Once the initial connection has settled, the socket.io Manager
+            // keeps retrying in the background up to CONNECTION.MAX_RECONNECT_ATTEMPTS
+            // (now effectively unbounded, I4). The reconnection overlay — shown on
+            // 'disconnected' — already communicates status, so re-emitting 'error'
+            // on every ~5s retry would spam a toast for the whole outage. Only
+            // surface connect errors while establishing the INITIAL connection.
+            if (settled) return;
+
             if (host.reconnectAttempts >= host.maxReconnectAttempts) {
+                settled = true;
                 reject(error);
             }
 

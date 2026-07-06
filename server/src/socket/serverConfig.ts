@@ -70,6 +70,16 @@ function createSocketServer(server: HttpServer): SocketIOServer {
             const { pubClient, subClient } = getPubSubClients();
             socketServer.adapter(createAdapter(pubClient, subClient));
             logger.info('Socket.io Redis adapter configured for horizontal scaling');
+            // The pub/sub RedisAdapter does not implement persistSession/
+            // restoreSession, so the connectionStateRecovery block above is inert
+            // on this tier: socket.recovered is always false and missed packets are
+            // never replayed. Reconnection therefore relies entirely on the
+            // app-level room:reconnect / room:resync flow. (Migrating to
+            // @socket.io/redis-streams-adapter would restore native recovery.) I3.
+            logger.info(
+                'Note: Socket.io connectionStateRecovery is inactive with the Redis pub/sub adapter; ' +
+                    'reconnection uses the app-level room:reconnect/resync flow'
+            );
         } catch (error) {
             logger.warn(
                 'Redis adapter not available, using in-memory adapter (single instance only):',

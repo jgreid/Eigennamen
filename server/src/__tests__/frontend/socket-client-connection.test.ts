@@ -315,3 +315,86 @@ describe('doConnect reconnection detection (A2)', () => {
         expect(host.joinRoom).toHaveBeenCalledWith('ROOM123', 'Alice');
     });
 });
+
+describe('doConnect transport + reconnect configuration (I2 / I4)', () => {
+    let handlers: Record<string, (...a: unknown[]) => void>;
+    let mockSocket: { on: jest.Mock; id: string };
+    let ioMock: jest.Mock;
+    let originalIo: unknown;
+
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    beforeEach(() => {
+        handlers = {};
+        mockSocket = {
+            on: jest.fn((event: string, handler: (...a: unknown[]) => void) => {
+                handlers[event] = handler;
+            }),
+            id: 'socket-xyz',
+        };
+        originalIo = (globalThis as unknown as { io?: unknown }).io;
+        ioMock = jest.fn(() => mockSocket);
+        (globalThis as unknown as { io: unknown }).io = ioMock;
+        (safeGetStorage as jest.Mock).mockReturnValue(null);
+    });
+
+    afterEach(() => {
+        (globalThis as unknown as { io: unknown }).io = originalIo;
+        (safeGetStorage as jest.Mock).mockReset();
+        (safeGetStorage as jest.Mock).mockReturnValue(null);
+    });
+
+    test('connects websocket-first with a polling fallback regardless of scheme (I2)', () => {
+        // An HTTP page must still reach the websocket-only production server.
+        const host = createMockHost();
+        doConnect(host, 'http://localhost', {}).catch(() => {});
+
+        const opts = ioMock.mock.calls[0][1] as Record<string, unknown>;
+        expect(opts.transports).toEqual(['websocket', 'polling']);
+        expect(opts.tryAllTransports).toBe(true);
+    });
+
+    test('auto-reconnect budget is sized to outlast the server window (I4)', () => {
+        const host = createMockHost();
+        doConnect(host, 'https://localhost', {}).catch(() => {});
+
+        const opts = ioMock.mock.calls[0][1] as Record<string, unknown>;
+        // Manager retries effectively forever (capped backoff), not the old 5.
+        expect(opts.reconnectionAttempts).toBe(Infinity);
+        expect(opts.reconnectionDelayMax).toBe(5000);
+    });
+
+    test('the INITIAL connection still gives up after maxReconnectAttempts (I4)', async () => {
+        const host = createMockHost({ maxReconnectAttempts: 3 });
+        const outcome = doConnect(host, 'http://localhost', {}).then(
+            () => 'resolved',
+            () => 'rejected'
+        );
+
+        handlers['connect_error'](new Error('boom')); // 1
+        handlers['connect_error'](new Error('boom')); // 2
+        handlers['connect_error'](new Error('boom')); // 3 → reject
+
+        expect(await outcome).toBe('rejected');
+        // Each pre-connect failure is surfaced so Host/Join can show an error.
+        expect(host._emit).toHaveBeenCalledWith('error', expect.objectContaining({ type: 'connection' }));
+    });
+
+    test('does not re-emit connection errors once connected — no reconnect toast spam (I4)', async () => {
+        const host = createMockHost();
+        doConnect(host, 'http://localhost', {}).catch(() => {});
+
+        // Establish the session, then clear the 'connected' emit.
+        handlers['connect']();
+        (host._emit as jest.Mock).mockClear();
+
+        // A prolonged outage: the Manager fires connect_error on every retry.
+        handlers['connect_error'](new Error('flap'));
+        handlers['connect_error'](new Error('flap'));
+        handlers['connect_error'](new Error('flap'));
+        await flush();
+
+        // None of them should surface a toast-triggering 'error' event.
+        expect(host._emit).not.toHaveBeenCalledWith('error', expect.anything());
+    });
+});
