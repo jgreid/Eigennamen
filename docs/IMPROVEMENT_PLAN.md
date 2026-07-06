@@ -80,9 +80,11 @@ Deterministic defects reachable in ordinary play. These are the "a user hits thi
 
 ---
 
-### A4 — `player:kick` fails to disconnect the target once their session–socket mapping expires
+### A4 — `player:kick` fails to disconnect the target once their session–socket mapping expires — **FIXED**
 
 **Severity:** High · **Area:** Game integrity / moderation
+
+**Resolution (shipped):** the kick handler no longer looks the target up via `getSocketId` (the 5-minute, never-refreshed session→socket mapping). It targets the `player:<sessionId>` Socket.io room (joined at room-join/reconnect) via `io.in(...).fetchSockets()` and disconnects each socket — TTL-independent, and consistent with how broadcasts already address players (`safeEmitToPlayer`). The per-event mapping-TTL refresh in the plan was scoped out: broadcasts don't use the mapping, so the kick was its only broadcast-affecting consumer.
 
 **Root cause:** The session→socket mapping is written exactly once per connection at auth (`middleware/socketAuth.ts:53`) with a 5-minute TTL (`config/roomConfig.ts:18` `SESSION_SOCKET: 5*60`) and never refreshed. The kick handler (`socket/handlers/playerHandlers/playerModerationHandlers.ts:43`) locates the target's live socket via `getSocketId` — for any player connected longer than 5 minutes (the normal case) this returns null: the Redis player record is deleted and the reconnect token invalidated, but the live socket is never disconnected and never leaves the `room:<code>`/`player:<sessionId>` Socket.io rooms. The kicked client sees no `ROOM_KICKED` UI and keeps receiving every room broadcast — chat, reveals, clues, player lists — indefinitely.
 
@@ -96,9 +98,11 @@ Deterministic defects reachable in ordinary play. These are the "a user hits thi
 
 ---
 
-### A5 — `gameStateSchema` silently strips the `paused` field (and will strip any future field)
+### A5 — `gameStateSchema` silently strips the `paused` field (and will strip any future field) — **FIXED**
 
 **Severity:** Medium · **Area:** Game integrity / data layer
+
+**Resolution (shipped):** added `paused` to `gameStateSchema` (it now round-trips); added `if (game.paused) throw GameStateError.gamePaused()` inside both `forfeitGame` and `abandonGame` (they have no Lua backstop); emit `paused` from `getGameStateForPlayer`; promoted `GAME_PAUSED` to a first-class `ERROR_CODES` entry (dropping an `as ErrorCode` cast). The systemic guard is a schema-drift test (`__tests__/services/luaGameOpsSchema.test.ts`): a `Required<GameState>` fixture forces every field to be named and the test fails unless the schema shape covers them all — so the next added `GameState` field can't be silently stripped.
 
 **Root cause:** `gameStateSchema` (`services/game/luaGameOps.ts:24-66`) enumerates every `GameState` field *except* `paused` (`types/game.ts:232`) and has no `.passthrough()` — Zod's default strip mode removes it on every TypeScript read (`getGame`, `gameService.ts:336`; `safeParseGameData` inside `executeGameTransaction`, `luaGameOps.ts:162,281`). Consequences: every TS-side pause guard is dead code (`gameHandlers.ts:183/273/312/368`, `gameService.ts:479`, `botController.ts:206/406`); `executeGameTransaction` re-serializes the stripped object, silently erasing `paused: true` from stored state on any transaction write; and `forfeitGame`/`abandonGame` — which unlike reveal/clue/endTurn have **no Lua paused backstop** — succeed on a paused game. The Lua guards (`revealCard.lua:41`, `endTurn.lua:42`, `submitClue.lua:55`) read raw JSON and still hold, which is what keeps this Medium rather than High. During a pause with a bot on the acting seat, the bot's dead paused check lets it burn its full re-arm ladder against Lua `GAME_PAUSED` rejections.
 
@@ -449,9 +453,11 @@ Server lifecycle, background maintenance, and the deploy pipeline. B1 and B5 are
 
 The a11y items C1/C2 together make timed multiplayer rooms essentially unusable with a screen reader today; the PWA items C3 make the offline promise real.
 
-### C1 — An active turn timer turns the turn indicator into a once-per-second live region
+### C1 — An active turn timer turns the turn indicator into a once-per-second live region — **FIXED**
 
 **Severity:** High · **Area:** Accessibility
+
+**Resolution (shipped):** the `aria-live`/`aria-atomic`/`role="status"` live region was moved off the `#turn-indicator` container (which wraps the per-second timer) onto the `.turn-text` span that actually changes on a turn, and the `#timer-value`'s own `aria-live`/`aria-atomic` were removed. `role="timer"` carries an implicit `aria-live="off"`, so the countdown stays queryable on demand but is no longer announced tick-by-tick. Covered by the accessibility E2E spec.
 
 **Root cause:** `#timer-value` carries `aria-live="polite" aria-atomic="true"` and is nested inside `#turn-indicator` (`role="status" aria-live="polite" aria-atomic="true"`) — `public/index.html:272-296`. `timer.ts`'s 250ms interval updates the MM:SS text, so screen readers re-announce the countdown (potentially the whole "Red Team's Turn 2:41" string, due to the atomic parent) every second for the entire turn, drowning out the clue/reveal/chat announcements and defeating the deliberately throttled 30/10/1-second announcer in `timer.ts:7-32`.
 
