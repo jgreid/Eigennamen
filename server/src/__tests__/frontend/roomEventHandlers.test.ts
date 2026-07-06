@@ -236,7 +236,7 @@ describe('disconnected', () => {
     test('shows disconnection toast and reverts role change', () => {
         emit('disconnected', {});
         expect(revertAndClearRoleChange).toHaveBeenCalled();
-        expect(showToast).toHaveBeenCalledWith('Disconnected from server', 'warning');
+        expect(showToast).toHaveBeenCalledWith('multiplayer.disconnectedFromServer', 'warning');
     });
 
     test('shows reconnection overlay when in multiplayer mode', () => {
@@ -260,7 +260,7 @@ describe('kicked', () => {
 
     test('shows default message when no reason', () => {
         emit('kicked', {});
-        expect(showToast).toHaveBeenCalledWith('You were kicked from the room', 'error', 5000);
+        expect(showToast).toHaveBeenCalledWith('multiplayer.kicked', 'error', 5000);
     });
 });
 
@@ -304,7 +304,7 @@ describe('settingsUpdated', () => {
 
     test('shows toast after settings update', () => {
         emit('settingsUpdated', { settings: { gameMode: 'match' } });
-        expect(showToast).toHaveBeenCalledWith('Room settings updated', 'info');
+        expect(showToast).toHaveBeenCalledWith('multiplayer.settingsUpdated', 'info');
     });
 });
 
@@ -312,12 +312,12 @@ describe('rejoinFailed', () => {
     test('hides overlay and shows room not found toast', () => {
         emit('rejoinFailed', { error: { code: 'ROOM_NOT_FOUND' } });
         expect(hideReconnectionOverlay).toHaveBeenCalled();
-        expect(showToast).toHaveBeenCalledWith('Previous game no longer exists', 'warning');
+        expect(showToast).toHaveBeenCalledWith('multiplayer.previousGameGone', 'warning');
     });
 
     test('shows generic toast for other errors', () => {
         emit('rejoinFailed', { error: { code: 'OTHER_ERROR' } });
-        expect(showToast).toHaveBeenCalledWith('Could not rejoin previous game', 'warning');
+        expect(showToast).toHaveBeenCalledWith('multiplayer.couldNotRejoin', 'warning');
     });
 
     test('calls leaveMultiplayerMode', () => {
@@ -339,13 +339,13 @@ describe('reconnection (rejoined/roomReconnected)', () => {
     test('shows changes toast when offline changes detected', () => {
         jest.mocked(detectOfflineChanges).mockReturnValue(['Turn changed', 'Card revealed']);
         emit('rejoined', { players: [], room: null, game: null });
-        expect(showToast).toHaveBeenCalledWith('Reconnected! Turn changed. Card revealed', 'info', 6000);
+        expect(showToast).toHaveBeenCalledWith('multiplayer.reconnectedWithChanges', 'info', 6000);
     });
 
     test('shows simple reconnected toast when no changes', () => {
         jest.mocked(detectOfflineChanges).mockReturnValue([]);
         emit('roomReconnected', { players: [], room: null, game: null });
-        expect(showToast).toHaveBeenCalledWith('Reconnected!', 'success');
+        expect(showToast).toHaveBeenCalledWith('multiplayer.reconnected', 'success');
     });
 });
 

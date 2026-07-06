@@ -497,7 +497,7 @@ describe('Frontend Handler Registration', () => {
 
             expect(state.multiplayerPlayers).toBe(players);
             expect(updateMpIndicator).toHaveBeenCalled();
-            expect(showToast).toHaveBeenCalledWith('P1 joined', 'success');
+            expect(showToast).toHaveBeenCalledWith('multiplayer.playerJoined name=P1', 'success');
             expect(playNotificationSound).toHaveBeenCalledWith('join');
         });
 
@@ -524,7 +524,7 @@ describe('Frontend Handler Registration', () => {
 
             expect(state.multiplayerPlayers).toHaveLength(1);
             expect(state.multiplayerPlayers[0].sessionId).toBe('p2');
-            expect(showToast).toHaveBeenCalledWith('P1 left', 'info');
+            expect(showToast).toHaveBeenCalledWith('multiplayer.playerLeft name=P1', 'info');
         });
 
         test('playerLeft uses full player list when provided', () => {
@@ -658,7 +658,7 @@ describe('Frontend Handler Registration', () => {
             handlers['playerDisconnected']({ sessionId: 'p1', nickname: 'Alice' });
 
             expect(state.multiplayerPlayers[0].connected).toBe(false);
-            expect(showToast).toHaveBeenCalledWith('Alice disconnected', 'warning');
+            expect(showToast).toHaveBeenCalledWith('multiplayer.playerDisconnected name=Alice', 'warning');
             expect(updateControls).toHaveBeenCalled();
         });
 
@@ -667,7 +667,7 @@ describe('Frontend Handler Registration', () => {
             handlers['playerReconnected']({ sessionId: 'p1', nickname: 'Alice' });
 
             expect(state.multiplayerPlayers[0].connected).toBe(true);
-            expect(showToast).toHaveBeenCalledWith('Alice reconnected', 'success');
+            expect(showToast).toHaveBeenCalledWith('multiplayer.playerReconnected name=Alice', 'success');
         });
     });
 
@@ -752,7 +752,7 @@ describe('Frontend Handler Registration', () => {
             handlers['disconnected']();
 
             expect(revertAndClearRoleChange).toHaveBeenCalled();
-            expect(showToast).toHaveBeenCalledWith('Disconnected from server', 'warning');
+            expect(showToast).toHaveBeenCalledWith('multiplayer.disconnectedFromServer', 'warning');
             expect(showReconnectionOverlay).toHaveBeenCalled();
         });
 
@@ -766,7 +766,7 @@ describe('Frontend Handler Registration', () => {
             handlers['rejoined']({ game: {}, players: [], room: { code: 'R' } });
 
             expect(hideReconnectionOverlay).toHaveBeenCalled();
-            expect(showToast).toHaveBeenCalledWith('Reconnected!', 'success');
+            expect(showToast).toHaveBeenCalledWith('multiplayer.reconnected', 'success');
         });
 
         test('rejoined clears stale reveal tracking', () => {
@@ -788,7 +788,7 @@ describe('Frontend Handler Registration', () => {
             handlers['rejoined']({ game: {}, players: [], room: { code: 'R' } });
 
             expect(showToast).toHaveBeenCalledWith(
-                expect.stringContaining('Reconnected! Game ended. New turn'),
+                expect.stringContaining('multiplayer.reconnectedWithChanges changes=Game ended. New turn'),
                 'info',
                 6000
             );
@@ -798,14 +798,14 @@ describe('Frontend Handler Registration', () => {
             handlers['rejoinFailed']({ error: { code: 'ROOM_NOT_FOUND', message: '' } });
 
             expect(hideReconnectionOverlay).toHaveBeenCalled();
-            expect(showToast).toHaveBeenCalledWith('Previous game no longer exists', 'warning');
+            expect(showToast).toHaveBeenCalledWith('multiplayer.previousGameGone', 'warning');
             expect(leaveMultiplayerMode).toHaveBeenCalled();
         });
 
         test('rejoinFailed shows generic message for other errors', () => {
             handlers['rejoinFailed']({});
 
-            expect(showToast).toHaveBeenCalledWith('Could not rejoin previous game', 'warning');
+            expect(showToast).toHaveBeenCalledWith('multiplayer.couldNotRejoin', 'warning');
             expect(leaveMultiplayerMode).toHaveBeenCalled();
         });
 
@@ -836,7 +836,7 @@ describe('Frontend Handler Registration', () => {
         test('kicked shows default message when no reason', () => {
             handlers['kicked']({});
 
-            expect(showToast).toHaveBeenCalledWith('You were kicked from the room', 'error', 5000);
+            expect(showToast).toHaveBeenCalledWith('multiplayer.kicked', 'error', 5000);
         });
 
         test('playerKicked removes player from list', () => {
@@ -847,14 +847,14 @@ describe('Frontend Handler Registration', () => {
             handlers['playerKicked']({ sessionId: 'p1', nickname: 'Alice' });
 
             expect(state.multiplayerPlayers).toHaveLength(1);
-            expect(showToast).toHaveBeenCalledWith('Alice was kicked by the host', 'info');
+            expect(showToast).toHaveBeenCalledWith('multiplayer.playerKicked name=Alice', 'info');
         });
 
         test('settingsUpdated syncs game mode and shows toast', () => {
             handlers['settingsUpdated']({ settings: { gameMode: 'duet' } });
 
             expect(syncGameModeUI).toHaveBeenCalledWith('duet');
-            expect(showToast).toHaveBeenCalledWith('Room settings updated', 'info');
+            expect(showToast).toHaveBeenCalledWith('multiplayer.settingsUpdated', 'info');
         });
 
         test('settingsUpdated ignores missing settings', () => {
@@ -902,7 +902,7 @@ describe('Frontend Handler Registration', () => {
         test('timerExpired stops timer and shows toast', () => {
             handlers['timerExpired']({});
             expect(handleTimerStopped).toHaveBeenCalled();
-            expect(showToast).toHaveBeenCalledWith('Turn time expired!', 'warning');
+            expect(showToast).toHaveBeenCalledWith('timer.expired', 'warning');
         });
     });
 

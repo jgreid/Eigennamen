@@ -1,4 +1,5 @@
 import { showToast } from '../ui.js';
+import { t } from '../i18n.js';
 import { handleTimerStarted, handleTimerStopped, handleTimerStatus } from '../timer.js';
 import type { TimerEventData } from '../multiplayerTypes.js';
 
@@ -17,6 +18,6 @@ export function registerTimerHandlers(): void {
 
     EigennamenClient.on('timerExpired', (_data: unknown) => {
         handleTimerStopped();
-        showToast('Turn time expired!', 'warning');
+        showToast(t('timer.expired'), 'warning');
     });
 }

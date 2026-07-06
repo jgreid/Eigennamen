@@ -553,9 +553,13 @@ The a11y items C1/C2 together make timed multiplayer rooms essentially unusable 
 
 ---
 
-### C5 — Multiplayer lifecycle/timer/reconnect toasts are hardcoded English despite existing translations
+### C5 — Multiplayer lifecycle/timer/reconnect toasts are hardcoded English despite existing translations — **FIXED**
 
 **Severity:** Medium · **Area:** i18n
+
+**Resolution (shipped):** Every user-facing `showToast` call in the handler layer and the reconnection sync now routes through `t()`. `timerEventHandlers.ts` (`timer.expired`), `playerEventHandlers.ts` (join/leave/disconnect/reconnect, with `multiplayer.someone`/`aPlayer` fallbacks), `roomEventHandlers.ts` (disconnect / reconnect-with-changes / reconnected / previous-game-gone / could-not-rejoin / kicked / player-kicked / settings-updated), `chatEventHandlers.ts` (history + replay load failures → `history.couldNotLoadHistory` / `history.couldNotLoad`), and `multiplayerSync.ts`'s `detectOfflineChanges` (game-started / game-over ±winner / turn-change / player-count delta, singular-vs-plural key selection preserved) were all localized. 18 dormant `multiplayer.*` keys plus a new `history.couldNotLoadHistory` key are populated across all four locale files (372 × 4, parity held). No `ui.ts → i18n.ts` edge was needed — the strings all originate in the handler files, so no import cycle materialized. Guarded by a new C5 block in `localeKeys.test.ts`: it asserts every key resolves in all four locales AND runs a lint-style source scan over `frontend/handlers/*.ts` + `multiplayerSync.ts` that fails on any `showToast(` passed a raw string literal (the structural check the `data-i18n` scan can't do). The three affected unit suites now assert the interpolated i18n keys instead of English literals.
+
+<details><summary>Original finding</summary>
 
 **Root cause:** 15 call sites across `frontend/handlers/{timer,player,room,chat}EventHandlers.ts` and `ui.ts` pass English literals to `showToast` — every join/leave/kick/disconnect/reconnect/timer-expiry/settings-change notification — while the matching keys (`timer.expired`, `multiplayer.playerJoined/playerLeft/kicked/reconnected`, …) exist with real translations in all four locale files, referenced by nothing. The P1-11 locale regression test structurally can't catch this class: it scans `data-i18n` attributes and existing `t()` keys; these sites bypass `t()` entirely.
 
@@ -564,6 +568,8 @@ The a11y items C1/C2 together make timed multiplayer rooms essentially unusable 
 **Touches:** the four handler files, `frontend/ui.ts`, `frontend/multiplayerSync.ts`, locale files for any missing change-description keys
 
 **Tests:** Lint-style test failing on new `showToast('…literal…')` occurrences in `frontend/handlers/`.
+
+</details>
 
 ---
 

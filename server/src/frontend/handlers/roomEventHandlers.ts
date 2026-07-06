@@ -158,7 +158,7 @@ export function registerRoomHandlers(): void {
         // Use revertAndClearRoleChange (not clearRoleChange) so that buttons
         // are reverted from 'loading' state back to their previous DOM state.
         revertAndClearRoleChange();
-        showToast('Disconnected from server', 'warning');
+        showToast(t('multiplayer.disconnectedFromServer'), 'warning');
         // Show reconnection overlay if we were in a room
         if (state.isMultiplayerMode) {
             showReconnectionOverlay();
@@ -223,9 +223,9 @@ export function registerRoomHandlers(): void {
             }
 
             if (changes.length > 0) {
-                showToast('Reconnected! ' + changes.join('. '), 'info', 6000);
+                showToast(t('multiplayer.reconnectedWithChanges', { changes: changes.join('. ') }), 'info', 6000);
             } else {
-                showToast('Reconnected!', 'success');
+                showToast(t('multiplayer.reconnected'), 'success');
             }
         } finally {
             state.resyncInProgress = false;
@@ -240,9 +240,9 @@ export function registerRoomHandlers(): void {
         hideReconnectionOverlay();
 
         if (data.error?.code === 'ROOM_NOT_FOUND') {
-            showToast('Previous game no longer exists', 'warning');
+            showToast(t('multiplayer.previousGameGone'), 'warning');
         } else {
-            showToast('Could not rejoin previous game', 'warning');
+            showToast(t('multiplayer.couldNotRejoin'), 'warning');
         }
         // Reset multiplayer state properly — wrapped in try/catch so that
         // if any part of cleanup throws, the UI is never left stuck in
@@ -262,7 +262,7 @@ export function registerRoomHandlers(): void {
     // Handle being kicked from the room
     EigennamenClient.on('kicked', (data: KickedData) => {
         leaveMultiplayerMode();
-        showToast(data.reason || 'You were kicked from the room', 'error', 5000);
+        showToast(data.reason || t('multiplayer.kicked'), 'error', 5000);
     });
 
     // Handle another player being kicked
@@ -277,7 +277,7 @@ export function registerRoomHandlers(): void {
         // clicker role, so remaining team members need UI updated for fallback.
         updateControls();
         renderBoard();
-        showToast(`${data.nickname} was kicked by the host`, 'info');
+        showToast(t('multiplayer.playerKicked', { name: data.nickname || t('multiplayer.aPlayer') }), 'info');
     });
 
     // Handle room settings updates
@@ -307,7 +307,7 @@ export function registerRoomHandlers(): void {
             // Update multiplayer indicator
             updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
 
-            showToast('Room settings updated', 'info');
+            showToast(t('multiplayer.settingsUpdated'), 'info');
         }
     });
 

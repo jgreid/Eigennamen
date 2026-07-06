@@ -121,6 +121,19 @@ jest.mock('../../frontend/accessibility', () => ({
 jest.mock('../../frontend/logger', () => ({
     logger: { warn: jest.fn(), error: jest.fn(), debug: jest.fn(), info: jest.fn() },
 }));
+// Translations aren't loaded in jsdom tests, so mock t() to echo the key plus
+// any interpolation params. This keeps the detectOfflineChanges assertions able
+// to verify BOTH the chosen key (e.g. singular vs plural) and the interpolated
+// value (team/count) without depending on the real locale files.
+jest.mock('../../frontend/i18n', () => ({
+    t: (key: string, params?: Record<string, unknown>) => {
+        if (!params || Object.keys(params).length === 0) return key;
+        const parts = Object.entries(params)
+            .map(([k, v]) => `${k}=${v}`)
+            .join(',');
+        return `${key}(${parts})`;
+    },
+}));
 
 import { state } from '../../frontend/state';
 import { setPlayerRole, clearPlayerRole } from '../../frontend/stateMutations';
@@ -208,7 +221,7 @@ describe('multiplayerSync', () => {
             };
 
             const changes = detectOfflineChanges(data);
-            expect(changes).toContain('A game was started');
+            expect(changes).toContain('multiplayer.changeGameStarted');
         });
 
         it('detects that the game ended while offline with a winner', () => {
@@ -224,7 +237,9 @@ describe('multiplayerSync', () => {
             };
 
             const changes = detectOfflineChanges(data);
-            expect(changes).toEqual(expect.arrayContaining([expect.stringContaining('Red won')]));
+            expect(changes).toEqual(
+                expect.arrayContaining([expect.stringContaining('multiplayer.changeGameOverWon(team=Red)')])
+            );
         });
 
         it('detects game ended without a specific winner', () => {
@@ -238,7 +253,7 @@ describe('multiplayerSync', () => {
             };
 
             const changes = detectOfflineChanges(data);
-            expect(changes).toContain('Game over');
+            expect(changes).toContain('multiplayer.changeGameOver');
         });
 
         it('detects that the turn changed while offline', () => {
@@ -253,7 +268,9 @@ describe('multiplayerSync', () => {
             };
 
             const changes = detectOfflineChanges(data);
-            expect(changes).toEqual(expect.arrayContaining([expect.stringContaining("Blue's turn")]));
+            expect(changes).toEqual(
+                expect.arrayContaining([expect.stringContaining('multiplayer.changeNowTurn(team=Blue)')])
+            );
         });
 
         it('does not report turn change when game is over', () => {
@@ -286,7 +303,7 @@ describe('multiplayerSync', () => {
             };
 
             const changes = detectOfflineChanges(data);
-            expect(changes).toContain('2 players joined');
+            expect(changes).toContain('multiplayer.changePlayersJoined(count=2)');
         });
 
         it('detects that a single player joined (singular form)', () => {
@@ -302,7 +319,7 @@ describe('multiplayerSync', () => {
             };
 
             const changes = detectOfflineChanges(data);
-            expect(changes).toContain('1 player joined');
+            expect(changes).toContain('multiplayer.changePlayerJoined(count=1)');
         });
 
         it('detects that players left while offline', () => {
@@ -319,7 +336,7 @@ describe('multiplayerSync', () => {
             };
 
             const changes = detectOfflineChanges(data);
-            expect(changes).toContain('2 players left');
+            expect(changes).toContain('multiplayer.changePlayersLeft(count=2)');
         });
 
         it('returns empty array when data is null/undefined', () => {

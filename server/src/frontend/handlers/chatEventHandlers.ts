@@ -1,4 +1,5 @@
 import { showToast } from '../ui.js';
+import { t } from '../i18n.js';
 import { logger } from '../logger.js';
 import { handleChatMessage } from '../chat.js';
 import { handleSpectatorChatMessage } from '../multiplayerUI.js';
@@ -33,7 +34,7 @@ export function registerChatAndErrorHandlers(): void {
             })
             .catch((err: unknown) => {
                 logger.error('Failed to load history module:', err);
-                showToast('Could not load game history', 'error');
+                showToast(t('history.couldNotLoadHistory'), 'error');
             });
     });
 
@@ -46,7 +47,7 @@ export function registerChatAndErrorHandlers(): void {
             })
             .catch((err: unknown) => {
                 logger.error('Failed to load history module:', err);
-                showToast('Could not load replay data', 'error');
+                showToast(t('history.couldNotLoad'), 'error');
             });
     });
 

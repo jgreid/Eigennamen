@@ -126,4 +126,72 @@ describe('locale key regressions (P1-11)', () => {
             }
         );
     });
+
+    describe('multiplayer lifecycle/timer/reconnect toast keys (IMPROVEMENT_PLAN C5)', () => {
+        // These t() calls live in TS handlers, so the data-i18n scanner cannot see
+        // them; guard the whole set so a missing translation can't ship silently.
+        const keys = [
+            'multiplayer.playerJoined',
+            'multiplayer.playerLeft',
+            'multiplayer.playerDisconnected',
+            'multiplayer.playerReconnected',
+            'multiplayer.disconnectedFromServer',
+            'multiplayer.reconnected',
+            'multiplayer.reconnectedWithChanges',
+            'multiplayer.previousGameGone',
+            'multiplayer.couldNotRejoin',
+            'multiplayer.kicked',
+            'multiplayer.playerKicked',
+            'multiplayer.settingsUpdated',
+            'multiplayer.someone',
+            'multiplayer.aPlayer',
+            'multiplayer.changeGameStarted',
+            'multiplayer.changeGameOverWon',
+            'multiplayer.changeGameOver',
+            'multiplayer.changeNowTurn',
+            'multiplayer.changePlayerJoined',
+            'multiplayer.changePlayersJoined',
+            'multiplayer.changePlayerLeft',
+            'multiplayer.changePlayersLeft',
+            'timer.expired',
+            'history.couldNotLoad',
+            'history.couldNotLoadHistory',
+        ];
+
+        it.each(keys)('%s resolves in every locale', (key) => {
+            for (const lang of LOCALES) {
+                expect(resolvesToString(localeData[lang] as Record<string, unknown>, key)).toBe(true);
+            }
+        });
+
+        // Lint-style guard: no showToast() call in the handler layer or the
+        // reconnection sync may pass a raw string literal — every user-facing
+        // toast must go through t(). This is the structural check the plain
+        // data-i18n scan cannot perform (these sites bypass the DOM entirely).
+        const HANDLERS_DIR = path.join(__dirname, '../../frontend/handlers');
+        const scannedFiles = [
+            ...fs
+                .readdirSync(HANDLERS_DIR)
+                .filter((f) => f.endsWith('.ts'))
+                .map((f) => path.join(HANDLERS_DIR, f)),
+            path.join(__dirname, '../../frontend/multiplayerSync.ts'),
+        ];
+        const literalToast = /showToast\(\s*['"`]/;
+
+        it('scans a realistic number of handler files', () => {
+            expect(scannedFiles.length).toBeGreaterThan(4);
+        });
+
+        it.each(scannedFiles.map((f) => [path.basename(f), f] as const))(
+            '%s has no hardcoded showToast string literal',
+            (_name, file) => {
+                const source = fs.readFileSync(file, 'utf-8');
+                const offenders = source
+                    .split('\n')
+                    .map((line, i) => [i + 1, line] as const)
+                    .filter(([, line]) => literalToast.test(line));
+                expect(offenders).toEqual([]);
+            }
+        );
+    });
 });
