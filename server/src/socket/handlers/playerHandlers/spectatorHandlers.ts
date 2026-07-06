@@ -7,9 +7,9 @@ import { spectatorJoinRequestSchema, spectatorJoinResponseSchema } from '../../.
 import logger from '../../../utils/logger';
 import { ERROR_CODES, SOCKET_EVENTS } from '../../../config/constants';
 import { createRoomHandler, createHostHandler } from '../../contextHandler';
-import { PlayerError } from '../../../errors/GameError';
+import { PlayerError, ValidationError } from '../../../errors/GameError';
 import { sanitizeHtml } from '../../../utils/sanitize';
-import { safeEmitToPlayer } from '../../safeEmit';
+import { safeEmitToPlayer, safeEmitToRoom } from '../../safeEmit';
 
 export default function spectatorHandlers(io: Server, socket: GameSocket): void {
     // Spectator: Request to join a team
@@ -56,7 +56,7 @@ export default function spectatorHandlers(io: Server, socket: GameSocket): void 
             socket,
             SOCKET_EVENTS.SPECTATOR_APPROVE_JOIN,
             spectatorJoinResponseSchema,
-            async (ctx: RoomContext, validated: { requesterId: string; approved: boolean }) => {
+            async (ctx: RoomContext, validated: { requesterId: string; approved: boolean; team?: 'red' | 'blue' }) => {
                 const requester: Player | null = await playerService.getPlayer(validated.requesterId);
                 if (!requester || requester.roomCode !== ctx.roomCode) {
                     throw new PlayerError(ERROR_CODES.PLAYER_NOT_FOUND, 'Requester not found in room');
@@ -69,14 +69,44 @@ export default function spectatorHandlers(io: Server, socket: GameSocket): void 
                 }
 
                 if (validated.approved) {
+                    const team = validated.team;
+                    if (!team) {
+                        throw new ValidationError('A team is required to approve a spectator join request');
+                    }
+
+                    // Seat the approved spectator onto the requested team as a CLICKER.
+                    // Clicker (not spymaster) is the only safe seat: a spectator has only
+                    // ever seen the masked board, so no key information leaks. If the team's
+                    // clicker seat is already taken, setRole throws ROLE_TAKEN — revert the
+                    // team move so the requester stays a clean spectator, and surface the
+                    // error to the host.
+                    await playerService.setTeam(validated.requesterId, team);
+                    try {
+                        await playerService.setRole(validated.requesterId, 'clicker');
+                    } catch (roleErr) {
+                        await playerService.setTeam(validated.requesterId, null).catch(() => {
+                            /* best-effort revert */
+                        });
+                        throw roleErr;
+                    }
+
+                    // Tell the whole room the requester is now a team clicker.
+                    safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
+                        sessionId: validated.requesterId,
+                        changes: { team, role: 'clicker' },
+                    });
+
                     // Notify the requester they've been approved (via their player: room).
+                    // The client resyncs on this so its board, role banner, and socket
+                    // room memberships (leaving the spectators room) update correctly.
                     safeEmitToPlayer(io, validated.requesterId, SOCKET_EVENTS.SPECTATOR_JOIN_APPROVED, {
+                        team,
                         message: 'Your request to join a team has been approved',
                         timestamp: Date.now(),
                     });
 
                     logger.info(
-                        `Host approved spectator ${sanitizeHtml(requester.nickname)} join request in room ${ctx.roomCode}`
+                        `Host approved spectator ${sanitizeHtml(requester.nickname)} into ${team} team in room ${ctx.roomCode}`
                     );
                 } else {
                     // Notify the requester they've been denied (via their player: room).

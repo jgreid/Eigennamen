@@ -40,6 +40,9 @@ import type {
     TimerEventData,
     ChatMessageData,
     SpectatorChatData,
+    SpectatorJoinRequestData,
+    SpectatorJoinApprovedData,
+    SpectatorJoinDeniedData,
     ServerErrorData,
     ReadyStatusData,
     BotSuggestionData,
@@ -306,5 +309,18 @@ export function registerAllEventListeners(register: RegisterFn, emit: EmitFn, cl
 
     register('chat:spectatorMessage', (raw: unknown) => {
         emit('spectatorChatMessage', raw as SpectatorChatData);
+    });
+
+    // Spectator join-request flow (F6)
+    register('spectator:joinRequest', (raw: unknown) => {
+        emit('spectatorJoinRequest', raw as SpectatorJoinRequestData);
+    });
+
+    register('spectator:joinApproved', (raw: unknown) => {
+        emit('spectatorJoinApproved', raw as SpectatorJoinApprovedData);
+    });
+
+    register('spectator:joinDenied', (raw: unknown) => {
+        emit('spectatorJoinDenied', raw as SpectatorJoinDeniedData);
     });
 }

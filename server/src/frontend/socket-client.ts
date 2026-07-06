@@ -268,6 +268,18 @@ import type { JoinCreateResult } from './multiplayerTypes.js';
         },
 
         // =====================
+        // Spectator Join Requests (F6)
+        // =====================
+
+        requestJoinTeam(team: string): void {
+            this._getSocket()?.emit('spectator:requestJoin', { team });
+        },
+
+        respondToJoinRequest(requesterId: string, approved: boolean, team?: string): void {
+            this._getSocket()?.emit('spectator:approveJoin', { requesterId, approved, team });
+        },
+
+        // =====================
         // Session & Storage
         // =====================
 

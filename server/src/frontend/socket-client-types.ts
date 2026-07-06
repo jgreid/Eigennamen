@@ -30,6 +30,9 @@ import type {
     SettingsUpdatedData,
     StatsUpdatedData,
     SpectatorChatData,
+    SpectatorJoinRequestData,
+    SpectatorJoinApprovedData,
+    SpectatorJoinDeniedData,
     ChatMessageData,
     KickedData,
     PlayerKickedData,
@@ -125,6 +128,11 @@ export interface ClientEventMap {
     // Chat events
     chatMessage: ChatMessageData;
     spectatorChatMessage: SpectatorChatData;
+
+    // Spectator join-request flow (F6)
+    spectatorJoinRequest: SpectatorJoinRequestData;
+    spectatorJoinApproved: SpectatorJoinApprovedData;
+    spectatorJoinDenied: SpectatorJoinDeniedData;
 
     // Error events (merged from room, player, game errors + connection errors)
     error: ErrorData;

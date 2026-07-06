@@ -40,6 +40,7 @@ import {
     closeKickConfirm,
     confirmKickPlayer,
 } from './multiplayer.js';
+import { requestJoinTeam, approvePendingJoin, denyPendingJoin } from './spectatorJoin.js';
 import {
     openGameHistory,
     closeGameHistory,
@@ -135,6 +136,8 @@ registerModalCloseHandler('error-modal', closeError);
 registerModalCloseHandler('multiplayer-modal', closeMultiplayer);
 registerModalCloseHandler('confirm-forfeit-modal', closeForfeitConfirm);
 registerModalCloseHandler('confirm-kick-modal', closeKickConfirm);
+// Dismissing the spectator approval prompt (Escape / overlay) denies the request.
+registerModalCloseHandler('spectator-join-modal', denyPendingJoin);
 registerModalCloseHandler('history-modal', () => closeModal('history-modal'));
 registerModalCloseHandler('replay-modal', closeReplay);
 
@@ -264,6 +267,20 @@ function setupEventListeners(): void {
                 break;
             case 'resume-game':
                 resumeGame();
+                break;
+
+            // Spectator join requests (F6)
+            case 'spectator-request-red':
+                requestJoinTeam('red');
+                break;
+            case 'spectator-request-blue':
+                requestJoinTeam('blue');
+                break;
+            case 'spectator-approve-join':
+                approvePendingJoin();
+                break;
+            case 'spectator-deny-join':
+                denyPendingJoin();
                 break;
 
             // Confirm kick modal

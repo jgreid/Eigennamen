@@ -258,6 +258,18 @@
         "allowSpectators": "Allow Spectators",
         "allowSpectatorsHint": "When off, new players can’t join once a game is in progress."
     },
+    "spectator": {
+        "joinPrompt": "Want to play? Ask the host to join a team:",
+        "joinRed": "Join Red",
+        "joinBlue": "Join Blue",
+        "requestSent": "Request sent to join {{team}}",
+        "wantsToJoin": "{{nickname}} wants to join {{team}}",
+        "approvalTitle": "Join Request",
+        "approve": "Approve",
+        "deny": "Deny",
+        "approved": "You’ve joined {{team}}!",
+        "denied": "Your request to join a team was declined"
+    },
     "wordList": {
         "default": "Default Words",
         "custom": "Custom Words",

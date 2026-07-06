@@ -146,6 +146,25 @@ export interface SpectatorChatData {
     timestamp?: number;
 }
 
+// Spectator join-request flow (F6)
+export interface SpectatorJoinRequestData {
+    requesterId: string;
+    requesterNickname: string;
+    team: 'red' | 'blue';
+    timestamp?: number;
+}
+
+export interface SpectatorJoinApprovedData {
+    team: 'red' | 'blue';
+    message?: string;
+    timestamp?: number;
+}
+
+export interface SpectatorJoinDeniedData {
+    message?: string;
+    timestamp?: number;
+}
+
 // Chat message data from server
 export interface ChatMessageData {
     from: {

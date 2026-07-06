@@ -705,6 +705,58 @@
     display: none;
 }
 
+/* ========== F6: SPECTATOR JOIN REQUEST ========== */
+.spectator-join-panel {
+    margin: 10px auto 0;
+    padding: 10px 14px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    max-width: 640px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+}
+
+.spectator-join-panel[hidden] {
+    display: none;
+}
+
+.spectator-join-prompt {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.spectator-join-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-spectator-join {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    transition: filter 0.15s ease;
+}
+
+.btn-spectator-join:hover {
+    filter: brightness(1.12);
+}
+
+.btn-spectator-join-red {
+    background: var(--red-team, #e74c3c);
+}
+
+.btn-spectator-join-blue {
+    background: var(--blue-team, #3498db);
+}
+
 /* ========== D-1: CHAT PANEL ========== */
 .chat-panel {
     margin-top: 4px;

@@ -9,6 +9,7 @@ import {
 import { showToast, announceToScreenReader } from './ui.js';
 import { renderBoard } from './board.js';
 import { updateClueUI } from './clueUI.js';
+import { updateSpectatorJoinUI } from './spectatorJoin.js';
 import { t } from './i18n.js';
 import { logger } from './logger.js';
 import { isClientConnected } from './clientAccessor.js';
@@ -244,6 +245,9 @@ export function updateControls(): void {
 
     // Keep the spymaster clue form / clue chip in sync with role + turn state.
     updateClueUI();
+
+    // Show/hide the spectator "request to join a team" panel (F6).
+    updateSpectatorJoinUI();
 }
 
 export function setTeam(team: string | null): void {

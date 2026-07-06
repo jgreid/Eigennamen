@@ -38,7 +38,7 @@
          the whole app. Freshness is handled instead by the content-hash ?v= cache-bust
          below, which esbuild keeps in sync with the file contents on every build. -->
     <script defer src="/js/socket.io.min.js?v=9336af8f"></script>
-    <script defer src="/js/socket-client.js?v=0330d2e9"></script>
+    <script defer src="/js/socket-client.js?v=d0d516b6"></script>
     <link rel="stylesheet" href="/css/variables.css" />
     <link rel="stylesheet" href="/css/layout.css" />
     <link rel="stylesheet" href="/css/components.css" />
@@ -796,6 +796,38 @@
               </button>
             </div>
           </div>
+
+          <!-- Spectator "request to join a team" panel (F6). Shown only to a
+               spectator while a game is in progress; the host approves/denies. -->
+          <div
+            class="spectator-join-panel"
+            id="spectator-join-panel"
+            hidden
+          >
+            <span
+              class="spectator-join-prompt"
+              data-i18n="spectator.joinPrompt"
+              >Want to play? Ask the host to join a team:</span
+            >
+            <div class="spectator-join-buttons">
+              <button
+                type="button"
+                class="btn-spectator-join btn-spectator-join-red"
+                data-action="spectator-request-red"
+                data-testid="spectator-request-red"
+              >
+                <span data-i18n="spectator.joinRed">Join Red</span>
+              </button>
+              <button
+                type="button"
+                class="btn-spectator-join btn-spectator-join-blue"
+                data-action="spectator-request-blue"
+                data-testid="spectator-request-blue"
+              >
+                <span data-i18n="spectator.joinBlue">Join Blue</span>
+              </button>
+            </div>
+          </div>
         </div>
       </main>
 
@@ -1479,6 +1511,36 @@
       </div>
     </div>
 
+    <!-- Spectator join-request approval modal (F6, host only) -->
+    <div class="modal-overlay" id="spectator-join-modal">
+      <div class="modal confirm-dialog">
+        <h2 data-i18n="spectator.approvalTitle">Join Request</h2>
+        <p id="spectator-join-request-text">
+          A spectator wants to join a team.
+        </p>
+        <div class="modal-buttons">
+          <button
+            type="button"
+            class="btn-primary"
+            data-action="spectator-approve-join"
+            data-testid="spectator-approve-btn"
+            data-i18n="spectator.approve"
+          >
+            Approve
+          </button>
+          <button
+            type="button"
+            class="btn-cancel"
+            data-action="spectator-deny-join"
+            data-testid="spectator-deny-btn"
+            data-i18n="spectator.deny"
+          >
+            Deny
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Game Over Modal -->
     <div
       class="modal-overlay"
@@ -1838,7 +1900,7 @@
       </div>
     </div>
 
-    <script type="module" src="/js/modules/app.js?v=aee31ad7"></script>
+    <script type="module" src="/js/modules/app.js?v=6aca14ff"></script>
     <!-- Fallback: detect if the ES module failed to load + service worker registration -->
     <script src="/js/app-fallback.js"></script>
   </body>

@@ -48,6 +48,9 @@ const spectatorJoinResponseSchema = z.object({
         .transform((val: string) => removeControlChars(val).trim())
         .refine((val: string) => sessionIdRegex.test(val), 'Invalid requester ID format'),
     approved: z.boolean(),
+    // Team the requester asked to join, echoed back by the host's client so the
+    // server can seat the approved spectator. Optional/ignored on a denial.
+    team: z.enum(['red', 'blue']).optional(),
 });
 
 // Type exports for schema inference

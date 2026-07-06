@@ -258,6 +258,18 @@
         "allowSpectators": "Permitir espectadores",
         "allowSpectatorsHint": "Si se desactiva, los nuevos jugadores no pueden unirse una vez que la partida está en curso."
     },
+    "spectator": {
+        "joinPrompt": "¿Quieres jugar? Pide al anfitrión unirte a un equipo:",
+        "joinRed": "Unirse a Rojo",
+        "joinBlue": "Unirse a Azul",
+        "requestSent": "Solicitud enviada para unirse a {{team}}",
+        "wantsToJoin": "{{nickname}} quiere unirse a {{team}}",
+        "approvalTitle": "Solicitud para unirse",
+        "approve": "Aprobar",
+        "deny": "Denegar",
+        "approved": "¡Te has unido a {{team}}!",
+        "denied": "Tu solicitud para unirte a un equipo fue rechazada"
+    },
     "wordList": {
         "default": "Palabras predeterminadas",
         "custom": "Palabras personalizadas",

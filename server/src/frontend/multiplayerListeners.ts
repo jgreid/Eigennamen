@@ -5,6 +5,7 @@ import { registerPlayerHandlers } from './handlers/playerEventHandlers.js';
 import { registerRoomHandlers } from './handlers/roomEventHandlers.js';
 import { registerTimerHandlers } from './handlers/timerEventHandlers.js';
 import { registerChatAndErrorHandlers } from './handlers/chatEventHandlers.js';
+import { registerSpectatorJoinHandlers } from './spectatorJoin.js';
 
 /**
  * Register all multiplayer event listeners.
@@ -22,5 +23,6 @@ export function setupMultiplayerListeners(): void {
     registerRoomHandlers();
     registerTimerHandlers();
     registerChatAndErrorHandlers();
+    registerSpectatorJoinHandlers();
     state.multiplayerListenersSetup = true;
 }
