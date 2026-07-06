@@ -259,9 +259,11 @@ Server lifecycle, background maintenance, and the deploy pipeline. B1 and B5 are
 
 ---
 
-### B3 — The WATCH/MULTI conflict-retry logic is dead code under node-redis v5
+### B3 — The WATCH/MULTI conflict-retry logic is dead code under node-redis v5 — **FIXED**
 
 **Severity:** Medium · **Area:** Concurrency / data layer
+
+**Resolution (shipped):** empirically confirmed against embedded Redis that v5's `multi().exec()` **throws `WatchError`** on a dirty WATCH (never returns null). Added `utils/isWatchError.ts` (matches by `instanceof` and constructor name, dual-package-safe) and wired it into both retry sites: `executeGameTransaction`'s catch now treats a `WatchError` as the retry condition (increment, back off, `continue`) instead of rethrowing, and `updatePlayer`'s WATCH/MULTI fallback wraps `exec()` so a `WatchError` falls through to its retry loop while any other error propagates. The `exec() === null` checks stay as belt-and-braces. The shared mock's `multi().exec()` now mirrors v5 (returns raw replies, and throws `WatchError` when a snapshotted watched key changed), so mock-based tests can exercise the path too. Two real-Redis cases (`luaScripts.test.ts`) force a dirty WATCH from inside the operation: one asserts retry-then-commit (op runs twice, write not lost), one asserts exhaustion throws `ServerError.concurrentModification`.
 
 **Root cause:** `executeGameTransaction` (`luaGameOps.ts:297-312`) retries only on `exec() === null` — ioredis semantics. The installed client (`redis ^5.12.1`) never returns null on a WATCH conflict: `@redis/client`'s exec paths **throw `WatchError`** (including converting a server-side EXEC-null into a thrown error). The catch block rethrows, so on any genuine conflict the operation does not retry: a raw `WatchError` propagates as generic `SERVER_ERROR` and the write is lost. `playerService.updatePlayer` (220-236) has the same bug with no try/catch at all. The shared Redis mock (`__tests__/helpers/mocks.ts:203-244`) encodes the same wrong semantics — exec returning tuples/null, never throwing — so no existing test can catch it.
 
@@ -289,9 +291,11 @@ Server lifecycle, background maintenance, and the deploy pipeline. B1 and B5 are
 
 ---
 
-### B5 — Every deploy destroys all live games with no warning to players
+### B5 — Every deploy destroys all live games with no warning to players — **PARTIALLY FIXED (step 2 shipped)**
 
 **Severity:** High (product/ops) · **Area:** Deployment
+
+**Progress (shipped):** step 2 (fix the broken warning) landed — `handleDisconnect`/`cleanupSocketModule` emit the established `{ code: 'SERVER_SHUTDOWN', message }` shape and `roomEventHandlers.ts` now renders it via `showToast(t('multiplayer.serverShutdown'), 'warning')` (localized ×4), so players learn *why* a game vanished on deploy. **Still open:** step 3 (the real fix) — provisioning Fly Redis so state survives a deploy — remains an infra change, and step 1's DEPLOYMENT.md reality note is folded into the C-series docs items.
 
 **Root cause:** `fly.toml` combines `REDIS_URL = "memory"` (all rooms/games/history in-process) with `[deploy] strategy = "immediate"`, and `deploy.yml` auto-deploys every CI-green push to `main`. Every merge therefore kills every active game mid-play — players see an unexplained disconnect, and on reconnect the room no longer exists. The one mechanism meant to warn them is a **no-op**: `cleanupSocketModule` (`socket/index.ts:226-230`) emits `ROOM_WARNING` with `{ type: 'server_shutdown', message }`, but the sole client handler (`frontend/handlers/roomEventHandlers.ts:81-98`) branches exclusively on `data.code` (STATS_STALE / BOT_STALLED / BOT_SEAT_RECLAIMED), has no else-fallback, and never renders `data.message` — and `RoomWarningData` (`multiplayerTypes.ts:272-276`) has no `type` field, so the payload matches nothing and is discarded. The 2-second drain (`SHUTDOWN_DRAIN_MS`) waits for clients to "process the warning" none of them receive. This is the single largest real-user pain the review found, and it is not tracked anywhere (HARDENING_PLAN P2-5 covers only the second-machine autoscaler guard).
 
@@ -308,9 +312,11 @@ Server lifecycle, background maintenance, and the deploy pipeline. B1 and B5 are
 
 ---
 
-### B6 — `deploy.yml` deploys the current `main` HEAD, not the commit that passed CI; auto-deploy failures have no rollback path
+### B6 — `deploy.yml` deploys the current `main` HEAD, not the commit that passed CI; auto-deploy failures have no rollback path — **FIXED**
 
 **Severity:** Medium · **Area:** CI/CD
+
+**Resolution (shipped):** `deploy.yml` now pins the checkout to `ref: ${{ github.event.workflow_run.head_sha || github.sha }}` (deploying the exact commit CI validated), and a `rollback` job redeploys the previous Fly release image on a failed post-deploy health check. Confirmed live in `deploy.yml` (`ref:` at the checkout step; `rollback:` job with `flyctl deploy --image …:deployment-<prev>`).
 
 **Root cause:** The `workflow_run`-triggered deploy job checks out with a bare `actions/checkout` (no `ref:`, `deploy.yml:44`) — for `workflow_run` events the default is the default-branch HEAD at event time, not `github.event.workflow_run.head_sha` (the commit the gating `if:` at lines 34-37 actually validated). Race: commit A passes CI → deploy fires → commit B lands on `main` (its CI later fails or is cancelled by the concurrency group) → the deploy ships B. Separately, the rollback job (line 104) is unreachable for auto-deploys, so a failed post-deploy health check just exits 1 with the broken release live.
 
@@ -366,9 +372,11 @@ Server lifecycle, background maintenance, and the deploy pipeline. B1 and B5 are
 
 ---
 
-### B10 — `deploy.yml`'s health check greps for a string `/health/ready` never returns
+### B10 — `deploy.yml`'s health check greps for a string `/health/ready` never returns — **FIXED**
 
 **Severity:** Medium · **Area:** CI/CD
+
+**Resolution (shipped):** the verify step now uses the HTTP status as the health signal — `curl -fsS -o /dev/null …/health/ready` (which already 503s when degraded) — instead of grepping for a substring the endpoint never returns. Confirmed live in `deploy.yml`. This also makes B6's rollback fire only on genuine failures.
 
 **Root cause:** The verify step (`deploy.yml:73-74`) does `HEALTH=$(curl -sf …/health/ready) … if echo "$HEALTH" | grep -q "ok"`. But `/health/ready` (`routes/healthRoutes.ts:121-138`) responds with `status: 'ready'` (200) or `'degraded'` (503) — the substring "ok" appears nowhere in any success body (only the separate `GET /health` returns `status: 'ok'`). The 30-attempt loop always exhausts and hits `exit 1`, healthy or not.
 
@@ -410,9 +418,11 @@ Server lifecycle, background maintenance, and the deploy pipeline. B1 and B5 are
 
 ---
 
-### B13 — Production runs end-of-life Node 25, which CI never tests
+### B13 — Production runs end-of-life Node 25, which CI never tests — **FIXED**
 
 **Severity:** Medium · **Area:** Dependencies / deployment
+
+**Resolution (shipped):** both `server/Dockerfile` stages now pin `node:24-alpine3.21` — the active LTS line, already in CI's `[22, 24]` test matrix — so the shipped and tested majors align. Confirmed live in `server/Dockerfile`.
 
 **Root cause:** `server/Dockerfile:3,43` pins `node:25.2-alpine3.21` for both stages. Node 25 is an odd-numbered "Current" line whose scheduled EOL was 2026-06-01 — as of this review (2026-07-05) it receives no upstream security patches, and Dependabot's Dockerfile bumps can only offer other 25.x tags. Meanwhile `ci.yml` sets `NODE_VERSION: 22` and its test matrix is `[22, 24]` — the 4,386-test suite never runs on the major version production actually ships (only the docker job's start-and-curl smoke touches Node 25).
 
@@ -591,9 +601,11 @@ The a11y items C1/C2 together make timed multiplayer rooms essentially unusable 
 
 The E2E suite is the plan's protective infrastructure: D1 unblocks trustworthy verification for most Phase A fixes — do it first.
 
-### D1 — Make the E2E suite green and meaningful again
+### D1 — Make the E2E suite green and meaningful again — **FIXED**
 
 **Severity:** High · **Area:** Testing / CI
+
+**Resolution (shipped):** all 16 E2E specs were brought green against a real browser + server and verified in CI (see the Progress notes below), and a blocking `e2e-smoke` job was added to the `ci-passed` gate so a core-loop regression now produces a red delta. The plan's step (d) — promoting the *full* E2E suite into the blocking gate and dropping `--max-failures` — was deliberately **not** taken: `ci.yml` documents the full `e2e` job as intentionally non-blocking (a flaky full-suite run should not gate merges), with `e2e-smoke` covering the always-on slice. So the item's goal — a green, meaningful suite with a blocking regression signal — is met; the remaining full-suite-gating is a conscious design choice, not an open defect.
 
 **Root cause, three stacked problems:** (1) `game-flow.spec.js` has 6 of 9 tests failing on unmodified `main` — the tests click role buttons without joining a team, which `setSpymasterCurrent()`/`setClickerCurrent()` (`roles.ts:454-468`) reject with a "join a team first" toast; two failures have additional causes beyond the guard. (2) `game-modes.spec.js`'s `selectGameMode()` force-checks a radio inside a settings panel it never opens (all 8 game-modes failures). (3) With ~15 known failures and `--max-failures=20` (`ci.yml:643`), Playwright aborts mid-run — alphabetically later specs (security, setup-screen, spectator-approval, standalone-game, timer — including the P1-13 deliverables) are routinely never executed at all. The non-blocking job is permanently red: a new regression produces no red *delta* anywhere.
 
@@ -659,9 +671,11 @@ Separately, opening a standalone game URL (`?game=…`) left the setup screen (v
 
 ---
 
-### D4 — `createMockRedis` diverges from node-redis v5 in load-bearing ways; one divergence masks a real production bug
+### D4 — `createMockRedis` diverges from node-redis v5 in load-bearing ways; one divergence masks a real production bug — **FIXED**
 
 **Severity:** Medium · **Area:** Testing (+1 production defect)
+
+**Resolution (shipped):** the masked production bug is fixed first — `getHistoryStats` now calls `redis.zRangeWithScores(indexKey, 0, 0)`/`(-1, -1)` instead of `zRange(..., { WITHSCORES: true })`. Empirically confirmed against embedded Redis that v5's `zRange` **silently ignores** `WITHSCORES` (returns bare members), so the old call always yielded `null` oldest/newest in production. The hand-written `RedisClient` type dropped the bogus `WITHSCORES` option and gained `zRangeWithScores`, so the compiler now steers callers correctly. The three mock divergences are corrected: `del()` now clears sorted sets, `zAdd` upserts by member (was duplicating), and `zRange` no longer honors `WITHSCORES` (with a new `zRangeWithScores` beside it) — so the mock can no longer certify a `WITHSCORES`-on-`zRange` bug as passing. A real-Redis case (`luaScripts.test.ts`) asserts non-null oldest/newest with finite, ordered scores after two saves — it fails on pre-fix code, proving the bug.
 
 **Root cause:** Three confirmed divergences (`__tests__/helpers/mocks.ts`): the mock's `zRange` honors a `WITHSCORES` option that the real client **silently ignores** (the client's zRange builder handles only BY/REV/LIMIT; `zRangeWithScores` is a separate command) — which masks a live bug: `getHistoryStats` (`services/gameHistory/storage.ts:445-446`) passes `WITHSCORES` to `zRange` and is broken in production (returns no scores), certified green by the mock. Also: mock `del()` never clears sorted sets; mock `zAdd` duplicates members instead of upserting. The hand-written `RedisClient` interface (`types/redis.ts:60`) wrongly declares the `WITHSCORES` option, which is why typecheck doesn't catch it.
 
