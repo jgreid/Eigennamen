@@ -233,8 +233,9 @@ async function handleJoinGame(): Promise<void> {
 
         if (signal.aborted) return;
 
-        state.currentRoomId = result.room?.code || normalizedRoomId;
-        onMultiplayerJoined(result, false);
+        // currentRoomId is now assigned inside onMultiplayerJoined (after the
+        // room-change comparison) — pass the fallback so it can resolve it (H4).
+        onMultiplayerJoined(result, false, normalizedRoomId);
     } catch (error: unknown) {
         const err = error as { name?: string; code?: string; message?: string };
         if (err.name === 'AbortError' || signal.aborted) return;
@@ -314,8 +315,9 @@ async function handleCreateGame(): Promise<void> {
 
         if (signal.aborted) return;
 
-        state.currentRoomId = result.room?.code || normalizedRoomId;
-        onMultiplayerJoined(result, true);
+        // currentRoomId is now assigned inside onMultiplayerJoined (after the
+        // room-change comparison) — pass the fallback so it can resolve it (H4).
+        onMultiplayerJoined(result, true, normalizedRoomId);
     } catch (error: unknown) {
         const err = error as { name?: string; code?: string; message?: string };
         if (err.name === 'AbortError' || signal.aborted) return;
@@ -334,11 +336,23 @@ async function handleCreateGame(): Promise<void> {
     }
 }
 
-export function onMultiplayerJoined(result: JoinCreateResult, isHostParam: boolean = false): void {
-    // Detect room change and reset stale state
-    const newRoomCode = result.room?.code;
+export function onMultiplayerJoined(
+    result: JoinCreateResult,
+    isHostParam: boolean = false,
+    fallbackRoomCode: string = ''
+): void {
+    // Detect room change and reset stale state. This owns the state.currentRoomId
+    // assignment: callers used to set it *before* calling in, which made the
+    // comparison below always compare the new code against itself (never true),
+    // so a room switch left room A's index-addressed advisor-suggestion badges
+    // rendered onto room B's board (H4). Comparing against the OLD value first,
+    // then assigning, makes the reset actually fire.
+    const newRoomCode = result.room?.code || fallbackRoomCode || null;
     if (state.currentRoomId && newRoomCode && state.currentRoomId !== newRoomCode) {
         resetMultiplayerState();
+    }
+    if (newRoomCode) {
+        state.currentRoomId = newRoomCode;
     }
 
     state.isMultiplayerMode = true;

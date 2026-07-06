@@ -176,9 +176,10 @@ describe('handleSetupAction("setup-join-submit")', () => {
         expect(setupMultiplayerListeners).toHaveBeenCalled();
         expect(mockJoinRoom).toHaveBeenCalledWith('my-room', 'Player1');
         expect(safeSetItem).toHaveBeenCalledWith('eigennamen-nickname', 'Player1');
-        expect(state.currentRoomId).toBe('my-room');
         expect(document.getElementById('setup-screen')!.hidden).toBe(true);
-        expect(onMultiplayerJoined).toHaveBeenCalledWith(mockResult, false);
+        // currentRoomId is now assigned inside onMultiplayerJoined (H4); the caller
+        // passes the normalized room code as the fallback 3rd argument.
+        expect(onMultiplayerJoined).toHaveBeenCalledWith(mockResult, false, 'my-room');
     });
 
     test('disables button during submission and re-enables after', async () => {
@@ -314,7 +315,9 @@ describe('handleSetupAction("setup-host-submit")', () => {
                 teamNames: { red: 'Cats', blue: 'Dogs' },
             })
         );
-        expect(onMultiplayerJoined).toHaveBeenCalledWith(mockResult, true);
+        // currentRoomId is now assigned inside onMultiplayerJoined (H4); the caller
+        // passes the normalized room code as the fallback 3rd argument.
+        expect(onMultiplayerJoined).toHaveBeenCalledWith(mockResult, true, 'my-room');
     });
 
     test('defaults team names to Red/Blue when empty', async () => {

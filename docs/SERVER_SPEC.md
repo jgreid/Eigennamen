@@ -355,6 +355,30 @@ socket.on('game:over', {
     reason: "completed", // or "assassin" or "forfeit"
     types: [...] // Reveal all card types
 });
+
+// ===== READY CHECK / PAUSE / TYPING =====
+
+// Host starts a ready check; each player marks themselves ready. Both push an
+// updated roster to the room via `game:readyStatus`.
+socket.emit('game:readyCheck');            // host only
+socket.emit('game:ready');                 // any room member
+socket.on('game:readyStatus', {
+    active: true,
+    players: [{ sessionId, nickname, ready: false }],
+    startedBy: "session-id",
+    timeout: 30000
+});
+
+// Pause / resume an in-progress game (requires an active game). The server
+// broadcasts the transition so bots and clients react.
+socket.emit('game:pause');
+socket.on('game:paused', { by: "session-id" });
+socket.emit('game:resume');
+socket.on('game:resumed', { by: "session-id" });
+
+// Spymaster "is typing a clue" indicator — echoed to the room.
+socket.emit('game:typing');
+socket.on('game:typing', { team: "red", nickname: "Alice" });
 ```
 
 #### Bot Events
@@ -415,10 +439,9 @@ socket.on('chat:message', {
 ```javascript
 // ===== CLIENT → SERVER =====
 
-// Start turn timer (host only)
-socket.emit('timer:start', {
-    duration: 60 // seconds
-});
+// NOTE: there is no `timer:start` event. The turn timer is server-initiated —
+// the server starts it internally on game start / turn change and announces it
+// via `timer:started`. Clients only pause/resume/stop/add-time.
 
 // Pause timer (host only)
 socket.emit('timer:pause');
@@ -442,10 +465,8 @@ socket.on('timer:started', {
     endTime: 1234567890000 // Unix timestamp ms
 });
 
-// Timer tick (periodic update)
-socket.on('timer:tick', {
-    remainingSeconds: 45
-});
+// NOTE: there is no `timer:tick` broadcast — the client counts down locally
+// from `timer:started`'s endTime. `timer:expired` fires once when time is up.
 
 // Timer paused
 socket.on('timer:paused', {

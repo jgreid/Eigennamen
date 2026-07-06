@@ -189,10 +189,10 @@ async function handleJoinSubmit(): Promise<void> {
         const result: JoinCreateResult = await EigennamenClient.joinRoom(normalizedRoomId, nickname);
 
         safeSetItem('eigennamen-nickname', nickname);
-        state.currentRoomId = result.room?.code || normalizedRoomId;
         sessionStarted = true;
         hideSetupScreen();
-        onMultiplayerJoined(result, false);
+        // onMultiplayerJoined owns the currentRoomId assignment now (H4).
+        onMultiplayerJoined(result, false, normalizedRoomId);
     } catch (error: unknown) {
         const err = error as { code?: string; message?: string };
         logger.error('Setup join failed:', error);
@@ -270,7 +270,9 @@ async function handleHostSubmit(): Promise<void> {
         });
 
         safeSetItem('eigennamen-nickname', nickname);
-        state.currentRoomId = result.room?.code || normalizedRoomId;
+        // currentRoomId is assigned inside onMultiplayerJoined (below); updateSettings
+        // reads the socket client's own room, not state.currentRoomId, so deferring
+        // the assignment here is safe (H4).
 
         // Apply team names locally
         state.teamNames.red = redName;
@@ -289,7 +291,7 @@ async function handleHostSubmit(): Promise<void> {
 
         sessionStarted = true;
         hideSetupScreen();
-        onMultiplayerJoined(result, true);
+        onMultiplayerJoined(result, true, normalizedRoomId);
     } catch (error: unknown) {
         const err = error as { code?: string; message?: string };
         logger.error('Setup create failed:', error);

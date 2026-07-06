@@ -135,13 +135,26 @@ fly secrets set BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec
 
 ### Configuration (fly.toml)
 
-The repository includes `fly.toml` with recommended settings:
+The repository includes a well-commented `fly.toml`; read that file for the
+authoritative, current settings. The key excerpts below are what most affect a
+deployment — note especially the **storage backend** (`REDIS_URL = "memory"`),
+which is load-bearing for the single-machine constraint discussed under Scaling:
 
 ```toml
 [env]
   NODE_ENV = "production"
   PORT = "3000"
   LOG_LEVEL = "info"
+  CORS_ORIGIN = "https://eigennamen.fly.dev"
+
+  # Storage backend for game state (rooms, players, timers). The app ships in
+  # in-memory mode: state lives ONLY in the one running machine's process — it
+  # does NOT survive a deploy or restart, and a second machine can't see it (see
+  # Scaling below). Provision Redis and move REDIS_URL to a secret to change this:
+  #   fly redis create && fly secrets set REDIS_URL=rediss://...
+  # then delete these two lines.
+  REDIS_URL = "memory"
+  MEMORY_MODE_ALLOW_FLY = "true"
 
 [http_service]
   internal_port = 3000
@@ -172,10 +185,36 @@ The repository includes `fly.toml` with recommended settings:
   cpus = 1
 ```
 
+### Deploys wipe live game state (memory mode)
+
+With the shipped `REDIS_URL = "memory"` config and `[deploy] strategy = "immediate"`,
+**every deploy restarts the machine and destroys all in-progress games** — rooms,
+players, timers, and history all live in the process and do not survive the
+restart. Players mid-game see a disconnect and, on reconnect, the room no longer
+exists (the client shows a "server is restarting" notice). Because `deploy.yml`
+auto-deploys every CI-green push to `main`, prefer to **merge during low-traffic
+windows**. To make state survive deploys, provision Redis (see below) — with an
+external Redis, sockets reconnect into the still-live room and `strategy = "immediate"`
+stops being destructive. Tracked as `docs/IMPROVEMENT_PLAN.md` B5.
+
 ### Scaling
 
+> **Single-machine constraint (memory mode).** While `REDIS_URL = "memory"` is set
+> (the shipped default), game state lives only in one machine's process, so a
+> second machine can't see existing rooms — a player routed there gets
+> "room not found" (split-brain). **Do not scale past one machine until you
+> provision external Redis first:**
+>
+> ```bash
+> fly redis create
+> fly secrets set REDIS_URL=rediss://...     # then remove REDIS_URL/MEMORY_MODE_ALLOW_FLY from fly.toml [env]
+> ```
+>
+> Only after Redis is shared across instances is `fly scale count 2` safe. See
+> `fly.toml`'s storage comment and `docs/HARDENING_PLAN.md` P2-5.
+
 ```bash
-# Scale to 2 instances
+# Scale to 2 instances — ONLY after provisioning shared Redis (see the note above)
 fly scale count 2
 
 # Scale memory
