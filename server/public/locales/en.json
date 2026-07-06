@@ -117,7 +117,14 @@
         "classicStarted": "New game started! Pick your team and role to play.",
         "roundStarted": "Round {{round}} started! Choose your roles.",
         "roundComplete": "Round {{round}} complete! {{team}} wins{{bonus}}. Match: {{red}} {{redScore}} - {{blueScore}} {{blue}}",
-        "matchOverWinner": "Match over! {{team}} wins {{redScore}} - {{blueScore}}!"
+        "matchOverWinner": "Match over! {{team}} wins {{redScore}} - {{blueScore}}!",
+        "pausedTitle": "Game Paused",
+        "pausedBy": "Paused by {{nickname}}",
+        "pauseGame": "Pause Game",
+        "resumeGame": "Resume Game",
+        "pausedToast": "{{nickname}} paused the game",
+        "resumedToast": "{{nickname}} resumed the game",
+        "theHost": "the host"
     },
     "board": {
         "clickToReveal": "Click to reveal",
@@ -235,7 +242,8 @@
         "storageFailed": "Settings applied but could not be saved. They will be lost on reload.",
         "game": "Game",
         "dangerZone": "Danger Zone",
-        "forfeitGame": "Forfeit Current Game"
+        "forfeitGame": "Forfeit Current Game",
+        "gameControls": "Game Controls"
     },
     "roomSettings": {
         "gameMode": "Game Mode",

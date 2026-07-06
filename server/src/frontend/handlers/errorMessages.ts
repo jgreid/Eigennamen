@@ -22,6 +22,7 @@ export function getErrorMessage(error: ServerErrorData): string {
         NOT_CLICKER: 'Only the Clicker can reveal cards \u2014 select the Clicker role first',
         NOT_SPYMASTER: 'Only spymasters can perform this action',
         GAME_NOT_STARTED: 'Wait for the host to start the game',
+        GAME_PAUSED: 'The game is paused \u2014 wait for the host to resume',
         GAME_OVER: 'The game has ended \u2014 click New Game to play again',
         CARD_ALREADY_REVEALED: 'That card has already been revealed',
         NO_CLUE_GIVEN: 'Wait for a clue before revealing a card',

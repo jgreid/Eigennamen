@@ -176,6 +176,10 @@ export interface AppState {
     // Game state
     gameState: GameState;
 
+    /** True when the host has paused the game (renders the pause overlay,
+     *  blocks board interaction). Synced from game:paused/resumed + resync. */
+    gamePaused: boolean;
+
     // Timer state
     timerState: TimerState;
 

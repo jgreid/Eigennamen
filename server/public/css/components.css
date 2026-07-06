@@ -683,6 +683,8 @@ button:focus-visible,
     width: 100%;
     max-width: min(1050px, calc((100dvh - 120px) * 2));
     margin: auto 0;
+    /* Anchor the pause overlay (F1), which is absolutely positioned to inset:0. */
+    position: relative;
 }
 
 .board {

@@ -30,6 +30,8 @@ import type {
     ClueGivenData,
     TurnEndedData,
     GameOverData,
+    GamePausedData,
+    GameResumedData,
     RoundEndedData,
     MatchOverData,
     SpymasterViewData,
@@ -217,6 +219,14 @@ export function registerAllEventListeners(register: RegisterFn, emit: EmitFn, cl
 
     register('game:over', (raw: unknown) => {
         emit('gameOver', raw as GameOverData);
+    });
+
+    register('game:paused', (raw: unknown) => {
+        emit('gamePaused', raw as GamePausedData);
+    });
+
+    register('game:resumed', (raw: unknown) => {
+        emit('gameResumed', raw as GameResumedData);
     });
 
     register('game:roundEnded', (raw: unknown) => {

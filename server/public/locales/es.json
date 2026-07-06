@@ -117,7 +117,14 @@
         "classicStarted": "¡Nuevo juego iniciado! Elige tu equipo y rol.",
         "roundStarted": "¡Ronda {{round}} iniciada! Elegid vuestros roles.",
         "roundComplete": "¡Ronda {{round}} completada! {{team}} gana{{bonus}}. Marcador: {{red}} {{redScore}} - {{blueScore}} {{blue}}",
-        "matchOverWinner": "¡Partida terminada! {{team}} gana {{redScore}} - {{blueScore}}!"
+        "matchOverWinner": "¡Partida terminada! {{team}} gana {{redScore}} - {{blueScore}}!",
+        "pausedTitle": "Juego en pausa",
+        "pausedBy": "Pausado por {{nickname}}",
+        "pauseGame": "Pausar juego",
+        "resumeGame": "Reanudar juego",
+        "pausedToast": "{{nickname}} pausó el juego",
+        "resumedToast": "{{nickname}} reanudó el juego",
+        "theHost": "el anfitrión"
     },
     "board": {
         "clickToReveal": "Clic para revelar",
@@ -235,7 +242,8 @@
         "storageFailed": "Los ajustes se aplicaron pero no se pudieron guardar. Se perderán al recargar.",
         "game": "Juego",
         "dangerZone": "Zona peligrosa",
-        "forfeitGame": "Abandonar partida actual"
+        "forfeitGame": "Abandonar partida actual",
+        "gameControls": "Controles del juego"
     },
     "roomSettings": {
         "gameMode": "Modo de juego",

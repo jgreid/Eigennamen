@@ -218,6 +218,14 @@ import type { JoinCreateResult } from './multiplayerTypes.js';
             }
         },
 
+        pauseGame(): void {
+            this._getSocket()?.emit('game:pause');
+        },
+
+        resumeGame(): void {
+            this._getSocket()?.emit('game:resume');
+        },
+
         getGameHistory(limit: number = 10): void {
             this._getSocket()?.emit('game:getHistory', { limit });
         },

@@ -34,6 +34,8 @@ export {
     confirmForfeit,
     closeForfeitConfirm,
     forfeitGame,
+    pauseGame,
+    resumeGame,
     closeKickConfirm,
     confirmKickPlayer,
     updateForfeitButton,

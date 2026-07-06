@@ -497,6 +497,35 @@
     color: #ff6b6b;
 }
 
+/* ========== F1: PAUSE CONTROL (settings) ========== */
+.settings-pause-section {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.btn-pause-settings {
+    width: 100%;
+    padding: 10px 16px;
+    background: rgba(255, 193, 7, 0.1);
+    border: 1px solid rgba(255, 193, 7, 0.25);
+    border-radius: var(--radius-sm);
+    color: rgba(255, 205, 86, 0.85);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-pause-settings:hover {
+    background: rgba(255, 193, 7, 0.22);
+    border-color: rgba(255, 193, 7, 0.5);
+    color: #ffd54f;
+}
+
 /* ========== NICKNAME EDIT ========== */
 .nickname-edit {
     margin-top: 8px;
@@ -604,6 +633,76 @@
     border-top-color: #1a1a2e;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
+}
+
+/* ========== F1: GAME PAUSE OVERLAY ========== */
+/* Covers just the board (its container is position:relative) so chat and the
+   settings menu stay reachable while the game is paused. */
+.pause-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: var(--z-overlay);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10, 10, 25, 0.82);
+    border-radius: 8px;
+}
+
+.pause-overlay[hidden] {
+    display: none;
+}
+
+.pause-overlay-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    text-align: center;
+    padding: 24px;
+    color: #fff;
+}
+
+.pause-overlay-icon {
+    font-size: 3rem;
+    line-height: 1;
+}
+
+.pause-overlay-title {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 700;
+}
+
+.pause-overlay-by {
+    margin: 0;
+    font-size: 0.95rem;
+    opacity: 0.85;
+    min-height: 1.2em;
+}
+
+.btn-resume-game {
+    margin-top: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 22px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #12351f;
+    background: #4ade80;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.btn-resume-game:hover {
+    background: #22c55e;
+}
+
+.btn-resume-game[hidden] {
+    display: none;
 }
 
 /* ========== D-1: CHAT PANEL ========== */
