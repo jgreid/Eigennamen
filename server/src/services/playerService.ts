@@ -7,6 +7,7 @@ import { REDIS_TTL } from '../config/constants';
 import { ServerError } from '../errors/GameError';
 import { tryParseJSON, parseJSON } from '../utils/parseJSON';
 import { executeWithFallback } from '../utils/executeWithFallback';
+import { isWatchError } from '../utils/isWatchError';
 import {
     UPDATE_PLAYER_SCRIPT,
     HOST_TRANSFER_SCRIPT,
@@ -217,13 +218,23 @@ export async function updatePlayer(sessionId: string, updates: PlayerUpdateData)
             lastSeen: Date.now(),
         };
 
-        const txResult = await redis
-            .multi()
-            .set(playerKey, JSON.stringify(updatedPlayer), { EX: REDIS_TTL.PLAYER })
-            .exec();
+        try {
+            const txResult = await redis
+                .multi()
+                .set(playerKey, JSON.stringify(updatedPlayer), { EX: REDIS_TTL.PLAYER })
+                .exec();
 
-        if (txResult !== null) {
-            return updatedPlayer;
+            if (txResult !== null) {
+                return updatedPlayer;
+            }
+        } catch (execError) {
+            // node-redis v5 THROWS WatchError from exec() on a dirty WATCH rather
+            // than returning null (the `txResult !== null` check is ioredis-era).
+            // Treat it as the concurrent-modification retry signal; any other
+            // error is a real failure and must propagate.
+            if (!isWatchError(execError)) {
+                throw execError;
+            }
         }
 
         // Transaction aborted due to concurrent modification, retry

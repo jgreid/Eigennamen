@@ -41,18 +41,18 @@ Global thresholds are set lower because infrastructure modules (redis.ts, socket
 
 | Metric | Backend Min | Frontend Min | Current |
 |--------|-------------|--------------|---------|
-| Statements | 80% | 70% | 84%+ |
-| Branches | 75% | 70% | 72%+ |
-| Functions | 85% | 70% | 77%+ |
-| Lines | 80% | 70% | 85%+ |
+| Statements | 80% | 70% | ≥ threshold |
+| Branches | 75% | 70% | ≥ threshold |
+| Functions | 85% | 70% | ≥ threshold |
+| Lines | 80% | 70% | ≥ threshold |
 
 ### Current Test Counts
 
 | Category | Suites | Tests |
 |----------|--------|-------|
-| Jest (backend + frontend) | 136 | 3,604 |
-| E2E (Playwright) | 13 | — |
-| **Total** | **149** | — |
+| Jest (backend + frontend) | 179 | 4,494 |
+| E2E (Playwright) | 16 | — |
+| **Total** | **195** | — |
 
 ## Backend Testing (Jest)
 
@@ -261,7 +261,7 @@ describe('gameHandlers', () => {
 
 ### Testing with Real Redis
 
-> **Known gap:** this pattern exists but isn't currently applied to the 29 Lua atomic scripts in `server/src/scripts/`. Every backend test — including the dedicated Lua test files — mocks `eval`/`evalSha` to return `null` and only asserts on each script's *source text*, never its actual behavior against real Redis. A broken atomic script can pass the full test suite today. Building a real-Redis Lua test harness using the pattern below is tracked in [docs/HARDENING_PLAN.md](HARDENING_PLAN.md) P1-9.
+> **Real-Redis Lua coverage:** a real-Redis Lua integration harness now exists at `server/src/__tests__/integration/luaScripts.test.ts`, which drives the 29 Lua atomic scripts against an embedded Redis (via `REDIS_URL=memory`) and asserts on their actual behavior, not just their source text. This closed HARDENING_PLAN.md P1-9, which has shipped. A blocking `e2e-smoke` CI job gates this integration path so a broken atomic script can no longer pass CI.
 
 For integration tests that need real Redis:
 
@@ -508,7 +508,7 @@ npx playwright show-trace trace.zip
 
 ## Continuous Integration
 
-Tests run automatically on every PR and push to main via `.github/workflows/ci.yml`. The CI pipeline includes 6 merge-blocking quality gates (the `ci-passed` gate's dependencies):
+Tests run automatically on every PR and push to main via `.github/workflows/ci.yml`. The CI pipeline includes 7 merge-blocking quality gates — lint, typecheck, build, test, security, docker, and e2e-smoke (the `ci-passed` job's `needs`):
 
 | Job | Description |
 |-----|-------------|
@@ -518,8 +518,9 @@ Tests run automatically on every PR and push to main via `.github/workflows/ci.y
 | **Test** | Jest with coverage (Node 22 + 24 matrix) |
 | **Security** | `npm audit` (fails on critical vulnerabilities) |
 | **Docker** | Build image, verify health endpoint, Trivy vulnerability scan |
+| **E2E-smoke** | Playwright smoke slice against a running server (includes the real-Redis Lua path) |
 
-**E2E** (Playwright against a running server, Chromium) also runs on every PR/push but is intentionally **non-blocking** — it is excluded from the `ci-passed` gate.
+**E2E:** the full Playwright suite (against a running server, Chromium) also runs on every PR/push but is intentionally **non-blocking** — the full `e2e` job is excluded from the `ci-passed` gate. The `e2e-smoke` slice, however, **is** a required gate (one of the `ci-passed` job's `needs`).
 
 Additionally, **CodeQL** runs weekly for automated security scanning (`.github/workflows/codeql.yml`).
 

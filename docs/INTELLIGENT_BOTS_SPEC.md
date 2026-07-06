@@ -915,7 +915,7 @@ A house rule the whole stack speaks (`semantics/properAssociations.ts`): the
 CASE of a clue word carries meaning.
 
 - **Mixed case ("Alien", "iPhone") = the specific proper-noun reference.** The
-  curated `PROPER_ASSOCIATIONS` table maps ~80 widely-known references (films,
+  curated `PROPER_ASSOCIATIONS` table maps ~97 widely-known references (films,
   characters, myths, brands, places, events) onto default-list board words —
   "Cinderella" → GLASS + PRINCESS + BALL. On a proper-signal clue the table
   backend scores associated words 1 and dampens everything else to lexical

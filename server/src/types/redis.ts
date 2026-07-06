@@ -53,12 +53,12 @@ export interface RedisClient {
     // ── Sorted set commands ──────────────────────────────────────────
     zAdd(key: string, member: { score: number; value: string }, options?: { NX?: boolean }): Promise<number>;
     zRem(key: string, member: string | string[]): Promise<number>;
-    zRange(
-        key: string,
-        start: number,
-        stop: number,
-        options?: { REV?: boolean; WITHSCORES?: boolean }
-    ): Promise<string[] | Array<{ value: string; score: number }>>;
+    // NOTE: node-redis v5's zRange has NO WITHSCORES option (its builder handles
+    // only BY/REV/LIMIT) — it always returns bare members. Use zRangeWithScores
+    // when scores are needed. Declaring WITHSCORES here previously masked a real
+    // bug in getHistoryStats (D4).
+    zRange(key: string, start: number, stop: number, options?: { REV?: boolean }): Promise<string[]>;
+    zRangeWithScores(key: string, start: number, stop: number): Promise<Array<{ value: string; score: number }>>;
     zRangeByScore(
         key: string,
         min: number,
@@ -83,8 +83,9 @@ export interface RedisClient {
     eval(script: string, options: { keys: string[]; arguments: string[] }): Promise<unknown>;
 
     // ── Scan ─────────────────────────────────────────────────────────
-    // cursor return type is number in redis v5+ (was string in v4)
-    scan?(cursor: number, options: { MATCH: string; COUNT: number }): Promise<{ cursor: number; keys: string[] }>;
+    // node-redis v5's SCAN cursor is a STRING ('0' terminates). Passing a number
+    // throws; the old `cursor: number` type let two admin routes ship that bug.
+    scan?(cursor: string, options: { MATCH: string; COUNT: number }): Promise<{ cursor: string; keys: string[] }>;
     // node-redis v5 yields a BATCH (array) of keys per iteration (v4 yielded
     // individual keys). Callers must iterate the array — see
     // cleanupOrphanedReconnectionTokens, which silently no-op'd when this was

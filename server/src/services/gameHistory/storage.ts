@@ -439,12 +439,14 @@ export async function getHistoryStats(roomCode: string): Promise<HistoryStats> {
             return { count: 0, oldest: null, newest: null };
         }
 
-        // Get oldest and newest entries
+        // Get oldest and newest entries.
+        // node-redis v5's zRange SILENTLY IGNORES a WITHSCORES option (its builder
+        // handles only BY/REV/LIMIT) — scores come from the dedicated
+        // zRangeWithScores command, which returns { value, score } objects. The
+        // old WITHSCORES call returned bare members, so oldest/newest were always
+        // null in production; the mock honored WITHSCORES and hid it (D4).
         const [oldestRaw, newestRaw] = await withTimeout(
-            Promise.all([
-                redis.zRange(indexKey, 0, 0, { WITHSCORES: true }),
-                redis.zRange(indexKey, -1, -1, { WITHSCORES: true }),
-            ]),
+            Promise.all([redis.zRangeWithScores(indexKey, 0, 0), redis.zRangeWithScores(indexKey, -1, -1)]),
             TIMEOUTS.REDIS_OPERATION,
             `getHistoryStats-zRange-${roomCode}`
         );

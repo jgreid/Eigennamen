@@ -181,17 +181,17 @@ describe('Chaos/Resilience Tests', () => {
             // Watch the key
             await mockRedis.watch(key);
 
-            // Another "client" modifies the key
+            // Another "client" modifies the key between watch() and exec()
             mockRedis._storage.set(key, 'modified-by-other');
 
-            // Transaction should still execute in mock (real Redis would abort)
+            // node-redis v5 aborts the transaction: exec() throws WatchError
+            // (the mock now mirrors this, matching real Redis).
             const multi = mockRedis.multi();
             multi.set(key, 'my-value');
-            await multi.exec();
+            await expect(multi.exec()).rejects.toThrow();
 
-            // Verify the final value
-            const finalValue = await mockRedis.get(key);
-            expect(finalValue).toBeDefined();
+            // The transaction's write did NOT apply — the other client's value stands.
+            expect(await mockRedis.get(key)).toBe('modified-by-other');
         });
     });
 

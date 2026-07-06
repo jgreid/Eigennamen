@@ -139,28 +139,37 @@ The repository includes `fly.toml` with recommended settings:
 
 ```toml
 [env]
-  PORT = "8080"
   NODE_ENV = "production"
+  PORT = "3000"
   LOG_LEVEL = "info"
 
 [http_service]
-  internal_port = 8080
+  internal_port = 3000
   force_https = true
-  auto_stop_machines = true
+  # Use "stop" instead of "suspend" to allow graceful WebSocket disconnection
+  auto_stop_machines = "stop"
   auto_start_machines = true
-  min_machines_running = 0
+  # Keep at least 1 machine running to maintain WebSocket connections
+  min_machines_running = 1
+  processes = ["app"]
 
-[[services]]
-  protocol = "tcp"
-  internal_port = 8080
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 250
+    soft_limit = 200
 
-  [[services.ports]]
-    port = 80
-    handlers = ["http"]
+# Service-level health check (used for routing decisions)
+[[http_service.checks]]
+  grace_period = "60s"
+  interval = "30s"
+  method = "GET"
+  timeout = "10s"
+  path = "/health/ready"
 
-  [[services.ports]]
-    port = 443
-    handlers = ["tls", "http"]
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
 ```
 
 ### Scaling

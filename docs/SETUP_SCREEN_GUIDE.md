@@ -39,10 +39,10 @@ Use this when you want to create a new game room for others to join.
 
    | Field | Required? | Description |
    |-------|-----------|-------------|
-   | **Nickname** | Yes | Your display name (2–30 characters) |
+   | **Nickname** | Yes | Your display name (1–30 characters) |
    | **Room ID** | No | Custom room code, or leave blank for auto-generated |
    | **Game Mode** | Yes | Classic, Duet, or Match (default: Match) |
-   | **Turn Timer** | No | Toggle on to set a per-turn time limit (30–300 seconds) |
+   | **Turn Timer** | No | Toggle on to set a per-turn time limit (20–600 seconds) |
    | **Red Team Name** | No | Custom name for the red team (default: "Red") |
    | **Blue Team Name** | No | Custom name for the blue team (default: "Blue") |
 
@@ -68,7 +68,7 @@ Use this when someone has shared a room code with you.
 
    | Field | Required? | Description |
    |-------|-----------|-------------|
-   | **Nickname** | Yes | Your display name (2–30 characters) |
+   | **Nickname** | Yes | Your display name (1–30 characters) |
    | **Room Code** | Yes | The code shared by the host |
 
 3. Click **"Join Room"**
@@ -127,7 +127,7 @@ The setup screen is fully keyboard-accessible:
 | Issue | Solution |
 |-------|---------|
 | "Room not found" when joining | Double-check the room code. Rooms expire after 24 hours. |
-| "Nickname is required" error | Enter a nickname between 2 and 30 characters. |
+| "Nickname is required" error | Enter a nickname between 1 and 30 characters. |
 | Can't see the setup screen | Clear your browser cache or open in a private/incognito window. |
 | Local mode doesn't start | Make sure JavaScript is enabled in your browser. |
 

@@ -15,6 +15,7 @@ jest.mock('../../config/redis', () => {
         eval: jest.fn().mockResolvedValue(1),
         zAdd: jest.fn().mockResolvedValue(1),
         zRange: jest.fn().mockResolvedValue([]),
+        zRangeWithScores: jest.fn().mockResolvedValue([]),
         zRemRangeByRank: jest.fn().mockResolvedValue(0),
         zRem: jest.fn().mockResolvedValue(0),
         zCard: jest.fn().mockResolvedValue(0),
@@ -108,10 +109,17 @@ describe('Game History Service', () => {
 
             result = result.slice(actualStart, actualEnd + 1);
 
-            if (options.WITHSCORES) {
-                return result;
-            }
             return result.map((item) => item.value);
+        });
+
+        // node-redis v5: scores come from zRangeWithScores (zRange ignores
+        // WITHSCORES). Returns { value, score } objects (D4).
+        mockRedis.zRangeWithScores.mockImplementation(async (key, start, end) => {
+            const data = storage[`zset:${key}`] || [];
+            const len = data.length;
+            const actualStart = start < 0 ? Math.max(0, len + start) : start;
+            const actualEnd = end < 0 ? len + end : end;
+            return data.slice(actualStart, actualEnd + 1).map((item) => ({ value: item.value, score: item.score }));
         });
 
         mockRedis.zCard.mockImplementation(async (key) => {
@@ -591,15 +599,15 @@ describe('Game History Service', () => {
             expect(stats.count).toBe(0);
         });
 
-        test('handles flat string array format from zRange WITHSCORES', async () => {
-            // Some Redis client versions return flat arrays [member, score, ...]
-            // instead of {value, score} objects. extractEntry must handle both.
+        test('extracts oldest/newest from zRangeWithScores { value, score } objects', async () => {
+            // node-redis v5 returns { value, score } objects from zRangeWithScores
+            // (zRange has no WITHSCORES). extractEntry maps them to { id, timestamp }.
             mockRedis.zCard.mockResolvedValueOnce(2);
-            mockRedis.zRange
-                .mockResolvedValueOnce(['game-oldest', '1000']) // flat array for oldest
-                .mockResolvedValueOnce(['game-newest', '3000']); // flat array for newest
+            mockRedis.zRangeWithScores
+                .mockResolvedValueOnce([{ value: 'game-oldest', score: 1000 }]) // oldest
+                .mockResolvedValueOnce([{ value: 'game-newest', score: 3000 }]); // newest
 
-            const stats = await gameHistoryService.getHistoryStats('FLAT_ROOM');
+            const stats = await gameHistoryService.getHistoryStats('OBJ_ROOM');
 
             expect(stats.count).toBe(2);
             expect(stats.oldest).toEqual({ id: 'game-oldest', timestamp: 1000 });
