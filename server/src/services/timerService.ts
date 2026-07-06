@@ -12,6 +12,7 @@ import {
     ATOMIC_TIMER_STATUS_SCRIPT,
     ATOMIC_RESUME_TIMER_SCRIPT,
     ATOMIC_PAUSE_TIMER_SCRIPT,
+    ATOMIC_EXPIRE_TIMER_SCRIPT,
 } from '../scripts';
 import { setGauge, incrementCounter, METRIC_NAMES } from '../utils/metrics';
 import { z } from 'zod';
@@ -121,21 +122,52 @@ const TIMER_TTL_BUFFER: number = TIMER.TIMER_TTL_BUFFER_SECONDS;
 const TIMER_KEY_PREFIX = 'timer:';
 
 /**
- * Creates a timer expiration callback function
+ * Creates a timer expiration callback function.
+ *
+ * `armedEndTime` is the timer's endTime at the moment this timeout was scheduled.
+ * A setTimeout can fire AFTER its timer was extended (addTime), paused, restarted,
+ * or stopped; expiring unconditionally would then delete a freshly-extended timer
+ * and end a turn that was just granted more time (A11). So expiry runs a
+ * compare-and-delete Lua: it only proceeds when the stored timer still matches
+ * `armedEndTime` and is not paused. Any other outcome is a no-op.
  */
-function createTimerExpirationCallback(roomCode: string, onExpire?: TimerExpireCallback): () => Promise<void> {
+function createTimerExpirationCallback(
+    roomCode: string,
+    armedEndTime: number,
+    onExpire?: TimerExpireCallback
+): () => Promise<void> {
     return async (): Promise<void> => {
         try {
             const redis: RedisClient = getRedis();
-            logger.info(`Timer expired for room ${roomCode}`);
-            localTimers.delete(roomCode);
 
-            // Remove from Redis
-            await withTimeout(
-                redis.del(`${TIMER_KEY_PREFIX}${roomCode}`),
+            // Compare-and-delete: only expire if the stored timer is still the one
+            // this timeout was armed for (endTime match) and is not paused.
+            const outcome = (await withTimeout(
+                redis.eval(ATOMIC_EXPIRE_TIMER_SCRIPT, {
+                    keys: [`${TIMER_KEY_PREFIX}${roomCode}`],
+                    arguments: [armedEndTime.toString()],
+                }),
                 TIMEOUTS.TIMER_OPERATION,
-                `timerExpired-del-${roomCode}`
-            );
+                `timerExpired-cad-${roomCode}`
+            )) as string | null;
+
+            if (outcome !== 'EXPIRED') {
+                // SUPERSEDED (extended/restarted), PAUSED, GONE, or CORRUPTED_DATA:
+                // the timer this timeout was armed for is no longer authoritative,
+                // so do NOT end the turn and do NOT disturb the local entry — a
+                // newer timeout (or resume) owns it now.
+                logger.debug(`Stale timer expiry for room ${roomCode} ignored (${outcome ?? 'NO_TIMER'})`);
+                return;
+            }
+
+            logger.info(`Timer expired for room ${roomCode}`);
+
+            // Only drop the local entry if it's still the one we expired — addTime
+            // may have replaced it with a newer timeout between the Lua call and here.
+            const localTimer = localTimers.get(roomCode);
+            if (localTimer && localTimer.endTime === armedEndTime) {
+                localTimers.delete(roomCode);
+            }
 
             // Call user callback if provided
             if (onExpire) {
@@ -197,8 +229,13 @@ export async function startTimer(
                 `startTimer-set-${roomCode}`
             );
 
-            // Set up local timeout using shared expiration callback
-            const timeoutId = setTimeout(createTimerExpirationCallback(roomCode, onExpire), durationSeconds * 1000);
+            // Set up local timeout using shared expiration callback. The callback
+            // is stamped with this timer's endTime so a later addTime/pause/restart
+            // makes a stale firing of this timeout a no-op (A11).
+            const timeoutId = setTimeout(
+                createTimerExpirationCallback(roomCode, endTime, onExpire),
+                durationSeconds * 1000
+            );
 
             // Evict entries with earliest endTimes if map exceeds max size
             // Batch eviction (10%) prevents rapid growth from outpacing single-entry eviction
@@ -493,11 +530,14 @@ async function addTimeLocal(
         // Update local timer if we own it
         const localTimer = localTimers.get(roomCode);
         if (localTimer) {
-            // Clear existing timeout and create new one using shared expiration callback
+            // Clear existing timeout and create new one using shared expiration
+            // callback, stamped with the NEW endTime. If the old timeout already
+            // fired and is racing this extension, its compare-and-delete sees the
+            // endTime no longer matches and no-ops instead of ending the turn (A11).
             clearTimeout(localTimer.timeoutId);
 
             const timeoutId = setTimeout(
-                createTimerExpirationCallback(roomCode, onExpire),
+                createTimerExpirationCallback(roomCode, newTimer.endTime, onExpire),
                 newTimer.remainingSeconds * 1000
             );
 

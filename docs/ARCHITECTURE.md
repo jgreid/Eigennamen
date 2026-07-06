@@ -273,7 +273,7 @@ Eigennamen/
     │   ├── types/          # TypeScript type definitions (11 files)
     │   ├── utils/          # Utility modules (13 files)
     │   ├── validators/     # Zod validation schemas (8 files)
-    │   ├── scripts/        # Redis Lua scripts (29 atomic operations)
+    │   ├── scripts/        # Redis Lua scripts (30 atomic operations)
     │   └── __tests__/      # Jest tests (179 suites)
     │       ├── helpers/    # Test utilities and mocks
     │       ├── integration/ # Integration tests

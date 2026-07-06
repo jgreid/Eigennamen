@@ -79,8 +79,21 @@ describe('Timer Service Branch Coverage', () => {
                 // Resume timer script contains 'NOT_PAUSED'.
                 const isPauseTimerScript = typeof script === 'string' && script.includes('ALREADY_PAUSED');
                 const isResumeTimerScript = typeof script === 'string' && script.includes('NOT_PAUSED');
+                // Compare-and-delete expiry script (A11) — also 1-arg; match by content.
+                const isExpireTimerScript = typeof script === 'string' && script.includes('SUPERSEDED');
                 const isTimerStatusScript =
-                    options.arguments.length === 1 && !isResumeTimerScript && !isPauseTimerScript;
+                    options.arguments.length === 1 &&
+                    !isResumeTimerScript &&
+                    !isPauseTimerScript &&
+                    !isExpireTimerScript;
+
+                if (isExpireTimerScript) {
+                    if (timer.paused) return 'PAUSED';
+                    const expectedEndTime = parseInt(options.arguments[0], 10);
+                    if (timer.endTime !== expectedEndTime) return 'SUPERSEDED';
+                    delete mockRedisStorage[key];
+                    return 'EXPIRED';
+                }
 
                 if (isPauseTimerScript) {
                     // Simulate ATOMIC_PAUSE_TIMER_SCRIPT
@@ -360,11 +373,13 @@ describe('Timer Service Branch Coverage', () => {
             );
         });
 
-        it('should log error when Redis del fails during expiration', async () => {
+        it('should log error when Redis fails during expiration', async () => {
             const onExpire = jest.fn();
             await timerService.startTimer('ROOM_REDIS_ERR', 1, onExpire);
 
-            mockRedis.del.mockRejectedValue(new Error('Redis connection lost'));
+            // The expiry callback now runs the compare-and-delete via eval (A11),
+            // so a Redis failure surfaces there rather than through a bare del.
+            mockRedis.eval.mockRejectedValue(new Error('Redis connection lost'));
 
             jest.advanceTimersByTime(1500);
             await flushPromises();

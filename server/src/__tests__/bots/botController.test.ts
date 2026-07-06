@@ -97,6 +97,23 @@ describe('botController.tickRoom', () => {
         expect(gameActions.applyEndTurn).not.toHaveBeenCalled();
     });
 
+    it('degrades to a default config (and still acts) when getBotConfig returns null, instead of stalling (B4)', async () => {
+        // A seated bot whose config key was lost/corrupted. The old code broke the
+        // tick cleanly here — no move, no re-arm — freezing the game on the bot's
+        // turn. It must now fall back to a default config and still act.
+        gameService.getGame.mockResolvedValueOnce(gameNoClue).mockResolvedValue(gameWithClue);
+        playerService.getTeamMembers.mockResolvedValue([spymasterBot]);
+        botService.getBotConfig.mockResolvedValue(null);
+
+        await tickRoom('ROOM01');
+
+        // The bot still gives a clue — the turn is not silently stalled.
+        expect(gameActions.applyClue).toHaveBeenCalledTimes(1);
+        expect(gameActions.applyClue.mock.calls[0][2]).toMatchObject({ sessionId: 'bot-1', role: 'spymaster' });
+        // And the degradation is logged for operators.
+        expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('no resolvable config'));
+    });
+
     it('emits advisor suggestions to the acting team only, never room-wide', async () => {
         // A live clue, a HUMAN clicker, and an advisor BOT on the team: the advisor
         // should surface ranked suggestions (game:botSuggestion) to red's own

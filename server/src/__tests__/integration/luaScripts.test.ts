@@ -25,7 +25,7 @@ import * as timerService from '../../services/timerService';
 import * as gameHistoryService from '../../services/gameHistoryService';
 import { checkValidationRateLimit } from '../../middleware/auth/sessionValidator';
 import { acquire } from '../../utils/distributedLock';
-import { SUBMIT_CLUE_SCRIPT, ATOMIC_SET_ROOM_STATUS_SCRIPT } from '../../scripts';
+import { SUBMIT_CLUE_SCRIPT, ATOMIC_SET_ROOM_STATUS_SCRIPT, ATOMIC_EXPIRE_TIMER_SCRIPT } from '../../scripts';
 import { DUET_BOARD_CONFIG } from '../../config/constants';
 
 const CONNECT_TIMEOUT_MS = 20000;
@@ -521,6 +521,50 @@ describe('Real-Redis Lua script integration', () => {
 
         it('atomicPauseTimer returns null for a room with no timer', async () => {
             expect(await timerService.pauseTimer(freshRoomCode())).toBeNull();
+        });
+
+        // A11: the compare-and-delete run by a fired local timeout. Drive the raw
+        // script against real Redis for each outcome so the guard can't rot.
+        describe('atomicExpireTimer.lua (compare-and-delete, A11)', () => {
+            const evalExpire = (code: string, armedEndTime: number) =>
+                getRedis().eval(ATOMIC_EXPIRE_TIMER_SCRIPT, {
+                    keys: [`timer:${code}`],
+                    arguments: [armedEndTime.toString()],
+                }) as Promise<string | null>;
+
+            it('EXPIRED: deletes the timer when the armed endTime matches and not paused', async () => {
+                const code = freshRoomCode();
+                const started = await timerService.startTimer(code, 100);
+                timerService.cleanupAllTimers(); // drop the local timeout; drive the script by hand
+
+                expect(await evalExpire(code, started.endTime)).toBe('EXPIRED');
+                // Key is gone → a follow-up status read is null.
+                expect(await timerService.getTimerStatus(code)).toBeNull();
+            });
+
+            it('SUPERSEDED: leaves an extended timer intact when the armed endTime is stale', async () => {
+                const code = freshRoomCode();
+                const started = await timerService.startTimer(code, 60);
+                await timerService.addTime(code, 60); // endTime moves past the armed value
+                timerService.cleanupAllTimers();
+
+                expect(await evalExpire(code, started.endTime)).toBe('SUPERSEDED');
+                // The extended timer must survive.
+                expect(await timerService.getTimerStatus(code)).not.toBeNull();
+            });
+
+            it('PAUSED: never expires a paused timer', async () => {
+                const code = freshRoomCode();
+                const started = await timerService.startTimer(code, 100);
+                await timerService.pauseTimer(code);
+                timerService.cleanupAllTimers();
+
+                expect(await evalExpire(code, started.endTime)).toBe('PAUSED');
+            });
+
+            it('GONE: no-ops when the timer key is already absent', async () => {
+                expect(await evalExpire(freshRoomCode(), Date.now() + 100000)).toBe('GONE');
+            });
         });
     });
 

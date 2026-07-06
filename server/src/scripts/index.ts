@@ -62,6 +62,9 @@ export const ATOMIC_PAUSE_TIMER_SCRIPT: string = loadLua('atomicPauseTimer.lua')
 /** Atomic timer resume: checks if paused timer expired, deletes if so. Returns: JSON with expired flag and remainingSeconds */
 export const ATOMIC_RESUME_TIMER_SCRIPT: string = loadLua('atomicResumeTimer.lua');
 
+/** Compare-and-delete for a fired local timeout: expires only if the stored timer still matches the armed endTime and is not paused. Returns 'EXPIRED' | 'SUPERSEDED' | 'PAUSED' | 'GONE' | 'CORRUPTED_DATA' (A11) */
+export const ATOMIC_EXPIRE_TIMER_SCRIPT: string = loadLua('atomicExpireTimer.lua');
+
 /** Atomic reconnection token invalidation. Returns 1 if invalidated, 0 if no token existed */
 export const INVALIDATE_TOKEN_SCRIPT: string = loadLua('invalidateToken.lua');
 
