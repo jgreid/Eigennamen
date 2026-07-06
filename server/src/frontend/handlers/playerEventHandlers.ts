@@ -1,5 +1,6 @@
 import { state } from '../state.js';
 import { showToast, announceToScreenReader } from '../ui.js';
+import { t } from '../i18n.js';
 import { renderBoard } from '../board.js';
 import { updateRoleBanner, updateControls, clearRoleChange } from '../roles.js';
 import { playNotificationSound } from '../notifications.js';
@@ -28,7 +29,10 @@ export function registerPlayerHandlers(): void {
             }
         }
         updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
-        showToast(`${data.player?.nickname || 'Someone'} joined`, 'success');
+        showToast(
+            t('multiplayer.playerJoined', { name: data.player?.nickname || t('multiplayer.someone') }),
+            'success'
+        );
         playNotificationSound('join');
     });
 
@@ -49,7 +53,7 @@ export function registerPlayerHandlers(): void {
         updateControls();
         renderBoard();
         if (data.nickname) {
-            showToast(`${data.nickname} left`, 'info');
+            showToast(t('multiplayer.playerLeft', { name: data.nickname }), 'info');
         }
     });
 
@@ -142,7 +146,7 @@ export function registerPlayerHandlers(): void {
             updateControls();
             renderBoard();
         }
-        showToast(`${data.nickname || 'A player'} disconnected`, 'warning');
+        showToast(t('multiplayer.playerDisconnected', { name: data.nickname || t('multiplayer.aPlayer') }), 'warning');
     });
 
     // Handle player reconnection
@@ -158,6 +162,6 @@ export function registerPlayerHandlers(): void {
             updateControls();
             renderBoard();
         }
-        showToast(`${data.nickname || 'A player'} reconnected`, 'success');
+        showToast(t('multiplayer.playerReconnected', { name: data.nickname || t('multiplayer.aPlayer') }), 'success');
     });
 }

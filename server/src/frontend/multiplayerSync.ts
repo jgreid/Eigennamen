@@ -1,4 +1,5 @@
 import { state } from './state.js';
+import { t } from './i18n.js';
 import { renderBoard, detachResizeListener } from './board.js';
 import { updateScoreboard, updateTurnIndicator, updateMatchScoreboard } from './game.js';
 import { updateRoleBanner, updateControls, clearRoleChange } from './roles.js';
@@ -452,7 +453,7 @@ export function detectOfflineChanges(data: ReconnectionData): string[] {
         serverGame.words.length > 0 &&
         (!localGame.words || localGame.words.length === 0)
     ) {
-        changes.push('A game was started');
+        changes.push(t('multiplayer.changeGameStarted'));
     }
 
     // Game ended while offline
@@ -460,9 +461,9 @@ export function detectOfflineChanges(data: ReconnectionData): string[] {
         const winner = serverGame.winner;
         if (winner) {
             const teamName = winner === 'red' ? state.teamNames?.red || 'Red' : state.teamNames?.blue || 'Blue';
-            changes.push(`Game over \u2014 ${teamName} won`);
+            changes.push(t('multiplayer.changeGameOverWon', { team: teamName }));
         } else {
-            changes.push('Game over');
+            changes.push(t('multiplayer.changeGameOver'));
         }
     }
 
@@ -476,16 +477,25 @@ export function detectOfflineChanges(data: ReconnectionData): string[] {
     ) {
         const teamName =
             serverGame.currentTurn === 'red' ? state.teamNames?.red || 'Red' : state.teamNames?.blue || 'Blue';
-        changes.push(`Now ${teamName}'s turn`);
+        changes.push(t('multiplayer.changeNowTurn', { team: teamName }));
     }
 
     // Player count changed
     if (data.players && state.multiplayerPlayers.length > 0) {
         const diff = data.players.length - state.multiplayerPlayers.length;
         if (diff > 0) {
-            changes.push(`${diff} player${diff > 1 ? 's' : ''} joined`);
+            changes.push(
+                diff > 1
+                    ? t('multiplayer.changePlayersJoined', { count: diff })
+                    : t('multiplayer.changePlayerJoined', { count: diff })
+            );
         } else if (diff < 0) {
-            changes.push(`${Math.abs(diff)} player${Math.abs(diff) > 1 ? 's' : ''} left`);
+            const n = Math.abs(diff);
+            changes.push(
+                n > 1
+                    ? t('multiplayer.changePlayersLeft', { count: n })
+                    : t('multiplayer.changePlayerLeft', { count: n })
+            );
         }
     }
 
