@@ -405,17 +405,19 @@ None of these matter until the app actually runs more than one instance behind a
 
 ---
 
-### P2-2 — Make turn-timer pause/resume/stop/add-time correct across instances
+### P2-2 — Make turn-timer pause/resume/stop/add-time correct across instances — **PARTIALLY ADDRESSED**
 
 **Severity:** High · **Area:** Concurrency
 
 **Root cause:** Timer expiry is driven by a real `setTimeout` that exists only in the process that created it (`services/timerService.ts`'s `localTimers` map); Redis just records state. `pauseTimer`/`resumeTimer`/`stopTimer`/`addTimeLocal` only cancel or reschedule the JS timeout when it's in their *own* process's map, and report success regardless. In a horizontally-scaled deployment, a pause request landing on a different instance than the one that started the timer updates Redis while the original timeout keeps counting down, fires, and ends the turn anyway.
 
-**Fix:** Make expiry Redis-authoritative — immediately before acting on a fired timeout, re-read the timer's live Redis state (`paused`, `endTime`, a monotonic version/epoch counter) and no-op if it's stale or paused. This is more tractable than the alternative (routing every timer event to the one instance that owns the local timer, which needs a room→instance affinity map and inter-instance forwarding) and fits the existing pattern already used elsewhere in this codebase (Lua-level guards re-validating state atomically rather than trusting a caller's cached view).
+**Status:** The **expiry-side** half of the fix has shipped as **A11** (see CLAUDE.md → the Redis-authoritative compare-and-delete guard). Each armed `setTimeout` is stamped with the `endTime` it was scheduled for, and the expiry callback runs `atomicExpireTimer.lua` (`ATOMIC_EXPIRE_TIMER_SCRIPT`), which deletes the key and signals `EXPIRED` **only** when the stored timer still matches that `endTime` and is not paused — otherwise it returns `SUPERSEDED`/`PAUSED`/`GONE` and the callback no-ops. So the specific corruption this item names — a cross-instance pause/addTime/stop leaving the original timeout to fire and wrongly end the turn — is now a safe no-op: a stale fired timeout can no longer delete a freshly-extended timer or end a turn that was just paused/granted more time.
+
+**Still open (liveness, not safety):** the guard makes stale fires *harmless*, but it does not yet guarantee *liveness* across instances. After a cross-instance `resume`/`addTime` (a request landing on an instance that never held the local timeout), no process necessarily holds a live `setTimeout` matching the new Redis `endTime` — the original instance's timeout no-ops (`SUPERSEDED`/`PAUSED`) and nothing re-arms for the extended/resumed deadline, so the turn may never auto-end. Closing that needs either a room→instance affinity map with inter-instance forwarding, or a lightweight Redis-driven sweep that re-arms a local timeout on whichever instance observes an un-owned active timer. Also still single-instance today by deployment (`fly.toml` pins one machine), so this is latent, not live.
 
 **Touches:** `services/timerService.ts`
 
-**Tests:** Simulate two "instances" sharing Redis; start a timer on instance A, pause it via instance B, and assert the timeout that fires on instance A (if it still fires at all) is a no-op against the paused state rather than ending the turn.
+**Tests:** Simulate two "instances" sharing Redis; start a timer on instance A, pause it via instance B, and assert the timeout that fires on instance A (if it still fires at all) is a no-op against the paused state rather than ending the turn. (The A11 expiry-guard slice is already covered; the liveness re-arm is not.)
 
 **Risk:** Depends on P0-3's lock-timeout audit already being correct in `timerService` — do P0-3 first so this isn't built on top of the same budget bug.
 
@@ -572,7 +574,7 @@ These were pure documentation corrections — no code behavior changed. Listed h
 | Unsafe unused `escapeHTML()` | Medium | 1 | P1-12 | ✅ Shipped |
 | No E2E for spectator/bot/match-round flows | High | 1 | P1-13 | ✅ Shipped |
 | Socket rate limiting is per-instance in-memory | High | 2 | P2-1 | Planned |
-| Turn timer pause/resume/stop wrong across instances | High | 2 | P2-2 | Planned |
+| Turn timer pause/resume/stop wrong across instances | High | 2 | P2-2 | 🟡 Partial (A11 expiry guard shipped; cross-instance re-arm/liveness open) |
 | Bot controller + connection tracker state per-instance | High | 2 | P2-3 | Planned |
 | Lua scripts incompatible with Redis Cluster | Medium | 2 | P2-4 | Planned |
 | `fly.toml` autoscaler could silently violate single-machine rule | Medium | 2 | P2-5 | Planned |

@@ -796,13 +796,13 @@ Rated against the real deployment (one shared-CPU machine, in-memory Redis, 25-c
 
 ---
 
-### E2 — `getPlayerContext` fetches and Zod-parses the full game state for every socket event, including ones that never read it
+### E2 — `getPlayerContext` fetches and Zod-parses the full game state for every socket event, including ones that never read it — **PARTIALLY ADDRESSED**
 
 **Severity:** Low · **Area:** Performance
 
-**Root cause:** `playerContext.ts:219` eagerly loads `ctx.game` for every in-room event — every chat message, `game:getHistory`, nickname change pays a full game-blob GET + parse + validation as pure overhead.
+**Status:** A short-lived (500ms) LRU cache now fronts the eager fetch (`playerContext.ts`: `gameStateCache`, `getCachedGameState`/`setCachedGameState`, auto-invalidated on every game-service mutation via the mutation notifier). This collapses the repeated GET+parse cost when several events for the same room land inside the window, which removes most of the *repeat* overhead. It does **not** close the finding: (1) it is deliberately single-instance (`cacheEnabled = instanceId === 'local'`), so multi-instance deployments still pay the full cost on every event (correctly — a per-process cache can't see another instance's mutation); and (2) the *first* event of every window, and every event when the cache is disabled, still pays a full game-blob GET + Zod parse even for chat / `game:getHistory` / nickname changes that never read `ctx.game`. The lazy memoized-getter fix below is still the real remedy.
 
-**Fix:** Expose `ctx.game` as a memoized async getter (lazy, fetched at most once per context) rather than an eager fetch — preferable to a hand-maintained opt-in list, which would miss the timer handlers' RoomContext-path reads.
+**Fix (still open):** Expose `ctx.game` as a memoized async getter (lazy, fetched at most once per context, only when a handler actually reads it) rather than an eager fetch — preferable to a hand-maintained opt-in list, which would miss the timer handlers' RoomContext-path reads.
 
 **Touches:** `socket/playerContext.ts`, `socket/contextHandler.ts`, handler types
 
@@ -934,13 +934,11 @@ Each of these carries either real runtime cost or a misleading API surface today
 
 ---
 
-### F7 — Create `docs/FEATURE_ROADMAP.md` and record the finish-or-delete decisions
+### F7 — Create `docs/FEATURE_ROADMAP.md` and record the finish-or-delete decisions — **FIXED**
 
 **Severity:** Low · **Area:** Docs / planning
 
-**Root cause:** HARDENING_PLAN's "See also" designates `docs/FEATURE_ROADMAP.md` for the first review's feature proposals — the file was never created, so those proposals exist only in a departed session's context, and the half-built features above have no recorded disposition.
-
-**Fix:** Create the roadmap capturing: the first review's named proposals (custom word-list library, post-game recap, Redis-backed bot coordination, multilingual semantic maps), and a disposition row for each F-item here (F1–F6) once decided. Add to CLAUDE.md's Documentation Index.
+**Resolution (shipped):** [docs/FEATURE_ROADMAP.md](FEATURE_ROADMAP.md) now exists. It captures the first review's four named proposals (custom word-list library, post-game recap, Redis-backed bot/coordination state, multilingual semantic maps) with rationale and rough scope, and records a recommended finish-or-delete disposition for every F-item (F1–F6) in a status table — including the cross-cutting note that F1/F2/F6 form one "spectator & pause" product story and F4 is best resolved with the word-list library. Added to CLAUDE.md's Documentation Index.
 
 **Touches:** new `docs/FEATURE_ROADMAP.md`, `CLAUDE.md`
 
