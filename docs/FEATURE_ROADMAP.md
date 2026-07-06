@@ -121,7 +121,7 @@ maintainer decision — this is the recorded default, not a fait accompli.
 | Item | Feature | Recommended disposition | Status |
 |------|---------|-------------------------|--------|
 | **F1** | Game pause/resume (server-complete, no frontend) | **Finish** — host-only Pause/Resume UI + client wiring + `GAME_PAUSED` error + i18n; also fix the resume-path timer that restarts without an expiry callback | **Shipped** (finish path — pause button, board overlay, client wiring, i18n ×4, resume-timer callback fixed) |
-| **F2** | `allowSpectators` (accepted/persisted, enforced nowhere) | **Finish with F6** — decide as one spectator-policy story; enforce at the join boundary + add the settings toggle | Planned |
+| **F2** | `allowSpectators` (accepted/persisted, enforced nowhere) | **Finish with F6** — decide as one spectator-policy story; enforce at the join boundary + add the settings toggle | **Shipped** (join-boundary enforcement via `SPECTATORS_NOT_ALLOWED` + host settings toggle; F6 approval UI is the next tranche) |
 | **F3** | Admin audit log + SSE stats (no dashboard UI) | **Finish (audit), decide (SSE)** — wire the audit endpoint into `admin.html`; the polling-vs-EventSource choice is independent | Planned |
 | **F4** | `wordListId` (validated/typed/stored, always null) | **Finish via A1** — back it with the word-list library above; otherwise delete from schemas/types/spec (keep the storage field nullable) | Planned |
 | **F5** | Idle detection (per-event Redis write, no reader) | **Delete** — remove the `lastSeen` eval, `getIdlePlayers`, and `PLAYER_IDLE_WARNING`; first move the player-key TTL refresh that bot seats rely on into `atomicRefreshTtl.lua` | Delete path in flight (IMPROVEMENT_PLAN F5 / PR #519) |

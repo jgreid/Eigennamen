@@ -254,7 +254,9 @@
         "duetDesc": "Coop à 2 joueurs",
         "match": "Eigennamen",
         "matchDesc": "Scoring multi-manches",
-        "turnTimer": "Chronomètre de tour"
+        "turnTimer": "Chronomètre de tour",
+        "allowSpectators": "Autoriser les spectateurs",
+        "allowSpectatorsHint": "Si désactivé, les nouveaux joueurs ne peuvent plus rejoindre une fois la partie commencée."
     },
     "wordList": {
         "default": "Mots par défaut",

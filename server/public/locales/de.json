@@ -254,7 +254,9 @@
         "duetDesc": "2-Spieler-Koop",
         "match": "Eigennamen",
         "matchDesc": "Mehrrunden-Wertung",
-        "turnTimer": "Rundenzeit"
+        "turnTimer": "Rundenzeit",
+        "allowSpectators": "Zuschauer erlauben",
+        "allowSpectatorsHint": "Wenn deaktiviert, können neue Spieler nicht mehr beitreten, sobald ein Spiel läuft."
     },
     "wordList": {
         "default": "Standardwörter",

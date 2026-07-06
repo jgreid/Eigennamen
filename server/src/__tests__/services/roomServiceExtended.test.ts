@@ -49,6 +49,11 @@ const mockRedis = {
         }
         return 0;
     }),
+    sIsMember: jest.fn(async (key, member) => {
+        const data = mockRedisStorage[key];
+        if (!data) return false;
+        return JSON.parse(data).includes(member);
+    }),
     mGet: jest.fn(async (keys) => keys.map((key) => mockRedisStorage[key] || null)),
     eval: jest.fn().mockResolvedValue(1),
 };
@@ -276,6 +281,73 @@ describe('Room Service', () => {
             const result = await roomService.joinRoom('GAME-ROOM', 'player-1', 'Player1');
 
             expect(result.room).toBeDefined();
+        });
+    });
+
+    describe('joinRoom allowSpectators enforcement (F2)', () => {
+        // The parent beforeEach calls jest.resetModules() and re-requires roomService,
+        // so membership captures a FRESH mocked gameService each test. Require it here
+        // (after that reset) so overriding getGame targets the same instance the code
+        // under test actually calls.
+        let gameService;
+
+        beforeEach(() => {
+            gameService = require('../../services/gameService');
+            mockRedisStorage['room:nospec-room'] = JSON.stringify({
+                code: 'nospec-room',
+                roomId: 'nospec-room',
+                hostSessionId: 'host-1',
+                status: 'playing',
+                settings: { allowSpectators: false },
+            });
+            mockRedis.eval.mockResolvedValue(1);
+            gameService.getGame.mockResolvedValue(null);
+        });
+
+        test('rejects a brand-new joiner mid-game when spectators are disabled', async () => {
+            gameService.getGame.mockResolvedValue({ id: 'g1', gameOver: false });
+
+            await expect(roomService.joinRoom('nospec-room', 'newbie', 'Newbie')).rejects.toMatchObject({
+                code: ERROR_CODES.SPECTATORS_NOT_ALLOWED,
+            });
+        });
+
+        test('allows a pre-game join when spectators are disabled (no active game)', async () => {
+            gameService.getGame.mockResolvedValue(null);
+
+            const result = await roomService.joinRoom('nospec-room', 'newbie', 'Newbie');
+            expect(result.player).toBeDefined();
+        });
+
+        test('allows a join once the game is over even if spectators are disabled', async () => {
+            gameService.getGame.mockResolvedValue({ id: 'g1', gameOver: true });
+
+            const result = await roomService.joinRoom('nospec-room', 'newbie', 'Newbie');
+            expect(result.player).toBeDefined();
+        });
+
+        test('allows an existing member (in the players set) to rejoin mid-game', async () => {
+            gameService.getGame.mockResolvedValue({ id: 'g1', gameOver: false });
+            // Session is already a member of the room's players set (e.g. reconnecting
+            // after its player hash expired) — must not be blocked by the gate.
+            mockRedisStorage['room:nospec-room:players'] = JSON.stringify(['returning']);
+
+            const result = await roomService.joinRoom('nospec-room', 'returning', 'Returning');
+            expect(result.player).toBeDefined();
+        });
+
+        test('allows a mid-game join when spectators are enabled', async () => {
+            mockRedisStorage['room:spec-room'] = JSON.stringify({
+                code: 'spec-room',
+                roomId: 'spec-room',
+                hostSessionId: 'host-1',
+                status: 'playing',
+                settings: { allowSpectators: true },
+            });
+            gameService.getGame.mockResolvedValue({ id: 'g1', gameOver: false });
+
+            const result = await roomService.joinRoom('spec-room', 'watcher', 'Watcher');
+            expect(result.player).toBeDefined();
         });
     });
 

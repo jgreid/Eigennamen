@@ -419,6 +419,18 @@
     flex-wrap: wrap;
 }
 
+/* Allow-spectators toggle + hint (F2) */
+.spectators-inline {
+    margin-top: 12px;
+}
+
+.settings-hint {
+    margin: 4px 0 0;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.55);
+    line-height: 1.35;
+}
+
 .turn-timer-toggle {
     display: flex;
     align-items: center;

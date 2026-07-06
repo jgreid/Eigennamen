@@ -41,6 +41,14 @@ export function syncTurnTimerUI(turnTimer: number | null): void {
     }
 }
 
+// Sync the allow-spectators toggle with server state (F2)
+export function syncAllowSpectatorsUI(allowSpectators: boolean | undefined): void {
+    const toggle = document.getElementById('allow-spectators-toggle') as HTMLInputElement | null;
+    if (!toggle) return;
+    // Default to allowed when the server omits the field (matches the room default).
+    toggle.checked = allowSpectators !== false;
+}
+
 /**
  * Show forfeit confirmation modal (host only, during active game)
  */

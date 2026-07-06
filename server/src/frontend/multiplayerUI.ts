@@ -15,6 +15,7 @@ export {
     updateRoomSettingsNavVisibility,
     syncGameModeUI,
     syncTurnTimerUI,
+    syncAllowSpectatorsUI,
     confirmForfeit,
     closeForfeitConfirm,
     forfeitGame,

@@ -47,6 +47,31 @@ export async function joinRoom(roomId: string, sessionId: string, nickname: stri
         isReconnecting = true;
         logger.info(`Player ${sessionId} reconnected to room "${roomId}"`);
     } else {
+        // Enforce allowSpectators (F2): a brand-new joiner arrives with no team,
+        // so mid-game they can only ever be a spectator. If the host disabled
+        // spectators, reject rather than silently seating a hidden watcher who
+        // still receives every board broadcast. Pre-game lobby joins are
+        // unaffected (they pick a team), and an existing member reconnecting with
+        // a lost player hash is let through (checked against the players set).
+        if (room.settings?.allowSpectators === false) {
+            let activeGame = null;
+            try {
+                activeGame = await gameService.getGame(normalizedRoomId);
+            } catch {
+                activeGame = null; // corrupted game data → don't block the join on it
+            }
+            if (activeGame && !activeGame.gameOver) {
+                const alreadyMember = await withTimeout(
+                    redis.sIsMember(`room:${normalizedRoomId}:players`, sessionId),
+                    TIMEOUTS.REDIS_OPERATION,
+                    `joinRoom-spectatorCheck-${normalizedRoomId}`
+                );
+                if (!alreadyMember) {
+                    throw RoomError.spectatorsNotAllowed(roomId);
+                }
+            }
+        }
+
         // New join - use Lua script for atomic capacity check, set add, and player creation
         // Player data is now created atomically inside the Lua script,
         // eliminating the crash window between SADD and SET that could leave orphaned set members.

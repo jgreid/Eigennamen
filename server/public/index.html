@@ -1018,6 +1018,27 @@
                     >
                   </div>
                 </div>
+
+                <!-- Allow Spectators (F2): when off, new players can't join a
+                     room whose game is already in progress. -->
+                <div class="spectators-inline">
+                  <label class="turn-timer-toggle">
+                    <input
+                      type="checkbox"
+                      id="allow-spectators-toggle"
+                      checked
+                    />
+                    <span data-i18n="roomSettings.allowSpectators"
+                      >Allow Spectators</span
+                    >
+                  </label>
+                  <p
+                    class="settings-hint"
+                    data-i18n="roomSettings.allowSpectatorsHint"
+                  >
+                    When off, new players can’t join once a game is in progress.
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -1817,7 +1838,7 @@
       </div>
     </div>
 
-    <script type="module" src="/js/modules/app.js?v=bacd95c9"></script>
+    <script type="module" src="/js/modules/app.js?v=aee31ad7"></script>
     <!-- Fallback: detect if the ES module failed to load + service worker registration -->
     <script src="/js/app-fallback.js"></script>
   </body>
