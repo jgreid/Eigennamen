@@ -190,15 +190,25 @@ test.describe('Screen Reader Support', () => {
     });
 
     test('turn indicator announces changes', async ({ page }) => {
-        const turnIndicator = page.locator(sel.turnIndicator);
-
-        const ariaLive = await turnIndicator.getAttribute('aria-live');
-        const parentAriaLive = await turnIndicator.evaluate((el) => {
-            const parent = el.closest('[aria-live]');
-            return parent?.getAttribute('aria-live');
-        });
+        // The live region is scoped to the turn text, not the whole indicator —
+        // which also holds the per-second timer (see C1). Assert the content that
+        // actually changes on a turn is within an aria-live region.
+        const turnText = page.locator(`${sel.turnIndicator} .turn-text`);
+        const ariaLive = await turnText.getAttribute('aria-live');
+        const parentAriaLive = await turnText.evaluate((el) => el.closest('[aria-live]')?.getAttribute('aria-live'));
 
         expect(ariaLive || parentAriaLive).toBeTruthy();
+    });
+
+    test('turn timer is not inside a live region — no per-second SR spam (C1)', async ({ page }) => {
+        // role="timer" carries an implicit aria-live="off"; the timer value must
+        // have neither its own aria-live nor an aria-live ancestor, or the
+        // countdown would re-announce the whole turn indicator every second.
+        const timerValue = page.locator(`${sel.timerDisplay} .timer-value`);
+        const inLiveRegion = await timerValue.evaluate(
+            (el) => !!(el.getAttribute('aria-live') || el.closest('[aria-live]'))
+        );
+        expect(inLiveRegion).toBe(false);
     });
 
     test('score updates are announced', async ({ page }) => {

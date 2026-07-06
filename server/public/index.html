@@ -269,15 +269,14 @@
           </div>
 
           <div class="center-info-stack">
-            <div
-              class="turn-indicator"
-              id="turn-indicator"
-              data-testid="turn-indicator"
-              role="status"
-              aria-live="polite"
-              aria-atomic="true"
-            >
-              <span class="turn-text">Red Team's Turn</span>
+            <!-- The live region is scoped to .turn-text only. It must NOT wrap the
+                 timer: the timer updates every second, and an aria-live+aria-atomic
+                 container re-announces its entire contents ("Red Team's Turn 0:59",
+                 "…0:58", …) on every tick, flooding screen readers. role="timer"
+                 carries an implicit aria-live="off", so with no explicit live
+                 attributes the countdown is queryable on demand but not announced. -->
+            <div class="turn-indicator" id="turn-indicator" data-testid="turn-indicator">
+              <span class="turn-text" role="status" aria-live="polite" aria-atomic="true">Red Team's Turn</span>
               <span
                 class="timer-inline"
                 id="timer-display"
@@ -286,13 +285,7 @@
                 aria-label="Time remaining"
               >
                 <span class="timer-icon" aria-hidden="true">⏱️</span>
-                <span
-                  class="timer-value"
-                  id="timer-value"
-                  aria-live="polite"
-                  aria-atomic="true"
-                  >--:--</span
-                >
+                <span class="timer-value" id="timer-value">--:--</span>
               </span>
             </div>
             <!-- Match mode scores (inline in banner, hidden by default) -->
