@@ -106,22 +106,32 @@ interface BoardGroups {
     assassin: string[];
     opponent: string[];
     neutral: string[];
+    /**
+     * Match-mode own cards with negative value (traps). They're kept OUT of `own`
+     * (never steer the clicker toward them) but tracked here: while any remains
+     * unrevealed, covering all of `own` does NOT win the round, so a clue must not
+     * be treated as board-winning (G1).
+     */
+    ownTraps: string[];
 }
 
-function groupBoard(view: BotSpymasterView): BoardGroups {
+export function groupBoard(view: BotSpymasterView): BoardGroups {
     const other = view.team === 'red' ? 'blue' : 'red';
     const isMatch = view.gameMode === 'match';
-    const g: BoardGroups = { own: [], assassin: [], opponent: [], neutral: [] };
+    const g: BoardGroups = { own: [], assassin: [], opponent: [], neutral: [], ownTraps: [] };
     for (let i = 0; i < view.types.length; i++) {
         if (view.revealed[i]) continue;
         const w = view.words[i] as string;
         const t = view.types[i];
         if (t === view.team) {
             // Match mode: an OWN card with negative value (a trap) costs points if
-            // revealed, so never steer the clicker toward it — treat it as avoid.
+            // revealed, so never steer the clicker toward it — treat it as avoid,
+            // but remember it so the win check below knows the own set isn't cleared.
             const value = isMatch ? (view.cardScores?.[i] ?? 0) : 1;
-            if (isMatch && value < 0) g.neutral.push(w);
-            else g.own.push(w);
+            if (isMatch && value < 0) {
+                g.neutral.push(w);
+                g.ownTraps.push(w);
+            } else g.own.push(w);
         } else if (t === 'assassin') g.assassin.push(w);
         else if (t === other) g.opponent.push(w);
         else g.neutral.push(w);
@@ -304,7 +314,7 @@ function maxRel(words: readonly string[], clue: string, backend: SemanticBackend
  * `defenseBias` scales the opponent penalty, `assassinCaution` scales both the
  * assassin penalty and its berth. Returns null when no own card leads safely.
  */
-function scoreClue(
+export function scoreClue(
     clue: string,
     groups: BoardGroups,
     backend: SemanticBackend,
@@ -366,7 +376,13 @@ function scoreClue(
     // set is capped at the normal clue-number ceiling, and everything downstream
     // (clarity, value, coverage) is computed on the cards the clicker will
     // actually be asked to take — not on a lead the number can't express.
-    const fullLead = leadOwn === groups.own.length;
+    // A board-winning clue must cover every own card the clicker will be asked to
+    // take AND leave no own trap behind: while a match trap own card is unrevealed
+    // the round can't end (redScore < redTotal), so covering only the non-trap own
+    // set is NOT a win — treating it as one grants an illusory WIN_BONUS, exempts
+    // it from the promise trim, and lifts the number cap, sending the clicker
+    // fishing for cards the round doesn't actually need (G1).
+    const fullLead = leadOwn === groups.own.length && groups.ownTraps.length === 0;
     let intended = fullLead ? leadOwn : Math.min(leadOwn, MAX_CLUE_NUMBER);
     // Promise trim (lesson 18): never promise a tail card that is only
     // margin-clearing but absolutely weak — the number would send the clicker

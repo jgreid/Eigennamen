@@ -529,6 +529,11 @@ export async function forfeitGame(roomCode: string, forfeitTeam?: Team): Promise
                     if (game.gameOver) {
                         throw GameStateError.gameOver();
                     }
+                    // Unlike reveal/clue/endTurn, forfeit has no Lua paused
+                    // backstop — guard it here so a paused game can't be forfeited.
+                    if (game.paused) {
+                        throw GameStateError.gamePaused();
+                    }
 
                     const forfeitingTeam: Team =
                         forfeitTeam === 'red' || forfeitTeam === 'blue' ? forfeitTeam : game.currentTurn;
@@ -577,6 +582,10 @@ export async function abandonGame(roomCode: string): Promise<void> {
                 (game: GameState) => {
                     if (game.gameOver) {
                         throw GameStateError.gameOver();
+                    }
+                    // Abandon likewise has no Lua paused backstop.
+                    if (game.paused) {
+                        throw GameStateError.gamePaused();
                     }
                     game.gameOver = true;
                     game.winner = null;
@@ -774,6 +783,20 @@ export async function finalizeMatchRound(roomCode: string): Promise<MatchRoundFi
                 gameKey,
                 (game: GameState) => {
                     if (game.gameMode !== 'match') return null;
+                    // Only finalize a round that has actually ended, and only once.
+                    // A racing startNextRound can create round N+1 (gameOver=false)
+                    // before finalization runs — without these guards finalizeRound
+                    // would push a phantom 0/0 entry for the just-started round, skip
+                    // the +ROUND_WIN_BONUS for round N, and broadcast roundEnded for
+                    // a round that just began. Checked inside the transaction so the
+                    // executeGameTransaction retry re-reads current state each attempt.
+                    if (!game.gameOver) return null;
+                    const lastRound = game.roundHistory?.[game.roundHistory.length - 1];
+                    if (lastRound && lastRound.roundNumber === (game.matchRound ?? 1)) {
+                        // This round was already finalized (its result is at the tail
+                        // of roundHistory) — don't double-award or double-broadcast.
+                        return null;
+                    }
 
                     const roundResult = finalizeRound(game);
                     return {

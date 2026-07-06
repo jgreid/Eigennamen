@@ -154,7 +154,7 @@ export class GameStateError extends GameError {
     }
 
     static gamePaused(): GameStateError {
-        return new GameStateError('GAME_PAUSED' as ErrorCode, 'Game is currently paused');
+        return new GameStateError(ERROR_CODES.GAME_PAUSED, 'Game is currently paused');
     }
 
     static noClueGiven(): GameStateError {

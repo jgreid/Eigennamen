@@ -46,9 +46,11 @@ Deterministic defects reachable in ordinary play. These are the "a user hits thi
 
 ---
 
-### A2 — A brief network blip silently detaches the client from all room broadcasts
+### A2 — A brief network blip silently detaches the client from all room broadcasts — **FIXED**
 
 **Severity:** High · **Area:** Frontend state / reconnection
+
+**Resolution (shipped):** the `connect` handler (`frontend/socket-client-connection.ts`) no longer keys reconnect detection off `reconnectAttempts` alone. The `disconnect` handler now sets `host.hadUnexpectedDisconnect = true` for any drop other than an intentional `io client disconnect`, and `connect` treats `reconnectAttempts > 0 || hadUnexpectedDisconnect` as a reconnect — so a transient blip whose *first* retry succeeds (no `connect_error`, `reconnectAttempts` still 0) now runs `attemptRejoin` + `requestResync` and the fresh socket rejoins its rooms instead of going silently deaf. Unit-tested in `__tests__/frontend/socket-client-connection.test.ts` (transient-drop rejoins; intentional disconnect does not; the pre-existing `connect_error` path still works).
 
 **Root cause:** `wasReconnecting` (`frontend/socket-client-connection.ts:147-149`) is derived from `reconnectAttempts > 0`, which only increments on `connect_error` (line 175-178). Socket.io fires `connect_error` only for *failed* attempts — a transient disconnect whose first retry succeeds re-fires `connect` with `reconnectAttempts === 0`, so `attemptRejoin`/resync are skipped entirely. Server-side, the new socket is a member of zero Socket.io rooms, and nothing on this path ever writes `connected: true` back to the player record.
 
@@ -80,9 +82,11 @@ Deterministic defects reachable in ordinary play. These are the "a user hits thi
 
 ---
 
-### A4 — `player:kick` fails to disconnect the target once their session–socket mapping expires
+### A4 — `player:kick` fails to disconnect the target once their session–socket mapping expires — **FIXED**
 
 **Severity:** High · **Area:** Game integrity / moderation
+
+**Resolution (shipped):** the kick handler no longer looks the target up via `getSocketId` (the 5-minute, never-refreshed session→socket mapping). It targets the `player:<sessionId>` Socket.io room (joined at room-join/reconnect) via `io.in(...).fetchSockets()` and disconnects each socket — TTL-independent, and consistent with how broadcasts already address players (`safeEmitToPlayer`). The per-event mapping-TTL refresh in the plan was scoped out: broadcasts don't use the mapping, so the kick was its only broadcast-affecting consumer.
 
 **Root cause:** The session→socket mapping is written exactly once per connection at auth (`middleware/socketAuth.ts:53`) with a 5-minute TTL (`config/roomConfig.ts:18` `SESSION_SOCKET: 5*60`) and never refreshed. The kick handler (`socket/handlers/playerHandlers/playerModerationHandlers.ts:43`) locates the target's live socket via `getSocketId` — for any player connected longer than 5 minutes (the normal case) this returns null: the Redis player record is deleted and the reconnect token invalidated, but the live socket is never disconnected and never leaves the `room:<code>`/`player:<sessionId>` Socket.io rooms. The kicked client sees no `ROOM_KICKED` UI and keeps receiving every room broadcast — chat, reveals, clues, player lists — indefinitely.
 
@@ -96,9 +100,11 @@ Deterministic defects reachable in ordinary play. These are the "a user hits thi
 
 ---
 
-### A5 — `gameStateSchema` silently strips the `paused` field (and will strip any future field)
+### A5 — `gameStateSchema` silently strips the `paused` field (and will strip any future field) — **FIXED**
 
 **Severity:** Medium · **Area:** Game integrity / data layer
+
+**Resolution (shipped):** added `paused` to `gameStateSchema` (it now round-trips); added `if (game.paused) throw GameStateError.gamePaused()` inside both `forfeitGame` and `abandonGame` (they have no Lua backstop); emit `paused` from `getGameStateForPlayer`; promoted `GAME_PAUSED` to a first-class `ERROR_CODES` entry (dropping an `as ErrorCode` cast). The systemic guard is a schema-drift test (`__tests__/services/luaGameOpsSchema.test.ts`): a `Required<GameState>` fixture forces every field to be named and the test fails unless the schema shape covers them all — so the next added `GameState` field can't be silently stripped.
 
 **Root cause:** `gameStateSchema` (`services/game/luaGameOps.ts:24-66`) enumerates every `GameState` field *except* `paused` (`types/game.ts:232`) and has no `.passthrough()` — Zod's default strip mode removes it on every TypeScript read (`getGame`, `gameService.ts:336`; `safeParseGameData` inside `executeGameTransaction`, `luaGameOps.ts:162,281`). Consequences: every TS-side pause guard is dead code (`gameHandlers.ts:183/273/312/368`, `gameService.ts:479`, `botController.ts:206/406`); `executeGameTransaction` re-serializes the stripped object, silently erasing `paused: true` from stored state on any transaction write; and `forfeitGame`/`abandonGame` — which unlike reveal/clue/endTurn have **no Lua paused backstop** — succeed on a paused game. The Lua guards (`revealCard.lua:41`, `endTurn.lua:42`, `submitClue.lua:55`) read raw JSON and still hold, which is what keeps this Medium rather than High. During a pause with a bot on the acting seat, the bot's dead paused check lets it burn its full re-arm ladder against Lua `GAME_PAUSED` rejections.
 
@@ -112,11 +118,13 @@ Deterministic defects reachable in ordinary play. These are the "a user hits thi
 
 ---
 
-### A6 — Duet: a green revealed from the wrong side's perspective is permanently dead, making the co-op win unreachable — **FIXED**
+### A6 — Duet: a green revealed from the wrong side's perspective is permanently dead, making the co-op win unreachable — **INVESTIGATED, DEFERRED (gated on D3)**
 
 **Severity:** Medium · **Area:** Game rules (Duet)
 
-**Resolution (shipped):** took option (b) — the smaller, product-safe path. Rather than rework the reveal hot path to carry per-perspective `revealed[]` state (option (a): higher risk, touches masking + frontend rendering), the game now *detects* the mathematically-lost state and ends as a cooperative loss with a clear reason. Added `isDuetWinUnreachable(game)` to `services/game/revealEngine.ts`: `greenFound` plus every still-unrevealed card that is an agent from *either* perspective is the largest number of greens still findable; when that total drops below `greenTotal` (15) the co-op win is impossible. `determineDuetRevealOutcome` now falls through to this guard after a bystander/max-guess reveal (the only reveals that can strand a cross-perspective green) and, when it fires, sets `gameOver`, `winner = null`, `endReason = 'unreachable'`. `scripts/revealCard.lua` carries the identical guard so the atomic path and the bot engine agree. The new `'unreachable'` reason is threaded end-to-end: `types/game.ts` + `luaGameOps.ts` reveal schema → `game:over` `reason` (`gameActions.ts`) → client `state.gameState.endReason` (`gameEventHandlers.ts`) → a dedicated `game.duetGameOverUnreachable` message (`frontend/game/scoring.ts`, localized in all four locale files). The guard cannot false-fire at game start — a fresh duet board always has exactly 15 agent-either cards (3 overlap + 6 greenOnlyA + 6 greenOnlyB), verified by the board-distribution test.
+**Status (2026-07-05):** root cause reconfirmed in `revealCard.lua` (a single shared `revealed[]` flag + perspective-resolved `cardType`, so a green-for-A card revealed on B's turn is recorded neutral and can never be re-revealed). Both fixes were deliberately **not** shipped in this pass: the per-perspective reveal state (fix a) touches the Lua reveal hot path in both `revealCard.lua` and `revealEngine.ts`, which this plan already gates on the extended real-Redis Lua harness (D3) landing first, per the P1-9 precedent — D3 has not landed. The smaller "detect the mathematically-lost state and end as lost" (fix b) is a genuine product decision (it changes duet outcomes) and still writes through the game-ending path, so it isn't a safe drop-in either. Left for a D3-gated follow-up so the reveal-path change ships with real-Redis coverage rather than mock-only tests.
+
+**Root cause:** `revealCard.lua:75-82` resolves the card type from the acting team's perspective and sets a single shared `revealed[]` flag; line 64 blocks any re-reveal (`ALREADY_REVEALED`). A card that is green from side A's perspective but bystander from side B's — revealed on B's turn — is recorded as neutral and can never be revealed again, so `greenFound` is permanently capped below the 15 (`greenTotal`) required to win (`revealCard.lua:132`). In the source material this game adapts, such a card stays guessable from the other perspective. The game doesn't detect the mathematically-lost state either — players keep burning timer tokens with no signal.
 
 **Root cause:** `revealCard.lua:75-82` resolves the card type from the acting team's perspective and sets a single shared `revealed[]` flag; line 64 blocks any re-reveal (`ALREADY_REVEALED`). A card that is green from side A's perspective but bystander from side B's — revealed on B's turn — is recorded as neutral and can never be revealed again, so `greenFound` is permanently capped below the 15 (`greenTotal`) required to win (`revealCard.lua:132`). In the source material this game adapts, such a card stays guessable from the other perspective. The game didn't detect the mathematically-lost state either — players kept burning timer tokens with no signal.
 
@@ -126,7 +134,10 @@ Deterministic defects reachable in ordinary play. These are the "a user hits thi
 
 ---
 
-### A7 — `finalizeMatchRound` has no gameOver/idempotency guard — a racing `game:nextRound` finalizes the wrong round
+### A7 — `finalizeMatchRound` has no gameOver/idempotency guard — a racing `game:nextRound` finalizes the wrong round — **FIXED**
+
+**Resolution (shipped):** `finalizeMatchRound`'s transaction callback now returns null unless `game.gameOver === true` AND the round isn't already finalized (roundHistory tail's `roundNumber !== matchRound`), checked inside the transaction so `executeGameTransaction`'s retry re-reads state. This makes finalization idempotent and end-gated, eliminating the phantom 0/0 entry, the double bonus, and the `game:roundEnded` broadcast for a just-started round. The plan's additional reorder (finalize before the `game:over` broadcast) was deferred: it touches several call sites and the client event order, and the idempotency guard already prevents all the described corruption.
+
 
 **Severity:** Medium · **Area:** Game integrity (Match)
 
@@ -447,9 +458,11 @@ Server lifecycle, background maintenance, and the deploy pipeline. B1 and B5 are
 
 The a11y items C1/C2 together make timed multiplayer rooms essentially unusable with a screen reader today; the PWA items C3 make the offline promise real.
 
-### C1 — An active turn timer turns the turn indicator into a once-per-second live region
+### C1 — An active turn timer turns the turn indicator into a once-per-second live region — **FIXED**
 
 **Severity:** High · **Area:** Accessibility
+
+**Resolution (shipped):** the `aria-live`/`aria-atomic`/`role="status"` live region was moved off the `#turn-indicator` container (which wraps the per-second timer) onto the `.turn-text` span that actually changes on a turn, and the `#timer-value`'s own `aria-live`/`aria-atomic` were removed. `role="timer"` carries an implicit `aria-live="off"`, so the countdown stays queryable on demand but is no longer announced tick-by-tick. Covered by the accessibility E2E spec.
 
 **Root cause:** `#timer-value` carries `aria-live="polite" aria-atomic="true"` and is nested inside `#turn-indicator` (`role="status" aria-live="polite" aria-atomic="true"`) — `public/index.html:272-296`. `timer.ts`'s 250ms interval updates the MM:SS text, so screen readers re-announce the countdown (potentially the whole "Red Team's Turn 2:41" string, due to the atomic parent) every second for the entire turn, drowning out the clue/reveal/chat announcements and defeating the deliberately throttled 30/10/1-second announcer in `timer.ts:7-32`.
 
@@ -475,7 +488,10 @@ The a11y items C1/C2 together make timed multiplayer rooms essentially unusable 
 
 ---
 
-### C3 — The PWA is dead offline: the precache omits every JS asset, and offline navigation to any game URL 503s
+### C3 — The PWA is dead offline: the precache omits every JS asset, and offline navigation to any game URL 503s — **FIXED**
+
+**Resolution (shipped):** `esbuild.config.js` now derives `OFFLINE_ASSETS` from the built output (every `?v=`-stamped script/style URL in index.html, the emitted code-split chunks, and the four locale JSONs) and writes it into `service-worker.js` after the `?v=` stampers, so precache keys match request URLs — the list grew from 9 to 24 entries and now includes all JS + all 9 stylesheets + locales. The fetch handler's offline branch falls back to the cached shell (`/index.html`) for any navigation request, so a bookmarked/shared `?game=…` URL restores state client-side instead of returning a 503. Guarded by `__tests__/frontend/serviceWorker.test.ts` (precache covers every referenced script/style + JS + chunks + locales, all exist on disk; navigate-fallback returns the shell not a 503).
+
 
 **Severity:** High (composite) · **Area:** PWA / service worker
 
@@ -876,7 +892,10 @@ Each of these carries either real runtime cost or a misleading API surface today
 
 Found in the code merged since the first review (PR #495–#497 era). G1 is a real playing-strength defect; the rest are tuning-infrastructure correctness.
 
-### G1 — Match mode: own trap cards are excluded from the spymaster's win logic, which fires on clues that cannot win
+### G1 — Match mode: own trap cards are excluded from the spymaster's win logic, which fires on clues that cannot win — **FIXED (primary defect)**
+
+**Resolution (shipped):** `groupBoard` now tracks the excluded negative-value own cards in `BoardGroups.ownTraps`, and `scoreClue`'s full-board-lead check requires `groups.ownTraps.length === 0` — so covering only the non-trap own set is no longer treated as a board win while an own trap is unrevealed (no illusory `WIN_BONUS`, no desperation exemption, number stays capped). `groupBoard`/`scoreClue` are exported for a direct unit test on `coversAll` (trap present → false; none → true). The plan's second half — letting traps back into targeting so the bot can still close a round when only traps remain or the bonus exceeds trap cost — is a separate strategic change and remains open; mirroring in `analyze.ts` was a no-op (it carries no parallel trap grouping).
+
 
 **Severity:** High (within bot play quality) · **Area:** Bots / match mode
 

@@ -24,8 +24,10 @@ import {
     loadSocketIO,
     isSocketIOAvailable,
     setupEventListeners,
+    doConnect,
 } from '../../frontend/socket-client-connection';
 import type { ConnectionHost } from '../../frontend/socket-client-connection';
+import { safeGetStorage } from '../../frontend/socket-client-storage';
 
 function createMockHost(overrides: Partial<ConnectionHost> = {}): ConnectionHost {
     return {
@@ -222,5 +224,94 @@ describe('setupEventListeners', () => {
 
         setupEventListeners(host);
         expect(registerAllEventListeners).toHaveBeenCalled();
+    });
+});
+
+describe('doConnect reconnection detection (A2)', () => {
+    /** @type {Record<string, (...a: unknown[]) => void>} */
+    let handlers: Record<string, (...a: unknown[]) => void>;
+    let mockSocket: { on: jest.Mock; id: string };
+    let originalIo: unknown;
+
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    beforeEach(() => {
+        handlers = {};
+        mockSocket = {
+            on: jest.fn((event: string, handler: (...a: unknown[]) => void) => {
+                handlers[event] = handler;
+            }),
+            id: 'socket-abc',
+        };
+        originalIo = (globalThis as unknown as { io?: unknown }).io;
+        (globalThis as unknown as { io: unknown }).io = jest.fn(() => mockSocket);
+        // Key-aware storage: a stored nickname + room code so attemptRejoin proceeds.
+        (safeGetStorage as jest.Mock).mockImplementation((_store: unknown, key: string) => {
+            if (key === 'eigennamen-nickname') return 'Alice';
+            if (key === 'eigennamen-room-code') return 'ROOM123';
+            return null;
+        });
+    });
+
+    afterEach(() => {
+        (globalThis as unknown as { io: unknown }).io = originalIo;
+        (safeGetStorage as jest.Mock).mockReset();
+        (safeGetStorage as jest.Mock).mockReturnValue(null);
+    });
+
+    test('rejoins after a transient disconnect whose first retry succeeds (no connect_error)', async () => {
+        const host = createMockHost({
+            joinRoom: jest.fn().mockResolvedValue({ room: { code: 'ROOM123' } }),
+            requestResync: jest.fn().mockResolvedValue({}),
+        });
+        doConnect(host, 'http://localhost', {}).catch(() => {});
+
+        // Initial connect — not a reconnect, so no rejoin.
+        handlers['connect']();
+        expect(host.joinRoom).not.toHaveBeenCalled();
+
+        // Transient network drop; socket.io will auto-reconnect.
+        handlers['disconnect']('transport close');
+        expect(host.hadUnexpectedDisconnect).toBe(true);
+
+        // First retry succeeds — connect fires with NO connect_error, so
+        // reconnectAttempts is still 0. The rejoin must fire off hadUnexpectedDisconnect.
+        handlers['connect']();
+        await flush();
+
+        expect(host.joinRoom).toHaveBeenCalledWith('ROOM123', 'Alice');
+        expect(host.requestResync).toHaveBeenCalled();
+        expect(host.hadUnexpectedDisconnect).toBe(false);
+    });
+
+    test('an intentional client disconnect does not arm a rejoin', async () => {
+        const host = createMockHost({
+            joinRoom: jest.fn().mockResolvedValue({}),
+            requestResync: jest.fn().mockResolvedValue({}),
+        });
+        doConnect(host, 'http://localhost', {}).catch(() => {});
+
+        handlers['connect']();
+        handlers['disconnect']('io client disconnect');
+        expect(host.hadUnexpectedDisconnect).toBeFalsy();
+
+        handlers['connect']();
+        await flush();
+        expect(host.joinRoom).not.toHaveBeenCalled();
+    });
+
+    test('still rejoins the classic way when a connect_error preceded the reconnect', async () => {
+        const host = createMockHost({
+            joinRoom: jest.fn().mockResolvedValue({}),
+            requestResync: jest.fn().mockResolvedValue({}),
+        });
+        doConnect(host, 'http://localhost', {}).catch(() => {});
+
+        handlers['connect']();
+        // A failed retry bumps reconnectAttempts (the pre-existing signal).
+        host.reconnectAttempts = 1;
+        handlers['connect']();
+        await flush();
+        expect(host.joinRoom).toHaveBeenCalledWith('ROOM123', 'Alice');
     });
 });

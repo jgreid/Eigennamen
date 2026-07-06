@@ -304,6 +304,7 @@ export function getGameStateForPlayer(game: GameState | null, player: Player | n
         redTotal: game.redTotal,
         blueTotal: game.blueTotal,
         gameOver: game.gameOver,
+        paused: game.paused ?? false,
         winner: game.winner,
         currentClue: game.currentClue,
         guessesUsed: game.guessesUsed || 0,

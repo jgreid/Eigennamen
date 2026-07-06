@@ -34,6 +34,11 @@ const gameStateSchema = z
         redTotal: z.number(),
         blueTotal: z.number(),
         gameOver: z.boolean(),
+        // Pause flag. MUST stay listed: Zod strips unknown keys, so omitting it
+        // silently erased `paused: true` on every transaction write and made every
+        // TS-side pause guard dead code (the Lua guards read raw JSON and still
+        // held). See the schema-drift regression test in luaGameOps.test.ts.
+        paused: z.boolean().optional(),
         winner: z.enum(['red', 'blue']).nullable().optional(),
         currentClue: z.unknown().optional(),
         guessesUsed: z.number().optional(),

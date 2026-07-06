@@ -46,6 +46,11 @@ describe('Player Handlers', () => {
             to: jest.fn().mockReturnValue({
                 emit: jest.fn(),
             }),
+            // io.in('player:<id>').fetchSockets() — how the kick handler finds the
+            // target's live socket(s), TTL-independent. Defaults to none connected.
+            in: jest.fn().mockReturnValue({
+                fetchSockets: jest.fn().mockResolvedValue([]),
+            }),
             sockets: {
                 sockets: new Map(),
             },
@@ -505,18 +510,20 @@ describe('Player Handlers', () => {
             });
         });
 
-        test('disconnects target socket if found', async () => {
+        test('disconnects target socket found via the player room (any TTL)', async () => {
             const mockTargetSocket = {
                 emit: jest.fn(),
                 leave: jest.fn(),
                 disconnect: jest.fn(),
-                roomCode: 'TEST12',
             };
-            mockIo.sockets.sockets.set('target-socket-id', mockTargetSocket);
-            playerService.getSocketId.mockResolvedValue('target-socket-id');
+            mockIo.in.mockReturnValue({
+                fetchSockets: jest.fn().mockResolvedValue([mockTargetSocket]),
+            });
 
             await eventHandlers['player:kick']({ targetSessionId: 'session-2' });
 
+            // Targets the player room, not the session→socket mapping.
+            expect(mockIo.in).toHaveBeenCalledWith('player:session-2');
             expect(mockTargetSocket.emit).toHaveBeenCalledWith('room:kicked', {
                 reason: expect.any(String),
             });
@@ -524,8 +531,10 @@ describe('Player Handlers', () => {
             expect(mockTargetSocket.disconnect).toHaveBeenCalledWith(true);
         });
 
-        test('handles case when target socket not found', async () => {
-            playerService.getSocketId.mockResolvedValue(null);
+        test('handles case when no target socket is connected', async () => {
+            mockIo.in.mockReturnValue({
+                fetchSockets: jest.fn().mockResolvedValue([]),
+            });
 
             await eventHandlers['player:kick']({ targetSessionId: 'session-2' });
 

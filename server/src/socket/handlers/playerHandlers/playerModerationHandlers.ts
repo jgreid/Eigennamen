@@ -39,9 +39,6 @@ export default function playerModerationHandlers(io: Server, socket: GameSocket)
                     throw PlayerError.notFound(validated.targetSessionId);
                 }
 
-                // Get target player's socket ID
-                const targetSocketId: string | null = await playerService.getSocketId(validated.targetSessionId);
-
                 // Broadcast kick event before removing player
                 safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_KICKED, {
                     sessionId: validated.targetSessionId,
@@ -49,19 +46,22 @@ export default function playerModerationHandlers(io: Server, socket: GameSocket)
                     kickedBy: ctx.player.nickname,
                 });
 
-                // Disconnect the target player's socket BEFORE removing data from Redis.
-                // This prevents a window where the kicked player's socket can still emit
-                // events that reference their now-deleted player data.
-                if (targetSocketId) {
-                    const targetSocket = io.sockets.sockets.get(targetSocketId) as GameSocket | undefined;
-                    if (targetSocket) {
-                        targetSocket.emit(SOCKET_EVENTS.ROOM_KICKED, {
-                            reason: 'You were removed from the room by the host',
-                        });
-                        targetSocket.leave(`room:${ctx.roomCode}`);
-                        targetSocket.roomCode = null;
-                        targetSocket.disconnect(true);
-                    }
+                // Disconnect the target's live socket(s) BEFORE removing data from
+                // Redis, so a lingering socket can't emit events referencing
+                // now-deleted player data. Target the `player:<sessionId>` room
+                // (joined at room-join/reconnect) rather than the session→socket
+                // mapping: that mapping has a 5-minute TTL and is never refreshed,
+                // so getSocketId() returns null for anyone connected longer than it —
+                // which left a kicked player's socket connected and still a member of
+                // the room, receiving every broadcast for the game they were removed
+                // from (A4).
+                const targetSockets = await io.in(`player:${validated.targetSessionId}`).fetchSockets();
+                for (const targetSocket of targetSockets) {
+                    targetSocket.emit(SOCKET_EVENTS.ROOM_KICKED, {
+                        reason: 'You were removed from the room by the host',
+                    });
+                    targetSocket.leave(`room:${ctx.roomCode}`);
+                    targetSocket.disconnect(true);
                 }
 
                 // Invalidate reconnection token so kicked player cannot rejoin
