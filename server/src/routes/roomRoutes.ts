@@ -8,6 +8,7 @@ import * as playerService from '../services/playerService';
 import { validateParams } from '../middleware/validation';
 import { API_RATE_LIMITS } from '../config/constants';
 import { roomCodeSchema } from '../validators/roomSchemas';
+import { isRateLimitRelaxed } from '../config/env';
 
 const router: ExpressRouter = express.Router();
 
@@ -17,7 +18,8 @@ const roomExistsLimiter = rateLimit({
     max: API_RATE_LIMITS.ROOM_EXISTS.max,
     standardHeaders: true,
     legacyHeaders: false,
-    skip: () => process.env.NODE_ENV === 'test',
+    // Skip in tests, and under the load-test relax flag (fail-closed in prod). D5.
+    skip: () => process.env.NODE_ENV === 'test' || isRateLimitRelaxed(),
     handler: (_req: Request, res: Response) => {
         res.status(429).json({
             error: {

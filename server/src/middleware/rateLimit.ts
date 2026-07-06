@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 
 import rateLimit from 'express-rate-limit';
 import logger from '../utils/logger';
-import { getEnvInt } from '../config/env';
+import { getEnvInt, isRateLimitRelaxed } from '../config/env';
 import { incrementCounter, METRIC_NAMES } from '../utils/metrics';
 import { SESSION_RATE_LIMIT_MULTIPLIER } from '../config/rateLimits';
 
@@ -71,6 +71,11 @@ const apiLimiter = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
+    // Load-test escape hatch — bypasses the limiter only when
+    // LOADTEST_RELAX_RATE_LIMITS=true AND not in production (isRateLimitRelaxed
+    // is fail-closed in prod), so the bundled load tests can drive real traffic
+    // from a single IP. D5.
+    skip: () => isRateLimitRelaxed(),
     handler: (req: Request, res: Response, _next: NextFunction, options: { message: unknown }) => {
         logger.warn(`Rate limit exceeded for IP: ${req.ip}`);
         res.status(429).json(options.message);
@@ -146,6 +151,12 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
         if (!limit) return (_socket, _data, next) => next();
 
         return (socket, _data, next) => {
+            // Load-test escape hatch (D5): pass through when
+            // LOADTEST_RELAX_RATE_LIMITS=true and not in production
+            // (isRateLimitRelaxed is fail-closed in prod). Checked per-call so
+            // the env is honored at request time, not baked in at registration.
+            if (isRateLimitRelaxed()) return next();
+
             const socketKey = `${socket.id}:${eventName}`;
             const clientIP = getSocketIP(socket);
             const ipKey = `ip:${clientIP}:${eventName}`;

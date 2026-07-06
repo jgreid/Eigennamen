@@ -11,6 +11,7 @@ const {
     isDevelopment,
     shouldTrustProxy,
     isFlyDeployment,
+    isRateLimitRelaxed,
 } = require('../../config/env');
 
 // Mock logger
@@ -474,6 +475,32 @@ describe('Environment Configuration', () => {
 
         it('is false with neither marker set', () => {
             expect(isFlyDeployment()).toBe(false);
+        });
+    });
+
+    describe('isRateLimitRelaxed (D5 load-test knob)', () => {
+        it('is true only when the flag is set and not in production', () => {
+            process.env.NODE_ENV = 'development';
+            process.env.LOADTEST_RELAX_RATE_LIMITS = 'true';
+            expect(isRateLimitRelaxed()).toBe(true);
+        });
+
+        it('is false when the flag is unset', () => {
+            process.env.NODE_ENV = 'development';
+            delete process.env.LOADTEST_RELAX_RATE_LIMITS;
+            expect(isRateLimitRelaxed()).toBe(false);
+        });
+
+        it('is FAIL-CLOSED in production — ignored even when the flag is set', () => {
+            process.env.NODE_ENV = 'production';
+            process.env.LOADTEST_RELAX_RATE_LIMITS = 'true';
+            expect(isRateLimitRelaxed()).toBe(false);
+        });
+
+        it('only treats the exact string "true" as enabled', () => {
+            process.env.NODE_ENV = 'development';
+            process.env.LOADTEST_RELAX_RATE_LIMITS = '1';
+            expect(isRateLimitRelaxed()).toBe(false);
         });
     });
 });

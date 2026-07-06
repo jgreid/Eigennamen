@@ -140,6 +140,11 @@ export function validateEnv(): boolean {
                 '  - This widens the session hijacking window. Only enable if users frequently change IPs (mobile networks)'
             );
         }
+        if (process.env['LOADTEST_RELAX_RATE_LIMITS'] === 'true') {
+            warnings.push(
+                'LOADTEST_RELAX_RATE_LIMITS=true is IGNORED in production — per-IP rate limits stay enforced (fail-closed).'
+            );
+        }
     }
 
     // Validate RECONNECT_TOKEN_TTL_SECONDS if provided (applies to all environments)
@@ -233,6 +238,19 @@ export function getEnvBool(name: string, defaultValue: boolean = false): boolean
  */
 export function isProduction(): boolean {
     return process.env['NODE_ENV'] === 'production';
+}
+
+/**
+ * Whether per-IP rate limits (HTTP + socket) should be relaxed for load testing.
+ *
+ * Opt-in via LOADTEST_RELAX_RATE_LIMITS=true so the bundled load tests can drive
+ * real traffic from a single IP without tripping the 5-room/min etc. per-IP caps.
+ * FAIL-CLOSED in production: even if the flag is set on a live deployment it is
+ * ignored, so a load-test convenience can never weaken production's DoS
+ * protection. `validateEnv()` logs a warning at startup when it's ignored.
+ */
+export function isRateLimitRelaxed(): boolean {
+    return !isProduction() && process.env['LOADTEST_RELAX_RATE_LIMITS'] === 'true';
 }
 
 /**
