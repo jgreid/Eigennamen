@@ -85,16 +85,25 @@ export async function handleDisconnect(sessionId: string, expectedSocketId?: str
     // even when it's the stale one, leaving an actively-reconnected player
     // flagged disconnected and, ~10 minutes later, actually evicted by the
     // scheduled cleanup sweep below. See docs/HARDENING_PLAN.md P0-4.
-    const stale = await withLock(`player-mutation:${sessionId}`, async () => {
-        if (expectedSocketId) {
-            const currentSocketId = await getSocketId(sessionId);
-            if (currentSocketId && currentSocketId !== expectedSocketId) {
-                return true;
+    const stale = await withLock(
+        `player-mutation:${sessionId}`,
+        async () => {
+            if (expectedSocketId) {
+                const currentSocketId = await getSocketId(sessionId);
+                if (currentSocketId && currentSocketId !== expectedSocketId) {
+                    return true;
+                }
             }
-        }
-        await updatePlayer(sessionId, { connected: false, disconnectedAt: Date.now() });
-        return false;
-    });
+            await updatePlayer(sessionId, { connected: false, disconnectedAt: Date.now() });
+            return false;
+        },
+        // Two sequential REDIS_OPERATION-budgeted calls (getSocketId + updatePlayer).
+        // The default 5000ms lockTimeout gives only 4500ms — under a single one — so a
+        // slow updatePlayer could release the lock while it commits connected:false in
+        // the background, racing a concurrent reconnect's connected:true (the exact
+        // P0-4 race this lock exists to prevent). B2 / P0-3.
+        { lockTimeout: 2 * TIMEOUTS.REDIS_OPERATION + 1000 }
+    );
 
     if (stale) {
         logger.info(

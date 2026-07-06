@@ -255,17 +255,19 @@ Server lifecycle, background maintenance, and the deploy pipeline. B1 and B5 are
 
 ---
 
-### B2 — The P0-3 lock-budget invariant is still violated at several remaining `withLock` call sites
+### B2 — The P0-3 lock-budget invariant is still violated at several remaining `withLock` call sites — **FIXED**
 
 **Severity:** Medium (High if external networked Redis is ever adopted) · **Area:** Concurrency
 
-**Root cause:** P0-3 fixed `timerService.startTimer` and documented the invariant ("lockTimeout must exceed the slowest realistic inner operation"), but the audit didn't reach every site. Confirmed violations: the timer-expiry callback (`socket/disconnectHandler.ts:37-68`) uses `lockTimeout: 5000` → 4,500ms budget while its callback runs `getGame` + `endTurn` each separately budgeted at `TIMEOUTS.REDIS_OPERATION` (10s); host transfer (`disconnectHandler.ts:343`) gives 2.5s to three 10s-budgeted operations; `disconnectHandler.ts:221` wraps `handleDisconnect`'s composite work in a single `REDIS_OPERATION` budget; the two P0-4 player-mutation `withLock` calls are similarly under-budgeted. Consequence when it fires: the lock aborts and releases, the outraced operation *commits in the background* (endTurn flips the turn with no broadcast and no timer restart — clients show the wrong turn).
+**Resolution (shipped):** Each flagged site's `lockTimeout` is now derived from the summed worst case of its inner operations (matching the P0-3 reference, `TIMEOUTS.TIMER_OPERATION * 2 + 1000` in `timerService`), so the lock's usable budget (`lockTimeout - 500`) comfortably exceeds what its callback can take:
+- **timer-expiry** (`disconnectHandler.ts`, `timer-expire:` lock): `5000` → `TIMEOUTS.REDIS_OPERATION + LOCKS.CARD_REVEAL * 1000 + 1000` — covers `getGame` **plus** `endTurn`, which itself takes the 15s `CARD_REVEAL` reveal lock. This was the critical one: the old 4,500ms budget could abort mid-`endTurn`, committing the turn flip in the background with no `turnEnded` broadcast and no timer restart (clients stuck on the wrong turn).
+- **host-transfer** (`disconnectHandler.ts`, `host-transfer:` lock): `LOCKS.HOST_TRANSFER * 1000` (3s) → `3 * TIMEOUTS.REDIS_OPERATION + 1000` — covers `getPlayer` + `getPlayersInRoom` + `atomicHostTransfer`. (`LOCKS.HOST_TRANSFER` is left as-is; it still correctly bounds the *single-op* manual locks in `services/room/membership.ts`.)
+- **handleDisconnect composite** (`disconnectHandler.ts` `withTimeout`): `TIMEOUTS.REDIS_OPERATION` → `TIMEOUTS.SOCKET_HANDLER` — its body is a player-mutation lock + a scheduled-cleanup `zAdd`, not a single Redis call.
+- **player-mutation locks** (P0-4 and role-rotation): `services/player/cleanup.ts` (default 5000 → `2 * REDIS_OPERATION + 1000` for `getSocketId` + `updatePlayer`), `roomReconnectionHandlers.ts` (default 5000 → `REDIS_OPERATION + 1000`), and `services/player/queries.ts` (`3000` → `REDIS_OPERATION + 1000`).
 
-**Fix:** Repeat the P0-3 remediation: derive each `lockTimeout` from the sum of the inner operation budgets (timer-expire ≥ reveal-lock worst case + `REDIS_OPERATION`; host-transfer ≥ 3×`REDIS_OPERATION`; `disconnectHandler.ts:221` → a composite budget like `TIMEOUTS.SOCKET_HANDLER`). The P0-3 diagnostic (`withLock` warning on `OPERATION_TIMEOUT`) will confirm the fix empirically.
+**Tests:** Two capture-assertions in `disconnectHandler.test.ts` read the actual `lockTimeout` passed at the timer-expire and host-transfer call sites and assert the usable budget covers the summed inner budgets, so a regression to the old value fails the build. The generic P0-3 hazard (withLock aborting on too-small a budget) is already covered in `distributedLock.test.ts`.
 
-**Touches:** `socket/disconnectHandler.ts`, `services/player/cleanup.ts`, `socket/handlers/roomHandlers/roomReconnectionHandlers.ts`
-
-**Tests:** Extend the P0-3 regression pattern: mock a Redis call resolving after the old budget but within its own declared budget; assert the operation completes and the broadcast is emitted.
+**Not changed (noted):** the sibling `timer-restart:` lock in the same handler (`LOCKS.TIMER_RESTART`) has the same shape but is deliberately left as-is — it runs inside a non-critical `SOCKET_HANDLER`-bounded `withTimeout` whose `.catch` logs and moves on, and its work is idempotent behind both the `timer-restart:` and `startTimer`'s own `timer:` locks, so an early abort degrades to "timer starts slightly late", not state corruption. Widening it correctly would cascade into that outer wrapper; tracked as a follow-up if the non-critical framing ever changes.
 
 **Risk / Notes:** Rated Medium because in-memory Redis on the same box completes these calls in microseconds; it becomes High the day external Redis lands. Widening budgets holds locks longer on genuinely stuck operations — same acceptable tradeoff as P0-3.
 

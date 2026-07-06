@@ -622,4 +622,52 @@ describe('disconnectHandler', () => {
             expect(startTurnTimer).not.toHaveBeenCalled();
         });
     });
+
+    // B2: the lock budget at each site must exceed the summed worst case of its
+    // inner operations, or withLock's internal timeout (lockTimeout - 500) aborts
+    // and releases the lock while the outraced operation commits in the background
+    // (endTurn flips the turn with no broadcast; host transfer changes host with no
+    // room:hostChanged). These capture the actual lockTimeout passed at the call
+    // site so a regression back to the old under-budgeted value fails the build.
+    describe('B2: lock budgets cover the inner-operation worst case', () => {
+        const { TIMEOUTS } = require('../../utils/timeout');
+        const { LOCKS } = require('../../config/securityConfig');
+
+        const optionsFor = (prefix: string): { lockTimeout: number } | undefined => {
+            const call = mockWithLock.mock.calls.find((c: unknown[]) => String(c[0]).startsWith(prefix));
+            return call ? (call[2] as { lockTimeout: number }) : undefined;
+        };
+
+        it('timer-expire outlasts getGame + endTurn (which takes the reveal lock)', async () => {
+            gameService.getGame.mockResolvedValue({ gameOver: false, currentTurn: 'red' });
+            gameService.endTurn.mockResolvedValue({ currentTurn: 'blue', previousTurn: 'red' });
+            const callback = createTimerExpireCallback(jest.fn(), jest.fn().mockResolvedValue({}));
+
+            await callback('ROOM01');
+
+            const opts = optionsFor('timer-expire:');
+            expect(opts).toBeDefined();
+            // usable budget (lockTimeout - 500) ≥ REDIS_OPERATION + CARD_REVEAL lock
+            expect(opts!.lockTimeout - 500).toBeGreaterThanOrEqual(TIMEOUTS.REDIS_OPERATION + LOCKS.CARD_REVEAL * 1000);
+        });
+
+        it('host-transfer outlasts three sequential Redis operations', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'sess-1',
+                isHost: true,
+                connected: false,
+                roomCode: 'ROOM01',
+            });
+            playerService.getPlayersInRoom.mockResolvedValue([
+                { sessionId: 'sess-2', connected: true, isBot: false, nickname: 'Bob' },
+            ]);
+
+            await handleDisconnect(mockIo, mockSocket, 'transport close');
+
+            const opts = optionsFor('host-transfer:');
+            expect(opts).toBeDefined();
+            // getPlayer + getPlayersInRoom + atomicHostTransfer, each REDIS_OPERATION.
+            expect(opts!.lockTimeout - 500).toBeGreaterThanOrEqual(3 * TIMEOUTS.REDIS_OPERATION);
+        });
+    });
 });
