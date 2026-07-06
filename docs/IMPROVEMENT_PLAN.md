@@ -508,17 +508,15 @@ The a11y items C1/C2 together make timed multiplayer rooms essentially unusable 
 
 ---
 
-### C2 — Every toast is announced twice to screen readers
+### C2 — Every toast is announced twice to screen readers — **FIXED**
 
 **Severity:** Low · **Area:** Accessibility
 
-**Root cause:** `#toast-container` is itself a live region (`role="alert"`, `index.html:64-69`) and `showToast` (`ui.ts:66-80`) additionally pushes the same message through `announceToScreenReader` — two channels, every clue/join/leave/reconnect/settings toast spoken twice, the second possibly assertive and interrupting.
+**Resolution (shipped):** Dropped `role="alert"`/`aria-live` from `#toast-container` in `index.html`, making it visual-only. The single screen-reader channel is now `showToast`'s existing `announceToScreenReader` call, which routes text through the dedicated `#sr-announcements` polite live region and adds the useful "Error:"/"Warning:" prefix — so each toast is spoken exactly once instead of twice (the second, container-driven announcement was `role="alert"` = assertive and could interrupt). `ui.ts` needed no change; the announce path was already there.
 
-**Fix:** One channel, not both: drop `role="alert"`/aria-live from the container (visual-only) and keep the `announceToScreenReader` call (it already adds useful "Error:"/"Warning:" context) — or the reverse.
+**Tests:** `ui.test.ts` already asserts the toast text reaches `#sr-announcements` (the one channel). Added a source regression that reads `public/index.html` and asserts `#toast-container` carries no `role="alert"`/`aria-live` while `#sr-announcements` keeps its `aria-live`, so re-adding a second live region fails the build.
 
-**Touches:** `public/index.html`, `frontend/ui.ts`
-
-**Tests:** jsdom assertion that exactly one live region receives the toast text.
+**Touches:** `public/index.html`, `__tests__/frontend/ui.test.ts`
 
 ---
 
@@ -601,17 +599,15 @@ The a11y items C1/C2 together make timed multiplayer rooms essentially unusable 
 
 ---
 
-### C8 — `openModal()` focuses disabled controls, leaving keyboard/SR focus behind the dialog
+### C8 — `openModal()` focuses disabled controls, leaving keyboard/SR focus behind the dialog — **FIXED**
 
 **Severity:** Low · **Area:** Accessibility
 
-**Root cause:** `openModal` (`ui.ts:197-203`) focuses `focusableElements[0]` without excluding disabled controls — the replay modal's first button (`#replay-prev`) is disabled at step 0, so `.focus()` no-ops: focus stays on the history-list button behind the overlay and the SR reading position never enters the dialog. The focus-trap handler's own comment documents the stricter selector this path should use.
+**Resolution (shipped):** Extracted a shared `MODAL_FOCUSABLE_SELECTOR` (the focus-trap's `:not([disabled])` selector) and a `focusFirstFocusable(container)` helper in `ui.ts`. `openModal` now evaluates the focusable set *inside* the `setTimeout` (at focus time) and focuses the first genuinely focusable element — preferring a visible one (`offsetParent !== null`, with a fall-through to the first enabled candidate so jsdom, where `offsetParent` is always null, still works) and falling back to the modal itself (made `tabindex="-1"`) so the SR reading position always enters the dialog. `closeModal`'s stack-restore branch and the `handleModalKeydown` focus-trap now use the same helper/selector (DRY). This fixes the replay modal opening with `#replay-prev` disabled at step 0: focus lands on the enabled control (or the dialog), never stranded on the history-list button behind the overlay.
 
-**Fix:** Move the focusable query inside the `setTimeout` (evaluate at focus time), use the trap's `:not([disabled])` selector, skip `offsetParent === null` elements, fall back to focusing the modal itself; apply the same to `closeModal`'s stack-restore branch (`ui.ts:248-253`).
+**Tests:** `ui.test.ts` — opening a modal whose first control is disabled focuses the next enabled control; with all controls disabled, focus falls back inside the dialog (modal gets `tabindex="-1"`).
 
-**Touches:** `frontend/ui.ts`
-
-**Tests:** jsdom: open the replay modal with `#replay-prev` disabled — assert focus lands inside the dialog.
+**Touches:** `frontend/ui.ts`, `__tests__/frontend/ui.test.ts`
 
 ---
 

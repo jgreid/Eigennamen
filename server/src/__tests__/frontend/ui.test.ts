@@ -174,6 +174,28 @@ describe('showToast', () => {
     });
 });
 
+// C2: screen readers must hear each toast exactly once. showToast already routes
+// text through #sr-announcements (asserted above), so the visual #toast-container
+// must NOT also be a live region — otherwise every toast is announced twice.
+describe('C2: toast container is not a second live region (index.html)', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const html: string = fs.readFileSync(path.join(__dirname, '../../../public/index.html'), 'utf-8');
+
+    it('the toast container is visual-only (no role="alert" / aria-live)', () => {
+        const tag = html.match(/<div[^>]*id="toast-container"[^>]*>/)?.[0];
+        expect(tag).toBeDefined();
+        expect(tag).not.toContain('role="alert"');
+        expect(tag).not.toContain('aria-live');
+    });
+
+    it('#sr-announcements remains the dedicated live region', () => {
+        const tag = html.match(/<div[^>]*id="sr-announcements"[^>]*>/)?.[0];
+        expect(tag).toBeDefined();
+        expect(tag).toContain('aria-live');
+    });
+});
+
 describe('dismissToast', () => {
     test('adds hiding class', () => {
         const toast = showToast('Test')!;
@@ -249,6 +271,29 @@ describe('openModal', () => {
     test('handles non-existent modal ID', () => {
         expect(() => openModal('nonexistent')).not.toThrow();
         expect(state.activeModal).toBeNull();
+    });
+
+    // C8: focus must skip a control that is disabled at open (e.g. the replay
+    // modal's #replay-prev at step 0). Focusing a disabled element is a no-op, so
+    // the old code left keyboard/SR focus stranded behind the overlay.
+    test('focuses the first ENABLED control, skipping a disabled one (C8)', () => {
+        (document.getElementById('test-btn-1') as HTMLButtonElement).disabled = true;
+        openModal('test-modal');
+        jest.advanceTimersByTime(50);
+        expect(document.activeElement).toBe(document.getElementById('test-input'));
+    });
+
+    test('focus lands inside the dialog even when all controls are disabled (C8)', () => {
+        (document.getElementById('test-btn-1') as HTMLButtonElement).disabled = true;
+        (document.getElementById('test-input') as HTMLInputElement).disabled = true;
+        (document.getElementById('test-btn-2') as HTMLButtonElement).disabled = true;
+        const modal = document.getElementById('test-modal')!;
+        openModal('test-modal');
+        jest.advanceTimersByTime(50);
+        // Falls back to the modal itself (made focusable) so the SR reading
+        // position enters the dialog rather than staying behind it.
+        expect(modal.contains(document.activeElement)).toBe(true);
+        expect(modal.getAttribute('tabindex')).toBe('-1');
     });
 });
 
