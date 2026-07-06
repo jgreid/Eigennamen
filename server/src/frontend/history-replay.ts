@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { formatDuration, copyToClipboard } from './utils.js';
-import { closeModal, showToast } from './ui.js';
+import { openModal, closeModal, showToast } from './ui.js';
 import { t } from './i18n.js';
 import type { ReplayData, ReplayEvent } from './multiplayerTypes.js';
 import { logger } from './logger.js';
@@ -447,6 +447,11 @@ export async function checkURLForReplayLoad(): Promise<boolean> {
         const data = await response.json();
         if (data.replay) {
             renderReplayData(data);
+            // Actually surface the replay: renderReplayData only fills the modal's
+            // DOM; without this the shared link rendered into a hidden dialog and
+            // the user saw nothing but a "Replay loaded" toast. Mirrors openReplay()
+            // in history.ts, the only other path that shows this modal. (A9)
+            openModal('replay-modal');
             showToast(t('toast.replayLoaded'), 'success');
 
             // Clean replay params from URL to prevent re-loading on refresh

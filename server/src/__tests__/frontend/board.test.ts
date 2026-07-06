@@ -166,6 +166,8 @@ function resetState(): void {
     state.spymasterTeam = null;
     state.clickerTeam = null;
     state.playerTeam = null;
+    state.isObserver = false;
+    state.isAdvisor = false;
     state.lastRevealedIndex = -1;
     state.lastRevealedWasCorrect = false;
     state.gameState.words = [];
@@ -368,6 +370,53 @@ describe('canClickCards()', () => {
         state.playerTeam = null;
         state.gameState.currentTurn = 'red';
         expect(canClickCards()).toBe(false);
+    });
+
+    // A8: the disconnected-clicker fallback must exclude the roles the server
+    // forbids from revealing (spymaster/observer/advisor); otherwise their board
+    // loses the no-click guard and every attempted reveal bounces.
+    it('returns false for a spymaster on the on-turn team when clicker is disconnected (A8)', () => {
+        state.isMultiplayerMode = true;
+        state.playerTeam = 'red';
+        state.spymasterTeam = 'red';
+        state.clickerTeam = null;
+        state.gameState.currentTurn = 'red';
+        state.multiplayerPlayers = [
+            { sessionId: 'p1', nickname: 'Player1', team: 'red', role: 'clicker', connected: false },
+        ];
+        expect(canClickCards()).toBe(false);
+    });
+
+    it('returns false for an observer on the on-turn team when clicker is disconnected (A8)', () => {
+        state.isMultiplayerMode = true;
+        state.playerTeam = 'red';
+        state.isObserver = true;
+        state.clickerTeam = null;
+        state.gameState.currentTurn = 'red';
+        state.multiplayerPlayers = [];
+        expect(canClickCards()).toBe(false);
+    });
+
+    it('returns false for an advisor on the on-turn team when clicker is disconnected (A8)', () => {
+        state.isMultiplayerMode = true;
+        state.playerTeam = 'red';
+        state.isAdvisor = true;
+        state.clickerTeam = null;
+        state.gameState.currentTurn = 'red';
+        state.multiplayerPlayers = [];
+        expect(canClickCards()).toBe(false);
+    });
+
+    it('still returns true for a plain team member on the on-turn team when clicker is disconnected (A8)', () => {
+        state.isMultiplayerMode = true;
+        state.playerTeam = 'red';
+        state.spymasterTeam = null;
+        state.isObserver = false;
+        state.isAdvisor = false;
+        state.clickerTeam = null;
+        state.gameState.currentTurn = 'red';
+        state.multiplayerPlayers = [];
+        expect(canClickCards()).toBe(true);
     });
 });
 

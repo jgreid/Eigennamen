@@ -91,8 +91,16 @@ export function canClickCards(): boolean {
         return true;
     }
 
-    // In multiplayer: any team member can click if clicker is disconnected
-    if (state.playerTeam === state.gameState.currentTurn) {
+    // In multiplayer: a plain team member can click if the clicker is
+    // disconnected — but NOT the spymaster, an observer, or an advisor. The
+    // server forbids all three from revealing (gameHandlers.ts), so offering
+    // them the fallback only produces bounced actions and cleared reveal flags.
+    if (
+        state.playerTeam === state.gameState.currentTurn &&
+        !state.spymasterTeam &&
+        !state.isObserver &&
+        !state.isAdvisor
+    ) {
         const teamClicker = state.multiplayerPlayers.find(
             (p) => p.team === state.gameState.currentTurn && p.role === 'clicker'
         );

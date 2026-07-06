@@ -7,6 +7,8 @@ jest.mock('../../../frontend/state', () => ({
         spymasterTeam: null,
         clickerTeam: null,
         playerTeam: null,
+        isObserver: false,
+        isAdvisor: false,
         isHost: false,
         isMultiplayerMode: false,
         gameMode: 'match',
@@ -52,6 +54,8 @@ function resetState(): void {
     state.spymasterTeam = null;
     state.clickerTeam = null;
     state.playerTeam = null;
+    state.isObserver = false;
+    state.isAdvisor = false;
     state.isHost = false;
     state.isMultiplayerMode = false;
     state.gameMode = 'match';
@@ -296,6 +300,51 @@ describe('isClickerFallback', () => {
         state.playerTeam = 'blue';
         state.gameState.currentTurn = 'red';
         expect(isClickerFallback()).toBe(false);
+    });
+
+    // A8: the server forbids spymasters, observers, and advisors from revealing,
+    // so they must not be offered the disconnected-clicker fallback even when
+    // their team is on turn and the clicker is unavailable.
+    test('returns false for a spymaster on the on-turn team (A8)', () => {
+        state.isMultiplayerMode = true;
+        state.playerTeam = 'red';
+        state.spymasterTeam = 'red';
+        state.clickerTeam = null;
+        state.gameState.currentTurn = 'red';
+        state.multiplayerPlayers = [];
+        expect(isClickerFallback()).toBe(false);
+    });
+
+    test('returns false for an observer on the on-turn team (A8)', () => {
+        state.isMultiplayerMode = true;
+        state.playerTeam = 'red';
+        state.isObserver = true;
+        state.clickerTeam = null;
+        state.gameState.currentTurn = 'red';
+        state.multiplayerPlayers = [];
+        expect(isClickerFallback()).toBe(false);
+    });
+
+    test('returns false for an advisor on the on-turn team (A8)', () => {
+        state.isMultiplayerMode = true;
+        state.playerTeam = 'red';
+        state.isAdvisor = true;
+        state.clickerTeam = null;
+        state.gameState.currentTurn = 'red';
+        state.multiplayerPlayers = [];
+        expect(isClickerFallback()).toBe(false);
+    });
+
+    test('still returns true for a plain team member on the on-turn team (A8)', () => {
+        state.isMultiplayerMode = true;
+        state.playerTeam = 'red';
+        state.spymasterTeam = null;
+        state.isObserver = false;
+        state.isAdvisor = false;
+        state.clickerTeam = null;
+        state.gameState.currentTurn = 'red';
+        state.multiplayerPlayers = [];
+        expect(isClickerFallback()).toBe(true);
     });
 });
 

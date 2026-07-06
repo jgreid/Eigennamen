@@ -141,6 +141,10 @@ export function isClickerFallback(): boolean {
     if (!state.isMultiplayerMode) return false;
     if (state.clickerTeam && state.clickerTeam === state.gameState.currentTurn) return false;
     if (state.playerTeam !== state.gameState.currentTurn) return false;
+    // Spymasters, observers, and advisors are forbidden by the server from
+    // revealing (gameHandlers.ts) — never offer them the fallback. Mirrors the
+    // same exclusion in board.ts canClickCards(). See IMPROVEMENT_PLAN A8.
+    if (state.spymasterTeam || state.isObserver || state.isAdvisor) return false;
     return isCurrentTeamClickerUnavailable();
 }
 

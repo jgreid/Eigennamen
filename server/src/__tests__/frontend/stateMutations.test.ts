@@ -11,6 +11,8 @@ jest.mock('../../frontend/state', () => ({
         playerTeam: null,
         spymasterTeam: null,
         clickerTeam: null,
+        isObserver: false,
+        isAdvisor: false,
         gameState: {
             words: [],
             types: [],
@@ -59,6 +61,8 @@ function resetMockState(): void {
     state.playerTeam = null;
     state.spymasterTeam = null;
     state.clickerTeam = null;
+    state.isObserver = false;
+    state.isAdvisor = false;
     state.gameState.words = ['a', 'b', 'c'];
     state.gameState.types = ['red', 'blue', 'neutral'];
     state.gameState.revealed = [true, false, true];
@@ -185,6 +189,41 @@ describe('setPlayerRole', () => {
         expect(state.clickerTeam).toBe('red');
         expect(state.spymasterTeam).toBeNull();
     });
+
+    // A8: advisor and observer must be tracked distinctly from a plain team
+    // member so the clicker-fallback can exclude them (the server does).
+    test('observer on red sets isObserver and clears role teams', () => {
+        setPlayerRole('observer', 'red');
+        expect(state.playerTeam).toBe('red');
+        expect(state.isObserver).toBe(true);
+        expect(state.isAdvisor).toBe(false);
+        expect(state.spymasterTeam).toBeNull();
+        expect(state.clickerTeam).toBeNull();
+    });
+
+    test('advisor on blue sets isAdvisor and clears role teams', () => {
+        setPlayerRole('advisor', 'blue');
+        expect(state.playerTeam).toBe('blue');
+        expect(state.isAdvisor).toBe(true);
+        expect(state.isObserver).toBe(false);
+        expect(state.spymasterTeam).toBeNull();
+        expect(state.clickerTeam).toBeNull();
+    });
+
+    test('switching from advisor to clicker clears isAdvisor', () => {
+        setPlayerRole('advisor', 'red');
+        expect(state.isAdvisor).toBe(true);
+        setPlayerRole('clicker', 'red');
+        expect(state.isAdvisor).toBe(false);
+        expect(state.clickerTeam).toBe('red');
+    });
+
+    test('a plain team member (spectator with team) is neither observer nor advisor', () => {
+        setPlayerRole('spectator', 'red');
+        expect(state.playerTeam).toBe('red');
+        expect(state.isObserver).toBe(false);
+        expect(state.isAdvisor).toBe(false);
+    });
 });
 
 describe('clearPlayerRole', () => {
@@ -192,10 +231,14 @@ describe('clearPlayerRole', () => {
         state.playerTeam = 'red';
         state.spymasterTeam = 'red';
         state.clickerTeam = 'blue';
+        state.isObserver = true;
+        state.isAdvisor = true;
         clearPlayerRole();
         expect(state.playerTeam).toBeNull();
         expect(state.spymasterTeam).toBeNull();
         expect(state.clickerTeam).toBeNull();
+        expect(state.isObserver).toBe(false);
+        expect(state.isAdvisor).toBe(false);
     });
 });
 

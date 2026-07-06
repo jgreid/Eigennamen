@@ -397,6 +397,14 @@ async function init(): Promise<void> {
                 handleSetupAction(pendingSetupAction);
             } else if (shouldShowSetupScreen()) {
                 showSetupScreen();
+            } else if (new URLSearchParams(window.location.search).has('replay')) {
+                // A shared replay link (?replay=X&room=Y) is not a standalone game.
+                // shouldShowSetupScreen() returns false for it (the room param), so
+                // without this branch we'd fall through to loadGameFromURL() → with
+                // no `game` seed → newGame(), spinning up a throwaway random board
+                // underneath the replay modal. Keep the setup screen as a clean
+                // backdrop; checkURLForReplayLoad() (below) opens the replay on top. (A9)
+                showSetupScreen();
             } else {
                 // A game is encoded in the URL (standalone mode): dismiss the
                 // setup screen — which is visible by default — and reveal the

@@ -709,6 +709,24 @@ describe('multiplayer module', () => {
 
             expect(mockOpenModal).not.toHaveBeenCalled();
         });
+
+        // A9: a shared replay link `?replay=X&room=Y` reuses the room param. The
+        // replay loader owns that URL; the join modal must NOT pop up (which would
+        // render a fresh local game underneath the replay), even though the room
+        // param is present and valid.
+        test('skips the join modal when a replay param is present (A9)', () => {
+            setupMultiplayerDOM();
+            const { getRoomCodeFromURL } = require('../../frontend/multiplayerSync');
+            (getRoomCodeFromURL as jest.Mock).mockReturnValue('URLROOM'); // valid room present
+            window.history.replaceState({}, '', 'http://localhost/?replay=game123&room=URLROOM');
+
+            try {
+                checkURLForRoomJoin();
+                expect(mockOpenModal).not.toHaveBeenCalled();
+            } finally {
+                window.history.replaceState({}, '', 'http://localhost/');
+            }
+        });
     });
 });
 

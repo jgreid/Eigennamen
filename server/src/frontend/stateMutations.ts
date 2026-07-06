@@ -36,6 +36,12 @@ export function setPlayerRole(role: string | null, team: string | null): void {
     state.playerTeam = validatedTeam;
     // Observers see the full board (like a spymaster) but never participate.
     state.isObserver = role === 'observer';
+    // Advisors suggest guesses but never act on the board — the server rejects
+    // any reveal/end-turn from them, so the client must not offer clicker rights
+    // (including the disconnected-clicker fallback). Tracked explicitly because
+    // advisor otherwise collapses into the roleless `else` branch below and would
+    // be indistinguishable from a plain team member. See IMPROVEMENT_PLAN A8.
+    state.isAdvisor = role === 'advisor';
 
     if (role === 'spymaster' && validatedTeam) {
         state.spymasterTeam = validatedTeam;
@@ -57,6 +63,7 @@ export function clearPlayerRole(): void {
     state.spymasterTeam = null;
     state.clickerTeam = null;
     state.isObserver = false;
+    state.isAdvisor = false;
 }
 
 /**
