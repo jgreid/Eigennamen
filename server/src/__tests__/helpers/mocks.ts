@@ -54,8 +54,17 @@ function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
         exists: jest.fn(async (...keys: Array<string | string[]>) => {
             return keys.flat().filter((k) => storage.has(k) || sets.has(k)).length;
         }),
-        expire: jest.fn(async () => 1),
-        ttl: jest.fn(async () => -1),
+        // Real Redis: EXPIRE returns 0 when the key doesn't exist, 1 when set.
+        expire: jest.fn(async (key: string) => {
+            const exists = storage.has(key) || sets.has(key) || sortedSets.has(key) || lists.has(key);
+            return exists ? 1 : 0;
+        }),
+        // Real Redis: TTL returns -2 for a missing key, -1 for a key with no expiry.
+        // (The mock doesn't track per-key expiry, so present keys report -1.)
+        ttl: jest.fn(async (key: string) => {
+            const exists = storage.has(key) || sets.has(key) || sortedSets.has(key) || lists.has(key);
+            return exists ? -1 : -2;
+        }),
         mGet: jest.fn(async (keys: string[]) => keys.map((k) => storage.get(k) || null)),
         incr: jest.fn(async (key: string) => {
             const val = parseInt(storage.get(key) || '0', 10) + 1;
@@ -136,6 +145,15 @@ function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
         zCard: jest.fn(async (key: string) => {
             const sorted = sortedSets.get(key);
             return sorted ? sorted.length : 0;
+        }),
+        zRemRangeByRank: jest.fn(async (key: string, start: number, stop: number) => {
+            const sorted = sortedSets.get(key);
+            if (!sorted || sorted.length === 0) return 0;
+            const len = sorted.length;
+            const s = start < 0 ? Math.max(0, len + start) : start;
+            const e = stop < 0 ? len + stop : stop; // inclusive
+            const removed = sorted.splice(s, e - s + 1);
+            return removed.length;
         }),
         zRange: jest.fn(async (key: string, start: number | string, end: number | string, options: AnyRecord = {}) => {
             const sorted = sortedSets.get(key);
@@ -301,26 +319,29 @@ function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
         scriptLoad: jest.fn(async () => 'mock-sha'),
 
         // E-12: Added scan operation (used in adminRoutes.ts)
-        scan: jest.fn(async (cursor: number, options: AnyRecord = {}) => {
+        // node-redis v5 SCAN: cursor is a STRING ('0' terminates), not a number.
+        scan: jest.fn(async (cursor: string, options: AnyRecord = {}) => {
             const pattern = options.MATCH || '*';
             const count = options.COUNT || 10;
             const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
             const allKeys = [...storage.keys()].filter((key) => regex.test(key));
-            const startIdx = cursor;
+            const startIdx = parseInt(cursor, 10) || 0;
             const endIdx = Math.min(startIdx + count, allKeys.length);
             const keys = allKeys.slice(startIdx, endIdx);
-            const nextCursor = endIdx >= allKeys.length ? 0 : endIdx;
+            const nextCursor = endIdx >= allKeys.length ? '0' : String(endIdx);
             return { cursor: nextCursor, keys };
         }),
 
-        // SCAN iterator
-        scanIterator: jest.fn(function* (options: AnyRecord = {}) {
+        // node-redis v5 scanIterator yields a BATCH (array) of keys per iteration,
+        // not individual keys (an async iterable). Mirror that so the mock can't
+        // hide the batch-vs-single divergence that broke cleanupOrphanedTokens.
+        scanIterator: jest.fn(async function* (options: AnyRecord = {}) {
             const pattern = options.MATCH || '*';
+            const count = options.COUNT || 10;
             const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
-            for (const key of storage.keys()) {
-                if (regex.test(key)) {
-                    yield key;
-                }
+            const matching = [...storage.keys()].filter((key) => regex.test(key));
+            for (let i = 0; i < matching.length; i += count) {
+                yield matching.slice(i, i + count);
             }
         }),
 

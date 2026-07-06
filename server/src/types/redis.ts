@@ -83,8 +83,9 @@ export interface RedisClient {
     eval(script: string, options: { keys: string[]; arguments: string[] }): Promise<unknown>;
 
     // ── Scan ─────────────────────────────────────────────────────────
-    // cursor return type is number in redis v5+ (was string in v4)
-    scan?(cursor: number, options: { MATCH: string; COUNT: number }): Promise<{ cursor: number; keys: string[] }>;
+    // node-redis v5's SCAN cursor is a STRING ('0' terminates). Passing a number
+    // throws; the old `cursor: number` type let two admin routes ship that bug.
+    scan?(cursor: string, options: { MATCH: string; COUNT: number }): Promise<{ cursor: string; keys: string[] }>;
     // node-redis v5 yields a BATCH (array) of keys per iteration (v4 yielded
     // individual keys). Callers must iterate the array — see
     // cleanupOrphanedReconnectionTokens, which silently no-op'd when this was

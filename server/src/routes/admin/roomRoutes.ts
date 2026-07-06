@@ -96,7 +96,9 @@ router.get('/api/rooms', async (_req: Request, res: Response) => {
         // Cap iterations to prevent unbounded looping on very large keyspaces.
         const MAX_SCAN_ITERATIONS = 1000;
         const validRoomKeys: string[] = [];
-        let cursor = 0;
+        // node-redis v5's SCAN cursor is a STRING ('0' terminates); a numeric
+        // cursor throws and a number-vs-string comparison never terminates.
+        let cursor = '0';
         let iterations = 0;
         do {
             const result = await redis.scan(cursor, { MATCH: 'room:*', COUNT: 100 });
@@ -108,7 +110,7 @@ router.get('/api/rooms', async (_req: Request, res: Response) => {
                     validRoomKeys.push(key);
                 }
             }
-        } while (cursor !== 0 && iterations < MAX_SCAN_ITERATIONS);
+        } while (cursor !== '0' && iterations < MAX_SCAN_ITERATIONS);
         const truncated = iterations >= MAX_SCAN_ITERATIONS;
         if (truncated) {
             logger.warn(`Room listing SCAN hit iteration cap (${MAX_SCAN_ITERATIONS}), results may be incomplete`);
