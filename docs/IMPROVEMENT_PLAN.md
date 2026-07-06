@@ -738,17 +738,15 @@ The same zero-sample / wrong-metric defect class is confirmed in **all three** s
 
 ---
 
-### D6 — `bots:parity` never exercises numbered clues or voluntary end-turn — the rules most likely to drift sit outside the parity gate
+### D6 — `bots:parity` never exercises numbered clues or voluntary end-turn — the rules most likely to drift sit outside the parity gate — **FIXED**
 
 **Severity:** Low · **Area:** Testing (bots)
 
-**Root cause:** `parity.ts:26` only ever plays number-0 (unlimited) clues, so the engine's N+1 guess budget (`guessesForClue`) and `applyEngineEndTurn` are never cross-checked against `submitClue.lua`/`endTurn.lua` — precisely the clue-budget semantics real bot play (greedy clicker's bonus-guess logic) depends on.
+**Resolution (shipped):** `parity.ts` now seeds each clue's number 0–3 (`clueNumberFor`, off the existing `seededRandom`/`hashString`) instead of always 0, so the engine's `guessesForClue` N+1 budget and the auto-end-on-budget-exhausted path are cross-checked against `submitClue.lua`/`revealCard.lua`. It also banks ~30% of still-live turns voluntarily (`endTurnEarly` → `applyEngineEndTurn` + `gameService.endTurn` in lockstep, then diff), exercising `endTurn.lua` — the greedy clicker's core-stop path that number-0-only play never reached. `snapshot()` gained `guessesAllowed` and a normalized `currentClue` (`{word, number, team}` — the engine stamps a fixed `timestamp:0`/`'bot'` spymaster, so a full-object compare would false-positive), and a diff runs immediately after each clue so a `submitClue.lua` budget drift is attributed to the clue, not the next reveal.
 
-**Fix:** Seed clue numbers 0–3 per clue via the existing seeded RNG; when the engine's turn survives its intended guesses, call `applyEngineEndTurn` and `gameService.endTurn` in lockstep and diff. Required addition: extend `snapshot()` to include `guessesAllowed` and `currentClue`, otherwise a `submitClue.lua` drift stays invisible to the diff.
+**Verification:** `REDIS_URL=memory PARITY_SEEDS=10 npm run bots:parity` → 10/10 seeds match across classic/duet/match with the new paths live. Confirmed the extended harness actually catches drift: temporarily changing the engine's `guessesForClue` to `n + 2` made it fail immediately with `after clue n=1: guessesAllowed: engine=3 lua=2` — a divergence the old (number-0-only, no `guessesAllowed` in `snapshot`) harness could not have seen.
 
 **Touches:** `server/src/bots/harness/parity.ts`
-
-**Tests:** The extended parity run is the test; verify it fails against a deliberately drifted engine rule.
 
 ---
 
