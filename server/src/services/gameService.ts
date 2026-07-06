@@ -529,6 +529,11 @@ export async function forfeitGame(roomCode: string, forfeitTeam?: Team): Promise
                     if (game.gameOver) {
                         throw GameStateError.gameOver();
                     }
+                    // Unlike reveal/clue/endTurn, forfeit has no Lua paused
+                    // backstop — guard it here so a paused game can't be forfeited.
+                    if (game.paused) {
+                        throw GameStateError.gamePaused();
+                    }
 
                     const forfeitingTeam: Team =
                         forfeitTeam === 'red' || forfeitTeam === 'blue' ? forfeitTeam : game.currentTurn;
@@ -577,6 +582,10 @@ export async function abandonGame(roomCode: string): Promise<void> {
                 (game: GameState) => {
                     if (game.gameOver) {
                         throw GameStateError.gameOver();
+                    }
+                    // Abandon likewise has no Lua paused backstop.
+                    if (game.paused) {
+                        throw GameStateError.gamePaused();
                     }
                     game.gameOver = true;
                     game.winner = null;
