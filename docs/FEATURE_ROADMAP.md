@@ -125,13 +125,14 @@ maintainer decision — this is the recorded default, not a fait accompli.
 | **F3** | Admin audit log + SSE stats (no dashboard UI) | **Finish (audit), decide (SSE)** — wire the audit endpoint into `admin.html`; the polling-vs-EventSource choice is independent | Planned |
 | **F4** | `wordListId` (validated/typed/stored, always null) | **Finish via A1** — back it with the word-list library above; otherwise delete from schemas/types/spec (keep the storage field nullable) | Planned |
 | **F5** | Idle detection (per-event Redis write, no reader) | **Delete** — remove the `lastSeen` eval, `getIdlePlayers`, and `PLAYER_IDLE_WARNING`; first move the player-key TTL refresh that bot seats rely on into `atomicRefreshTtl.lua` | Delete path in flight (IMPROVEMENT_PLAN F5 / PR #519) |
-| **F6** | Spectator approval flow (server + E2E, no UI) | **Finish with F2** — spectator "request to join" control + host approval queue; upgrade `spectator-approval.spec.js` from raw-protocol to UI-driven | Planned |
+| **F6** | Spectator approval flow (server + E2E, no UI) | **Finish with F2** — spectator "request to join" control + host approval queue; upgrade `spectator-approval.spec.js` from raw-protocol to UI-driven | **Shipped** (request panel + host approval modal + listeners; server now seats approved spectators as clickers; unit + protocol tests) |
 
-**Cross-cutting note:** F1/F2/F6 are one coherent "spectator & pause" product
+**Cross-cutting note:** F1/F2/F6 were one coherent "spectator & pause" product
 story — pause/resume, who may spectate, and how a spectator becomes a player all
-touch the same lobby/role surfaces. Deciding them together avoids three
-half-overlapping UI passes. F4 is best resolved *with* the word-list library
-(A1) rather than in isolation.
+touch the same lobby/role surfaces. All three have now shipped as a sequence of
+tranches (F1 pause/resume, F2 allowSpectators enforcement + toggle, F6 spectator
+approval UI + server-side seating). F4 is best resolved *with* the word-list
+library (A1) rather than in isolation.
 
 ---
 

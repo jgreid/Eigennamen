@@ -9,18 +9,17 @@ const { io } = require('socket.io-client');
  * denies another — against a real server + real sockets (this only ever
  * ran against a fully mocked Redis before).
  *
- * IMPORTANT SCOPE NOTE: as of this writing, spectator:requestJoin /
- * spectator:approveJoin / spectator:joinRequest / spectator:joinApproved /
- * spectator:joinDenied have real, tested server-side handlers
- * (socket/handlers/playerHandlers/spectatorHandlers.ts) but ZERO frontend
- * wiring — no button in the app ever emits spectator:requestJoin, and no
- * client-side listener reacts to spectator:joinRequest/joinApproved/
- * joinDenied. A real-browser Playwright test therefore cannot exercise this
- * flow through the UI at all. This spec drives the real Socket.IO protocol
- * directly (bypassing the — currently nonexistent — UI) against the same
- * running dev server the other E2E specs use, so the server-side handlers
- * still get real, end-to-end coverage (real Redis, real room/player state)
- * instead of only ever running against a fully mocked Redis in Jest.
+ * SCOPE NOTE (F6): the flow is now fully wired on the client too — a spectator
+ * "request to join" panel emits spectator:requestJoin, a host approval modal
+ * emits spectator:approveJoin, and listeners react to joinRequest/joinApproved/
+ * joinDenied (frontend/spectatorJoin.ts, unit-tested in
+ * __tests__/frontend/spectatorJoin.test.ts). This spec stays at the Socket.IO
+ * protocol level because it also asserts the SERVER SEATING behavior end-to-end
+ * (real Redis, real room/player state): on approval the server now actually
+ * seats the requester onto the requested team as a clicker, not just notifies
+ * them. A full two-browser Playwright rewrite driving the DOM is a reasonable
+ * follow-up but adds cross-context flake for coverage the unit + protocol tests
+ * already provide.
  */
 
 const SERVER_URL = 'http://localhost:3000';
@@ -49,7 +48,7 @@ function freshRoomId() {
     return `spec${Date.now()}`.slice(0, 20);
 }
 
-test.describe('Spectator Approval (real sockets, no UI wiring exists yet)', () => {
+test.describe('Spectator Approval (real sockets, protocol-level; UI unit-tested separately)', () => {
     test('host approves one spectator join request and denies another', async () => {
         const roomId = freshRoomId();
 
@@ -80,10 +79,37 @@ test.describe('Spectator Approval (real sockets, no UI wiring exists yet)', () =
             const request1 = await joinRequest1;
             expect(request1).toMatchObject({ requesterId: spectator1Player.sessionId, team: 'red' });
 
-            // Host approves spectator 1.
+            // Host approves spectator 1 — the server actually SEATS them onto red
+            // as a clicker (not just a notification). Watch for both the approval
+            // and the player:updated the seating broadcasts to the room.
             const approved1 = waitForEvent(spectator1, 'spectator:joinApproved');
-            host.emit('spectator:approveJoin', { requesterId: spectator1Player.sessionId, approved: true });
-            await expect(approved1).resolves.toMatchObject({ message: expect.any(String) });
+            const seated1 = new Promise((resolve, reject) => {
+                const timer = setTimeout(
+                    () => reject(new Error('Timed out waiting for seating player:updated')),
+                    10000
+                );
+                spectator1.on('player:updated', (data) => {
+                    if (
+                        data &&
+                        data.sessionId === spectator1Player.sessionId &&
+                        data.changes &&
+                        data.changes.role === 'clicker'
+                    ) {
+                        clearTimeout(timer);
+                        resolve(data);
+                    }
+                });
+            });
+            host.emit('spectator:approveJoin', {
+                requesterId: spectator1Player.sessionId,
+                approved: true,
+                team: 'red',
+            });
+            await expect(approved1).resolves.toMatchObject({ team: 'red', message: expect.any(String) });
+            await expect(seated1).resolves.toMatchObject({
+                sessionId: spectator1Player.sessionId,
+                changes: expect.objectContaining({ team: 'red', role: 'clicker' }),
+            });
 
             // Spectator 2 requests to join blue; host is notified again.
             const joinRequest2 = waitForEvent(host, 'spectator:joinRequest');
@@ -91,9 +117,13 @@ test.describe('Spectator Approval (real sockets, no UI wiring exists yet)', () =
             const request2 = await joinRequest2;
             expect(request2).toMatchObject({ requesterId: spectator2Player.sessionId, team: 'blue' });
 
-            // Host denies spectator 2.
+            // Host denies spectator 2 (team is ignored on a denial).
             const denied2 = waitForEvent(spectator2, 'spectator:joinDenied');
-            host.emit('spectator:approveJoin', { requesterId: spectator2Player.sessionId, approved: false });
+            host.emit('spectator:approveJoin', {
+                requesterId: spectator2Player.sessionId,
+                approved: false,
+                team: 'blue',
+            });
             await expect(denied2).resolves.toMatchObject({ message: expect.any(String) });
 
             // Spectator 1 must never have received a denial, and spectator 2

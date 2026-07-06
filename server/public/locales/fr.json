@@ -258,6 +258,18 @@
         "allowSpectators": "Autoriser les spectateurs",
         "allowSpectatorsHint": "Si désactivé, les nouveaux joueurs ne peuvent plus rejoindre une fois la partie commencée."
     },
+    "spectator": {
+        "joinPrompt": "Envie de jouer ? Demandez à l’hôte de rejoindre une équipe :",
+        "joinRed": "Rejoindre Rouge",
+        "joinBlue": "Rejoindre Bleu",
+        "requestSent": "Demande envoyée pour rejoindre {{team}}",
+        "wantsToJoin": "{{nickname}} veut rejoindre {{team}}",
+        "approvalTitle": "Demande pour rejoindre",
+        "approve": "Approuver",
+        "deny": "Refuser",
+        "approved": "Vous avez rejoint {{team}} !",
+        "denied": "Votre demande pour rejoindre une équipe a été refusée"
+    },
     "wordList": {
         "default": "Mots par défaut",
         "custom": "Mots personnalisés",

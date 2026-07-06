@@ -149,9 +149,12 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
                 role: 'spymaster',
                 isHost: true,
             });
+            // Seating succeeds by default (F6): join the team, take the clicker seat.
+            playerService.setTeam.mockResolvedValue({ sessionId: 'requester-1', team: 'red', role: 'spectator' });
+            playerService.setRole.mockResolvedValue({ sessionId: 'requester-1', team: 'red', role: 'clicker' });
         });
 
-        it('should approve a spectator join request', async () => {
+        it('should approve and seat a spectator as a team clicker (F6)', async () => {
             // Target is a spectator
             playerService.getPlayer
                 .mockResolvedValueOnce({
@@ -173,15 +176,86 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
             await handlers['spectator:approveJoin']({
                 requesterId: 'requester-1',
                 approved: true,
+                team: 'red',
             });
 
+            // Server actually seats the requester: onto the team, then as a clicker.
+            expect(playerService.setTeam).toHaveBeenCalledWith('requester-1', 'red');
+            expect(playerService.setRole).toHaveBeenCalledWith('requester-1', 'clicker');
+            // Whole room learns the requester is now a red clicker.
+            expect(mockIo.emit).toHaveBeenCalledWith(
+                'player:updated',
+                expect.objectContaining({
+                    sessionId: 'requester-1',
+                    changes: expect.objectContaining({ team: 'red', role: 'clicker' }),
+                })
+            );
+            // Requester gets an approval carrying the team they joined.
             expect(mockIo.to).toHaveBeenCalledWith('player:requester-1');
             expect(mockIo.emit).toHaveBeenCalledWith(
                 'spectator:joinApproved',
-                expect.objectContaining({
-                    message: expect.stringContaining('approved'),
-                })
+                expect.objectContaining({ team: 'red', message: expect.stringContaining('approved') })
             );
+        });
+
+        it('should reject an approval that carries no team', async () => {
+            playerService.getPlayer
+                .mockResolvedValueOnce({
+                    sessionId: 'session-1',
+                    roomCode: 'TEST12',
+                    isHost: true,
+                    nickname: 'Host',
+                    team: 'red',
+                    role: 'spymaster',
+                })
+                .mockResolvedValueOnce({
+                    sessionId: 'requester-1',
+                    roomCode: 'TEST12',
+                    nickname: 'Spectator',
+                    team: null,
+                    role: 'spectator',
+                });
+
+            await handlers['spectator:approveJoin']({ requesterId: 'requester-1', approved: true });
+
+            expect(playerService.setTeam).not.toHaveBeenCalled();
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'spectator:error',
+                expect.objectContaining({ code: 'INVALID_INPUT' })
+            );
+        });
+
+        it('should revert the team move when the clicker seat is already taken', async () => {
+            playerService.getPlayer
+                .mockResolvedValueOnce({
+                    sessionId: 'session-1',
+                    roomCode: 'TEST12',
+                    isHost: true,
+                    nickname: 'Host',
+                    team: 'red',
+                    role: 'spymaster',
+                })
+                .mockResolvedValueOnce({
+                    sessionId: 'requester-1',
+                    roomCode: 'TEST12',
+                    nickname: 'Spectator',
+                    team: null,
+                    role: 'spectator',
+                });
+            const { ValidationError } = require('../../errors/GameError');
+            playerService.setRole.mockRejectedValueOnce(new ValidationError('red team already has a clicker'));
+
+            await handlers['spectator:approveJoin']({ requesterId: 'requester-1', approved: true, team: 'red' });
+
+            // Seated onto the team, failed on the clicker seat, reverted to no team.
+            expect(playerService.setTeam).toHaveBeenNthCalledWith(1, 'requester-1', 'red');
+            expect(playerService.setTeam).toHaveBeenNthCalledWith(2, 'requester-1', null);
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'spectator:error',
+                expect.objectContaining({ code: 'INVALID_INPUT' })
+            );
+            // Never falsely told the requester they were approved.
+            expect(mockIo.emit).not.toHaveBeenCalledWith('spectator:joinApproved', expect.anything());
         });
 
         it('should deny a spectator join request', async () => {
@@ -325,6 +399,7 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
             await handlers['spectator:approveJoin']({
                 requesterId: 'requester-1',
                 approved: true,
+                team: 'red',
             });
 
             expect(mockIo.to).toHaveBeenCalledWith('player:requester-1');

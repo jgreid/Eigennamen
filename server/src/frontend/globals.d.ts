@@ -79,6 +79,10 @@ interface EigennamenClientAPI {
     sendMessage(text: string, teamOnly: boolean): void;
     sendSpectatorChat(message: string): void;
 
+    // Spectator join requests (F6)
+    requestJoinTeam(team: string): void;
+    respondToJoinRequest(requesterId: string, approved: boolean, team?: string): void;
+
     // Event emitter (callback uses any[] due to event emitter pattern)
     on(event: string, callback: (...args: never[]) => void): void;
     once(event: string, callback: (...args: never[]) => void): void;

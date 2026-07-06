@@ -928,9 +928,11 @@ Each of these carries either real runtime cost or a misleading API surface today
 
 ---
 
-### F6 — Spectator approval flow: server + E2E exist, no UI (carried over from P1-13's discovery)
+### F6 — Spectator approval flow: server + E2E exist, no UI (carried over from P1-13's discovery) — **FIXED (finish path)**
 
 **Severity:** Medium · **Area:** Feature gap
+
+**Resolution (shipped — finish path):** the flow is wired end-to-end and the server now actually *seats* approved spectators. Client (`frontend/spectatorJoin.ts`): a spectator-only "request to join a team" panel (shown mid-game) emits `spectator:requestJoin`; the host gets a queued approval modal (`spectator-join-modal`, Approve/Deny; Escape/overlay = deny) that emits `spectator:approveJoin` with the requested team; listeners react to `spectator:joinRequest` (host prompt), `spectator:joinApproved` (requester toast + resync — refreshing its board, role banner, and socket-room membership), and `spectator:joinDenied` (requester toast). Server (`spectatorHandlers.ts`): on approval it seats the requester onto the requested team as a **clicker** (the only safe seat — a spectator has only seen the masked board, so no key leaks) via `setTeam` + `setRole`, reverting the team move if the clicker seat is taken (`ROLE_TAKEN` surfaced to the host), then broadcasts `player:updated` and notifies the requester; the approve schema gained the echoed `team`, and `SPECTATORS`-style seating is host-authorized (bypasses the normal mid-game team-change gate, which already permits spectators anyway). i18n ×4 (`spectator.*`). Tests: server seating + revert-on-taken-seat in `playerHandlersSpectator.test.ts`; the client flow + panel visibility in the new `spectatorJoin.test.ts`; the raw-protocol E2E (`spectator-approval.spec.js`) upgraded to assert the real seating (`player:updated` → clicker) end-to-end. A full two-browser Playwright DOM rewrite is a reasonable follow-up but adds cross-context flake for coverage the unit + protocol tests already give.
 
 **What exists:** `spectator:requestJoin`/`spectator:approveJoin` handlers, tests, and a raw-protocol E2E spec (P1-13 shipped it that way because no UI exists). **What's missing:** no button emits `spectator:requestJoin`; no listener reacts to `spectator:joinRequest`/`joinApproved`/`joinDenied`. HARDENING_PLAN explicitly scoped this out as "a feature gap, not a defect"; this item tracks it so it stops being nowhere.
 

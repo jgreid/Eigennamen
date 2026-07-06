@@ -258,6 +258,18 @@
         "allowSpectators": "Zuschauer erlauben",
         "allowSpectatorsHint": "Wenn deaktiviert, können neue Spieler nicht mehr beitreten, sobald ein Spiel läuft."
     },
+    "spectator": {
+        "joinPrompt": "Mitspielen? Bitte den Host, einem Team beizutreten:",
+        "joinRed": "Rot beitreten",
+        "joinBlue": "Blau beitreten",
+        "requestSent": "Anfrage gesendet, um {{team}} beizutreten",
+        "wantsToJoin": "{{nickname}} möchte {{team}} beitreten",
+        "approvalTitle": "Beitrittsanfrage",
+        "approve": "Zulassen",
+        "deny": "Ablehnen",
+        "approved": "Du bist {{team}} beigetreten!",
+        "denied": "Deine Anfrage, einem Team beizutreten, wurde abgelehnt"
+    },
     "wordList": {
         "default": "Standardwörter",
         "custom": "Eigene Wörter",

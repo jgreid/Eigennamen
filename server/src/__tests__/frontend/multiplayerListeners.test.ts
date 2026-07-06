@@ -37,6 +37,9 @@ jest.mock('../../frontend/handlers/timerEventHandlers', () => ({
 jest.mock('../../frontend/handlers/chatEventHandlers', () => ({
     registerChatAndErrorHandlers: () => mockRegisterChatAndErrorHandlers(),
 }));
+jest.mock('../../frontend/spectatorJoin', () => ({
+    registerSpectatorJoinHandlers: jest.fn(),
+}));
 
 import { setupMultiplayerListeners } from '../../frontend/multiplayerListeners';
 import { state } from '../../frontend/state';
