@@ -31,6 +31,14 @@ export interface ConnectionHost {
     storedNickname: string | null;
     joinInProgress: boolean;
     createInProgress: boolean;
+    /**
+     * Set when an established connection drops for any reason other than an
+     * intentional client disconnect. Socket.io's auto-reconnect can re-fire
+     * 'connect' after a transient blip WITHOUT any 'connect_error' (so
+     * reconnectAttempts stays 0), so this flag — not reconnectAttempts — is what
+     * tells the connect handler a rejoin/resync is needed.
+     */
+    hadUnexpectedDisconnect?: boolean;
     _socketListeners: SocketListenerEntry[];
     _offlineQueue: OfflineQueueItem[];
     _offlineQueueMaxSize: number;
@@ -146,8 +154,15 @@ export function doConnect(
 
         socket.on('connect', () => {
             host.connected = true;
-            const wasReconnecting = host.reconnectAttempts > 0;
+            // A reconnect is signalled EITHER by a prior failed attempt
+            // (reconnectAttempts, bumped on connect_error) OR by an unexpected
+            // disconnect whose first retry succeeded (no connect_error fires, so
+            // reconnectAttempts stays 0). Both must trigger a rejoin — otherwise
+            // the fresh socket is a member of zero rooms and silently receives no
+            // more reveals/clues/chat until the player themselves acts.
+            const wasReconnecting = host.reconnectAttempts > 0 || host.hadUnexpectedDisconnect === true;
             host.reconnectAttempts = 0;
+            host.hadUnexpectedDisconnect = false;
             logger.debug('Connected to server:', socket.id);
 
             host._emit('connected', { wasReconnecting });
@@ -168,6 +183,12 @@ export function doConnect(
             host.connected = false;
             host.createInProgress = false;
             host.joinInProgress = false;
+            // Mark unexpected drops so the next 'connect' rejoins the room. An
+            // intentional client-side disconnect (leaveRoom/disconnect) halts
+            // auto-reconnect, so it neither needs nor should arm a rejoin.
+            if (reason !== 'io client disconnect') {
+                host.hadUnexpectedDisconnect = true;
+            }
             logger.debug('Disconnected:', reason);
             host._emit('disconnected', { reason, wasConnected: true });
         });

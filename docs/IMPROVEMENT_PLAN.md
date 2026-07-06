@@ -46,9 +46,11 @@ Deterministic defects reachable in ordinary play. These are the "a user hits thi
 
 ---
 
-### A2 — A brief network blip silently detaches the client from all room broadcasts
+### A2 — A brief network blip silently detaches the client from all room broadcasts — **FIXED**
 
 **Severity:** High · **Area:** Frontend state / reconnection
+
+**Resolution (shipped):** the `connect` handler (`frontend/socket-client-connection.ts`) no longer keys reconnect detection off `reconnectAttempts` alone. The `disconnect` handler now sets `host.hadUnexpectedDisconnect = true` for any drop other than an intentional `io client disconnect`, and `connect` treats `reconnectAttempts > 0 || hadUnexpectedDisconnect` as a reconnect — so a transient blip whose *first* retry succeeds (no `connect_error`, `reconnectAttempts` still 0) now runs `attemptRejoin` + `requestResync` and the fresh socket rejoins its rooms instead of going silently deaf. Unit-tested in `__tests__/frontend/socket-client-connection.test.ts` (transient-drop rejoins; intentional disconnect does not; the pre-existing `connect_error` path still works).
 
 **Root cause:** `wasReconnecting` (`frontend/socket-client-connection.ts:147-149`) is derived from `reconnectAttempts > 0`, which only increments on `connect_error` (line 175-178). Socket.io fires `connect_error` only for *failed* attempts — a transient disconnect whose first retry succeeds re-fires `connect` with `reconnectAttempts === 0`, so `attemptRejoin`/resync are skipped entirely. Server-side, the new socket is a member of zero Socket.io rooms, and nothing on this path ever writes `connected: true` back to the player record.
 
