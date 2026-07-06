@@ -898,9 +898,11 @@ Each of these carries either real runtime cost or a misleading API surface today
 
 ---
 
-### F4 — `wordListId` is validated, typed, stored, and documented — and always null
+### F4 — `wordListId` is validated, typed, stored, and documented — and always null — **FIXED (delete path)**
 
 **Severity:** Low · **Area:** Feature gap / API hygiene
+
+**Resolution (shipped — delete path):** removed the always-null `wordListId` from the **input surface** — `roomSchemas`/`gameSchemas` (room:create settings + game:start), the input types (`socket-events` `RoomCreatePayload.settings`/`GameStartPayload`, `RoomSettings`, `CreateGameOptions`), the two `gameHandlers` createGame/startNextRound call sites, and `SERVER_SPEC`. Since `resolveGameWords` already returned `usedWordListId: null` unconditionally, the **storage field is kept nullable for old records** (`GameState.wordListId`, the history record type, and the `luaGameOps`/`storage` read schemas all stay, always null now) so existing persisted games/replays still parse. The schemas are non-strict, so a client still sending `wordListId` has it silently stripped rather than rejected (non-breaking). Building the *finish* path (a real word-list library) is roadmap item A1, which was explicitly not selected. Test: `gameSchemas.test.ts` asserts the schema strips a stray `wordListId`.
 
 **What exists:** the parameter flows through `roomSchemas.ts:19`, `gameSchemas.ts:16`, `CreateGameOptions`, game + history records, SERVER_SPEC. **What's missing:** `resolveGameWords` (`gameService.ts:84`) never reads it; no word-list library exists to back it. An API consumer sending a valid `wordListId` silently gets the default list; every history record carries a column that can never be non-null. The real custom-words feature uses the parallel `wordList` array path.
 
