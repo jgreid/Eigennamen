@@ -118,9 +118,11 @@ Deterministic defects reachable in ordinary play. These are the "a user hits thi
 
 ---
 
-### A6 — Duet: a green revealed from the wrong side's perspective is permanently dead, making the co-op win unreachable
+### A6 — Duet: a green revealed from the wrong side's perspective is permanently dead, making the co-op win unreachable — **INVESTIGATED, DEFERRED (gated on D3)**
 
 **Severity:** Medium · **Area:** Game rules (Duet)
+
+**Status (2026-07-05):** root cause reconfirmed in `revealCard.lua` (a single shared `revealed[]` flag + perspective-resolved `cardType`, so a green-for-A card revealed on B's turn is recorded neutral and can never be re-revealed). Both fixes were deliberately **not** shipped in this pass: the per-perspective reveal state (fix a) touches the Lua reveal hot path in both `revealCard.lua` and `revealEngine.ts`, which this plan already gates on the extended real-Redis Lua harness (D3) landing first, per the P1-9 precedent — D3 has not landed. The smaller "detect the mathematically-lost state and end as lost" (fix b) is a genuine product decision (it changes duet outcomes) and still writes through the game-ending path, so it isn't a safe drop-in either. Left for a D3-gated follow-up so the reveal-path change ships with real-Redis coverage rather than mock-only tests.
 
 **Root cause:** `revealCard.lua:75-82` resolves the card type from the acting team's perspective and sets a single shared `revealed[]` flag; line 64 blocks any re-reveal (`ALREADY_REVEALED`). A card that is green from side A's perspective but bystander from side B's — revealed on B's turn — is recorded as neutral and can never be revealed again, so `greenFound` is permanently capped below the 15 (`greenTotal`) required to win (`revealCard.lua:132`). In the source material this game adapts, such a card stays guessable from the other perspective. The game doesn't detect the mathematically-lost state either — players keep burning timer tokens with no signal.
 
@@ -134,7 +136,10 @@ Deterministic defects reachable in ordinary play. These are the "a user hits thi
 
 ---
 
-### A7 — `finalizeMatchRound` has no gameOver/idempotency guard — a racing `game:nextRound` finalizes the wrong round
+### A7 — `finalizeMatchRound` has no gameOver/idempotency guard — a racing `game:nextRound` finalizes the wrong round — **FIXED**
+
+**Resolution (shipped):** `finalizeMatchRound`'s transaction callback now returns null unless `game.gameOver === true` AND the round isn't already finalized (roundHistory tail's `roundNumber !== matchRound`), checked inside the transaction so `executeGameTransaction`'s retry re-reads state. This makes finalization idempotent and end-gated, eliminating the phantom 0/0 entry, the double bonus, and the `game:roundEnded` broadcast for a just-started round. The plan's additional reorder (finalize before the `game:over` broadcast) was deferred: it touches several call sites and the client event order, and the idempotency guard already prevents all the described corruption.
+
 
 **Severity:** Medium · **Area:** Game integrity (Match)
 
@@ -485,7 +490,10 @@ The a11y items C1/C2 together make timed multiplayer rooms essentially unusable 
 
 ---
 
-### C3 — The PWA is dead offline: the precache omits every JS asset, and offline navigation to any game URL 503s
+### C3 — The PWA is dead offline: the precache omits every JS asset, and offline navigation to any game URL 503s — **FIXED**
+
+**Resolution (shipped):** `esbuild.config.js` now derives `OFFLINE_ASSETS` from the built output (every `?v=`-stamped script/style URL in index.html, the emitted code-split chunks, and the four locale JSONs) and writes it into `service-worker.js` after the `?v=` stampers, so precache keys match request URLs — the list grew from 9 to 24 entries and now includes all JS + all 9 stylesheets + locales. The fetch handler's offline branch falls back to the cached shell (`/index.html`) for any navigation request, so a bookmarked/shared `?game=…` URL restores state client-side instead of returning a 503. Guarded by `__tests__/frontend/serviceWorker.test.ts` (precache covers every referenced script/style + JS + chunks + locales, all exist on disk; navigate-fallback returns the shell not a 503).
+
 
 **Severity:** High (composite) · **Area:** PWA / service worker
 
@@ -877,7 +885,10 @@ Each of these carries either real runtime cost or a misleading API surface today
 
 Found in the code merged since the first review (PR #495–#497 era). G1 is a real playing-strength defect; the rest are tuning-infrastructure correctness.
 
-### G1 — Match mode: own trap cards are excluded from the spymaster's win logic, which fires on clues that cannot win
+### G1 — Match mode: own trap cards are excluded from the spymaster's win logic, which fires on clues that cannot win — **FIXED (primary defect)**
+
+**Resolution (shipped):** `groupBoard` now tracks the excluded negative-value own cards in `BoardGroups.ownTraps`, and `scoreClue`'s full-board-lead check requires `groups.ownTraps.length === 0` — so covering only the non-trap own set is no longer treated as a board win while an own trap is unrevealed (no illusory `WIN_BONUS`, no desperation exemption, number stays capped). `groupBoard`/`scoreClue` are exported for a direct unit test on `coversAll` (trap present → false; none → true). The plan's second half — letting traps back into targeting so the bot can still close a round when only traps remain or the bonus exceeds trap cost — is a separate strategic change and remains open; mirroring in `analyze.ts` was a no-op (it carries no parallel trap grouping).
+
 
 **Severity:** High (within bot play quality) · **Area:** Bots / match mode
 

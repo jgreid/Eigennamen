@@ -13,13 +13,27 @@ const OFFLINE_ASSETS = [
     '/',
     '/index.html',
     '/manifest.json',
+    '/icons/icon-180.png',
+    '/icons/icon.svg',
+    '/js/socket.io.min.js?v=9336af8f',
+    '/js/socket-client.js?v=4a36763c',
     '/css/variables.css',
     '/css/layout.css',
     '/css/components.css',
-    '/css/setup.css',
-    '/css/responsive.css',
+    '/css/modals.css',
     '/css/accessibility.css',
-    '/icons/icon.svg'
+    '/css/responsive.css',
+    '/css/multiplayer.css',
+    '/css/setup.css',
+    '/css/replay.css',
+    '/js/modules/app.js?v=2d9f286d',
+    '/js/app-fallback.js',
+    '/js/modules/chunks/chunk-VCE42MDW.js',
+    '/js/modules/chunks/history-AWDW7WGC.js',
+    '/locales/en.json',
+    '/locales/de.json',
+    '/locales/es.json',
+    '/locales/fr.json'
 ];
 
 // Install - cache assets needed for offline standalone mode
@@ -68,6 +82,14 @@ self.addEventListener('fetch', (event) => {
             })
             .catch(() => caches.match(event.request).then((cached) => {
                 if (cached) return cached;
+                // Offline navigation to a bookmarked/shared standalone game URL
+                // (e.g. /?game=…&r=…&t=red): the query string encodes the game
+                // state, so an exact cache match misses the cached '/'. The SPA
+                // restores state from location.search on load, so serve the cached
+                // app shell for ANY navigation request instead of a bare 503.
+                if (event.request.mode === 'navigate') {
+                    return caches.match('/index.html').then((shell) => shell || caches.match('/'));
+                }
                 return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
             }))
     );

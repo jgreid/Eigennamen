@@ -718,6 +718,43 @@ describe('finalizeMatchRound', () => {
         expect(result.roundHistory).toHaveLength(1);
         expect(result.matchRound).toBe(1);
     });
+
+    test('returns null when the round has not ended (gameOver=false) — A7', async () => {
+        // A racing startNextRound can create round N+1 (gameOver=false) before
+        // finalization runs; finalizing it would push a phantom 0/0 entry.
+        const notEnded = createMatchGameState({ gameOver: false, matchRound: 2 });
+        mockRedis.get.mockResolvedValue(JSON.stringify(notEnded));
+
+        const result = await finalizeMatchRound('MATCH1');
+
+        expect(result).toBeNull();
+    });
+
+    test('returns null when the current round is already finalized — A7', async () => {
+        // roundHistory already holds a result for the current round.
+        const alreadyFinalized = createMatchGameState({
+            gameOver: true,
+            winner: 'red',
+            matchRound: 1,
+            roundHistory: [
+                {
+                    roundNumber: 1,
+                    roundWinner: 'red',
+                    redRoundScore: 10,
+                    blueRoundScore: 3,
+                    redBonusAwarded: true,
+                    blueBonusAwarded: false,
+                    endReason: 'completed',
+                    completedAt: 1_700_000_000_000,
+                },
+            ],
+        });
+        mockRedis.get.mockResolvedValue(JSON.stringify(alreadyFinalized));
+
+        const result = await finalizeMatchRound('MATCH1');
+
+        expect(result).toBeNull();
+    });
 });
 
 describe('startNextRound', () => {

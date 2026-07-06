@@ -3,7 +3,8 @@
  */
 import { tableBackend } from '../../bots/semantics/tableBackend';
 import { ASSOCIATIONS } from '../../bots/semantics/associations';
-import { makeEmbeddingSpymaster } from '../../bots/strategies/spymasters';
+import { makeEmbeddingSpymaster, groupBoard, scoreClue } from '../../bots/strategies/spymasters';
+import { resolveStyle } from '../../bots/strategies/types';
 import { makeGreedyClicker } from '../../bots/strategies/clickers';
 import { suggestGuesses } from '../../bots/strategies/advisor';
 import { resolveClicker } from '../../bots/strategies/registry';
@@ -580,6 +581,53 @@ describe('match-mode value awareness', () => {
         });
         const action = makeEmbeddingSpymaster(resolveSkill('expert', 5), backend).chooseClue(view, ctx(5));
         expect(action).toMatchObject({ kind: 'clue', word: 'HIGHFIT' });
+    });
+
+    // groupBoard keeps match traps out of `own` but tracks them in `ownTraps`, and
+    // scoreClue reads coversAll off both (G1). The final number cap keys off
+    // coversAll (CLUE_NUMBER_MAX vs MAX_CLUE_NUMBER), so this is the load-bearing bit.
+    const g1ScoreCtx = { desperate: false, assassinBerthFloor: 0, strandPenalty: () => 0 };
+    function g1Score(view: BotSpymasterView, clue: string, rel: Record<string, number>) {
+        const groups = groupBoard(view);
+        const skill = resolveSkill('expert', 1);
+        const values = new Map(view.words.map((w, i) => [w, view.cardScores![i] ?? 0]));
+        const backend = scoringStub({ [clue]: rel });
+        return {
+            groups,
+            ev: scoreClue(
+                clue,
+                groups,
+                backend,
+                skill.riskAversion,
+                (w) => values.get(w) ?? 0,
+                resolveStyle(skill),
+                g1ScoreCtx
+            ),
+        };
+    }
+
+    it('does not treat covering only the non-trap own cards as a board win while an own trap remains (G1)', () => {
+        const view = matchView(
+            ['A', 'B', 'TRAP', 'OPP', 'ASSN'],
+            ['red', 'red', 'red', 'blue', 'assassin'],
+            [2, 2, -1, 1, 0]
+        );
+        const { groups, ev } = g1Score(view, 'COVER', { A: 0.9, B: 0.9, TRAP: 0.1, OPP: 0.1, ASSN: 0.1 });
+        // The trap is excluded from the targetable own set but tracked separately.
+        expect(groups.own).toEqual(['A', 'B']);
+        expect(groups.ownTraps).toEqual(['TRAP']);
+        // COVER leads both targetable own cards, but the own trap stays unrevealed,
+        // so the round can't end — this is NOT a board-winning clue.
+        expect(ev).not.toBeNull();
+        expect(ev!.coversAll).toBe(false);
+    });
+
+    it('still treats covering all own cards as a board win when no own trap remains (G1 control)', () => {
+        const view = matchView(['A', 'B', 'OPP', 'ASSN'], ['red', 'red', 'blue', 'assassin'], [2, 2, 1, 0]);
+        const { groups, ev } = g1Score(view, 'COVER', { A: 0.9, B: 0.9, OPP: 0.1, ASSN: 0.1 });
+        expect(groups.ownTraps).toEqual([]);
+        expect(ev).not.toBeNull();
+        expect(ev!.coversAll).toBe(true);
     });
 });
 
