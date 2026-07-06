@@ -1,6 +1,6 @@
 # Build stage
 # Note: Build context is repo root (where fly.toml is located)
-FROM node:24-alpine3.21 AS builder
+FROM node:25-alpine3.21 AS builder
 
 WORKDIR /app
 
@@ -40,7 +40,7 @@ RUN mkdir -p /app/embeddings && touch /app/embeddings/.keep && \
     fi
 
 # Production stage
-FROM node:24-alpine3.21
+FROM node:25-alpine3.21
 
 WORKDIR /app
 
