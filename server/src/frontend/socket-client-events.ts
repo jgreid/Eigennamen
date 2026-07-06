@@ -265,9 +265,9 @@ export function registerAllEventListeners(register: RegisterFn, emit: EmitFn, cl
         emit('timerStopped', raw);
     });
 
-    register('timer:tick', (raw: unknown) => {
-        emit('timerTick', raw as TimerEventData);
-    });
+    // NOTE: no `timer:tick` listener — the server never emits per-second ticks
+    // (the turn timer is server-initiated via `timer:started`, and the client
+    // counts down locally). A dead listener used to live here (H1).
 
     register('timer:expired', (raw: unknown) => {
         emit('timerExpired', raw);

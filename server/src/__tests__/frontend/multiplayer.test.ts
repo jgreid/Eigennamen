@@ -606,6 +606,36 @@ describe('multiplayer module', () => {
             expect(resetMultiplayerState).toHaveBeenCalled();
         });
 
+        // H4: onMultiplayerJoined now OWNS the currentRoomId assignment. Callers used
+        // to set it before calling, so the room-change comparison compared the new
+        // code against itself and never reset — leaking room A's advisor badges onto
+        // room B's board. These lock in the new behavior.
+        test('assigns currentRoomId from the joined room code (H4)', () => {
+            setupMultiplayerDOM();
+            state.currentRoomId = null;
+            onMultiplayerJoined({ room: { code: 'ROOMX' }, players: [] });
+            expect(state.currentRoomId).toBe('ROOMX');
+        });
+
+        test('falls back to the provided room code when result.room is absent (H4)', () => {
+            setupMultiplayerDOM();
+            state.currentRoomId = null;
+            onMultiplayerJoined({ players: [] }, false, 'fallback-room');
+            expect(state.currentRoomId).toBe('fallback-room');
+        });
+
+        test('resets stale state on a switch driven only by its own assignment (H4)', () => {
+            setupMultiplayerDOM();
+            const { resetMultiplayerState } = require('../../frontend/multiplayerSync');
+            // First join assigns currentRoomId internally (no caller pre-set).
+            onMultiplayerJoined({ room: { code: 'room-a' }, players: [] });
+            resetMultiplayerState.mockClear();
+            // Switching to room-b must fire the reset and re-point currentRoomId.
+            onMultiplayerJoined({ room: { code: 'room-b' }, players: [] });
+            expect(resetMultiplayerState).toHaveBeenCalled();
+            expect(state.currentRoomId).toBe('room-b');
+        });
+
         test('syncs game state when game is present in result', () => {
             setupMultiplayerDOM();
             const { syncGameStateFromServer } = require('../../frontend/multiplayerSync');

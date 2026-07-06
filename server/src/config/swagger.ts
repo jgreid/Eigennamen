@@ -39,6 +39,7 @@ See the project README for WebSocket event documentation.
     tags: [
         { name: 'Health', description: 'Server health and monitoring endpoints' },
         { name: 'Rooms', description: 'Game room management' },
+        { name: 'Replays', description: 'Finished-game replay retrieval' },
     ],
     components: {
         schemas: {
@@ -145,8 +146,11 @@ See the project README for WebSocket event documentation.
                         properties: {
                             code: {
                                 type: 'string',
-                                pattern: '^[A-Z0-9]{6}$',
-                                description: '6-character room code',
+                                minLength: 3,
+                                maxLength: 20,
+                                pattern: '^[\\p{L}\\p{N}\\-_]+$',
+                                description:
+                                    '3–20 characters: Unicode letters/digits, hyphen, underscore. Case-insensitive; normalized to lowercase server-side.',
                             },
                             status: {
                                 type: 'string',
@@ -181,6 +185,15 @@ See the project README for WebSocket event documentation.
                         description: 'Whether the room exists',
                     },
                 },
+            },
+        },
+        securitySchemes: {
+            sessionId: {
+                type: 'apiKey',
+                in: 'header',
+                name: 'X-Session-Id',
+                description:
+                    'Player session ID. Sent as the X-Session-Id header to authorize replay access for a room the caller participated in.',
             },
         },
     },
@@ -316,8 +329,14 @@ See the project README for WebSocket event documentation.
                         name: 'code',
                         in: 'path',
                         required: true,
-                        schema: { type: 'string', pattern: '^[A-Za-z0-9]{6}$' },
-                        description: '6-character room code (case-insensitive)',
+                        schema: {
+                            type: 'string',
+                            minLength: 3,
+                            maxLength: 20,
+                            pattern: '^[\\p{L}\\p{N}\\-_]+$',
+                        },
+                        description:
+                            '3–20 characters: Unicode letters/digits, hyphen, underscore. Case-insensitive (normalized to lowercase server-side).',
                     },
                 ],
                 responses: {
@@ -350,8 +369,14 @@ See the project README for WebSocket event documentation.
                         name: 'code',
                         in: 'path',
                         required: true,
-                        schema: { type: 'string', pattern: '^[A-Za-z0-9]{6}$' },
-                        description: '6-character room code (case-insensitive)',
+                        schema: {
+                            type: 'string',
+                            minLength: 3,
+                            maxLength: 20,
+                            pattern: '^[\\p{L}\\p{N}\\-_]+$',
+                        },
+                        description:
+                            '3–20 characters: Unicode letters/digits, hyphen, underscore. Case-insensitive (normalized to lowercase server-side).',
                     },
                 ],
                 responses: {
@@ -378,6 +403,70 @@ See the project README for WebSocket event documentation.
                                 schema: { $ref: '#/components/schemas/Error' },
                             },
                         },
+                    },
+                },
+            },
+        },
+        '/api/replays/{roomCode}/{gameId}': {
+            get: {
+                tags: ['Replays'],
+                summary: 'Get a game replay',
+                description:
+                    'Fetch the stored replay for a finished game. Requires an X-Session-Id header for a session that participated in the room (no room membership is otherwise needed). Rate-limited.',
+                security: [{ sessionId: [] }],
+                parameters: [
+                    {
+                        name: 'roomCode',
+                        in: 'path',
+                        required: true,
+                        schema: {
+                            type: 'string',
+                            minLength: 3,
+                            maxLength: 20,
+                            pattern: '^[\\p{L}\\p{N}\\-_]+$',
+                        },
+                        description:
+                            '3–20 characters: Unicode letters/digits, hyphen, underscore. Case-insensitive (normalized to lowercase server-side).',
+                    },
+                    {
+                        name: 'gameId',
+                        in: 'path',
+                        required: true,
+                        schema: { type: 'string', format: 'uuid' },
+                        description: "The finished game's ID (UUID).",
+                    },
+                ],
+                responses: {
+                    '200': {
+                        description: 'Replay retrieved',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    properties: { replay: { type: 'object' } },
+                                },
+                            },
+                        },
+                    },
+                    '400': {
+                        description: 'Invalid room code or game ID',
+                        content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } },
+                    },
+                    '401': {
+                        description: 'Missing or invalid X-Session-Id header',
+                        content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } },
+                    },
+                    '403': {
+                        description: 'Session did not participate in this room',
+                        content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } },
+                    },
+                    '404': {
+                        description: 'Replay not found',
+                        content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } },
+                    },
+                    '429': {
+                        description: 'Rate limit exceeded',
+                        content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } },
                     },
                 },
             },

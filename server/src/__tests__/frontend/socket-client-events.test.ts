@@ -244,7 +244,6 @@ describe('registerAllEventListeners', () => {
             'game:error',
             'timer:started',
             'timer:stopped',
-            'timer:tick',
             'timer:expired',
             'chat:message',
             'chat:spectatorMessage',
@@ -494,17 +493,6 @@ describe('registerAllEventListeners', () => {
             handlers['timer:stopped'](data);
 
             expect(emit).toHaveBeenCalledWith('timerStopped', data);
-        });
-    });
-
-    describe('timer:tick', () => {
-        test('emits timerTick with data', () => {
-            const { handlers, emit } = setup();
-            const data = { remainingSeconds: 45 };
-
-            handlers['timer:tick'](data);
-
-            expect(emit).toHaveBeenCalledWith('timerTick', data);
         });
     });
 

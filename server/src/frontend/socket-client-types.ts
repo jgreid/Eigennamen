@@ -112,7 +112,6 @@ export interface ClientEventMap {
     // Timer events
     timerStarted: TimerEventData;
     timerStopped: unknown;
-    timerTick: TimerEventData;
     timerExpired: unknown;
     timerStatus: TimerEventData;
     timerPaused: TimerEventData;

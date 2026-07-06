@@ -180,7 +180,7 @@ No recovery is possible. Active games are lost. Players reconnect and create new
    fly redis status <redis-app-name>
    ```
 
-2. If Upstash is down, the application falls back gracefully -- it will continue attempting reconnection with exponential backoff (configured in `server/src/config/redis.ts`, max 20 retries).
+2. If Upstash is down, the client reconnects with exponential backoff for attempts 0–20 (`server/src/config/redis.ts`). On exhausting those retries it deliberately **`process.exit(1)`s** so the platform (Fly) restarts the machine with a fresh connection, and the restarted process repeats this cycle until Redis recovers. This designed crash-loop self-heal is the P1-2 hardening change — an operator watching the logs should read repeated restarts during a Redis outage as *expected recovery behavior*, not a new bug. (Cross-reference: `docs/HARDENING_PLAN.md` P1-2.) Note that in memory mode there is no external Redis to fail, but any process restart still loses all in-memory game state.
 
 3. If data is lost, restore from Upstash dashboard backups or accept the loss (game state is ephemeral).
 

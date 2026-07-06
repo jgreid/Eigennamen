@@ -230,7 +230,7 @@ Eigennamen/
         │       │   ├── playerRoleHandlers.ts       # player:setTeam, player:setRole, player:setTeamRole
         │       │   └── spectatorHandlers.ts        # spectator:requestJoin, spectator:approveJoin
         │       ├── playerRoomSync.ts  # Room sync after player state changes
-        │       ├── timerHandlers.ts   # timer:start, timer:pause, timer:resume, timer:addTime
+        │       ├── timerHandlers.ts   # timer:pause, timer:resume, timer:stop, timer:addTime (timer start is server-initiated)
         │       ├── chatHandlers.ts    # chat:message, chat:spectator
         │       └── types.ts           # Handler type definitions
         ├── frontend/           # Frontend TypeScript source (62 modules, compiled via esbuild)
@@ -246,6 +246,8 @@ Eigennamen/
         │   ├── settings.ts     # Settings panel logic
         │   ├── history.ts      # Game history barrel — delegates to history-replay.ts
         │   ├── history-replay.ts # Replay UI (step controls, event rendering)
+        │   ├── clueUI.ts       # Clue input/display UI
+        │   ├── gameLog.ts      # In-game event log UI
         │   ├── chat.ts         # Chat UI
         │   ├── timer.ts        # Turn timer UI
         │   ├── i18n.ts         # Internationalization
@@ -336,7 +338,7 @@ Eigennamen/
 ### Data Flow
 
 ```
-Client event → Socket.io → Zod validation → rate limiter → context handler → service → Redis (Lua) → broadcast via safeEmit
+Client event → Socket.io → rate limiter → Zod validation → context handler → service → Redis (Lua) → broadcast via safeEmit
 ```
 
 ### Context Handler Pipeline
@@ -464,6 +466,11 @@ All event names defined in `config/socketConfig.ts`. Format: `domain:action` (cl
 | `game:getHistory` | `game:historyResult` |
 | `game:getReplay` | `game:replayData` |
 | `game:clearHistory` | `game:historyCleared` |
+| `game:readyCheck` (host) | `game:readyStatus` |
+| `game:ready` | `game:readyStatus` |
+| `game:pause` | `game:paused` |
+| `game:resume` | `game:resumed` |
+| `game:typing` | `game:typing` (broadcast) |
 | | `game:readyStatus`, `game:botSuggestion`, `game:error` |
 
 `game:botSuggestion` is emitted by an advisor bot: ranked guess suggestions
@@ -487,14 +494,19 @@ act on. Advisory only — it never reveals.
 
 
 ### Timer Events
+
+The turn timer is **server-initiated**: the server starts it internally (on game
+start / turn change) and announces it via `timer:started` — there is no client
+`timer:start` event. The client counts down locally, so there is no per-second
+`timer:tick` broadcast either; `timer:expired` fires once when the turn's time is up.
+
 | Client → Server | Server → Client |
 |-----------------|-----------------|
-| `timer:start` | `timer:started` |
 | `timer:pause` | `timer:paused` |
 | `timer:resume` | `timer:resumed` |
 | `timer:stop` | `timer:stopped` |
 | `timer:addTime` | `timer:timeAdded` |
-| | `timer:tick`, `timer:expired`, `timer:status`, `timer:error` |
+| | `timer:started`, `timer:expired`, `timer:status`, `timer:error` |
 
 ### Chat & Spectator Events
 | Client → Server | Server → Client |

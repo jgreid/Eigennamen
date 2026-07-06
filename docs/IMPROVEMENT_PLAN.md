@@ -303,11 +303,11 @@ Server lifecycle, background maintenance, and the deploy pipeline. B1 and B5 are
 
 ---
 
-### B5 — Every deploy destroys all live games with no warning to players — **PARTIALLY FIXED (step 2 shipped)**
+### B5 — Every deploy destroys all live games with no warning to players — **PARTIALLY FIXED (steps 1 & 2 shipped)**
 
 **Severity:** High (product/ops) · **Area:** Deployment
 
-**Progress (shipped):** step 2 (fix the broken warning) landed — `handleDisconnect`/`cleanupSocketModule` emit the established `{ code: 'SERVER_SHUTDOWN', message }` shape and `roomEventHandlers.ts` now renders it via `showToast(t('multiplayer.serverShutdown'), 'warning')` (localized ×4), so players learn *why* a game vanished on deploy. **Still open:** step 3 (the real fix) — provisioning Fly Redis so state survives a deploy — remains an infra change, and step 1's DEPLOYMENT.md reality note is folded into the C-series docs items.
+**Progress (shipped):** step 2 (fix the broken warning) landed — `handleDisconnect`/`cleanupSocketModule` emit the established `{ code: 'SERVER_SHUTDOWN', message }` shape and `roomEventHandlers.ts` now renders it via `showToast(t('multiplayer.serverShutdown'), 'warning')` (localized ×4), so players learn *why* a game vanished on deploy. **Step 1** also shipped (alongside H6): `docs/DEPLOYMENT.md` now carries a "Deploys wipe live game state (memory mode)" note documenting the deploy-destroys-state reality and the merge-during-low-traffic guidance, plus the memory-mode storage defaults and the single-machine scaling constraint. **Still open:** step 3 (the real fix) — provisioning Fly Redis so state survives a deploy — is a paid-infra/ops decision (run `fly redis create` + set the `REDIS_URL` secret; the code already supports an external-Redis backend) that cannot be executed from the repo; the upgrade path is now documented for the maintainer in DEPLOYMENT.md and `fly.toml`.
 
 **Root cause:** `fly.toml` combines `REDIS_URL = "memory"` (all rooms/games/history in-process) with `[deploy] strategy = "immediate"`, and `deploy.yml` auto-deploys every CI-green push to `main`. Every merge therefore kills every active game mid-play — players see an unexplained disconnect, and on reconnect the room no longer exists. The one mechanism meant to warn them is a **no-op**: `cleanupSocketModule` (`socket/index.ts:226-230`) emits `ROOM_WARNING` with `{ type: 'server_shutdown', message }`, but the sole client handler (`frontend/handlers/roomEventHandlers.ts:81-98`) branches exclusively on `data.code` (STATS_STALE / BOT_STALLED / BOT_SEAT_RECLAIMED), has no else-fallback, and never renders `data.message` — and `RoomWarningData` (`multiplayerTypes.ts:272-276`) has no `type` field, so the payload matches nothing and is discarded. The 2-second drain (`SHUTDOWN_DRAIN_MS`) waits for clients to "process the warning" none of them receive. This is the single largest real-user pain the review found, and it is not tracked anywhere (HARDENING_PLAN P2-5 covers only the second-machine autoscaler guard).
 
@@ -1013,9 +1013,11 @@ Found in the code merged since the first review (PR #495–#497 era). G1 is a re
 
 ## Phase H — Documentation and code hygiene
 
-### H1 — The socket-event documentation has two phantom events and omits seven real ones
+### H1 — The socket-event documentation has two phantom events and omits seven real ones — **FIXED**
 
 **Severity:** Medium · **Area:** Docs
+
+**Resolution (shipped):** removed the phantom `timer:start`/`timer:tick` from CLAUDE.md and SERVER_SPEC.md (both now state the timer is server-initiated via `timer:started`, with no per-second tick — the client counts down locally), deleted the dead `timer:tick` listener + its `timerTick` type mapping (`frontend/socket-client-events.ts`, `socket-client-types.ts`), and added the seven real events — `game:readyCheck`/`game:ready`, `game:pause`/`game:paused`, `game:resume`/`game:resumed`, `game:typing` — to both docs. Also corrected the `timerHandlers.ts` directory comment (it listed the phantom `timer:start`). The dead-listener removal is exercised by updated `socket-client-events.test.ts` (the event is no longer in the registered-events list, and its per-event test is gone).
 
 **Root cause:** CLAUDE.md (:233, :492, :497) and SERVER_SPEC.md (:419, :446) document `timer:start` and `timer:tick`, which have **no server handler and no emitter** — while omitting seven real registered events: `game:pause`/`game:resume`/`game:paused`/`game:resumed`, `game:readyCheck`/`game:ready`, `game:typing`. A client author following the spec would emit `timer:start` into the void and build countdown UI on ticks that never arrive; the frontend even ships a dead `timer:tick` listener (`socket-client-events.ts:268`).
 
@@ -1025,9 +1027,11 @@ Found in the code merged since the first review (PR #495–#497 era). G1 is a re
 
 ---
 
-### H2 — CLAUDE.md/ARCHITECTURE.md counts went stale again within days of the last hygiene pass
+### H2 — CLAUDE.md/ARCHITECTURE.md counts went stale again within days of the last hygiene pass — **FIXED**
 
 **Severity:** Low · **Area:** Docs
+
+**Resolution (shipped):** the concrete inaccuracies are corrected — CLAUDE.md's data-flow line now reads `rate limiter → Zod validation` (matching the Context-Handler-Pipeline order and the code), and `clueUI.ts`/`gameLog.ts` are added to the frontend directory tree. The suite counts (179 total / 122 backend / 57 frontend) and the "62 frontend modules" count were already accurate on `main` (verified against the tree and `find`), and ARCHITECTURE.md already shows 179 suites — so no count edits were needed there beyond the two missing tree entries.
 
 **Root cause:** PR #497 and the earlier clueUI/gameLog commits moved the counts (175 suites / 119 backend; 62 frontend modules; 12 utils files) and added two modules missing from the directory tree (`clueUI.ts`, `gameLog.ts`); ARCHITECTURE.md's suite count is 19 behind; CLAUDE.md:339's data-flow line orders validation before rate limiting, contradicting both its own pipeline description and the code.
 
@@ -1037,9 +1041,11 @@ Found in the code merged since the first review (PR #495–#497 era). G1 is a re
 
 ---
 
-### H3 — `bots/strategies/spymasters.ts` (850 lines) outgrew the decomposition convention untracked
+### H3 — `bots/strategies/spymasters.ts` (850 lines) outgrew the decomposition convention untracked — **FIXED (partial: board-safety extracted)**
 
 **Severity:** Low · **Area:** Code quality
+
+**Resolution (shipped):** extracted the candidate-quality board-safety filter — `makeBoardSafetyCheck`/`isClueBoardSafe` and their helpers (`foldDiacritics`, `sharedPrefixLen`, `boundedLevenshtein`, `isNonAscii`, the near-dup thresholds) — into a new `bots/strategies/clueSafety.ts`, mirroring `bots/semantics/`' file-per-concern layout. `spymasters.ts` imports them for local use at the `generateClueCandidates` choke point and re-exports them so existing importers (and `clueBoardSafe.test.ts`) are unaffected. This drops `spymasters.ts` from ~866 to ~756 lines. Pure refactor — the full suite stays green. The secondary `ClueEval`-scoring extraction the plan also suggested is deferred (it's more entangled with `scoreClue`); the file is now comfortably under the P3-1 threshold, so this is left as optional follow-up.
 
 **Root cause:** PR #497 grew it to the second-largest file in the repo, 29 lines shy of `gameService.ts` (the one file tracked for decomposition as P3-1), and each bot-nuance phase adds more.
 
@@ -1051,9 +1057,11 @@ Found in the code merged since the first review (PR #495–#497 era). G1 is a re
 
 ---
 
-### H4 — `onMultiplayerJoined`'s room-change reset is dead code, leaking advisor badges across rooms
+### H4 — `onMultiplayerJoined`'s room-change reset is dead code, leaking advisor badges across rooms — **FIXED**
 
 **Severity:** Low · **Area:** Frontend quality
+
+**Resolution (shipped):** ownership of the `state.currentRoomId` assignment moved *into* `onMultiplayerJoined`, which now takes the fallback room code as a third argument and compares against the OLD value before assigning — so a genuine room switch fires `resetMultiplayerState()` (clearing room A's index-addressed advisor badges) as intended. All four call sites (`multiplayer.ts` join/create, `setupScreen.ts` join/create) dropped their pre-assignment and pass the normalized code instead; `updateSettings` reads the socket client's own room, not `state.currentRoomId`, so deferring the assignment is safe. New `multiplayer.test.ts` cases assert the assignment, the fallback, and that a switch driven only by the function's own assignment resets; the setup-submit tests were updated for the new 3-arg call.
 
 **Root cause:** Every caller assigns `state.currentRoomId` to the new room code immediately before calling it (`multiplayer.ts:236,317`), so the `currentRoomId !== newRoomId` check inside (`:340`) can never be true and `resetMultiplayerState()` never fires on room switch — leaving room A's index-addressed advisor-suggestion badges rendered onto arbitrary cards of room B's board.
 
@@ -1065,9 +1073,11 @@ Found in the code merged since the first review (PR #495–#497 era). G1 is a re
 
 ---
 
-### H5 — The OpenAPI spec omits `/api/replays` and documents a room-code format that no real code matches
+### H5 — The OpenAPI spec omits `/api/replays` and documents a room-code format that no real code matches — **FIXED**
 
 **Severity:** Low · **Area:** Docs (machine-readable contract)
+
+**Resolution (shipped):** added a `components.securitySchemes.sessionId` (`apiKey`, header `X-Session-Id`) and the `GET /api/replays/{roomCode}/{gameId}` path (verified against `routes/replayRoutes.ts`: `security: [{sessionId:[]}]`, `gameId` as `format: uuid`, responses 200/400/401/403/404/429, plus a `Replays` tag). Replaced all three wrong room-code schemas (`^[A-Z0-9]{6}$` / `^[A-Za-z0-9]{6}$` "6-character") with the real contract — `minLength: 3`, `maxLength: 20`, `pattern: '^[\\p{L}\\p{N}\\-_]+$'`, "case-insensitive, lowercased server-side" — in `RoomInfo.code` and both room path params.
 
 **Root cause:** `config/swagger.ts`'s `paths` (187-385) cover only the five health endpoints and two room GETs — `/api/replays/{roomCode}/{gameId}` (registered at `routes/index.ts:12`, X-Session-Id-gated) is entirely absent. The documented room-code schema is wrong three ways: `pattern: '^[A-Z0-9]{6}$'` (:148) / `'^[A-Za-z0-9]{6}$'` "6-character room code" (:319, :353) versus the real 3–20-char, lowercase-normalized, user-chosen codes allowing `-`/`_` (`schemaHelpers.ts:38-45`). A client generated from the served `/api-docs.json` would reject every real code and never learn the replay endpoint exists — the same drift class H1 covers for socket events, now in the machine-readable contract.
 
@@ -1077,9 +1087,11 @@ Found in the code merged since the first review (PR #495–#497 era). G1 is a re
 
 ---
 
-### H6 — `docs/DEPLOYMENT.md` quotes a `fly.toml` that doesn't exist and recommends a scale that splits rooms
+### H6 — `docs/DEPLOYMENT.md` quotes a `fly.toml` that doesn't exist and recommends a scale that splits rooms — **FIXED**
 
 **Severity:** Low · **Area:** Docs
+
+**Resolution (shipped):** the DEPLOYMENT.md `fly.toml` excerpt now points readers to the well-commented real file and explicitly includes the load-bearing storage defaults (`CORS_ORIGIN`, `REDIS_URL = "memory"`, `MEMORY_MODE_ALLOW_FLY = "true"`) it previously omitted. The Scaling section carries a prominent single-machine-constraint callout placed directly beside `fly scale count 2`, cross-referencing the `fly redis create` steps required before scaling past one machine (and HARDENING_PLAN P2-5). A new "Deploys wipe live game state (memory mode)" note documents the deploy-destroys-state reality and the merge-during-low-traffic guidance — this also lands **B5 step 1**.
 
 **Root cause:** DEPLOYMENT.md:138-164 claims "the repository includes `fly.toml` with recommended settings" then quotes `PORT = "8080"`, `internal_port = 8080`, `min_machines_running = 0`, `auto_stop_machines = true`, and a `[[services]]` block — none of which match the real file (PORT 3000, `min_machines_running = 1`, `auto_stop_machines = "stop"`, and the load-bearing `REDIS_URL = "memory"`/`MEMORY_MODE_ALLOW_FLY = "true"` omitted). The Scaling section unconditionally recommends `fly scale count 2`, which under the shipped memory-mode config produces the split-brain "room not found" failure `fly.toml`'s own comment warns about.
 
@@ -1089,9 +1101,11 @@ Found in the code merged since the first review (PR #495–#497 era). G1 is a re
 
 ---
 
-### H7 — `docs/BACKUP_AND_DR.md` misstates Redis-failure behavior (the P1-2 change it predates)
+### H7 — `docs/BACKUP_AND_DR.md` misstates Redis-failure behavior (the P1-2 change it predates) — **FIXED**
 
 **Severity:** Low · **Area:** Docs
+
+**Resolution (shipped):** Scenario D now describes the real P1-2 behavior (verified against `config/redis.ts`'s `reconnectStrategy`): backoff for reconnect attempts 0–20, then a deliberate `process.exit(1)` so the platform restarts the machine with a fresh connection, repeating until Redis recovers — framed explicitly as the *designed* crash-loop self-heal so an operator doesn't misread the restarts as a bug. Also notes that any restart loses in-memory (memory-mode) game state, and cross-references HARDENING_PLAN P1-2.
 
 **Root cause:** BACKUP_AND_DR.md:183 (Scenario D) says the app "will continue attempting reconnection with exponential backoff … max 10 retries." The actual code (the P1-2 fix, `config/redis.ts:210-222`) exits the process after 20 retries so the platform restarts it — neither the count nor the end state matches. During a real outage, an operator reading this runbook will misread the designed crash-loop self-heal as a new bug.
 
