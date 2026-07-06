@@ -48,7 +48,9 @@ stay strong on it.
 
 **Related:** IMPROVEMENT_PLAN F4 (the dangling `wordListId`), BOT_SEMANTIC_MAPS.
 
-### A2. Post-game recap / match summary
+### A2. Post-game recap / match summary — **MVP shipped**
+
+**Status (shipped — focused MVP):** at game over a host-/player-visible **"View Recap"** button (in the turn indicator, multiplayer only) opens a recap modal built from the completed game's replay (fetched via the existing `GET /api/replays/:room/:game` REST path — the gameId is now captured client-side in `syncGameStateFromServer`). It shows the final result, key stats (each team's cards found, assassin, clue count, duration), a **per-team clue → guesses timeline** (reveals grouped under their clue with ✓/✗/⬜/💀 correctness), and reuses the A9 shareable-replay-link flow plus a "Full Replay" hand-off to the step player. Frontend-only (`frontend/recap.ts` + `recap-modal`), no new server state; i18n ×4; unit-tested in `recap.test.ts`. Deferred (candidate follow-ups): best/worst-clue analytics and round-by-round match-score progression (each match round is a separate saved game, so a multi-round recap needs one replay fetch per round).
 
 **Idea:** An end-of-game (and end-of-match) recap screen: per-team timeline of
 clues and guesses, the assassin near-misses, best/worst clue by cards-hit,

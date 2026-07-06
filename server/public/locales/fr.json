@@ -270,6 +270,19 @@
         "approved": "Vous avez rejoint {{team}} !",
         "denied": "Votre demande pour rejoindre une équipe a été refusée"
     },
+    "recap": {
+        "viewRecap": "Voir le récap",
+        "title": "Récapitulatif de la partie",
+        "copyLink": "Copier le lien de la rediffusion",
+        "fullReplay": "Rediffusion complète",
+        "noWinner": "Partie terminée",
+        "clues": "Indices",
+        "duration": "Durée",
+        "assassin": "Assassin",
+        "noMoves": "Aucun coup n’a été joué dans cette partie.",
+        "noGuesses": "Aucune proposition.",
+        "unavailable": "Le récapitulatif n’est pas encore disponible pour cette partie."
+    },
     "wordList": {
         "default": "Mots par défaut",
         "custom": "Mots personnalisés",

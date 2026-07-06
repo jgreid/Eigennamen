@@ -15,6 +15,7 @@ import { playNotificationSound, setTabNotification, checkAndNotifyTurn } from '.
 import { updateDuetUI, updateDuetInfoBar, updateForfeitButton, renderPauseState } from '../multiplayerUI.js';
 import { syncGameStateFromServer } from '../multiplayerSync.js';
 import { logClue, clearGameLog } from '../gameLog.js';
+import { updateRecapButton } from '../recap.js';
 import type {
     GameStartedData,
     CardRevealedData,
@@ -82,6 +83,7 @@ export function registerGameHandlers(): void {
             state.gameMode = data.gameMode || 'match';
             updateDuetUI(data.game);
             updateForfeitButton();
+            updateRecapButton();
             updateClueUI();
             if (data.isNextRound) {
                 const round = data.game?.matchRound ?? 2;
@@ -258,6 +260,7 @@ export function registerGameHandlers(): void {
         playNotificationSound('gameOver');
         clearBotSuggestions();
         updateForfeitButton();
+        updateRecapButton();
         // A game can end while the local spymaster's clue form is open (opponent
         // forfeit, assassin reveal, timer/duet-token expiry). Recompute so the
         // form hides instead of staying interactable after game over.

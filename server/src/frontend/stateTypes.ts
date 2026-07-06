@@ -55,6 +55,9 @@ export interface CachedElements {
  * Use the selectors `isDuetMode()` / `isMatchMode()` for mode checks.
  */
 export interface GameState {
+    /** Server-assigned game id, captured from the synced game state. Used to
+     *  fetch the completed game's replay for the post-game recap. */
+    id?: string;
     words: string[];
     types: string[];
     revealed: boolean[];

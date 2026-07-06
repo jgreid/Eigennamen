@@ -286,6 +286,18 @@
                 <span class="timer-icon" aria-hidden="true">⏱️</span>
                 <span class="timer-value" id="timer-value">--:--</span>
               </span>
+              <!-- View Recap (A2): appears at game over in multiplayer -->
+              <button
+                type="button"
+                class="btn-view-recap"
+                id="btn-view-recap"
+                data-action="open-recap"
+                data-testid="view-recap-btn"
+                hidden
+              >
+                <span aria-hidden="true">📊</span>
+                <span data-i18n="recap.viewRecap">View Recap</span>
+              </button>
             </div>
             <!-- Match mode scores (inline in banner, hidden by default) -->
             <div
@@ -1900,7 +1912,49 @@
       </div>
     </div>
 
-    <script type="module" src="/js/modules/app.js?v=6aca14ff"></script>
+    <!-- Post-game recap modal (A2) -->
+    <div class="modal-overlay" id="recap-modal">
+      <div class="modal recap-modal">
+        <h2 data-i18n="recap.title">Game Recap</h2>
+        <div
+          class="recap-result"
+          id="recap-result"
+          role="status"
+          aria-live="polite"
+        ></div>
+        <div class="recap-stats" id="recap-stats"></div>
+        <div class="recap-timeline" id="recap-timeline"></div>
+        <div class="modal-buttons">
+          <button
+            type="button"
+            class="btn-primary"
+            data-action="recap-share"
+            data-testid="recap-share-btn"
+          >
+            <span aria-hidden="true">🔗</span>
+            <span data-i18n="recap.copyLink">Copy Replay Link</span>
+          </button>
+          <button
+            type="button"
+            class="btn-secondary"
+            data-action="recap-full-replay"
+            data-i18n="recap.fullReplay"
+          >
+            Full Replay
+          </button>
+          <button
+            type="button"
+            class="btn-secondary"
+            data-action="close-recap"
+            data-i18n="settings.close"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/js/modules/app.js?v=6b2df9d1"></script>
     <!-- Fallback: detect if the ES module failed to load + service worker registration -->
     <script src="/js/app-fallback.js"></script>
   </body>
