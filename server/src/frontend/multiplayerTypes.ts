@@ -24,6 +24,7 @@ export interface ServerGameData {
     redTotal?: number;
     blueTotal?: number;
     gameOver?: boolean;
+    paused?: boolean;
     winner?: string | null;
     seed?: string | number;
     currentClue?: ClueData | null;
@@ -191,6 +192,14 @@ export interface GameOverData {
     types?: string[];
     duetTypes?: string[];
     reason?: string;
+}
+
+export interface GamePausedData {
+    pausedBy?: string;
+}
+
+export interface GameResumedData {
+    resumedBy?: string;
 }
 
 export interface RoundResultData {

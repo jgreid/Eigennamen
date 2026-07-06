@@ -129,6 +129,8 @@ const _rawState: AppState = {
         matchWinner: null,
     },
 
+    gamePaused: false,
+
     timerState: {
         active: false,
         endTime: null,

@@ -38,7 +38,7 @@
          the whole app. Freshness is handled instead by the content-hash ?v= cache-bust
          below, which esbuild keeps in sync with the file contents on every build. -->
     <script defer src="/js/socket.io.min.js?v=9336af8f"></script>
-    <script defer src="/js/socket-client.js?v=fd8e4090"></script>
+    <script defer src="/js/socket-client.js?v=0330d2e9"></script>
     <link rel="stylesheet" href="/css/variables.css" />
     <link rel="stylesheet" href="/css/layout.css" />
     <link rel="stylesheet" href="/css/components.css" />
@@ -767,6 +767,35 @@
               Loading game...
             </div>
           </div>
+
+          <!-- Pause overlay (F1): covers the board while the host has paused
+               the game. Chat/settings stay reachable outside the board. -->
+          <div
+            class="pause-overlay"
+            id="pause-overlay"
+            hidden
+            role="alert"
+            aria-live="assertive"
+          >
+            <div class="pause-overlay-content">
+              <span class="pause-overlay-icon" aria-hidden="true">⏸️</span>
+              <h2 class="pause-overlay-title" data-i18n="game.pausedTitle">
+                Game Paused
+              </h2>
+              <p class="pause-overlay-by" id="pause-overlay-by"></p>
+              <button
+                type="button"
+                class="btn-resume-game"
+                id="pause-resume-btn"
+                data-testid="resume-btn"
+                data-action="resume-game"
+                hidden
+              >
+                <span aria-hidden="true">▶️</span>
+                <span data-i18n="game.resumeGame">Resume Game</span>
+              </button>
+            </div>
+          </div>
         </div>
       </main>
 
@@ -990,6 +1019,30 @@
                   </div>
                 </div>
               </div>
+            </div>
+
+            <!-- Pause Section (host only, active multiplayer game) -->
+            <div
+              class="settings-pause-section"
+              id="settings-pause-section"
+              hidden
+            >
+              <h3
+                class="settings-section-title"
+                data-i18n="settings.gameControls"
+              >
+                Game Controls
+              </h3>
+              <button
+                type="button"
+                class="btn-pause-settings"
+                id="btn-pause"
+                data-testid="pause-btn"
+                data-action="pause-game"
+              >
+                <span aria-hidden="true">⏸️</span>
+                <span data-i18n="game.pauseGame">Pause Game</span>
+              </button>
             </div>
 
             <!-- Forfeit Section (host only, active multiplayer game) -->
@@ -1764,7 +1817,7 @@
       </div>
     </div>
 
-    <script type="module" src="/js/modules/app.js?v=b2973b7e"></script>
+    <script type="module" src="/js/modules/app.js?v=bacd95c9"></script>
     <!-- Fallback: detect if the ES module failed to load + service worker registration -->
     <script src="/js/app-fallback.js"></script>
   </body>

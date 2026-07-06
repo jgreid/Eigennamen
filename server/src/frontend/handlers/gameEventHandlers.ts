@@ -12,7 +12,7 @@ import {
 import { updateRoleBanner, updateControls } from '../roles.js';
 import { updateClueUI } from '../clueUI.js';
 import { playNotificationSound, setTabNotification, checkAndNotifyTurn } from '../notifications.js';
-import { updateDuetUI, updateDuetInfoBar, updateForfeitButton } from '../multiplayerUI.js';
+import { updateDuetUI, updateDuetInfoBar, updateForfeitButton, renderPauseState } from '../multiplayerUI.js';
 import { syncGameStateFromServer } from '../multiplayerSync.js';
 import { logClue, clearGameLog } from '../gameLog.js';
 import type {
@@ -26,6 +26,8 @@ import type {
     MatchOverData,
     ReadyStatusData,
     BotSuggestionData,
+    GamePausedData,
+    GameResumedData,
 } from '../multiplayerTypes.js';
 
 export function registerGameHandlers(): void {
@@ -260,6 +262,26 @@ export function registerGameHandlers(): void {
         // forfeit, assassin reveal, timer/duet-token expiry). Recompute so the
         // form hides instead of staying interactable after game over.
         updateClueUI();
+    });
+
+    // Host paused the game — show the board overlay and freeze interaction.
+    EigennamenClient.on('gamePaused', (data: GamePausedData) => {
+        state.gamePaused = true;
+        renderPauseState(data.pausedBy);
+        const who = data.pausedBy || t('game.theHost');
+        const msg = t('game.pausedToast', { nickname: who });
+        showToast(msg, 'info', 4000);
+        announceToScreenReader(msg);
+    });
+
+    // Host resumed the game — hide the overlay and restore play.
+    EigennamenClient.on('gameResumed', (data: GameResumedData) => {
+        state.gamePaused = false;
+        renderPauseState();
+        const who = data.resumedBy || t('game.theHost');
+        const msg = t('game.resumedToast', { nickname: who });
+        showToast(msg, 'success', 4000);
+        announceToScreenReader(msg);
     });
 
     // Handle spymaster view (card types for spymasters)

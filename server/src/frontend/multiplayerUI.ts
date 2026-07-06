@@ -19,6 +19,10 @@ export {
     closeForfeitConfirm,
     forfeitGame,
     updateForfeitButton,
+    pauseGame,
+    resumeGame,
+    updatePauseButton,
+    renderPauseState,
 } from './multiplayerUI-settings.js';
 
 export {

@@ -14,6 +14,8 @@ import type {
     ClueGivenData,
     TurnEndedData,
     GameOverData,
+    GamePausedData,
+    GameResumedData,
     RoundEndedData,
     MatchOverData,
     SpymasterViewData,
@@ -100,6 +102,8 @@ export interface ClientEventMap {
     clueGiven: ClueGivenData;
     turnEnded: TurnEndedData;
     gameOver: GameOverData;
+    gamePaused: GamePausedData;
+    gameResumed: GameResumedData;
     'game:roundEnded': RoundEndedData;
     'game:matchOver': MatchOverData;
     spymasterView: SpymasterViewData;

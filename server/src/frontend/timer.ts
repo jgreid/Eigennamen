@@ -131,6 +131,13 @@ export function handleTimerStopped(): void {
     updateTimerDisplay();
 }
 
+// Handle a paused timer: freeze the local countdown but keep the current
+// remaining value so it can be re-synced when the game resumes. Paired with the
+// game-pause overlay (F1); the server emits timer:paused alongside game:paused.
+export function handleTimerPaused(): void {
+    stopTimerCountdown();
+}
+
 // Handle timer status on join/reconnect
 // Uses server's remaining seconds to avoid clock skew issues
 export function handleTimerStatus(data: {

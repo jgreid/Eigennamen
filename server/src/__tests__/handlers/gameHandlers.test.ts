@@ -24,6 +24,7 @@ jest.mock('../../utils/logger', () => ({
 const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
 const roomService = require('../../services/roomService');
+const timerService = require('../../services/timerService');
 // Mock socket/index to avoid circular dependency issues
 jest.mock('../../socket/index', () => ({
     startTurnTimer: jest.fn().mockResolvedValue({}),
@@ -41,6 +42,7 @@ jest.mock('../../socket/socketFunctionProvider', () => ({
         emitToRoom: jest.fn(),
         emitToPlayer: jest.fn(),
         getTimerStatus: jest.fn().mockResolvedValue(null),
+        createTimerExpireCallback: jest.fn(() => jest.fn()),
         getIO: jest.fn(),
     })),
     isRegistered: jest.fn(() => true),
@@ -735,6 +737,107 @@ describe('Game Handlers', () => {
                 expect.objectContaining({
                     message: expect.stringContaining('host'),
                 })
+            );
+        });
+    });
+
+    describe('game:pause / game:resume handlers (F1)', () => {
+        beforeEach(() => {
+            // Host + active game — these handlers are host-only and require a game.
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                nickname: 'HostPlayer',
+                team: 'red',
+                role: 'clicker',
+                isHost: true,
+            });
+            gameService.getGame.mockResolvedValue({ id: 'game-1', currentTurn: 'red', gameOver: false });
+        });
+
+        test('pause broadcasts game:paused and freezes a running timer', async () => {
+            gameService.pauseGame.mockResolvedValue(undefined);
+            timerService.pauseTimer.mockResolvedValue({ remainingSeconds: 42 });
+
+            const pauseHandler = mockSocket.on.mock.calls.find((h) => h[0] === 'game:pause');
+            expect(pauseHandler).toBeDefined();
+            await pauseHandler[1]({});
+
+            expect(gameService.pauseGame).toHaveBeenCalledWith('TEST12');
+            expect(mockIo.emit).toHaveBeenCalledWith(
+                'game:paused',
+                expect.objectContaining({ pausedBy: 'HostPlayer' })
+            );
+            expect(mockIo.emit).toHaveBeenCalledWith('timer:paused', expect.objectContaining({ remainingSeconds: 42 }));
+        });
+
+        test('pause with no running timer still broadcasts game:paused only', async () => {
+            gameService.pauseGame.mockResolvedValue(undefined);
+            timerService.pauseTimer.mockResolvedValue(null);
+
+            const pauseHandler = mockSocket.on.mock.calls.find((h) => h[0] === 'game:pause');
+            await pauseHandler[1]({});
+
+            expect(mockIo.emit).toHaveBeenCalledWith(
+                'game:paused',
+                expect.objectContaining({ pausedBy: 'HostPlayer' })
+            );
+            expect(mockIo.emit).not.toHaveBeenCalledWith('timer:paused', expect.anything());
+        });
+
+        test('resume threads the expiry callback into resumeTimer (F1 timer bug)', async () => {
+            gameService.resumeGame.mockResolvedValue(undefined);
+            timerService.resumeTimer.mockResolvedValue({ remainingSeconds: 30, endTime: 123456 });
+
+            const resumeHandler = mockSocket.on.mock.calls.find((h) => h[0] === 'game:resume');
+            expect(resumeHandler).toBeDefined();
+            await resumeHandler[1]({});
+
+            expect(gameService.resumeGame).toHaveBeenCalledWith('TEST12');
+            // The bug: resumeTimer(roomCode) was called with NO expiry callback, so a
+            // post-resume expiry never auto-ended the turn. Assert a callback is passed.
+            expect(timerService.resumeTimer).toHaveBeenCalledWith('TEST12', expect.any(Function));
+            expect(mockIo.emit).toHaveBeenCalledWith(
+                'game:resumed',
+                expect.objectContaining({ resumedBy: 'HostPlayer' })
+            );
+            expect(mockIo.emit).toHaveBeenCalledWith(
+                'timer:resumed',
+                expect.objectContaining({ remainingSeconds: 30, endTime: 123456 })
+            );
+        });
+
+        test('resume with no paused timer still broadcasts game:resumed', async () => {
+            gameService.resumeGame.mockResolvedValue(undefined);
+            timerService.resumeTimer.mockResolvedValue(null);
+
+            const resumeHandler = mockSocket.on.mock.calls.find((h) => h[0] === 'game:resume');
+            await resumeHandler[1]({});
+
+            expect(mockIo.emit).toHaveBeenCalledWith(
+                'game:resumed',
+                expect.objectContaining({ resumedBy: 'HostPlayer' })
+            );
+            expect(mockIo.emit).not.toHaveBeenCalledWith('timer:resumed', expect.anything());
+        });
+
+        test('pause requires host', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                nickname: 'NotHost',
+                team: 'red',
+                role: 'clicker',
+                isHost: false,
+            });
+
+            const pauseHandler = mockSocket.on.mock.calls.find((h) => h[0] === 'game:pause');
+            await pauseHandler[1]({});
+
+            expect(gameService.pauseGame).not.toHaveBeenCalled();
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({ message: expect.stringContaining('host') })
             );
         });
     });

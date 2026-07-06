@@ -650,11 +650,21 @@ function gameHandlers(io: Server, socket: GameSocket): void {
             if (!ctx.player.isHost) throw PlayerError.notHost();
 
             await gameService.pauseGame(ctx.roomCode);
-            await timerService.pauseTimer(ctx.roomCode);
+            const pauseResult = await timerService.pauseTimer(ctx.roomCode);
 
             safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_PAUSED, {
                 pausedBy: ctx.player.nickname,
             });
+
+            // If a turn timer was running, tell clients it is frozen too so their
+            // local countdown stops instead of drifting to zero behind the overlay.
+            if (pauseResult) {
+                safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.TIMER_PAUSED, {
+                    roomCode: ctx.roomCode,
+                    remainingSeconds: pauseResult.remainingSeconds,
+                    pausedAt: Date.now(),
+                });
+            }
 
             logger.info(`Game paused in room ${ctx.roomCode} by ${ctx.player.nickname}`);
         })
@@ -669,11 +679,26 @@ function gameHandlers(io: Server, socket: GameSocket): void {
             if (!ctx.player.isHost) throw PlayerError.notHost();
 
             await gameService.resumeGame(ctx.roomCode);
-            await timerService.resumeTimer(ctx.roomCode);
+
+            // Resume the turn timer WITH the expiry callback. Previously this call
+            // passed no callback (unlike timerHandlers), so after a pause/resume the
+            // timer expired silently and the turn never auto-ended. (IMPROVEMENT_PLAN F1)
+            const { createTimerExpireCallback } = getSocketFunctions();
+            const timerInfo = await timerService.resumeTimer(ctx.roomCode, createTimerExpireCallback());
 
             safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_RESUMED, {
                 resumedBy: ctx.player.nickname,
             });
+
+            // Re-sync clients to the authoritative remaining time / end time so
+            // their local countdown restarts from the correct point after resume.
+            if (timerInfo) {
+                safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.TIMER_RESUMED, {
+                    roomCode: ctx.roomCode,
+                    remainingSeconds: timerInfo.remainingSeconds,
+                    endTime: timerInfo.endTime,
+                });
+            }
 
             logger.info(`Game resumed in room ${ctx.roomCode} by ${ctx.player.nickname}`);
         })

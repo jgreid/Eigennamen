@@ -88,9 +88,82 @@ export function forfeitGame(team: string): void {
  */
 export function updateForfeitButton(): void {
     const forfeitSection = document.getElementById('settings-forfeit-section');
-    if (!forfeitSection) return;
 
-    const shouldShow = state.isMultiplayerMode && getClient()?.player?.isHost && !state.gameState.gameOver;
+    const shouldShow = !!(state.isMultiplayerMode && getClient()?.player?.isHost && !state.gameState.gameOver);
 
-    forfeitSection.hidden = !shouldShow;
+    if (forfeitSection) forfeitSection.hidden = !shouldShow;
+
+    // The Pause control shares forfeit's visibility rule, so keep it in lockstep
+    // here rather than threading a second call through every forfeit call site.
+    updatePauseButton();
+}
+
+/**
+ * Request pausing the active game (host only). The server broadcasts
+ * game:paused, which drives the overlay via the gamePaused handler.
+ */
+export function pauseGame(): void {
+    if (!state.isMultiplayerMode || !isClientConnected()) return;
+    if (!EigennamenClient.player?.isHost) {
+        showToast(t('forfeit.hostOnly'), 'warning');
+        return;
+    }
+    if (state.gameState.gameOver || state.gamePaused) return;
+    EigennamenClient.pauseGame();
+}
+
+/**
+ * Request resuming a paused game (host only). Invoked from the Resume button on
+ * the pause overlay (and mirrored by the settings control when reachable).
+ */
+export function resumeGame(): void {
+    if (!state.isMultiplayerMode || !isClientConnected()) return;
+    if (!EigennamenClient.player?.isHost) {
+        showToast(t('forfeit.hostOnly'), 'warning');
+        return;
+    }
+    EigennamenClient.resumeGame();
+}
+
+/**
+ * Show/hide the settings-modal Pause button. Same visibility rule as forfeit
+ * (host, active multiplayer game), but additionally hidden while already paused
+ * since the overlay carries the Resume action.
+ */
+export function updatePauseButton(): void {
+    const pauseSection = document.getElementById('settings-pause-section');
+    if (!pauseSection) return;
+
+    const shouldShow = !!(
+        state.isMultiplayerMode &&
+        getClient()?.player?.isHost &&
+        !state.gameState.gameOver &&
+        !state.gamePaused
+    );
+
+    pauseSection.hidden = !shouldShow;
+}
+
+/**
+ * Reflect the current pause state in the UI: toggle the board pause overlay,
+ * expose the host-only Resume button, set the "paused by" line, and re-sync the
+ * settings Pause button. Called from the game:paused/resumed handlers and after
+ * a resync into a paused game.
+ */
+export function renderPauseState(pausedBy?: string | null): void {
+    const paused = state.gamePaused;
+    const isHost = !!getClient()?.player?.isHost;
+
+    const overlay = document.getElementById('pause-overlay');
+    if (overlay) overlay.hidden = !paused;
+
+    if (paused && pausedBy) {
+        const byEl = document.getElementById('pause-overlay-by');
+        if (byEl) byEl.textContent = t('game.pausedBy', { nickname: pausedBy });
+    }
+
+    const resumeBtn = document.getElementById('pause-resume-btn');
+    if (resumeBtn) resumeBtn.hidden = !(paused && isHost);
+
+    updatePauseButton();
 }

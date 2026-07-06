@@ -65,6 +65,7 @@ jest.mock('../../frontend/state', () => ({
         spectatorCount: 0,
         roomStats: null,
         cachedElements: {},
+        gamePaused: false,
     },
 }));
 
@@ -118,6 +119,10 @@ jest.mock('../../frontend/multiplayerUI', () => ({
     updateRoomStats: jest.fn(),
     updateSpectatorCount: jest.fn(),
     updateForfeitUI: jest.fn(),
+    updateForfeitButton: jest.fn(),
+    updateDuetUI: jest.fn(),
+    updateDuetInfoBar: jest.fn(),
+    renderPauseState: jest.fn(),
 }));
 
 import { registerGameHandlers } from '../../frontend/handlers/gameEventHandlers';
@@ -125,6 +130,7 @@ import { state } from '../../frontend/state';
 import { showToast, announceToScreenReader } from '../../frontend/ui';
 import { updateMatchScoreboard } from '../../frontend/game/scoring';
 import { playNotificationSound } from '../../frontend/notifications';
+import { renderPauseState } from '../../frontend/multiplayerUI';
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -230,5 +236,36 @@ describe('game:matchOver handler', () => {
         eventHandlers['game:matchOver']({});
 
         expect(state.gameState.matchOver).toBeFalsy();
+    });
+});
+
+describe('game:paused / game:resumed handlers (F1)', () => {
+    test('gamePaused sets state, renders the overlay, and toasts who paused', () => {
+        state.gamePaused = false;
+
+        eventHandlers['gamePaused']({ pausedBy: 'Alice' });
+
+        expect(state.gamePaused).toBe(true);
+        expect(renderPauseState).toHaveBeenCalledWith('Alice');
+        expect(showToast).toHaveBeenCalledWith('game.pausedToast', 'info', 4000);
+        expect(announceToScreenReader).toHaveBeenCalledWith('game.pausedToast');
+    });
+
+    test('gameResumed clears state, re-renders, and toasts who resumed', () => {
+        state.gamePaused = true;
+
+        eventHandlers['gameResumed']({ resumedBy: 'Bob' });
+
+        expect(state.gamePaused).toBe(false);
+        expect(renderPauseState).toHaveBeenCalledWith();
+        expect(showToast).toHaveBeenCalledWith('game.resumedToast', 'success', 4000);
+    });
+
+    test('gamePaused falls back to the-host label when no nickname is provided', () => {
+        eventHandlers['gamePaused']({});
+
+        expect(state.gamePaused).toBe(true);
+        // pausedBy undefined → renderPauseState called with undefined (no "paused by" line)
+        expect(renderPauseState).toHaveBeenCalledWith(undefined);
     });
 });

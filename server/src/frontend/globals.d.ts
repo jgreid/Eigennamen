@@ -49,6 +49,8 @@ interface EigennamenClientAPI {
     submitClue(word: string, number: number): void;
     endTurn(): void;
     forfeit(team?: string): void;
+    pauseGame(): void;
+    resumeGame(): void;
     abandonGame(): void;
 
     // Bot management (host only)

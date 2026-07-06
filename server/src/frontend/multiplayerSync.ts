@@ -13,6 +13,7 @@ import {
     updateRoomSettingsNavVisibility,
     hideReconnectionOverlay,
     updateDuetUI,
+    renderPauseState,
 } from './multiplayerUI.js';
 import { updateChatForRole } from './chat.js';
 import {
@@ -319,6 +320,11 @@ export function syncGameStateFromServer(serverGame: ServerGameData): void {
             state.gameState.winner = null;
         }
 
+        // Sync pause state (F1) — the server stamps `paused` on every player
+        // game-state snapshot, so a client joining/reconnecting into a paused
+        // game picks up the overlay instead of a silently frozen board.
+        state.gamePaused = !!serverGame.paused;
+
         // Sync seed if available
         if (serverGame.seed) {
             state.gameState.seed = serverGame.seed;
@@ -389,6 +395,7 @@ export function syncGameStateFromServer(serverGame: ServerGameData): void {
         updateControls();
         updateRoleBanner();
         updateForfeitButton();
+        renderPauseState();
         updateDuetUI(serverGame);
         updateMatchScoreboard();
     } catch (err) {

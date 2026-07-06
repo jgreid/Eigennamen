@@ -35,6 +35,8 @@ import {
     confirmForfeit,
     closeForfeitConfirm,
     forfeitGame,
+    pauseGame,
+    resumeGame,
     closeKickConfirm,
     confirmKickPlayer,
 } from './multiplayer.js';
@@ -254,6 +256,14 @@ function setupEventListeners(): void {
                 break;
             case 'close-forfeit-confirm':
                 closeForfeitConfirm();
+                break;
+
+            // Pause / resume (host only)
+            case 'pause-game':
+                pauseGame();
+                break;
+            case 'resume-game':
+                resumeGame();
                 break;
 
             // Confirm kick modal
