@@ -798,3 +798,4 @@ Key env vars (see `server/.env.example` for full list):
 | [docs/WINDOWS_SETUP.md](docs/WINDOWS_SETUP.md) | Windows development setup |
 | [docs/HARDENING_PLAN.md](docs/HARDENING_PLAN.md) | Tracked remediation plan from the July 2026 hardening review — root cause, fix, tests, and sequencing for every open finding |
 | [docs/IMPROVEMENT_PLAN.md](docs/IMPROVEMENT_PLAN.md) | Follow-up review plan (70 items) — broken flows, deploy/ops, a11y/i18n, test signal, half-built features; additive to HARDENING_PLAN.md |
+| [docs/FEATURE_ROADMAP.md](docs/FEATURE_ROADMAP.md) | Forward-looking feature proposals (word-list library, post-game recap, Redis-backed bot coordination, multilingual semantic maps) + recorded finish-or-delete disposition for the half-built features (IMPROVEMENT_PLAN Phase F) |
