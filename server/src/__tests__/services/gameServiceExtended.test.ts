@@ -1094,6 +1094,15 @@ describe('forfeitGame', () => {
         });
     });
 
+    test('rejects when the game is paused (A5 — no Lua backstop on forfeit)', async () => {
+        const gameData = createMockGameData({ paused: true });
+        mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
+
+        await expect(forfeitGame('TEST01')).rejects.toMatchObject({
+            code: ERROR_CODES.GAME_PAUSED,
+        });
+    });
+
     test('retries on concurrent modification', async () => {
         const gameData = createMockGameData();
         mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
