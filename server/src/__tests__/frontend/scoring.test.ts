@@ -471,6 +471,35 @@ describe('updateTurnIndicator', () => {
         expect(t).toHaveBeenCalledWith('game.duetGameOverTimeout');
     });
 
+    test('shows duet unreachable game-over message when a green became unreachable (A6)', () => {
+        const indicator = createIndicatorElement();
+        state.cachedElements.turnIndicator = indicator;
+        state.gameMode = 'duet';
+        state.gameState.gameOver = true;
+        state.gameState.winner = null;
+        state.gameState.endReason = 'unreachable';
+
+        updateTurnIndicator();
+
+        const turnText = indicator.querySelector('.turn-text')!;
+        expect(turnText.textContent).toBe('game.duetGameOverUnreachable');
+        expect(t).toHaveBeenCalledWith('game.duetGameOverUnreachable');
+    });
+
+    test('unreachable endReason does not override a genuine duet victory', () => {
+        const indicator = createIndicatorElement();
+        state.cachedElements.turnIndicator = indicator;
+        state.gameMode = 'duet';
+        state.gameState.gameOver = true;
+        state.gameState.winner = 'red';
+        state.gameState.endReason = 'unreachable';
+
+        updateTurnIndicator();
+
+        const turnText = indicator.querySelector('.turn-text')!;
+        expect(turnText.textContent).toBe('game.duetVictory');
+    });
+
     test('returns early when indicator element is missing', () => {
         // No indicator in DOM and no cached element
         updateTurnIndicator();

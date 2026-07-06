@@ -165,6 +165,30 @@ if isDuet then
         turnEnded = true
         endReason = 'maxGuesses'
     end
+
+    -- Cooperative unreachable-win guard (A6): a card that is an agent from one
+    -- side but revealed as a bystander from the other is permanently consumed;
+    -- once the greens still findable drop below greenTotal the co-op win is
+    -- impossible. End as a loss with a clear reason rather than burning tokens on
+    -- a mathematically dead board. Mirrors revealEngine.isDuetWinUnreachable.
+    if not game.gameOver then
+        local reachable = game.greenFound or 0
+        for i = 1, #game.types do
+            if not game.revealed[i] then
+                local agentForA = game.types[i] == 'red' or game.types[i] == 'blue'
+                local agentForB = game.duetTypes and (game.duetTypes[i] == 'red' or game.duetTypes[i] == 'blue')
+                if agentForA or agentForB then
+                    reachable = reachable + 1
+                end
+            end
+        end
+        if reachable < (game.greenTotal or 15) then
+            game.gameOver = true
+            game.winner = cjson.null
+            endReason = 'unreachable'
+            turnEnded = true
+        end
+    end
 elseif isMatch then
     -- Match mode outcome logic (same as Classic for now, but separated for extensibility)
     if cardType == 'assassin' then

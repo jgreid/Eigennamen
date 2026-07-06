@@ -212,22 +212,35 @@ export async function cleanupOrphanedReconnectionTokens(): Promise<number> {
             const BATCH_PROCESS_SIZE = 20;
             let scanned = 0;
 
-            for await (const key of redis.scanIterator({ MATCH: 'reconnect:session:*', COUNT: 100 })) {
-                const sessionId = key.replace('reconnect:session:', '');
-                batch.push({ key, sessionId });
-                scanned++;
+            let reachedScanCap = false;
+            for await (const page of redis.scanIterator({ MATCH: 'reconnect:session:*', COUNT: 100 })) {
+                // node-redis v5's scanIterator yields a BATCH (array) of keys per
+                // iteration; v4 yielded individual keys. Treating the v5 array as a
+                // single string made `key.replace(...)` throw on every run, which the
+                // outer catch swallowed — so this whole function silently cleaned
+                // nothing. Normalize so it works on both shapes.
+                const keys = Array.isArray(page) ? page : [page];
+                for (const key of keys) {
+                    const sessionId = key.replace('reconnect:session:', '');
+                    batch.push({ key, sessionId });
+                    scanned++;
 
-                // Limit total scanned to avoid long-running operations
-                if (scanned >= PLAYER_CLEANUP.BATCH_SIZE) {
-                    cleaned += await processBatchCleanup(redis, batch);
-                    batch.length = 0;
-                    break;
+                    // Limit total scanned to avoid long-running operations
+                    if (scanned >= PLAYER_CLEANUP.BATCH_SIZE) {
+                        cleaned += await processBatchCleanup(redis, batch);
+                        batch.length = 0;
+                        reachedScanCap = true;
+                        break;
+                    }
+
+                    // Process in parallel batches
+                    if (batch.length >= BATCH_PROCESS_SIZE) {
+                        cleaned += await processBatchCleanup(redis, batch);
+                        batch.length = 0;
+                    }
                 }
-
-                // Process in parallel batches
-                if (batch.length >= BATCH_PROCESS_SIZE) {
-                    cleaned += await processBatchCleanup(redis, batch);
-                    batch.length = 0;
+                if (reachedScanCap) {
+                    break;
                 }
             }
 

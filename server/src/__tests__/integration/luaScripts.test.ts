@@ -20,7 +20,12 @@ import { joinRoom } from '../../services/room/membership';
 import * as gameService from '../../services/gameService';
 import * as playerService from '../../services/playerService';
 import { setTeam, setRole } from '../../services/player/mutations';
-import { SUBMIT_CLUE_SCRIPT } from '../../scripts';
+import * as timerService from '../../services/timerService';
+import * as gameHistoryService from '../../services/gameHistoryService';
+import { checkValidationRateLimit } from '../../middleware/auth/sessionValidator';
+import { acquire } from '../../utils/distributedLock';
+import { SUBMIT_CLUE_SCRIPT, ATOMIC_SET_ROOM_STATUS_SCRIPT } from '../../scripts';
+import { DUET_BOARD_CONFIG } from '../../config/constants';
 
 const CONNECT_TIMEOUT_MS = 20000;
 
@@ -238,6 +243,384 @@ describe('Real-Redis Lua script integration', () => {
 
             expect(result.number).toBe(9);
             expect(result.guessesAllowed).toBe(10);
+        });
+    });
+
+    describe('revealCard.lua (duet mode)', () => {
+        it('counts a green revealed from the acting team perspective toward greenFound', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            const game = await gameService.createGame(code, { gameMode: 'duet', seed: `${code}-duet` });
+            const team = game.currentTurn;
+
+            // A card that is an agent from the acting team's own perspective.
+            const perspective = team === 'blue' ? (game.duetTypes ?? []) : game.types;
+            const greenIndex = perspective.findIndex((t) => t === team);
+            expect(greenIndex).toBeGreaterThanOrEqual(0);
+
+            // Clue number 2 → 3 guesses, so a single correct green keeps the turn.
+            await gameService.submitClue(code, team, 'ZZZDUETGREENZZZ', 2, 'Spymaster');
+            const result = await gameService.revealCard(code, greenIndex, 'Clicker', team);
+
+            expect(result.gameOver).toBe(false);
+            expect(result.greenFound).toBe(1);
+            expect(result.turnEnded).toBe(false);
+        });
+
+        it('spends a timer token and switches turn on a both-sides bystander without ending the game', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            const game = await gameService.createGame(code, { gameMode: 'duet', seed: `${code}-duet` });
+            const team = game.currentTurn;
+
+            // A card that is a bystander from BOTH perspectives: revealing it costs
+            // a token and passes the turn, but strands no green.
+            const bystanderIndex = game.types.findIndex((t, i) => t === 'neutral' && game.duetTypes?.[i] === 'neutral');
+            expect(bystanderIndex).toBeGreaterThanOrEqual(0);
+
+            await gameService.submitClue(code, team, 'ZZZDUETBYSTANDZZZ', 1, 'Spymaster');
+            const result = await gameService.revealCard(code, bystanderIndex, 'Clicker', team);
+
+            expect(result.gameOver).toBe(false);
+            expect(result.turnEnded).toBe(true);
+            expect(result.currentTurn).not.toBe(team);
+            expect(result.timerTokens).toBe(DUET_BOARD_CONFIG.timerTokens - 1);
+        });
+
+        it('ends the game as an unreachable co-op loss when a cross-perspective green is spent as a bystander (A6)', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            const game = await gameService.createGame(code, { gameMode: 'duet', seed: `${code}-duet` });
+            const team = game.currentTurn;
+
+            // Find a card that is a bystander from the acting team's perspective but
+            // a green from the OTHER team's — revealing it permanently consumes a
+            // green nobody can score anymore, so the co-op win becomes impossible.
+            let deadGreenIndex = -1;
+            for (let i = 0; i < game.types.length; i++) {
+                const mine = team === 'blue' ? game.duetTypes?.[i] : game.types[i];
+                const theirs = team === 'blue' ? game.types[i] : game.duetTypes?.[i];
+                const theirsIsGreen = theirs === 'red' || theirs === 'blue';
+                if (mine === 'neutral' && theirsIsGreen) {
+                    deadGreenIndex = i;
+                    break;
+                }
+            }
+            expect(deadGreenIndex).toBeGreaterThanOrEqual(0);
+
+            await gameService.submitClue(code, team, 'ZZZDUETDEADZZZ', 1, 'Spymaster');
+            const result = await gameService.revealCard(code, deadGreenIndex, 'Clicker', team);
+
+            expect(result.gameOver).toBe(true);
+            expect(result.winner).toBeNull();
+            expect(result.endReason).toBe('unreachable');
+
+            const afterGame = await gameService.getGame(code);
+            expect(afterGame?.gameOver).toBe(true);
+        });
+    });
+
+    describe('reconnection token scripts (generate / validate / invalidate / cleanupOrphaned)', () => {
+        it('atomicGenerateReconnectToken issues a token and returns the same one on a repeat call', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+
+            const token = await playerService.generateReconnectionToken('host-1');
+            expect(token).toBeTruthy();
+            expect(await playerService.getExistingReconnectionToken('host-1')).toBe(token);
+
+            // The Lua script's NX branch must return the existing token, not mint a
+            // second one (the TOCTOU fix this script exists for).
+            const again = await playerService.generateReconnectionToken('host-1');
+            expect(again).toBe(token);
+        });
+
+        it('returns null when generating a token for a non-existent player', async () => {
+            expect(await playerService.generateReconnectionToken('ghost-session')).toBeNull();
+        });
+
+        it('atomicValidateReconnectToken consumes a valid token exactly once', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            const token = (await playerService.generateReconnectionToken('host-1')) as string;
+
+            const first = await playerService.validateRoomReconnectToken(token, 'host-1');
+            expect(first.valid).toBe(true);
+            expect(first.tokenData?.sessionId).toBe('host-1');
+
+            // Consumed — a second validation must fail (single-use guarantee).
+            const second = await playerService.validateRoomReconnectToken(token, 'host-1');
+            expect(second.valid).toBe(false);
+            expect(second.reason).toBe('TOKEN_EXPIRED_OR_INVALID');
+        });
+
+        it('rejects a token presented with the wrong session id without consuming it', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            const token = (await playerService.generateReconnectionToken('host-1')) as string;
+
+            const mismatch = await playerService.validateRoomReconnectToken(token, 'someone-else');
+            expect(mismatch.valid).toBe(false);
+            expect(mismatch.reason).toBe('SESSION_MISMATCH');
+
+            // The rightful owner can still consume it (mismatch must not delete it).
+            const owner = await playerService.validateRoomReconnectToken(token, 'host-1');
+            expect(owner.valid).toBe(true);
+        });
+
+        it('invalidateToken removes a token so it can no longer be validated', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            const token = (await playerService.generateReconnectionToken('host-1')) as string;
+
+            await playerService.invalidateRoomReconnectToken('host-1');
+            expect(await playerService.getExistingReconnectionToken('host-1')).toBeNull();
+
+            const result = await playerService.validateRoomReconnectToken(token, 'host-1');
+            expect(result.valid).toBe(false);
+        });
+
+        it('cleanupOrphanedToken deletes tokens whose player is gone but keeps live ones', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            await joinRoom(code, 'p2', 'Player2');
+            const liveToken = (await playerService.generateReconnectionToken('host-1')) as string;
+            await playerService.generateReconnectionToken('p2');
+
+            // Orphan p2's token by deleting the underlying player key.
+            await getRedis().del('player:p2');
+
+            const cleaned = await playerService.cleanupOrphanedReconnectionTokens();
+            expect(cleaned).toBeGreaterThanOrEqual(1);
+
+            // p2's orphaned session token is gone; host-1's (player still present) survives.
+            expect(await playerService.getExistingReconnectionToken('p2')).toBeNull();
+            expect(await playerService.getExistingReconnectionToken('host-1')).toBe(liveToken);
+        });
+    });
+
+    describe('atomicSetSocketMapping.lua + atomicRemovePlayer.lua', () => {
+        it('maps a socket to an existing player and reads it back', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+
+            const ok = await playerService.setSocketMapping('host-1', 'socket-abc', '10.0.0.1');
+            expect(ok).toBe(true);
+            expect(await playerService.getSocketId('host-1')).toBe('socket-abc');
+        });
+
+        it('refuses to map a socket to a non-existent player', async () => {
+            expect(await playerService.setSocketMapping('ghost-session', 'socket-xyz')).toBe(false);
+        });
+
+        it('removePlayer drops the player from the room and team sets', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            await joinRoom(code, 'p2', 'Player2');
+            await setTeam('p2', 'red');
+
+            await playerService.removePlayer('p2');
+
+            expect(await playerService.getPlayer('p2')).toBeNull();
+            const remaining = await playerService.getPlayersInRoom(code);
+            expect(remaining.map((p) => p.sessionId)).toEqual(['host-1']);
+        });
+    });
+
+    describe('safeCleanupOrphans.lua (via getPlayersInRoom)', () => {
+        it('prunes a session id left in the room set with no backing player key', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            await joinRoom(code, 'p2', 'Player2');
+
+            // Orphan p2: delete the player hash but leave it in the room's set.
+            await getRedis().del('player:p2');
+
+            const players = await playerService.getPlayersInRoom(code);
+            expect(players.map((p) => p.sessionId)).toEqual(['host-1']);
+
+            // The orphan must actually be removed from the set, not just filtered out.
+            const setMembers = await getRedis().sMembers(`room:${code}:players`);
+            expect(setMembers).not.toContain('p2');
+        });
+    });
+
+    describe('atomicCleanupDisconnectedPlayer.lua (via processScheduledCleanups)', () => {
+        it('removes a scheduled disconnected player but spares one who reconnected', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            await joinRoom(code, 'gone', 'Gone');
+            await joinRoom(code, 'back', 'Back');
+
+            // 'gone' is disconnected; 'back' reconnected (still connected).
+            await playerService.updatePlayer('gone', { connected: false });
+
+            // Schedule both as due-now (score 0) so processScheduledCleanups dequeues them.
+            const redis = getRedis();
+            await redis.zAdd('scheduled:player:cleanup', [
+                { score: 0, value: JSON.stringify({ sessionId: 'gone', roomCode: code }) },
+                { score: 0, value: JSON.stringify({ sessionId: 'back', roomCode: code }) },
+            ]);
+
+            const cleaned = await playerService.processScheduledCleanups();
+            expect(cleaned).toBeGreaterThanOrEqual(1);
+
+            // The disconnected player is gone; the reconnected one is kept (the
+            // TOCTOU guard the script exists for).
+            expect(await playerService.getPlayer('gone')).toBeNull();
+            expect(await playerService.getPlayer('back')).not.toBeNull();
+        });
+    });
+
+    describe('timer scripts (status / addTime / pause / resume)', () => {
+        afterEach(() => {
+            // startTimer/addTime/resume arm real setTimeout handles; clear them so
+            // Jest doesn't hang on open handles between cases.
+            timerService.cleanupAllTimers();
+        });
+
+        it('atomicTimerStatus reports remaining time for an active timer', async () => {
+            const code = freshRoomCode();
+            await timerService.startTimer(code, 100);
+
+            const status = await timerService.getTimerStatus(code);
+            expect(status).not.toBeNull();
+            expect(status?.remainingSeconds).toBeGreaterThan(90);
+            expect(status?.remainingSeconds).toBeLessThanOrEqual(100);
+        });
+
+        it('atomicTimerStatus returns null for a room with no timer', async () => {
+            expect(await timerService.getTimerStatus(freshRoomCode())).toBeNull();
+        });
+
+        it('atomicAddTime extends the remaining time', async () => {
+            const code = freshRoomCode();
+            await timerService.startTimer(code, 60);
+
+            const updated = await timerService.addTime(code, 30);
+            expect(updated).not.toBeNull();
+            expect(updated?.remainingSeconds).toBeGreaterThan(80);
+
+            const status = await timerService.getTimerStatus(code);
+            expect(status?.remainingSeconds).toBeGreaterThan(80);
+        });
+
+        it('atomicPauseTimer then atomicResumeTimer preserves remaining time', async () => {
+            const code = freshRoomCode();
+            await timerService.startTimer(code, 100);
+
+            const paused = await timerService.pauseTimer(code);
+            expect(paused).not.toBeNull();
+            expect(paused?.remainingSeconds).toBeGreaterThan(90);
+
+            const resumed = await timerService.resumeTimer(code);
+            expect(resumed).not.toBeNull();
+            expect(resumed?.remainingSeconds).toBeGreaterThan(90);
+        });
+
+        it('atomicPauseTimer returns null for a room with no timer', async () => {
+            expect(await timerService.pauseTimer(freshRoomCode())).toBeNull();
+        });
+    });
+
+    describe('atomicRateLimit.lua (via checkValidationRateLimit)', () => {
+        it('increments the per-IP counter and blocks once the ceiling is exceeded', async () => {
+            const ip = `198.51.100.${(roomCounter % 250) + 1}-${freshRoomCode()}`;
+
+            const first = await checkValidationRateLimit(ip);
+            expect(first.allowed).toBe(true);
+            expect(first.attempts).toBe(1);
+
+            const second = await checkValidationRateLimit(ip);
+            expect(second.attempts).toBe(2);
+
+            // MAX_VALIDATION_ATTEMPTS_PER_IP is 20 — drive past it and confirm the
+            // script's increment (and the caller's ceiling) actually blocks.
+            let last = second;
+            for (let i = 0; i < 20; i++) {
+                last = await checkValidationRateLimit(ip);
+            }
+            expect(last.attempts).toBeGreaterThan(20);
+            expect(last.allowed).toBe(false);
+        });
+    });
+
+    describe('extendLock.lua', () => {
+        it('extends a held lock and refuses to extend one no longer owned', async () => {
+            const lock = await acquire('d3-extend-lock', { lockTimeout: 2000 });
+            expect(lock.acquired).toBe(true);
+
+            // Owner can extend.
+            expect(await lock.extend?.(5000)).toBe(true);
+
+            // After release the key is gone, so the same owner can no longer extend it.
+            expect(await lock.release?.()).toBe(true);
+            expect(await lock.extend?.(5000)).toBe(false);
+        });
+    });
+
+    describe('room scripts (atomicUpdateSettings / atomicRefreshTtl / atomicSetRoomStatus)', () => {
+        it('atomicUpdateSettings persists whitelisted room settings', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+
+            const updated = await roomService.updateSettings(code, 'host-1', { gameMode: 'duet' });
+            expect(updated.gameMode).toBe('duet');
+
+            const room = await roomService.getRoom(code);
+            expect(room?.settings.gameMode).toBe('duet');
+        });
+
+        it('atomicRefreshTtl bumps the room key TTL back toward the full window', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+
+            const redis = getRedis();
+            // Knock the TTL down, then confirm the refresh script restores it.
+            await redis.expire(`room:${code}`, 60);
+            await roomService.refreshRoomTTL(code);
+
+            const ttl = await redis.ttl(`room:${code}`);
+            expect(ttl).toBeGreaterThan(60);
+        });
+
+        it('atomicSetRoomStatus updates status and returns OK (nil for a missing room)', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            const redis = getRedis();
+
+            const ok = await redis.eval(ATOMIC_SET_ROOM_STATUS_SCRIPT, {
+                keys: [`room:${code}`],
+                arguments: ['playing', '86400'],
+            });
+            expect(ok).toBe('OK');
+            const room = await roomService.getRoom(code);
+            expect(room?.status).toBe('playing');
+
+            const missing = await redis.eval(ATOMIC_SET_ROOM_STATUS_SCRIPT, {
+                keys: ['room:does-not-exist'],
+                arguments: ['playing', '86400'],
+            });
+            expect(missing).toBeNull();
+        });
+    });
+
+    describe('atomicSaveGameHistory.lua', () => {
+        it('persists a completed game and lists it back from the room index', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            const game = await gameService.createGame(code, { gameMode: 'classic', seed: `${code}-seed` });
+
+            const entry = await gameHistoryService.saveGameResult(code, {
+                ...game,
+                gameOver: true,
+                winner: 'red',
+            });
+            expect(entry).not.toBeNull();
+
+            const history = await gameHistoryService.getGameHistory(code);
+            expect(history.length).toBe(1);
+            expect(history[0]?.id).toBe(entry?.id);
         });
     });
 });

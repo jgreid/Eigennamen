@@ -115,6 +115,10 @@ export function updateTurnIndicator(): void {
         if (isDuetMode()) {
             if (state.gameState.winner) {
                 resultText = t('game.duetVictory');
+            } else if (state.gameState.endReason === 'unreachable') {
+                // A green was permanently consumed from the wrong perspective, so
+                // finding all greens is no longer possible (A6).
+                resultText = t('game.duetGameOverUnreachable');
             } else {
                 const assassinIndex = state.gameState.types.indexOf('assassin');
                 if (assassinIndex >= 0 && state.gameState.revealed[assassinIndex]) {

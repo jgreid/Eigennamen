@@ -76,6 +76,9 @@ export interface GameState {
     timerTokens: number;
     greenFound: number;
     greenTotal: number;
+    /** How the game ended (server-supplied on game:over); used to render the
+     *  correct duet loss message, e.g. an unreachable co-op win vs a token timeout. */
+    endReason?: string | null;
     seed: string | number | null;
     // Match mode properties
     cardScores: (number | null)[];
