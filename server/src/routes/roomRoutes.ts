@@ -61,6 +61,10 @@ router.get(
  */
 router.get(
     '/:code',
+    // Share the SAME per-IP bucket as /:code/exists (I1). This endpoint returns
+    // richer 200-with-details, so leaving it on only the general 100/min limiter
+    // let an attacker enumerate room codes here at ~10x the throttled /exists rate.
+    roomExistsLimiter,
     validateParams(roomCodeSchema),
     async (req: RoomRequest, res: Response, next: NextFunction): Promise<void> => {
         try {

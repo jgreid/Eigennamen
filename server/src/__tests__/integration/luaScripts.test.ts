@@ -629,6 +629,24 @@ describe('Real-Redis Lua script integration', () => {
             expect(ttl).toBeGreaterThan(60);
         });
 
+        it('atomicRefreshTtl also refreshes each member player-hash TTL (F5)', async () => {
+            // The per-event `updatePlayer(lastSeen)` write that used to refresh
+            // active players' `player:<id>` TTL was removed; the refresh script now
+            // carries that side effect so seated players/bots don't expire mid-game.
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            await joinRoom(code, 'p2', 'Player2');
+
+            const redis = getRedis();
+            // Knock both member player-hash TTLs down low, then refresh the room.
+            await redis.expire('player:host-1', 30);
+            await redis.expire('player:p2', 30);
+            await roomService.refreshRoomTTL(code);
+
+            expect(await redis.ttl('player:host-1')).toBeGreaterThan(30);
+            expect(await redis.ttl('player:p2')).toBeGreaterThan(30);
+        });
+
         it('atomicSetRoomStatus updates status and returns OK (nil for a missing room)', async () => {
             const code = freshRoomCode();
             await roomService.createRoom(code, 'host-1', { nickname: 'Host' });

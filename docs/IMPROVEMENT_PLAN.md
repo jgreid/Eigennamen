@@ -217,9 +217,11 @@ Deterministic defects reachable in ordinary play. These are the "a user hits thi
 
 ---
 
-### A12 — Match-mode abandon consumes the round number, so the "scoreless do-over" is actually a skipped round
+### A12 — Match-mode abandon consumes the round number, so the "scoreless do-over" is actually a skipped round — **FIXED**
 
 **Severity:** Low · **Area:** Game rules (Match)
+
+**Resolution (shipped):** `startNextRound` now derives the next round from history — `const nextRound = (freshGame.roundHistory?.length ?? 0) + 1;` — instead of `matchRound + 1`. An abandoned round rolls back its score (P1-4) without writing a history entry, so history-derived numbering re-does the abandoned round instead of skipping to the next, keeping the `matchRound === roundHistory.length + 1` invariant (the one `buildGameState` warns on). Behaviour-preserving for normal completions (the completed round has already pushed its entry). Regression test in `gameServiceMatchDuet.test.ts`: abandon round 2 → next round is numbered 2, not 3.
 
 **Root cause:** P1-4 rolled back the *scores* on abandon but `startNextRound` (`gameService.ts:825`) still blindly increments `matchRound` — the abandoned round N gets no `roundHistory` entry while round N+1 begins, leaving `matchRound` permanently out of sync with history and firing the carry-over consistency warning on every subsequent round transition.
 
@@ -894,9 +896,11 @@ Each of these carries either real runtime cost or a misleading API surface today
 
 ---
 
-### F5 — Idle detection: every socket event pays a Redis write for a feature that doesn't exist
+### F5 — Idle detection: every socket event pays a Redis write for a feature that doesn't exist — **FIXED (delete path)**
 
 **Severity:** Low · **Area:** Feature gap / performance
+
+**Resolution (shipped — delete path):** removed the per-event `updatePlayer(lastSeen)` write from `contextHandler.ts`, and deleted the dead `getIdlePlayers` (queries + re-export) and the never-emitted `PLAYER_IDLE_WARNING` constant. Its one real side effect — refreshing the acting player's `player:<id>` TTL — was folded into the debounced room-TTL refresh: `atomicRefreshTtl.lua` now `SMEMBERS` the players set and `EXPIRE`s each `player:<id>` hash (safe with a single TTL since `REDIS_TTL.PLAYER === REDIS_TTL.ROOM`), and that refresh fires on every game mutation (≤60s debounce), so seated players/bots don't expire mid-game. Real-Redis test in `luaScripts.test.ts` asserts member player-hash TTLs are bumped by the refresh; the full suite confirms nothing relied on the removed write.
 
 **What exists:** a fire-and-forget lastSeen-refresh Lua eval on every socket event (`contextHandler.ts:42`). **What's missing:** the only reader (`getIdlePlayers`, `player/queries.ts:220`) has zero production callers; `PLAYER_IDLE_WARNING` is never emitted. Pure write amplification on the hottest paths.
 
@@ -997,9 +1001,11 @@ Found in the code merged since the first review (PR #495–#497 era). G1 is a re
 
 ---
 
-### G5 — `botHandlers.ts` shadows the Zod-inferred bot types with a hand-written one missing `advisor`
+### G5 — `botHandlers.ts` shadows the Zod-inferred bot types with a hand-written one missing `advisor` — **FIXED**
 
 **Severity:** Low · **Area:** Quality (type safety)
+
+**Resolution (shipped):** deleted the local `BotAddInput`/`BotRemoveInput` interfaces (the former's role union dropped `advisor`) and the `botAddSchema as ZodType<…>` / `botRemoveSchema as ZodType<…>` force-casts; `botHandlers.ts` now imports the Zod-inferred `BotAddInput`/`BotRemoveInput` from `validators/schemas` (which include `advisor`), so the handler type stays in lockstep with the schema and the `ZodType` import is gone. Typecheck-enforced.
 
 **Root cause:** `botHandlers.ts:17-27` locally redefines `BotAddInput` with `role: 'spymaster' | 'clicker'` — missing `advisor` — and force-casts the schema to it (`as ZodType<BotAddInput>`, line 43), silently defeating the exhaustiveness guarantees the central Zod-inferred types (`validators/botSchemas.ts:40-41`) exist to provide.
 
@@ -1119,9 +1125,11 @@ Found in the code merged since the first review (PR #495–#497 era). G1 is a re
 
 I1 is the one security-classed finding of this review with a concrete external-probe scenario; I2–I4 are reconnection-robustness gaps that compound A2.
 
-### I1 — Room-code enumeration is throttled on `/exists` but not on `/:code`, which leaks more at 10× the rate
+### I1 — Room-code enumeration is throttled on `/exists` but not on `/:code`, which leaks more at 10× the rate — **FIXED**
 
 **Severity:** Medium · **Area:** Security
+
+**Resolution (shipped):** `GET /api/rooms/:code` now runs behind the same `roomExistsLimiter` instance as `/:code/exists` (`roomRoutes.ts`), so both enumeration surfaces share one per-IP bucket instead of the richer endpoint leaking at the general 100/min rate. A router-stack test in `routes.test.ts` asserts the two GET routes carry equal middleware depth so the limiter can't be silently dropped from one.
 
 **Root cause:** The dedicated 10/min limiter (`ROOM_EXISTS`, "prevents room enumeration") is applied only to `GET /:code/exists` (`roomRoutes.ts:44-47`). The sibling `GET /:code` (62-96) has no per-route limiter — only the general 100/min `apiLimiter` — and returns a *superset*: 200-with-details (team names, `allowSpectators`, status, player count) vs 404. Room codes are host-chosen 3–20-char strings (guessable common words) and serve as the room's access key, so the control added specifically for this threat is bypassable at 10× the intended rate through the richer endpoint.
 

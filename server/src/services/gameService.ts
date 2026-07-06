@@ -845,7 +845,16 @@ export async function startNextRound(
                 throw GameStateError.gameOver();
             }
 
-            const nextRound = (freshGame.matchRound ?? 1) + 1;
+            // Derive the next round number from completed history, NOT from
+            // matchRound+1 (A12). A `game:abandon` rolls back the round's score
+            // (P1-4) but writes NO roundHistory entry, yet the old matchRound+1
+            // still advanced past the abandoned round — permanently desyncing
+            // matchRound from history (matchRound === roundHistory.length + 1 is
+            // the invariant buildGameState checks) and firing the carry-over
+            // warning on every later transition. Deriving from history re-does the
+            // abandoned round and matches the normal case (where a completed round
+            // has already pushed its entry, so length+1 == the old matchRound+1).
+            const nextRound = (freshGame.roundHistory?.length ?? 0) + 1;
 
             const seed = generateSeed();
             const numericSeed = hashString(seed);
