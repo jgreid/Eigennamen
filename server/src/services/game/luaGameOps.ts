@@ -120,7 +120,7 @@ export const revealResultSchema = z
         turnEnded: z.boolean(),
         gameOver: z.boolean(),
         winner: teamSchema.nullable(),
-        endReason: z.enum(['assassin', 'completed', 'maxGuesses', 'timerTokens']).nullable(),
+        endReason: z.enum(['assassin', 'completed', 'maxGuesses', 'timerTokens', 'unreachable']).nullable(),
         // allTypes is absent from Lua result when gameOver=false, present when true
         allTypes: z.array(cardTypeSchema).nullable().optional().default(null),
         // Duet mode fields

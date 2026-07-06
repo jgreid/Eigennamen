@@ -21,6 +21,7 @@ import * as gameService from '../../services/gameService';
 import * as playerService from '../../services/playerService';
 import { setTeam, setRole } from '../../services/player/mutations';
 import { SUBMIT_CLUE_SCRIPT } from '../../scripts';
+import { DUET_BOARD_CONFIG } from '../../config/constants';
 
 const CONNECT_TIMEOUT_MS = 20000;
 
@@ -238,6 +239,80 @@ describe('Real-Redis Lua script integration', () => {
 
             expect(result.number).toBe(9);
             expect(result.guessesAllowed).toBe(10);
+        });
+    });
+
+    describe('revealCard.lua (duet mode)', () => {
+        it('counts a green revealed from the acting team perspective toward greenFound', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            const game = await gameService.createGame(code, { gameMode: 'duet', seed: `${code}-duet` });
+            const team = game.currentTurn;
+
+            // A card that is an agent from the acting team's own perspective.
+            const perspective = team === 'blue' ? (game.duetTypes ?? []) : game.types;
+            const greenIndex = perspective.findIndex((t) => t === team);
+            expect(greenIndex).toBeGreaterThanOrEqual(0);
+
+            // Clue number 2 → 3 guesses, so a single correct green keeps the turn.
+            await gameService.submitClue(code, team, 'ZZZDUETGREENZZZ', 2, 'Spymaster');
+            const result = await gameService.revealCard(code, greenIndex, 'Clicker', team);
+
+            expect(result.gameOver).toBe(false);
+            expect(result.greenFound).toBe(1);
+            expect(result.turnEnded).toBe(false);
+        });
+
+        it('spends a timer token and switches turn on a both-sides bystander without ending the game', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            const game = await gameService.createGame(code, { gameMode: 'duet', seed: `${code}-duet` });
+            const team = game.currentTurn;
+
+            // A card that is a bystander from BOTH perspectives: revealing it costs
+            // a token and passes the turn, but strands no green.
+            const bystanderIndex = game.types.findIndex((t, i) => t === 'neutral' && game.duetTypes?.[i] === 'neutral');
+            expect(bystanderIndex).toBeGreaterThanOrEqual(0);
+
+            await gameService.submitClue(code, team, 'ZZZDUETBYSTANDZZZ', 1, 'Spymaster');
+            const result = await gameService.revealCard(code, bystanderIndex, 'Clicker', team);
+
+            expect(result.gameOver).toBe(false);
+            expect(result.turnEnded).toBe(true);
+            expect(result.currentTurn).not.toBe(team);
+            expect(result.timerTokens).toBe(DUET_BOARD_CONFIG.timerTokens - 1);
+        });
+
+        it('ends the game as an unreachable co-op loss when a cross-perspective green is spent as a bystander (A6)', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            const game = await gameService.createGame(code, { gameMode: 'duet', seed: `${code}-duet` });
+            const team = game.currentTurn;
+
+            // Find a card that is a bystander from the acting team's perspective but
+            // a green from the OTHER team's — revealing it permanently consumes a
+            // green nobody can score anymore, so the co-op win becomes impossible.
+            let deadGreenIndex = -1;
+            for (let i = 0; i < game.types.length; i++) {
+                const mine = team === 'blue' ? game.duetTypes?.[i] : game.types[i];
+                const theirs = team === 'blue' ? game.types[i] : game.duetTypes?.[i];
+                const theirsIsGreen = theirs === 'red' || theirs === 'blue';
+                if (mine === 'neutral' && theirsIsGreen) {
+                    deadGreenIndex = i;
+                    break;
+                }
+            }
+            expect(deadGreenIndex).toBeGreaterThanOrEqual(0);
+
+            await gameService.submitClue(code, team, 'ZZZDUETDEADZZZ', 1, 'Spymaster');
+            const result = await gameService.revealCard(code, deadGreenIndex, 'Clicker', team);
+
+            expect(result.gameOver).toBe(true);
+            expect(result.winner).toBeNull();
+            expect(result.endReason).toBe('unreachable');
+
+            const afterGame = await gameService.getGame(code);
+            expect(afterGame?.gameOver).toBe(true);
         });
     });
 });

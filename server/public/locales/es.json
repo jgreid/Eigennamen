@@ -89,6 +89,7 @@
         "duetVictory": "¡GANASTE! ¡Todos los agentes encontrados!",
         "duetGameOverAssassin": "FIN DE LA PARTIDA – ¡Asesino revelado!",
         "duetGameOverTimeout": "FIN DE LA PARTIDA – ¡Se acabó el tiempo!",
+        "duetGameOverUnreachable": "FIN DE LA PARTIDA – ¡Una palabra verde ya no se puede alcanzar!",
         "winner": "¡{{team}} gana!",
         "yourTurnGo": "Turno de {{team}} – ¡Adelante!",
         "teamsTurn": "Turno de {{team}}",

@@ -302,7 +302,7 @@ export interface RevealResult {
     /** Winner if game is over */
     winner: Team | null;
     /** Reason the turn/game ended */
-    endReason: 'assassin' | 'completed' | 'maxGuesses' | 'timerTokens' | null;
+    endReason: 'assassin' | 'completed' | 'maxGuesses' | 'timerTokens' | 'unreachable' | null;
     /** All card types (only included if game is over) */
     allTypes: CardType[] | null;
     // Duet mode fields

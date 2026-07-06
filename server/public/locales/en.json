@@ -89,6 +89,7 @@
         "duetVictory": "YOU WIN! All agents found!",
         "duetGameOverAssassin": "GAME OVER - Assassin revealed!",
         "duetGameOverTimeout": "GAME OVER - Out of time!",
+        "duetGameOverUnreachable": "GAME OVER - A green word can no longer be reached!",
         "winner": "{{team}} Wins!",
         "yourTurnGo": "{{team}}'s Turn - Go!",
         "teamsTurn": "{{team}}'s Turn",

@@ -244,6 +244,7 @@ export function registerGameHandlers(): void {
         }
         state.gameState.gameOver = true;
         state.gameState.winner = data.winner || null;
+        state.gameState.endReason = data.reason ?? null;
 
         if (state.gameMode === 'duet') {
             const duetWin = data.reason === 'completed';

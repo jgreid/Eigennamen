@@ -199,17 +199,46 @@ function determineDuetRevealOutcome(game: GameState, cardType: CardType, outcome
 
         switchTurn(game);
         outcome.turnEnded = true;
-        return outcome;
-    }
-
-    if (game.guessesAllowed > 0 && game.guessesUsed >= game.guessesAllowed) {
+        // Fall through to the unreachable-win guard below (a bystander reveal is
+        // exactly when a cross-perspective green can be permanently consumed).
+    } else if (game.guessesAllowed > 0 && game.guessesUsed >= game.guessesAllowed) {
         switchTurn(game);
         outcome.turnEnded = true;
         outcome.endReason = 'maxGuesses';
-        return outcome;
+    }
+
+    // Cooperative unreachable-win guard (A6): a card that is an agent from one
+    // side but revealed as a bystander from the other is permanently gone, and
+    // once the greens still findable drop below greenTotal the co-op win is
+    // impossible. End the game as a loss with a clear reason rather than letting
+    // players keep burning tokens on a mathematically dead board.
+    if (!game.gameOver && isDuetWinUnreachable(game)) {
+        game.gameOver = true;
+        game.winner = null;
+        outcome.endReason = 'unreachable';
+        outcome.turnEnded = true;
     }
 
     return outcome;
+}
+
+/**
+ * Whether the Duet co-op win (find all greenTotal greens) has become impossible:
+ * the greens already found plus the greens still findable on unrevealed cards
+ * (agent from EITHER perspective — either team can still reveal them) can no
+ * longer reach greenTotal.
+ */
+export function isDuetWinUnreachable(game: GameState): boolean {
+    const greenTotal = game.greenTotal ?? DUET_BOARD_CONFIG.greenTotal;
+    const duetTypes = game.duetTypes;
+    let reachable = game.greenFound ?? 0;
+    for (let i = 0; i < game.types.length; i++) {
+        if (game.revealed[i]) continue;
+        const agentForA = game.types[i] === 'red' || game.types[i] === 'blue';
+        const agentForB = !!duetTypes && (duetTypes[i] === 'red' || duetTypes[i] === 'blue');
+        if (agentForA || agentForB) reachable++;
+    }
+    return reachable < greenTotal;
 }
 
 /**

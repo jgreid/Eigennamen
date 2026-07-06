@@ -17,6 +17,7 @@ const {
     buildRevealResult,
     getGameStateForPlayer,
     validateRevealPreconditions,
+    isDuetWinUnreachable,
 } = require('../../services/game/revealEngine');
 
 const { DUET_BOARD_CONFIG } = require('../../config/constants');
@@ -275,6 +276,81 @@ describe('Duet Mode - Reveal Outcome', () => {
         expect(outcome.turnEnded).toBe(true);
         expect(outcome.endReason).toBe('maxGuesses');
         expect(game.currentTurn).toBe('blue'); // Switched
+    });
+});
+
+describe('Duet Mode - Unreachable Win Guard (A6)', () => {
+    // Board layout from createDuetGameState():
+    //   positions 0-8   -> Side A greens (types 'red')
+    //   positions 0-2   -> also Side B greens (duetTypes 'blue') — the overlap
+    //   positions 9-14  -> Side B-only greens (types 'neutral', duetTypes 'blue')
+    // So the 15 findable greens live on positions 0-14; positions 20-24 are
+    // bystanders on both sides.
+
+    it('isDuetWinUnreachable is false on a fresh board (all 15 greens still findable)', () => {
+        const game = createDuetGameState();
+        expect(isDuetWinUnreachable(game)).toBe(false);
+    });
+
+    it('isDuetWinUnreachable becomes true once a cross-perspective green is consumed as a bystander', () => {
+        const game = createDuetGameState({ currentTurn: 'red' });
+        // Position 9 is a Side-B green but a Side-A bystander: red revealing it
+        // consumes a green that only blue could ever have scored.
+        game.revealed[9] = true; // greenFound stays 0 (red saw a bystander)
+        expect(isDuetWinUnreachable(game)).toBe(true);
+    });
+
+    it('is NOT unreachable when a both-sides bystander is revealed (no green lost)', () => {
+        const game = createDuetGameState({ currentTurn: 'red' });
+        // Position 20 is a bystander on both sides — revealing it costs a token
+        // but strands no green.
+        game.revealed[20] = true;
+        expect(isDuetWinUnreachable(game)).toBe(false);
+    });
+
+    it('ends the game as an unreachable loss when red reveals a blue-only green as a bystander', () => {
+        const game = createDuetGameState({ currentTurn: 'red', timerTokens: 9 });
+        // Reveal position 9 through the real reveal path: red's perspective sees
+        // types[9] = 'neutral', so it scores no green but permanently consumes the
+        // card that only blue could have found.
+        const cardType = executeCardReveal(game, 9);
+        expect(cardType).toBe('neutral');
+        expect(game.greenFound).toBe(0);
+
+        const outcome = determineRevealOutcome(game, cardType, 'red');
+
+        expect(game.gameOver).toBe(true);
+        expect(game.winner).toBeNull();
+        expect(outcome.endReason).toBe('unreachable');
+        expect(outcome.turnEnded).toBe(true);
+        // A token was still spent for the bystander before the guard fired.
+        expect(game.timerTokens).toBe(8);
+    });
+
+    it('does not end the game when red reveals a both-sides bystander (token spent, greens intact)', () => {
+        const game = createDuetGameState({ currentTurn: 'red', timerTokens: 9 });
+        const cardType = executeCardReveal(game, 20);
+        expect(cardType).toBe('neutral');
+
+        const outcome = determineRevealOutcome(game, cardType, 'red');
+
+        expect(game.gameOver).toBe(false);
+        expect(outcome.endReason).toBeNull();
+        expect(game.timerTokens).toBe(8);
+        expect(game.currentTurn).toBe('blue'); // turn still switches on a bystander
+    });
+
+    it('does not fire the guard on a normal green reveal', () => {
+        const game = createDuetGameState({ currentTurn: 'red', guessesUsed: 0, guessesAllowed: 4 });
+        // Position 0 is a green on both sides.
+        const cardType = executeCardReveal(game, 0);
+        expect(cardType).toBe('red');
+        expect(game.greenFound).toBe(1);
+
+        const outcome = determineRevealOutcome(game, cardType, 'red');
+
+        expect(game.gameOver).toBe(false);
+        expect(outcome.endReason).toBeNull();
     });
 });
 

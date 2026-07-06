@@ -112,19 +112,17 @@ Deterministic defects reachable in ordinary play. These are the "a user hits thi
 
 ---
 
-### A6 — Duet: a green revealed from the wrong side's perspective is permanently dead, making the co-op win unreachable
+### A6 — Duet: a green revealed from the wrong side's perspective is permanently dead, making the co-op win unreachable — **FIXED**
 
 **Severity:** Medium · **Area:** Game rules (Duet)
 
-**Root cause:** `revealCard.lua:75-82` resolves the card type from the acting team's perspective and sets a single shared `revealed[]` flag; line 64 blocks any re-reveal (`ALREADY_REVEALED`). A card that is green from side A's perspective but bystander from side B's — revealed on B's turn — is recorded as neutral and can never be revealed again, so `greenFound` is permanently capped below the 15 (`greenTotal`) required to win (`revealCard.lua:132`). In the source material this game adapts, such a card stays guessable from the other perspective. The game doesn't detect the mathematically-lost state either — players keep burning timer tokens with no signal.
+**Resolution (shipped):** took option (b) — the smaller, product-safe path. Rather than rework the reveal hot path to carry per-perspective `revealed[]` state (option (a): higher risk, touches masking + frontend rendering), the game now *detects* the mathematically-lost state and ends as a cooperative loss with a clear reason. Added `isDuetWinUnreachable(game)` to `services/game/revealEngine.ts`: `greenFound` plus every still-unrevealed card that is an agent from *either* perspective is the largest number of greens still findable; when that total drops below `greenTotal` (15) the co-op win is impossible. `determineDuetRevealOutcome` now falls through to this guard after a bystander/max-guess reveal (the only reveals that can strand a cross-perspective green) and, when it fires, sets `gameOver`, `winner = null`, `endReason = 'unreachable'`. `scripts/revealCard.lua` carries the identical guard so the atomic path and the bot engine agree. The new `'unreachable'` reason is threaded end-to-end: `types/game.ts` + `luaGameOps.ts` reveal schema → `game:over` `reason` (`gameActions.ts`) → client `state.gameState.endReason` (`gameEventHandlers.ts`) → a dedicated `game.duetGameOverUnreachable` message (`frontend/game/scoring.ts`, localized in all four locale files). The guard cannot false-fire at game start — a fresh duet board always has exactly 15 agent-either cards (3 overlap + 6 greenOnlyA + 6 greenOnlyB), verified by the board-distribution test.
 
-**Fix:** Add per-perspective reveal state (`revealedA[]`/`revealedB[]` or a `revealedFor` marker) in `revealCard.lua` **and** `revealEngine.ts` (the bot engine follows automatically via `executeCardReveal`/`determineDuetRevealOutcome`); make the `ALREADY_REVEALED` guards perspective-aware in duet (`revealCard.lua:64`, `revealEngine.ts:50`); update the duet board masking in `getGameStateForPlayer` (`revealEngine.ts:329-343`) and frontend rendering so a card bystander-for-one-side renders revealed-for-that-side only. Alternatively (smaller): detect the unreachable-win state and end the game as lost with an explanatory reason — a product call between fidelity and scope.
+**Root cause:** `revealCard.lua:75-82` resolves the card type from the acting team's perspective and sets a single shared `revealed[]` flag; line 64 blocks any re-reveal (`ALREADY_REVEALED`). A card that is green from side A's perspective but bystander from side B's — revealed on B's turn — is recorded as neutral and can never be revealed again, so `greenFound` is permanently capped below the 15 (`greenTotal`) required to win (`revealCard.lua:132`). In the source material this game adapts, such a card stays guessable from the other perspective. The game didn't detect the mathematically-lost state either — players kept burning timer tokens with no signal.
 
-**Touches:** `scripts/revealCard.lua`, `services/game/revealEngine.ts`, `frontend/board.ts` + sync, `config/gameConfig.ts` if flags are added to state
+**Tests:** `duetMode.test.ts` gained a "Unreachable Win Guard (A6)" block — `isDuetWinUnreachable` false on a fresh board, true once a cross-perspective green is consumed as a bystander, and false for a both-sides bystander; plus end-to-end `determineDuetRevealOutcome` cases (red reveals a blue-only green → `gameOver`/`winner=null`/`endReason='unreachable'`; a both-sides bystander spends a token but keeps the game live; a normal green reveal never fires the guard). The real-Redis harness (D3, below) exercises the same three scenarios through the actual `revealCard.lua` against embedded Redis, and `scoring.test.ts` covers the new message branch (and that a genuine victory still wins over the reason).
 
-**Tests:** Reveal a green-only-A card on blue's turn; verify either (a) it remains revealable on red's turn and counts toward `greenFound`, or (b) the game ends as lost when 15 greens become unreachable. (`gameServiceMatchDuet.test.ts` has zero cross-perspective coverage today.)
-
-**Risk / Notes:** The per-perspective fix touches the reveal hot path in both Lua and TS — gate it on the extended real-Redis Lua harness (D3) landing first, per the P1-9 precedent.
+**Risk / Notes:** Server-only detection + one new terminal message; no change to how any card is revealed or masked, so the reveal hot path and duet board rendering are untouched. The fuller per-perspective-revealability fix (option (a)) remains possible later if the product wants strict source-material fidelity, but ending a dead board cleanly is the higher-value, lower-risk half.
 
 ---
 
@@ -624,13 +622,15 @@ Separately, opening a standalone game URL (`?game=…`) left the setup screen (v
 
 ---
 
-### D3 — Extend the real-Redis Lua harness to the 18 scripts still never executed in blocking CI
+### D3 — Extend the real-Redis Lua harness to the 18 scripts still never executed in blocking CI — **IN PROGRESS**
 
 **Severity:** Medium · **Area:** Testing
 
-**Root cause:** P1-9 covered the 7 highest-risk scripts (plus 4 more run transitively). Still never executed against real Redis in any blocking test: the 4 timer scripts (`atomicAddTime`/`PauseTimer`/`ResumeTimer`/`TimerStatus`), the 5 token/session scripts (`atomicGenerateReconnectToken`, `atomicValidateReconnectToken`, `invalidateToken`, `cleanupOrphanedToken`, `atomicSetSocketMapping`), `extendLock`, `atomicRateLimit`, `atomicCleanupDisconnectedPlayer`, `safeCleanupOrphans`, `atomicRemovePlayer`, `atomicSetRoomStatus`, `atomicUpdateSettings`, `atomicRefreshTtl`, `atomicSaveGameHistory`. A KEYS/ARGV indexing bug or nil-guard regression in a reconnect-token or lock script passes all 4,386 tests today.
+**Progress (shipped):** the harness now also exercises `revealCard.lua`'s **duet** branch against embedded Redis — a green revealed from the acting team's own perspective counts toward `greenFound`; a both-sides bystander spends a timer token and passes the turn without ending the game; and the A6 cross-perspective dead-green path ends the game with `winner=null`/`endReason='unreachable'`. This was pulled forward to satisfy the A6 gate ("validate the new Lua reveal logic against real Redis first, per P1-9"). The broader sweep of the remaining scripts below is still open.
 
-**Fix:** Extend `__tests__/integration/luaScripts.test.ts` with cases for all 18, following P1-9's acceptance pattern (each case first verified to fail against a deliberately broken script). Prioritize the token family and `extendLock`/`atomicRateLimit` (auth-adjacent), then timers (which A11/P2-2 will modify).
+**Root cause:** P1-9 covered the 7 highest-risk scripts (plus 4 more run transitively). Still never executed against real Redis in any blocking test: the 4 timer scripts (`atomicAddTime`/`PauseTimer`/`ResumeTimer`/`TimerStatus`), the 5 token/session scripts (`atomicGenerateReconnectToken`, `atomicValidateReconnectToken`, `invalidateToken`, `cleanupOrphanedToken`, `atomicSetSocketMapping`), `extendLock`, `atomicRateLimit`, `atomicCleanupDisconnectedPlayer`, `safeCleanupOrphans`, `atomicRemovePlayer`, `atomicSetRoomStatus`, `atomicUpdateSettings`, `atomicRefreshTtl`, `atomicSaveGameHistory`. A KEYS/ARGV indexing bug or nil-guard regression in a reconnect-token or lock script passes all backend tests today.
+
+**Fix:** Extend `__tests__/integration/luaScripts.test.ts` with cases for all 18, following P1-9's acceptance pattern (each case first verified to fail against a deliberately broken script). Prioritize the token family and `extendLock`/`atomicRateLimit` (auth-adjacent), then timers (which A11/P2-2 will modify). (Duet `revealCard.lua` coverage already landed — see Progress above.)
 
 **Touches:** `__tests__/integration/luaScripts.test.ts`
 

@@ -89,6 +89,7 @@
         "duetVictory": "VICTOIRE ! Tous les agents trouvés !",
         "duetGameOverAssassin": "PARTIE TERMINÉE – Assassin révélé !",
         "duetGameOverTimeout": "PARTIE TERMINÉE – Temps écoulé !",
+        "duetGameOverUnreachable": "PARTIE TERMINÉE – Un mot vert n’est plus accessible !",
         "winner": "{{team}} gagne !",
         "yourTurnGo": "Tour de {{team}} – C'est parti !",
         "teamsTurn": "Tour de {{team}}",
