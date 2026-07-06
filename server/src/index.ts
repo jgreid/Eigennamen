@@ -114,7 +114,16 @@ async function startServer(): Promise<void> {
                 process.exit(0);
             });
 
-            // Force exit after timeout
+            // Destroy any still-open connections so server.close()'s callback
+            // actually fires. cleanupSocketModule() above has already gracefully
+            // drained the Socket.io clients, but a long-lived HTTP response — most
+            // notably the admin SSE stats stream (`/health` / admin stream) — keeps
+            // its socket open indefinitely and would otherwise block close() until
+            // Fly's SIGKILL, skipping the clean Redis disconnect. (B14)
+            server.closeAllConnections();
+
+            // Force exit after timeout (kept below fly.toml's kill_timeout=15s so
+            // this fires before Fly SIGKILLs the machine).
             setTimeout(() => {
                 logger.error('Forced shutdown after timeout');
                 process.exit(1);

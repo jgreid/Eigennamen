@@ -19,6 +19,12 @@
 app = "eigennamen"
 primary_region = "iad"
 
+# Give the process time to drain and shut down cleanly on deploy/restart. Fly's
+# default is 5s, which SIGKILLs the app before its own 10s force-exit net (see
+# server/src/index.ts) can even fire — cutting off the graceful socket drain and
+# clean Redis disconnect. 15s comfortably exceeds that 10s force-exit. (B14)
+kill_timeout = 15
+
 [build]
   dockerfile = "server/Dockerfile"
 

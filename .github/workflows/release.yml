@@ -59,6 +59,12 @@ jobs:
 
       - name: Generate changelog
         id: changelog
+        # Pass the dispatch input via the environment, not string-interpolated into
+        # the script body. Interpolating `${{ inputs.release_notes }}` directly let
+        # a crafted value inject shell commands into this step; as an env var, bash
+        # treats it purely as data. (B7)
+        env:
+          RELEASE_NOTES: ${{ inputs.release_notes }}
         run: |
           # Get the latest tag (if any)
           PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
@@ -74,8 +80,8 @@ jobs:
           {
             echo "changelog<<CHANGELOG_EOF"
 
-            if [ -n "${{ inputs.release_notes }}" ]; then
-              echo "${{ inputs.release_notes }}"
+            if [ -n "$RELEASE_NOTES" ]; then
+              echo "$RELEASE_NOTES"
               echo ""
             fi
 
