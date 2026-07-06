@@ -77,7 +77,7 @@ This document describes the high-level architecture of Eigennamen Online, a real
 |-----------|------------|---------|
 | Express.js | v5.2 | HTTP server, static files, REST API |
 | Socket.io | v4.7 | WebSocket server, real-time events |
-| Helmet | v7+ | Security headers (CSP, etc.) |
+| Helmet | v8+ | Security headers (CSP, etc.) |
 | Winston | v3+ | Structured logging |
 
 **Key Services (7 total):**
@@ -87,6 +87,7 @@ This document describes the high-level architecture of Eigennamen Online, a real
 - `timerService.ts` - Turn timers with Redis backing
 - `gameHistoryService.ts` - Game history barrel (delegates to `gameHistory/` sub-modules: types, validation, storage, replayEngine)
 - `auditService.ts` - Security audit logging with severity levels
+- `botService.ts` - Bot lifecycle (addBot/removeBot/getBotConfig)
 
 ### Data Layer
 
@@ -270,14 +271,14 @@ Eigennamen/
     │   │   ├── store/      # Reactive state store + actions
     │   │   └── game/       # Game sub-modules (reveal, scoring)
     │   ├── types/          # TypeScript type definitions (11 files)
-    │   ├── utils/          # Utility modules (11 files)
+    │   ├── utils/          # Utility modules (13 files)
     │   ├── validators/     # Zod validation schemas (8 files)
     │   ├── scripts/        # Redis Lua scripts (29 atomic operations)
-    │   └── __tests__/      # Jest tests (156 suites)
+    │   └── __tests__/      # Jest tests (179 suites)
     │       ├── helpers/    # Test utilities and mocks
     │       ├── integration/ # Integration tests
     │       └── frontend/   # Frontend unit tests
-    └── e2e/                # Playwright E2E tests (13 spec files)
+    └── e2e/                # Playwright E2E tests (16 spec files)
 ```
 
 ## Technology Choices

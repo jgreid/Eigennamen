@@ -265,7 +265,7 @@ socket.emit('player:setTeam', {
 
 // Set role
 socket.emit('player:setRole', {
-    role: "spymaster" // or "clicker" or "spectator"
+    role: "spymaster" // "spymaster", "clicker", "advisor", "observer", or "spectator"
 });
 
 // Update nickname
@@ -365,7 +365,7 @@ socket.on('game:over', {
 // Add a bot player to a team/role
 socket.emit('bot:add', {
     team: "red",            // "red" or "blue"
-    role: "spymaster",      // "spymaster" or "clicker"
+    role: "spymaster",      // "spymaster", "clicker", or "advisor"
     strategyId: "...",      // bot strategy identifier
     skillPreset: "...",     // bot skill preset
     nickname: "BotAlice"    // optional
@@ -861,6 +861,8 @@ upstream api_servers {
 | `CANNOT_SWITCH_TEAM_DURING_TURN` | 400 | Cannot change team while game is in progress |
 | `CANNOT_CHANGE_ROLE_DURING_TURN` | 400 | Cannot change role while game is in progress |
 | `SPYMASTER_CANNOT_CHANGE_TEAM` | 400 | Spymasters cannot switch teams |
+| `SPYMASTER_CANNOT_CHANGE_ROLE` | 400 | Spymasters cannot change role while game is in progress |
+| `NO_CLUE_GIVEN` | 400 | Reveal attempted with no active clue set |
 | `SERVER_ERROR` | 500 | Internal server error |
 
 ### 7.2 Error Response Format
@@ -884,7 +886,7 @@ upstream api_servers {
 ```dockerfile
 # Dockerfile (multi-stage build with security)
 # Build stage
-FROM node:22-alpine AS builder
+FROM node:24-alpine3.21 AS builder
 WORKDIR /app
 COPY server/package*.json ./
 RUN npm ci
@@ -894,7 +896,7 @@ COPY server/public/ ./public/
 RUN npm run build
 
 # Production stage
-FROM node:22-alpine
+FROM node:24-alpine3.21
 WORKDIR /app
 
 # Install curl for healthcheck, redis for embedded memory-mode server
@@ -998,7 +1000,7 @@ RATE_LIMIT_MAX_REQUESTS=100
 | Unit Tests | Jest | 70% |
 | Integration Tests | Jest + Supertest | Key flows |
 | WebSocket Tests | socket.io-client | All events |
-| Load Tests | Artillery | 1000 concurrent |
+| Load Tests | k6 | 1000 concurrent |
 
 ### 9.2 Key Test Scenarios
 

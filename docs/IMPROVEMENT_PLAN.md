@@ -734,6 +734,20 @@ The same zero-sample / wrong-metric defect class is confirmed in **all three** s
 
 ---
 
+### D8 — Admin SCAN loops pass a numeric cursor node-redis v5 rejects, so the room count is silently 0 — **FIXED**
+
+**Severity:** Medium · **Area:** Data layer / admin (found by the mock-vs-v5 fidelity audit)
+
+**Resolution (shipped):** the admin room-count SCAN loops (`routes/admin/statsRoutes.ts`, `routes/admin/roomRoutes.ts`) used `let cursor = 0` and `redis.scan(cursor, …)`. node-redis v5's SCAN cursor is a **string** — a numeric cursor throws (`"arguments[1]" must be of type "string | Buffer"`), and the `cursor !== 0` terminator compares v5's string reply to a number so it never ends. The throw was swallowed by the surrounding `catch`, so the admin dashboard's room count silently reported 0 (verified empirically against embedded Redis). The wrong `RedisClient.scan` type (`cursor: number`) let it compile; the shared mock accepted numeric cursors so tests passed. Fixed both routes to a string cursor + `'0'` terminator, corrected the type, and made the mock's `scan` take/return a string cursor.
+
+**The broader fix — a mock-vs-v5 fidelity guard.** D8 is the fourth bug in one class (after D3 scanIterator, B3 WatchError, D4 zRange-WITHSCORES): a `createMockRedis` divergence from the real node-redis v5 client certifying a broken call green. Rather than keep finding these one at a time, `__tests__/integration/mockFidelity.test.ts` now runs ~38 operations against **both** the mock and a real embedded Redis and asserts they agree. Building it surfaced and fixed four more mock divergences: `scanIterator` now yields batches (arrays) like v5 (the D3 shape); `ttl` returns `-2` for a missing key / `-1` for no-expiry; `expire` returns `0` for a missing key; and `zRemRangeByRank` was added (absent entirely). Any future mock/client drift now fails at the guard instead of shipping a bug.
+
+**Touches:** `routes/admin/statsRoutes.ts`, `routes/admin/roomRoutes.ts`, `types/redis.ts`, `__tests__/helpers/mocks.ts`, `__tests__/integration/mockFidelity.test.ts` (+ three admin/security test scan mocks updated to a string cursor)
+
+**Tests:** the fidelity guard itself, plus a production-style SCAN-loop regression (string cursor counts rooms and terminates; numeric cursor rejects).
+
+---
+
 ## Phase E — Performance
 
 Rated against the real deployment (one shared-CPU machine, in-memory Redis, 25-card boards, rooms ≤ ~10 players). None of these is an emergency; E1/E2 are the structural ones.

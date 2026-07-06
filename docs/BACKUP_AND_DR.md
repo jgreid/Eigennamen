@@ -180,7 +180,7 @@ No recovery is possible. Active games are lost. Players reconnect and create new
    fly redis status <redis-app-name>
    ```
 
-2. If Upstash is down, the application falls back gracefully -- it will continue attempting reconnection with exponential backoff (configured in `server/src/config/redis.ts`, max 10 retries).
+2. If Upstash is down, the application falls back gracefully -- it will continue attempting reconnection with exponential backoff (configured in `server/src/config/redis.ts`, max 20 retries).
 
 3. If data is lost, restore from Upstash dashboard backups or accept the loss (game state is ephemeral).
 
@@ -511,7 +511,7 @@ docker stats --no-stream --format "table {{.Name}}\t{{.MemUsage}}\t{{.MemPerc}}"
      | python3 -m json.tool
    ```
 
-2. **Force garbage collection of stale metrics** -- the application prunes stale metrics every 30 minutes automatically (`server/src/utils/metrics.ts`), but histogram data can accumulate. Restart the application to reset:
+2. **Force garbage collection of stale metrics** -- the application prunes stale metrics every 60 minutes automatically (`server/src/utils/metrics.ts`), but histogram data can accumulate. Restart the application to reset:
    ```bash
    docker compose restart api
    ```
@@ -611,7 +611,7 @@ docker compose exec redis redis-cli -a "$REDIS_PASSWORD" \
 
 **Resolution:**
 
-1. **The application has automatic cleanup.** Player cleanup runs every 60 seconds in batches of 50 (configured in `server/src/config/roomConfig.ts` as `PLAYER_CLEANUP`). Disconnected players have a 10-minute grace period before removal.
+1. **The application has automatic cleanup.** Player cleanup runs every 30 seconds in batches of 100 (configured in `server/src/config/roomConfig.ts` as `PLAYER_CLEANUP`). Disconnected players have a 10-minute grace period before removal.
 
 2. **Force-remove orphaned players:**
    ```bash

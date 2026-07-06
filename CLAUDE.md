@@ -29,7 +29,7 @@ npm run redis:down             # Stop the managed Redis container
 docker compose up -d --build   # Start with Docker (Redis + app)
 
 # Quality gates (all four must pass before submitting a PR)
-npm test                       # All tests (backend + frontend, 174 suites)
+npm test                       # All tests (backend + frontend, 179 suites)
 npm run lint                   # ESLint
 npm run format:check           # Prettier check
 npm run typecheck              # TypeScript check
@@ -233,7 +233,7 @@ Eigennamen/
         │       ├── timerHandlers.ts   # timer:start, timer:pause, timer:resume, timer:addTime
         │       ├── chatHandlers.ts    # chat:message, chat:spectator
         │       └── types.ts           # Handler type definitions
-        ├── frontend/           # Frontend TypeScript source (60 modules, compiled via esbuild)
+        ├── frontend/           # Frontend TypeScript source (62 modules, compiled via esbuild)
         │   ├── app.ts          # Frontend entry point + event delegation
         │   ├── setupScreen.ts  # Setup screen (Host/Join/Local quickstart cards)
         │   ├── botsUI.ts       # Host bot-management panel (add/remove bots)
@@ -306,7 +306,7 @@ Eigennamen/
         │   ├── config.ts       # Configuration types
         │   ├── errors.ts       # ErrorCode + SafeErrorCode types
         │   └── vendor.d.ts     # Third-party declarations (qrcode, Socket.io globals)
-        ├── utils/              # Utility modules (11 files)
+        ├── utils/              # Utility modules (13 files)
         │   ├── distributedLock.ts # Redis-based distributed locking (NX + EX pattern)
         │   ├── logger.ts       # Structured logging (Winston)
         │   ├── metrics.ts      # Application metrics collection
@@ -325,8 +325,8 @@ Eigennamen/
         ├── scripts/            # Redis Lua scripts (29 atomic operations)
         │   ├── index.ts        # Barrel export with documented KEYS/ARGV/Returns headers
         │   └── atomicRateLimit.lua # Extracted rate-limit Lua script
-        └── __tests__/          # Jest tests (118 backend + 56 frontend suites)
-            ├── helpers/        # Test utilities + mock factories (mocks.ts ~721 lines)
+        └── __tests__/          # Jest tests (122 backend + 57 frontend suites)
+            ├── helpers/        # Test utilities + mock factories (mocks.ts ~782 lines)
             ├── integration/    # Integration tests
             └── frontend/       # Frontend unit tests
 ```
@@ -680,8 +680,8 @@ See [docs/ADDING_A_FEATURE.md](docs/ADDING_A_FEATURE.md) for a full worked examp
 
 ### Structure
 
-- **Backend unit/integration**: Jest, 118 suites in `server/src/__tests__/`
-- **Frontend unit**: Jest with jsdom, 56 suites in `server/src/__tests__/frontend/`
+- **Backend unit/integration**: Jest, 122 suites in `server/src/__tests__/`
+- **Frontend unit**: Jest with jsdom, 57 suites in `server/src/__tests__/frontend/`
 - **E2E**: Playwright, 16 specs in `server/e2e/`
 - **Load testing**: Custom scripts in `server/loadtest/`
 
@@ -698,7 +698,7 @@ Module aliases: `@/`, `@config/`, `@services/`, `@errors/`, `@utils/`, `@middlew
 
 ### Test Patterns
 
-- Shared mocks in `__tests__/helpers/mocks.ts` (~721 lines)
+- Shared mocks in `__tests__/helpers/mocks.ts` (~782 lines)
 - `clearMocks: true`, `restoreMocks: true` — clean state between tests
 - playerService re-exports use `export const` pattern for test mock overrides
 - CommonJS `module.exports` at end of route files for `require()` compatibility in tests

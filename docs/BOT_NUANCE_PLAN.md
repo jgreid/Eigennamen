@@ -1,8 +1,8 @@
 # Bot Nuance Plan — from the Play-Session Ledger to Code
 
 Companion to [BOT_CLUE_LESSONS.md](BOT_CLUE_LESSONS.md). That document is the
-*ledger* — 41 lessons and 9 catalogued failure modes (A–I) from six human-vs-AI
-play sessions. This one is the *build sheet*: open plan items (2.8–2.28) mapped
+*ledger* — 42 lessons and 9 catalogued failure modes (A–I) from six human-vs-AI
+play sessions. This one is the *build sheet*: open plan items (2.8–2.29) mapped
 to the exact functions, constants, and data structures that host it, sequenced
 into phases with the metric that gates each change.
 

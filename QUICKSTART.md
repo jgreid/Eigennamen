@@ -63,7 +63,6 @@ Run a real-time multiplayer server locally. All players connect to the same serv
    First create the `.env` file Docker needs (in the repo root), then start the containers:
    ```bash
    cp .env.example .env      # then edit .env: set REDIS_PASSWORD + JWT_SECRET (32+ chars)
-   cd server
    docker compose up -d --build
    ```
 
