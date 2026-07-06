@@ -15,6 +15,7 @@ export interface ServerRoomData {
 }
 
 export interface ServerGameData {
+    id?: string;
     words?: string[];
     types?: string[];
     revealed?: boolean[];
@@ -317,17 +318,28 @@ export interface ReplayEvent {
         word?: string;
         number?: number;
         winner?: string;
+        // Present at runtime for the recap (server sends them; previously untyped).
+        spymaster?: string;
+        guessNumber?: number;
+        guessesAllowed?: number;
+        player?: string;
+        fromTeam?: string;
+        toTeam?: string;
+        forfeitingTeam?: string;
     };
 }
 
 export interface ReplayData {
     id?: string;
     finalState?: {
-        winner?: string;
+        winner?: string | null;
+        redScore?: number;
+        blueScore?: number;
     };
     teamNames?: Record<string, string>;
     duration?: number;
     totalMoves?: number;
+    totalClues?: number;
     initialBoard?: {
         words?: string[];
         types?: string[];

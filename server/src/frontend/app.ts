@@ -41,6 +41,7 @@ import {
     confirmKickPlayer,
 } from './multiplayer.js';
 import { requestJoinTeam, approvePendingJoin, denyPendingJoin } from './spectatorJoin.js';
+import { openRecap, closeRecap, shareRecap, openRecapFullReplay } from './recap.js';
 import {
     openGameHistory,
     closeGameHistory,
@@ -138,6 +139,7 @@ registerModalCloseHandler('confirm-forfeit-modal', closeForfeitConfirm);
 registerModalCloseHandler('confirm-kick-modal', closeKickConfirm);
 // Dismissing the spectator approval prompt (Escape / overlay) denies the request.
 registerModalCloseHandler('spectator-join-modal', denyPendingJoin);
+registerModalCloseHandler('recap-modal', closeRecap);
 registerModalCloseHandler('history-modal', () => closeModal('history-modal'));
 registerModalCloseHandler('replay-modal', closeReplay);
 
@@ -267,6 +269,20 @@ function setupEventListeners(): void {
                 break;
             case 'resume-game':
                 resumeGame();
+                break;
+
+            // Post-game recap (A2)
+            case 'open-recap':
+                void openRecap();
+                break;
+            case 'recap-share':
+                shareRecap();
+                break;
+            case 'recap-full-replay':
+                openRecapFullReplay();
+                break;
+            case 'close-recap':
+                closeRecap();
                 break;
 
             // Spectator join requests (F6)

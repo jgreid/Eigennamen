@@ -270,6 +270,19 @@
         "approved": "¡Te has unido a {{team}}!",
         "denied": "Tu solicitud para unirte a un equipo fue rechazada"
     },
+    "recap": {
+        "viewRecap": "Ver resumen",
+        "title": "Resumen de la partida",
+        "copyLink": "Copiar enlace de repetición",
+        "fullReplay": "Repetición completa",
+        "noWinner": "Fin de la partida",
+        "clues": "Pistas",
+        "duration": "Tiempo",
+        "assassin": "Asesino",
+        "noMoves": "No se hicieron jugadas en esta partida.",
+        "noGuesses": "Sin intentos.",
+        "unavailable": "El resumen aún no está disponible para esta partida."
+    },
     "wordList": {
         "default": "Palabras predeterminadas",
         "custom": "Palabras personalizadas",

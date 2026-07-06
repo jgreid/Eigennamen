@@ -15,6 +15,7 @@ import {
     updateDuetUI,
     renderPauseState,
 } from './multiplayerUI.js';
+import { updateRecapButton } from './recap.js';
 import { updateChatForRole } from './chat.js';
 import {
     setPlayerRole,
@@ -330,6 +331,13 @@ export function syncGameStateFromServer(serverGame: ServerGameData): void {
             state.gameState.seed = serverGame.seed;
         }
 
+        // Capture the server-assigned game id (used to fetch the completed game's
+        // replay for the post-game recap). The server sends it on every game
+        // state; the client previously discarded it.
+        if (serverGame.id) {
+            state.gameState.id = serverGame.id;
+        }
+
         // Sync clue state (explicitly handle null to clear old clue)
         if (serverGame.currentClue !== undefined) {
             state.gameState.currentClue = serverGame.currentClue || null;
@@ -396,6 +404,7 @@ export function syncGameStateFromServer(serverGame: ServerGameData): void {
         updateRoleBanner();
         updateForfeitButton();
         renderPauseState();
+        updateRecapButton();
         updateDuetUI(serverGame);
         updateMatchScoreboard();
     } catch (err) {

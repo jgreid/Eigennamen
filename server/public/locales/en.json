@@ -270,6 +270,19 @@
         "approved": "You’ve joined {{team}}!",
         "denied": "Your request to join a team was declined"
     },
+    "recap": {
+        "viewRecap": "View Recap",
+        "title": "Game Recap",
+        "copyLink": "Copy Replay Link",
+        "fullReplay": "Full Replay",
+        "noWinner": "Game Over",
+        "clues": "Clues",
+        "duration": "Time",
+        "assassin": "Assassin",
+        "noMoves": "No moves were made this game.",
+        "noGuesses": "No guesses.",
+        "unavailable": "The recap isn’t available for this game yet."
+    },
     "wordList": {
         "default": "Default Words",
         "custom": "Custom Words",

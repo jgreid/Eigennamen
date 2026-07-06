@@ -270,6 +270,19 @@
         "approved": "Du bist {{team}} beigetreten!",
         "denied": "Deine Anfrage, einem Team beizutreten, wurde abgelehnt"
     },
+    "recap": {
+        "viewRecap": "Rückblick anzeigen",
+        "title": "Spielrückblick",
+        "copyLink": "Replay-Link kopieren",
+        "fullReplay": "Vollständige Wiederholung",
+        "noWinner": "Spiel vorbei",
+        "clues": "Hinweise",
+        "duration": "Zeit",
+        "assassin": "Attentäter",
+        "noMoves": "In diesem Spiel wurden keine Züge gemacht.",
+        "noGuesses": "Keine Tipps.",
+        "unavailable": "Der Rückblick ist für dieses Spiel noch nicht verfügbar."
+    },
     "wordList": {
         "default": "Standardwörter",
         "custom": "Eigene Wörter",
