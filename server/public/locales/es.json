@@ -297,7 +297,11 @@
             "partial": "Parcial — se detuvo antes",
             "leak": "Cedió una carta al otro equipo",
             "assassin": "Tocó al asesino"
-        }
+        },
+        "matchProgression": "Progresión del match",
+        "round": "Ronda {{n}}",
+        "matchTotal": "Total del match",
+        "roundBonus": "Bono por ganar la ronda"
     },
     "wordList": {
         "default": "Palabras predeterminadas",

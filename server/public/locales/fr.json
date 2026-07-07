@@ -297,7 +297,11 @@
             "partial": "Partiel — arrêté trop tôt",
             "leak": "A cédé une carte à l'autre équipe",
             "assassin": "A touché l'assassin"
-        }
+        },
+        "matchProgression": "Progression du match",
+        "round": "Manche {{n}}",
+        "matchTotal": "Total du match",
+        "roundBonus": "Bonus de manche gagnée"
     },
     "wordList": {
         "default": "Mots par défaut",

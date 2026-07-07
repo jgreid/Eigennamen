@@ -297,7 +297,11 @@
             "partial": "Teilweise — zu früh gestoppt",
             "leak": "Karte ans andere Team verloren",
             "assassin": "Attentäter getroffen"
-        }
+        },
+        "matchProgression": "Matchverlauf",
+        "round": "Runde {{n}}",
+        "matchTotal": "Match-Gesamt",
+        "roundBonus": "Rundensieg-Bonus"
     },
     "wordList": {
         "default": "Standardwörter",

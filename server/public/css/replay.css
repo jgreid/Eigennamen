@@ -621,6 +621,90 @@
     color: #ff6b6b;
 }
 
+/* Match-mode round-by-round progression. */
+.recap-rounds {
+    margin-bottom: 16px;
+}
+
+.recap-rounds:empty {
+    display: none;
+}
+
+.recap-rounds-title {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.75;
+    margin: 0 0 8px;
+}
+
+.recap-round-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.recap-round-head {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    opacity: 0.7;
+}
+
+.recap-round-label {
+    flex: 1 1 auto;
+    font-size: 0.82rem;
+    opacity: 0.85;
+}
+
+.recap-round-score {
+    min-width: 2.2em;
+    text-align: center;
+    font-weight: 700;
+}
+
+.recap-round-score.red {
+    color: var(--red-team, #e74c3c);
+}
+
+.recap-round-score.blue {
+    color: var(--blue-team, #3498db);
+}
+
+.recap-round-sep {
+    opacity: 0.5;
+}
+
+.recap-round-badges {
+    min-width: 2.5em;
+    display: inline-flex;
+    gap: 4px;
+    justify-content: flex-end;
+}
+
+.recap-round-total {
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    font-size: 1.05rem;
+}
+
+.recap-match-winner {
+    margin-top: 6px;
+    text-align: center;
+    font-weight: 700;
+}
+
+.recap-match-winner.red {
+    color: var(--red-team, #e74c3c);
+}
+
+.recap-match-winner.blue {
+    color: var(--blue-team, #3498db);
+}
+
 /* Best / worst clue highlight cards. */
 .recap-highlights {
     display: flex;

@@ -65,6 +65,7 @@ function setBody(): void {
         <div id="btn-view-recap" hidden></div>
         <div id="recap-result"></div>
         <div id="recap-stats"></div>
+        <div id="recap-rounds"></div>
         <div id="recap-highlights"></div>
         <div id="recap-timeline"></div>
     `;
@@ -75,6 +76,7 @@ beforeEach(() => {
     setBody();
     state.isMultiplayerMode = true;
     state.gameState = { id: 'g1', gameOver: true };
+    state.gameMode = 'classic';
     state.currentReplayData = null;
 });
 
@@ -183,6 +185,69 @@ describe('openRecap', () => {
         await openRecap();
 
         expect(document.querySelector('#recap-result .recap-wordlist')).toBeNull();
+    });
+
+    test('renders round-by-round progression in match mode', async () => {
+        state.gameMode = 'match';
+        state.gameState = {
+            id: 'g1',
+            gameOver: true,
+            roundHistory: [
+                {
+                    roundNumber: 1,
+                    roundWinner: 'red',
+                    redRoundScore: 5,
+                    blueRoundScore: 3,
+                    redBonusAwarded: true,
+                    blueBonusAwarded: false,
+                    endReason: 'completed',
+                    completedAt: 1,
+                },
+                {
+                    roundNumber: 2,
+                    roundWinner: 'blue',
+                    redRoundScore: 2,
+                    blueRoundScore: 6,
+                    redBonusAwarded: false,
+                    blueBonusAwarded: true,
+                    endReason: 'completed',
+                    completedAt: 2,
+                },
+            ],
+            redMatchScore: 7,
+            blueMatchScore: 10,
+            matchOver: true,
+            matchWinner: 'blue',
+        };
+        (globalThis as Record<string, unknown>).fetch = jest.fn(() =>
+            Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ replay: sampleReplay }) })
+        );
+
+        await openRecap();
+
+        const rounds = document.getElementById('recap-rounds');
+        expect(rounds?.querySelector('.recap-rounds-title')).not.toBeNull();
+        // Two round rows + header + total (the total carries the cumulative scores).
+        expect(rounds?.querySelectorAll('.recap-round-row').length).toBeGreaterThanOrEqual(3);
+        const total = rounds?.querySelector('.recap-round-total');
+        expect(total?.textContent).toContain('7');
+        expect(total?.textContent).toContain('10');
+        // Match-over banner names the winning team.
+        expect(rounds?.querySelector('.recap-match-winner.blue')).not.toBeNull();
+        // Round-win bonus star present (both rounds awarded one).
+        expect(rounds?.querySelector('.recap-round-bonus')).not.toBeNull();
+    });
+
+    test('omits the progression section outside match mode', async () => {
+        state.gameMode = 'classic';
+        state.gameState = { id: 'g1', gameOver: true };
+        (globalThis as Record<string, unknown>).fetch = jest.fn(() =>
+            Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ replay: sampleReplay }) })
+        );
+
+        await openRecap();
+
+        expect(document.getElementById('recap-rounds')?.children.length).toBe(0);
     });
 
     test('warns and does not fetch when there is no game id', async () => {
