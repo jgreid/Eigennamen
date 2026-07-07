@@ -27,7 +27,7 @@ import type {
 import { resolveStyle } from './types';
 import type { EdgeKind, SemanticBackend } from '../semantics/backend';
 import { clueRetrieval, defaultSemanticBackend } from '../semantics/backend';
-import { isClueLegalForBoard, CLUE_NUMBER_MAX } from '../../shared/gameRules';
+import { isClueLegalForBoard, CLUE_NUMBER_MAX, ROUND_WIN_BONUS } from '../../shared/gameRules';
 import { makeBoardSafetyCheck, isClueBoardSafe } from './clueSafety';
 
 /** Abstract words unlikely to collide with a Codenames board; filtered for
@@ -138,6 +138,37 @@ export function groupBoard(view: BotSpymasterView): BoardGroups {
         else g.neutral.push(w);
     }
     return g;
+}
+
+/**
+ * G1 endgame trap targeting. A match trap IS an own card, so the round cannot end
+ * while one is unrevealed — yet groupBoard keeps traps out of `own` so the clicker
+ * is never steered onto a point-losing card. That leaves the bot structurally
+ * unable to CLOSE a round it could win. This re-admits traps into the targetable
+ * own set (mutating `groups` in place) in exactly the two cases where revealing
+ * them is correct:
+ *   (a) the only own cards left ARE traps — the bot cannot progress its own set
+ *       otherwise, so it must clue toward them to finish; or
+ *   (b) the round-win bonus outweighs the traps' total cost — closing the round
+ *       nets positive even after eating the traps.
+ * A re-admitted trap re-enters `own` (and leaves `neutral`/`ownTraps`), so a
+ * board-covering clue can finish the round and groupBoard's win-guard (ownTraps
+ * empty) then correctly treats it as board-winning. No-op outside match / with no
+ * traps. Exported for direct testing.
+ */
+export function admitClosingTraps(groups: BoardGroups, isMatch: boolean, valueOf: (word: string) => number): void {
+    if (!isMatch || groups.ownTraps.length === 0) return;
+    // Sum of |negative value| over the remaining traps — the points closing the
+    // round would cost.
+    const trapCost = groups.ownTraps.reduce((sum, w) => sum - Math.min(0, valueOf(w)), 0);
+    const onlyTrapsRemain = groups.own.length === 0;
+    if (!onlyTrapsRemain && ROUND_WIN_BONUS <= trapCost) return;
+    for (const w of groups.ownTraps) {
+        groups.own.push(w);
+        const idx = groups.neutral.indexOf(w);
+        if (idx >= 0) groups.neutral.splice(idx, 1);
+    }
+    groups.ownTraps = [];
 }
 
 const MAX_CLUE_NUMBER = 4;
@@ -647,6 +678,11 @@ export function makeEmbeddingSpymaster(
                 }
             }
             const valueOf = (w: string): number => (isMatch ? (values.get(w) ?? 0) : 1);
+
+            // G1 endgame trap targeting: let the bot CLOSE a round it could win by
+            // re-admitting match traps into the targetable own set when revealing
+            // them is correct (see admitClosingTraps).
+            admitClosingTraps(groups, isMatch, valueOf);
 
             // Occasional blunder: a random legal clue (weak-player model).
             if (legalCandidates.length > 0 && ctx.rng.next() < skill.blunderRate) {
