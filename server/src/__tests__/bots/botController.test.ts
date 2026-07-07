@@ -204,6 +204,33 @@ describe('botController.tickRoom', () => {
         expect(gameActions.applyClue).toHaveBeenCalledTimes(1);
     });
 
+    it('does not clobber a concurrent bot:add that lands during the roster read (E3 race)', async () => {
+        const { isKnownBotless, noteRoomHasBot } = require('../../bots/botRoomCache');
+        // Simulate the TOCTOU: while tickRoom awaits the roster read for an unknown
+        // room, a concurrent bot:add marks the room botful (noteRoomHasBot). The
+        // read still reflects the pre-add state (no bots). Without the post-await
+        // re-check, the stale `false` would be recorded, marking the room bot-less
+        // forever and freezing the just-added bot.
+        playerService.getPlayersInRoom.mockImplementation(async () => {
+            noteRoomHasBot('ROOM_RACE'); // the racing addBot wins the cache
+            return []; // ...but this read predates the join
+        });
+        gameService.getGame.mockResolvedValueOnce(gameNoClue).mockResolvedValue(gameWithClue);
+        playerService.getTeamMembers.mockResolvedValue([spymasterBot]);
+        botService.getBotConfig.mockResolvedValue({
+            strategyId: 'randomSpymaster',
+            skillPreset: 'intermediate',
+            seed: 1,
+        });
+
+        await tickRoom('ROOM_RACE');
+
+        // The bot:add write survives — the room is NOT marked bot-less, and the
+        // freshly-added bot still gets to act on this very tick.
+        expect(isKnownBotless('ROOM_RACE')).toBe(false);
+        expect(gameActions.applyClue).toHaveBeenCalledTimes(1);
+    });
+
     it('is a no-op before initialization', async () => {
         stopBotController();
         gameService.getGame.mockResolvedValue(gameNoClue);

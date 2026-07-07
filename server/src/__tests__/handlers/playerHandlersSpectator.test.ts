@@ -115,6 +115,29 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
             );
         });
 
+        it('should reject a teamless observer (has seen the unmasked board)', async () => {
+            // An observer has no team but HAS seen every card type — it must not be
+            // able to launder that knowledge into a live seat via this flow. The
+            // guard requires role === 'spectator' exactly, not merely "no team".
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                roomCode: 'TEST12',
+                nickname: 'Peeker',
+                team: null,
+                role: 'observer',
+                isHost: false,
+            });
+            playerService.getPlayersInRoom.mockResolvedValue([{ sessionId: 'host-1', isHost: true, nickname: 'Host' }]);
+
+            await handlers['spectator:requestJoin']({ team: 'red' });
+
+            expect(mockIo.emit).not.toHaveBeenCalledWith('spectator:joinRequest', expect.anything());
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'spectator:error',
+                expect.objectContaining({ code: 'NOT_AUTHORIZED' })
+            );
+        });
+
         it('should error when no host found', async () => {
             playerService.getPlayersInRoom.mockResolvedValue([{ sessionId: 'session-2', isHost: false }]);
 
@@ -374,6 +397,40 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
                 expect.objectContaining({
                     code: 'NOT_AUTHORIZED',
                 })
+            );
+        });
+
+        it('should reject approving a teamless observer as a clicker (board-knowledge laundering)', async () => {
+            playerService.getPlayer
+                .mockResolvedValueOnce({
+                    sessionId: 'session-1',
+                    roomCode: 'TEST12',
+                    isHost: true,
+                    nickname: 'Host',
+                    team: 'red',
+                    role: 'spymaster',
+                })
+                .mockResolvedValueOnce({
+                    sessionId: 'requester-1',
+                    roomCode: 'TEST12',
+                    nickname: 'Peeker',
+                    team: null,
+                    role: 'observer',
+                });
+
+            await handlers['spectator:approveJoin']({
+                requesterId: 'requester-1',
+                approved: true,
+                team: 'red',
+            });
+
+            // An observer must never be seated — no team/role mutation, no approval.
+            expect(playerService.setTeam).not.toHaveBeenCalled();
+            expect(playerService.setRole).not.toHaveBeenCalled();
+            expect(mockIo.emit).not.toHaveBeenCalledWith('spectator:joinApproved', expect.anything());
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'spectator:error',
+                expect.objectContaining({ code: 'NOT_AUTHORIZED' })
             );
         });
 

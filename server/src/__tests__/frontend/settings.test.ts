@@ -90,6 +90,7 @@ import {
     resetWords,
     loadLocalSettings,
     initSettingsListeners,
+    loadSavedList,
 } from '../../frontend/settings';
 import { state, DEFAULT_WORDS, MAX_CUSTOM_WORD_LIST_SIZE } from '../../frontend/state';
 
@@ -300,6 +301,64 @@ describe('settings module', () => {
             setupSaveSettingsDOM('Red', 'Blue', 'default', '');
             saveSettings();
             expect(mockCloseModal).toHaveBeenCalledWith('settings-modal');
+        });
+    });
+
+    describe('word-list provenance (Load stages, Save commits)', () => {
+        const LIB_KEY = 'eigennamen-wordlist-library';
+        function seedLibraryAndDOM(): void {
+            localStorage.setItem(
+                LIB_KEY,
+                JSON.stringify([
+                    {
+                        id: 'listB',
+                        name: 'List B',
+                        words: Array.from({ length: 30 }, (_, i) => `BW${i}`),
+                        createdAt: 1,
+                        updatedAt: 1,
+                    },
+                ])
+            );
+            document.body.innerHTML = `
+                <input id="red-name-input" value="Red" />
+                <input id="blue-name-input" value="Blue" />
+                <select id="saved-list-select"><option value="listB" selected>List B</option></select>
+                <textarea id="custom-words"></textarea>
+                <input type="radio" name="wordlist-mode" value="default">
+                <input type="radio" name="wordlist-mode" value="combined">
+                <input type="radio" name="wordlist-mode" value="custom">
+                <div id="word-error"></div>
+            `;
+        }
+
+        test('loading a list then closing (not applying) does NOT commit its provenance', () => {
+            seedLibraryAndDOM();
+            // Prior committed state: already playing with some other list "A".
+            state.wordListId = 'listA';
+            state.wordListName = 'List A';
+
+            loadSavedList(); // stages List B into the editor + pending provenance
+            // The click alone must not overwrite the committed identity...
+            expect(state.wordListId).toBe('listA');
+
+            closeSettings(); // dismiss WITHOUT "Save & Apply"
+            // ...and dismissing discards the staged credit entirely — the game will
+            // still use list A, so it must still be credited to A (not B).
+            expect(state.wordListId).toBe('listA');
+            expect(state.wordListName).toBe('List A');
+        });
+
+        test('loading a list then applying commits its provenance', () => {
+            seedLibraryAndDOM();
+            state.wordListId = null;
+            state.wordListName = null;
+
+            loadSavedList(); // stages List B, switches to custom mode, fills editor
+            saveSettings(); // "Save & Apply" commits the words AND promotes provenance
+
+            expect(state.wordSource).toBe('custom');
+            expect(state.wordListId).toBe('listB');
+            expect(state.wordListName).toBe('List B');
         });
     });
 

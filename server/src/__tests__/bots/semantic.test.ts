@@ -678,6 +678,41 @@ describe('match-mode value awareness', () => {
             // bot falls back to a placeholder; with it, the bot clues toward the trap.
             expect(action).toMatchObject({ kind: 'clue', word: 'TRAPFIT' });
         });
+
+        // Case (b): a non-trap own card remains AND the round-win bonus outweighs the
+        // trap cost. With a nearest()-generating backend, candidates must be generated
+        // FROM the admitted trap for the bot to actually close the round — the trap
+        // has to be in the own set BEFORE candidate generation, not merely re-scored
+        // after. A nearest() stub keys candidates on which cards are queried:
+        // querying MONKEY alone yields SOLO (covers one own); the trap PIRATE (or the
+        // MONKEY+PIRATE centroid) yields BRIDGE (covers both, closing the round).
+        it('generates a trap-bridging clue to close a winnable round (case b, nearest backend)', () => {
+            const nearestStub = (
+                rel: Record<string, Record<string, number>>,
+                near: Record<string, string[]>
+            ): SemanticBackend => ({
+                id: 'nearstub',
+                relatedness: (a: string, b: string) => rel[a]?.[b.toUpperCase()] ?? rel[b]?.[a.toUpperCase()] ?? 0,
+                nearest: (words: string[], k: number) =>
+                    (near[[...words].sort().join('+')] ?? []).slice(0, k).map((word) => ({ word, score: 1 })),
+            });
+            const view = matchView(
+                ['MONKEY', 'PIRATE', 'OPERA', 'VENOM'],
+                ['red', 'red', 'blue', 'assassin'],
+                [2, -1, 1, -2]
+            );
+            const backend = nearestStub(
+                {
+                    BRIDGE: { MONKEY: 0.9, PIRATE: 0.9, OPERA: 0.1, VENOM: 0.1 },
+                    SOLO: { MONKEY: 0.9, PIRATE: 0.1, OPERA: 0.1, VENOM: 0.1 },
+                },
+                { MONKEY: ['SOLO'], PIRATE: ['BRIDGE'], 'MONKEY+PIRATE': ['BRIDGE'] }
+            );
+            const action = makeEmbeddingSpymaster(resolveSkill('expert', 5), backend).chooseClue(view, ctx(5));
+            // Pre-fix ordering generated candidates from MONKEY only (-> SOLO) and
+            // could not cover the trap; the reorder surfaces BRIDGE and closes the round.
+            expect(action).toMatchObject({ kind: 'clue', word: 'BRIDGE' });
+        });
     });
 });
 
