@@ -56,6 +56,14 @@ export interface SemanticMap {
     version: 1 | 2;
     /** The word list the map was built for (provenance / debugging). */
     words: string[];
+    /** Provenance: the saved word-list-library id this map was built for, if
+     *  built with `--list-id`. Mirrors GameState.wordListId, so a map can be
+     *  traced to the library list it serves. Not consumed by the merge-all
+     *  runtime today (associations already fire only when their words are on the
+     *  board); it is traceability + the seed for future per-list selection. */
+    listId?: string;
+    /** Provenance: the human-facing name of that saved list (from `--list-name`). */
+    listName?: string;
     /** Common-sense concept clues (UPPERCASE keys) → list words / edges. */
     concepts: Record<string, SemanticMapEdge[]>;
     /** Proper-noun references (display-case keys) → list words / edges (v1 or

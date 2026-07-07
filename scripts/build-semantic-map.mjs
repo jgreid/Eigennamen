@@ -15,6 +15,11 @@
  * Usage (from server/):
  *   npm run bots:map -- --words path/to/list.txt [--out path.json]
  *     [--model claude-opus-4-8] [--batch-size 60] [--passes 2] [--language en]
+ *     [--list-id <savedListId>] [--list-name "<saved list name>"]
+ *
+ * When you built the list in the in-app word-list library, pass its id via
+ * --list-id so the map is filed under `<listId>.json` and stamped with the
+ * list's identity (traceability with GameState.wordListId).
  *
  * Auth: uses the Anthropic SDK's standard credential resolution — set
  * ANTHROPIC_API_KEY, or log in once with `ant auth login`.
@@ -46,18 +51,21 @@ const wordsPath = arg('--words', null);
 if (!wordsPath) {
     console.error('Usage: npm run bots:map -- --words <wordlist.txt> [--out <map.json>]');
     console.error('       [--model claude-opus-4-8] [--batch-size 60] [--passes 2] [--language en]');
+    console.error('       [--list-id <savedListId>] [--list-name "<saved list name>"]');
     process.exit(2);
 }
 const model = arg('--model', 'claude-opus-4-8');
 const batchSize = Math.max(10, parseInt(arg('--batch-size', '60'), 10) || 60);
 const passes = Math.max(1, parseInt(arg('--passes', '2'), 10) || 2);
 const language = arg('--language', 'en');
-const outPath = resolve(
-    arg(
-        '--out',
-        join(ROOT, 'server', 'src', 'bots', 'data', 'semantic-maps', `${basename(wordsPath).replace(/\.[^.]*$/, '')}.json`)
-    )
-);
+// Optional provenance tying this map to a saved word-list-library list. When a
+// list id is given, the map is filed under `<listId>.json` by default and
+// stamped with listId/listName — mirroring GameState.wordListId so the map is
+// traceable to the list it serves (see docs/BOT_SEMANTIC_MAPS.md).
+const listId = arg('--list-id', null);
+const listName = arg('--list-name', null);
+const defaultBase = listId ? listId : basename(wordsPath).replace(/\.[^.]*$/, '');
+const outPath = resolve(arg('--out', join(ROOT, 'server', 'src', 'bots', 'data', 'semantic-maps', `${defaultBase}.json`)));
 
 // ---------------------------------------------------------------------------
 // Word list parsing (mirrors the in-app parser: lines, trim, # comments,
@@ -422,6 +430,8 @@ async function main() {
         language,
         wordlist: basename(wordsPath),
         model,
+        ...(listId ? { listId } : {}),
+        ...(listName ? { listName } : {}),
         words,
         concepts: Object.fromEntries([...concepts.entries()].sort().map(([k, v]) => [k, sortedEdges(v)])),
         proper: Object.fromEntries([...proper.entries()].sort().map(([k, v]) => [k, referenceEntry(k, v)])),

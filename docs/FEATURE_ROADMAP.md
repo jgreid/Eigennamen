@@ -24,7 +24,37 @@ The first review surfaced four feature-level ideas. None is a bug; each is an
 opportunity, sized here so a future session can pick one up without re-deriving
 the context.
 
-### A1. Custom word-list library (a real backing for `wordListId`)
+### A1. Custom word-list library (a real backing for `wordListId`) — **shipped (Hybrid)**
+
+**Status (shipped — client-side "Hybrid" design):** delivered in three tranches.
+The recon that preceded the build surfaced the deciding constraint — the app has
+**no user/account concept** and a first-class **offline standalone mode**, so a
+server-side list store would not exist there and would need to invent the first
+non-ephemeral, ownership-scoped namespace. The Hybrid design instead makes the
+**browser** the library and revives `wordListId` as **provenance**, not a
+server selector:
+
+- **T1 — client library** (`frontend/wordListLibrary.ts`): a `localStorage`
+  library of named lists (save / load / rename-by-resave / delete) managed from
+  Settings → Game → Saved lists. Loading one repopulates the custom-words editor
+  and rides the existing `wordList` array path into a game — standalone and
+  multiplayer alike, no server change.
+- **T2 — provenance**: when a game is started from a saved list, the client
+  forwards the list's stable `wordListId` + `wordListName` alongside the words;
+  the server records them on the `GameState` and history (the field F4 left
+  always-null now carries a real value), and the **recap shows "Played with
+  <name>"**. Recorded only when a custom list is actually used; carried across
+  match rounds.
+- **T3 — bot tie-in + provenance symmetry**: `npm run bots:map --list-id/--list-name`
+  stamps a built semantic map with the list it serves and files it under
+  `<listId>.json`; the loader logs which lists the loaded maps cover. The
+  runtime still merges all maps by content overlap (correct today), so per-list
+  map *selection* by `wordListId` is documented as a future enhancement (it
+  needs a per-game backend rather than the current process-wide singleton).
+
+The original server-side-store idea below is superseded by the above; kept for
+historical context and as the shape a true multi-device/shared library would
+take if accounts are ever added.
 
 **Idea:** A server-side library of named, reusable word lists that rooms can
 select by id, seeded from the bundled `public/locales` wordlists and extensible
@@ -124,8 +154,8 @@ maintainer decision — this is the recorded default, not a fait accompli.
 |------|---------|-------------------------|--------|
 | **F1** | Game pause/resume (server-complete, no frontend) | **Finish** — host-only Pause/Resume UI + client wiring + `GAME_PAUSED` error + i18n; also fix the resume-path timer that restarts without an expiry callback | **Shipped** (finish path — pause button, board overlay, client wiring, i18n ×4, resume-timer callback fixed) |
 | **F2** | `allowSpectators` (accepted/persisted, enforced nowhere) | **Finish with F6** — decide as one spectator-policy story; enforce at the join boundary + add the settings toggle | **Shipped** (join-boundary enforcement via `SPECTATORS_NOT_ALLOWED` + host settings toggle; F6 approval UI is the next tranche) |
-| **F3** | Admin audit log + SSE stats (no dashboard UI) | **Finish (audit), decide (SSE)** — wire the audit endpoint into `admin.html`; the polling-vs-EventSource choice is independent | Planned |
-| **F4** | `wordListId` (validated/typed/stored, always null) | **Finish via A1** — back it with the word-list library above; otherwise delete from schemas/types/spec (keep the storage field nullable) | Planned |
+| **F3** | Admin audit log + SSE stats (no dashboard UI) | **Finish (audit), decide (SSE)** — wire the audit endpoint into `admin.html`; the polling-vs-EventSource choice is independent | **Shipped** (audit dashboard UI in `admin.html` with category/severity filters + polling refresh; dead SSE stats stream deleted) |
+| **F4** | `wordListId` (validated/typed/stored, always null) | **Finish via A1** — back it with the word-list library above; otherwise delete from schemas/types/spec (keep the storage field nullable) | **Resolved (both paths)** — first deleted from the input surface (delete path), then **A1** revived it as game *provenance* (client-forwarded `wordListId`/`wordListName`, recorded on game/history, shown in the recap). The storage field stays nullable. |
 | **F5** | Idle detection (per-event Redis write, no reader) | **Delete** — remove the `lastSeen` eval, `getIdlePlayers`, and `PLAYER_IDLE_WARNING`; first move the player-key TTL refresh that bot seats rely on into `atomicRefreshTtl.lua` | Delete path in flight (IMPROVEMENT_PLAN F5 / PR #519) |
 | **F6** | Spectator approval flow (server + E2E, no UI) | **Finish with F2** — spectator "request to join" control + host approval queue; upgrade `spectator-approval.spec.js` from raw-protocol to UI-driven | **Shipped** (request panel + host approval modal + listeners; server now seats approved spectators as clickers; unit + protocol tests) |
 

@@ -43,6 +43,15 @@ export function getSemanticBackend(): SemanticBackend {
     const maps = loadSemanticMaps(mapsDir);
     const base = maps.length > 0 ? makeCustomMapBackend(maps, tableBackend) : tableBackend;
 
+    if (maps.length > 0) {
+        // One-time operator visibility (memoised): which saved lists the loaded
+        // maps serve. Prefer the map's declared list name/id (built with
+        // `--list-id`/`--list-name`), else its source wordlist, else its size.
+        const summarize = (m: (typeof maps)[number]): string =>
+            m.listName ?? m.listId ?? (typeof m.wordlist === 'string' ? m.wordlist : `${m.words.length} words`);
+        logger.info(`Bot semantics: loaded ${maps.length} custom semantic map(s): ${maps.map(summarize).join(', ')}`);
+    }
+
     const path = process.env.BOT_EMBEDDINGS_PATH;
     if (path) {
         const vb = makeVectorBackend({
