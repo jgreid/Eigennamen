@@ -297,7 +297,11 @@
             "partial": "Partial — stopped short",
             "leak": "Leaked a card to the other team",
             "assassin": "Hit the assassin"
-        }
+        },
+        "matchProgression": "Match progression",
+        "round": "Round {{n}}",
+        "matchTotal": "Match total",
+        "roundBonus": "Round-win bonus"
     },
     "wordList": {
         "default": "Default Words",

@@ -293,11 +293,84 @@ function renderHighlights(replay: ReplayData): void {
     container.appendChild(card('worst', '💥', t('recap.worstClue'), worst.block, worstReason(worst.eff)));
 }
 
+/**
+ * Match mode only: round-by-round score progression. Reads from the live
+ * `state.gameState` (the replay is a single round and carries no match history)
+ * — at game-over the round/match handlers have already accumulated roundHistory
+ * and the cumulative match scores there.
+ */
+function renderMatchProgression(replay: ReplayData): void {
+    const container = document.getElementById('recap-rounds');
+    if (!container) return;
+    container.replaceChildren();
+
+    const g = state.gameState;
+    // gameMode lives on the root AppState, not on gameState.
+    if (!g || state.gameMode !== 'match') return;
+    const rounds = g.roundHistory ?? [];
+    if (rounds.length === 0) return;
+
+    container.appendChild(el('h3', 'recap-rounds-title', t('recap.matchProgression')));
+
+    const scoreRow = (label: string, red: number, blue: number, extra?: Node): HTMLElement => {
+        const row = el('div', 'recap-round-row');
+        row.appendChild(el('span', 'recap-round-label', label));
+        row.appendChild(el('span', 'recap-round-score red', String(red)));
+        row.appendChild(el('span', 'recap-round-sep', '–'));
+        row.appendChild(el('span', 'recap-round-score blue', String(blue)));
+        if (extra) row.appendChild(extra);
+        return row;
+    };
+
+    // Column header naming the two teams (color-coded).
+    const header = el('div', 'recap-round-row recap-round-head');
+    header.appendChild(el('span', 'recap-round-label', ''));
+    header.appendChild(el('span', 'recap-round-score red', teamName('red', replay)));
+    header.appendChild(el('span', 'recap-round-sep', ''));
+    header.appendChild(el('span', 'recap-round-score blue', teamName('blue', replay)));
+    container.appendChild(header);
+
+    for (const r of rounds) {
+        const badges = el('span', 'recap-round-badges');
+        if (r.roundWinner === 'red' || r.roundWinner === 'blue') {
+            const w = el('span', `recap-round-winner ${r.roundWinner}`, '🏆');
+            w.setAttribute('aria-label', t('game.winner', { team: teamName(r.roundWinner, replay) }));
+            w.title = teamName(r.roundWinner, replay);
+            badges.appendChild(w);
+        }
+        if (r.redBonusAwarded || r.blueBonusAwarded) {
+            const star = el('span', 'recap-round-bonus', '⭐');
+            star.title = t('recap.roundBonus');
+            star.setAttribute('aria-label', t('recap.roundBonus'));
+            badges.appendChild(star);
+        }
+        container.appendChild(
+            scoreRow(t('recap.round', { n: r.roundNumber }), r.redRoundScore, r.blueRoundScore, badges)
+        );
+    }
+
+    const total = scoreRow(t('recap.matchTotal'), g.redMatchScore ?? 0, g.blueMatchScore ?? 0);
+    total.classList.add('recap-round-total');
+    container.appendChild(total);
+
+    if (g.matchOver && (g.matchWinner === 'red' || g.matchWinner === 'blue')) {
+        const banner = el(
+            'div',
+            `recap-match-winner ${g.matchWinner}`,
+            t('game.winner', {
+                team: teamName(g.matchWinner, replay),
+            })
+        );
+        container.appendChild(banner);
+    }
+}
+
 function renderRecap(replay: ReplayData): void {
     // Populate state.currentReplayData so the share-link + full-replay reuse works.
     state.currentReplayData = replay;
     renderResult(replay);
     renderStats(replay);
+    renderMatchProgression(replay);
     renderHighlights(replay);
     renderTimeline(replay);
 }
