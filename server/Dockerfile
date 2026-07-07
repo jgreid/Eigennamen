@@ -34,8 +34,12 @@ RUN npm run build
 # (build-board-vectors.mjs): a few MB with guaranteed coverage of every board/concept
 # word plus a clue-generation breadth sample — far better than a generic first-N trim,
 # and the only correct way to consume the alphabetical Numberbatch model (the best fit
-# for a word game and reachable where the GloVe/fastText hosts are blocked). Set
-# BOT_EMBEDDINGS_BOARD=0 to bake the legacy coarse trim instead.
+# for a word game and reachable where the GloVe/fastText hosts are blocked). The board
+# bake ALSO fetches a small frequency reference (dev-bots.mjs, ~600 KB from
+# raw.githubusercontent.com) so the distillation enables the runtime commonness prior
+# and clue words stay recognizable; that fetch is best-effort (a block degrades to a
+# prior-off build, not a build failure). Set BOT_EMBEDDINGS_BOARD=0 to bake the legacy
+# coarse trim instead.
 ARG BOT_EMBEDDINGS_MODEL=
 ARG BOT_EMBEDDINGS_TRIM=100000
 ARG BOT_EMBEDDINGS_BOARD=1
