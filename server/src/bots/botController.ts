@@ -33,7 +33,7 @@ import { getSemanticBackend } from './semantics/selectBackend';
 import { suggestGuesses } from './strategies/advisor';
 import { resolveSkill } from './presets';
 import { makeRng } from './rng';
-import { playOneAction } from './playOneAction';
+import { playOneAction, prewarmSpymasterClues } from './playOneAction';
 import { applyClue, applyReveal, applyEndTurn } from '../socket/handlers/gameActions';
 import type { GameActor } from '../socket/handlers/gameActions';
 import { isKnownBotless, isBotfulnessKnown, recordBotful, clearBotRoomCache } from './botRoomCache';
@@ -476,6 +476,14 @@ export async function tickRoom(roomCode: string): Promise<void> {
                 // shared room state.
                 memory: { clues: [...memoryTracker.clues[team]] },
             };
+
+            // E4: for a spymaster decision, warm the embeddings nearest() cache
+            // off the event loop first (chunked, yielding), so the sync decision
+            // below doesn't run up to 16 full-vocabulary scans inline and stall
+            // every other room. No-op unless embeddings are enabled.
+            if (role === 'spymaster') {
+                await prewarmSpymasterClues(game, team, getSemanticBackend());
+            }
 
             const action = playOneAction(game, seat, strategy, ctx);
             if (action.kind === 'noop') break;

@@ -66,6 +66,16 @@ export interface SemanticBackend {
      */
     nearest?(words: string[], k: number): Array<{ word: string; score: number }>;
     /**
+     * Asynchronously warm the nearest() cache for a batch of queries, yielding
+     * the event loop between chunks so the up-to-16 full-vocabulary scans a first
+     * clue decision triggers don't block every other room (E4). After it resolves,
+     * the matching sync nearest() calls are cache hits. Optional: only a
+     * scan-backed backend (vectors) implements it; without it callers skip the
+     * warm-up and pay the sync scans as before. Idempotent — safe to call with
+     * queries already cached.
+     */
+    prewarm?(queries: ReadonlyArray<{ words: readonly string[]; k: number }>): Promise<void>;
+    /**
      * Prior in [0, 1] for how common/recognizable a word is (1 = everyday word,
      * → 0 = deep cut). The spymaster uses it to prefer clues anchored in SHARED
      * knowledge over idiosyncratic sub-associations — a rare clue word that the
