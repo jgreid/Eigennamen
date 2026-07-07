@@ -106,6 +106,33 @@ describe('openRecap', () => {
         expect(state.currentReplayData).toEqual(sampleReplay);
     });
 
+    test('renders the "Played with <name>" provenance line when present', async () => {
+        (globalThis as Record<string, unknown>).fetch = jest.fn(() =>
+            Promise.resolve({
+                ok: true,
+                status: 200,
+                json: () => Promise.resolve({ replay: { ...sampleReplay, wordListName: 'Sci-Fi Words' } }),
+            })
+        );
+
+        await openRecap();
+
+        const line = document.querySelector('#recap-result .recap-wordlist');
+        expect(line).not.toBeNull();
+        expect(line?.textContent).toContain('recap.playedWith');
+        expect(line?.textContent).toContain('Sci-Fi Words');
+    });
+
+    test('omits the provenance line when no saved list was used', async () => {
+        (globalThis as Record<string, unknown>).fetch = jest.fn(() =>
+            Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ replay: sampleReplay }) })
+        );
+
+        await openRecap();
+
+        expect(document.querySelector('#recap-result .recap-wordlist')).toBeNull();
+    });
+
     test('warns and does not fetch when there is no game id', async () => {
         state.gameState = { gameOver: true };
         (globalThis as Record<string, unknown>).fetch = jest.fn();

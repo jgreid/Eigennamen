@@ -528,6 +528,36 @@ describe('createGame', () => {
         expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining('custom words'));
     });
 
+    test('records wordListId/wordListName provenance when a custom list is used', async () => {
+        const customWords = Array.from({ length: 30 }, (_, i) => `WORD${i}`);
+        const game = await createGame('TEST02B', {
+            wordList: customWords,
+            wordListId: 'wl_scifi',
+            wordListName: 'Sci-Fi Words',
+        });
+
+        expect(game.wordListId).toBe('wl_scifi');
+        expect(game.wordListName).toBe('Sci-Fi Words');
+    });
+
+    test('does NOT record provenance when the custom list is rejected and defaults are used', async () => {
+        // Too small → falls back to default words, so stamping the provenance would lie.
+        const game = await createGame('TEST02C', {
+            wordList: ['ONE', 'TWO', 'THREE'],
+            wordListId: 'wl_scifi',
+            wordListName: 'Sci-Fi Words',
+        });
+
+        expect(game.wordListId).toBeNull();
+        expect(game.wordListName).toBeNull();
+    });
+
+    test('leaves provenance null for a default-words game', async () => {
+        const game = await createGame('TEST02D');
+        expect(game.wordListId).toBeNull();
+        expect(game.wordListName).toBeNull();
+    });
+
     test('creates a game with custom word list with duplicates', async () => {
         // Word list with duplicates and whitespace
         const customWords = [

@@ -1528,6 +1528,8 @@ describe('confirmNewGame edge cases', () => {
 describe('buildStartGameOptions', () => {
     afterEach(() => {
         state.wordSource = 'default';
+        state.wordListId = null;
+        state.wordListName = null;
     });
 
     test('sends an empty payload when the host has not customized the word list', () => {
@@ -1538,9 +1540,30 @@ describe('buildStartGameOptions', () => {
     test('forwards activeWords when the host chose a custom/combined/file list', () => {
         for (const source of ['custom', 'combined', 'file']) {
             state.wordSource = source;
+            state.wordListId = null;
+            state.wordListName = null;
             state.activeWords = [`${source}-A`, `${source}-B`];
             expect(buildStartGameOptions()).toEqual({ wordList: state.activeWords });
         }
+    });
+
+    test('forwards saved-list provenance alongside the words when a library list is active', () => {
+        state.wordSource = 'custom';
+        state.activeWords = ['A', 'B', 'C'];
+        state.wordListId = 'wl_scifi';
+        state.wordListName = 'Sci-Fi Words';
+        expect(buildStartGameOptions()).toEqual({
+            wordList: ['A', 'B', 'C'],
+            wordListId: 'wl_scifi',
+            wordListName: 'Sci-Fi Words',
+        });
+    });
+
+    test('omits provenance for the default word source even if a stale id lingers', () => {
+        state.wordSource = 'default';
+        state.wordListId = 'wl_stale';
+        state.wordListName = 'Stale';
+        expect(buildStartGameOptions()).toEqual({});
     });
 });
 

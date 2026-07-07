@@ -35,6 +35,8 @@ export async function getReplayEvents(roomCode: string, gameId: string): Promise
             duration: game.endedAt - game.startedAt,
             totalMoves: game.history?.length || 0,
             totalClues: countCluesFromHistory(game.history),
+            wordListId: game.wordListId ?? null,
+            wordListName: game.wordListName ?? null,
             ...(skippedCount > 0 && { skippedEntries: skippedCount }),
         };
 

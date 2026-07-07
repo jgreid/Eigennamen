@@ -283,7 +283,8 @@
         "assassin": "Assassin",
         "noMoves": "No moves were made this game.",
         "noGuesses": "No guesses.",
-        "unavailable": "The recap isn’t available for this game yet."
+        "unavailable": "The recap isn’t available for this game yet.",
+        "playedWith": "Played with {{name}}"
     },
     "wordList": {
         "default": "Default Words",

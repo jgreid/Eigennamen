@@ -237,6 +237,13 @@ export function saveSettings(): void {
         state.wordSource = 'custom';
     }
 
+    // Provenance only applies when the active list IS a saved list verbatim,
+    // i.e. "Custom only" mode. Combined/default mixes or replaces it, so drop
+    // any lingering saved-list identity.
+    if (selectedMode !== 'custom') {
+        clearWordListProvenance();
+    }
+
     // Clear any error state
     if (wordError) wordError.classList.remove('visible');
     if (textarea) textarea.classList.remove('invalid');
@@ -258,6 +265,7 @@ export function saveSettings(): void {
 export function resetWords(): void {
     const textarea = document.getElementById('custom-words') as HTMLTextAreaElement | null;
     if (textarea) textarea.value = '';
+    clearWordListProvenance();
 
     // Reset word list mode to 'combined' (default)
     const combinedRadio = document.getElementById('wordlist-mode-combined') as HTMLInputElement | null;
@@ -354,8 +362,21 @@ export function loadSavedList(): void {
     const textarea = document.getElementById('custom-words') as HTMLTextAreaElement | null;
     if (textarea) textarea.value = list.words.join('\n');
     setWordlistMode('custom');
+    // Record provenance: the active words now ARE this saved list, verbatim.
+    state.wordListId = list.id;
+    state.wordListName = list.name;
     updateWordCount();
     showToast(t('wordList.listLoaded', { name: list.name }) || `Loaded “${list.name}”`, 'success');
+}
+
+/**
+ * Forget which saved list is active. Called whenever the words diverge from a
+ * loaded list (manual edit, mode switch, reset) so stale provenance can't be
+ * stamped onto a game that isn't actually that list.
+ */
+export function clearWordListProvenance(): void {
+    state.wordListId = null;
+    state.wordListName = null;
 }
 
 /** Delete the selected saved list from the library. */
@@ -399,6 +420,10 @@ export function saveCurrentAsList(): void {
     }
 
     if (nameInput) nameInput.value = '';
+    // The editor content now IS this saved list — attach its provenance so a
+    // game started right after saving is credited to it.
+    state.wordListId = result.list.id;
+    state.wordListName = result.list.name;
     refreshSavedListSelect();
     const select = document.getElementById('saved-list-select') as HTMLSelectElement | null;
     if (select) {
@@ -496,7 +521,11 @@ export function initSettingsListeners(): void {
 
     const customWordsEl = document.getElementById('custom-words');
     if (customWordsEl) {
-        customWordsEl.addEventListener('input', updateWordCount);
+        // A manual edit means the words no longer match any loaded saved list.
+        customWordsEl.addEventListener('input', () => {
+            clearWordListProvenance();
+            updateWordCount();
+        });
     }
 
     const savedListSelect = document.getElementById('saved-list-select');
@@ -514,6 +543,8 @@ export function initSettingsListeners(): void {
                     .closest('.wordlist-pill')
                     ?.classList.toggle('selected', (r as HTMLInputElement).checked);
             });
+            // A user-driven mode switch diverges from a loaded saved list.
+            clearWordListProvenance();
             updateWordCount();
         });
     });

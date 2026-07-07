@@ -283,7 +283,8 @@
         "assassin": "Asesino",
         "noMoves": "No se hicieron jugadas en esta partida.",
         "noGuesses": "Sin intentos.",
-        "unavailable": "El resumen aún no está disponible para esta partida."
+        "unavailable": "El resumen aún no está disponible para esta partida.",
+        "playedWith": "Jugado con {{name}}"
     },
     "wordList": {
         "default": "Palabras predeterminadas",

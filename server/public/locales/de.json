@@ -283,7 +283,8 @@
         "assassin": "Attentäter",
         "noMoves": "In diesem Spiel wurden keine Züge gemacht.",
         "noGuesses": "Keine Tipps.",
-        "unavailable": "Der Rückblick ist für dieses Spiel noch nicht verfügbar."
+        "unavailable": "Der Rückblick ist für dieses Spiel noch nicht verfügbar.",
+        "playedWith": "Gespielt mit {{name}}"
     },
     "wordList": {
         "default": "Standardwörter",

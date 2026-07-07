@@ -161,8 +161,12 @@ export interface GameState {
     id: string;
     /** Seed used for deterministic board generation */
     seed: string;
-    /** ID of the word list used (null if using default or custom) */
+    /** Stable id of the saved word list this game was played with, if any
+     *  (provenance forwarded by the client's word-list library; null for the
+     *  default list or an ad-hoc custom list with no saved-library identity). */
     wordListId: string | null;
+    /** Human-facing name of that saved word list, for recap/history display. */
+    wordListName?: string | null;
     /** The 25 words on the board */
     words: string[];
     /** Full word pool the board was drawn from; match rounds reuse it for a fresh board */
@@ -243,7 +247,7 @@ export interface GameState {
  */
 export interface PlayerGameState extends Omit<
     GameState,
-    'types' | 'duetTypes' | 'cardScores' | 'seed' | 'wordListId' | 'stateVersion' | 'createdAt'
+    'types' | 'duetTypes' | 'cardScores' | 'seed' | 'wordListId' | 'wordListName' | 'stateVersion' | 'createdAt'
 > {
     /** Card types - null for unrevealed cards if not spymaster */
     types: (CardType | null)[];
@@ -259,6 +263,10 @@ export interface PlayerGameState extends Omit<
 export interface CreateGameOptions {
     /** Custom words to use */
     wordList?: string[];
+    /** Provenance: stable id of the saved word list these words came from (if any). */
+    wordListId?: string | null;
+    /** Provenance: human-facing name of that saved word list (if any). */
+    wordListName?: string | null;
     /** Game mode (classic, duet, match) */
     gameMode?: GameMode;
     /** Explicit board seed for reproducible games (defaults to a random seed). */

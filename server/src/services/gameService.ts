@@ -84,9 +84,14 @@ function addToHistory(game: GameState, entry: ForfeitHistoryEntry): void {
 async function resolveGameWords(
     roomCode: string,
     options: CreateGameOptions
-): Promise<{ words: string[]; usedWordListId: string | null }> {
+): Promise<{ words: string[]; usedWordListId: string | null; usedWordListName: string | null }> {
     const { wordList } = options;
     let words: string[] = [...DEFAULT_WORDS];
+    // Provenance is only recorded when a custom list is actually used — a client
+    // that sends a wordListId but too small a list falls back to default words,
+    // so it would be misleading to stamp the game with that list's identity.
+    let usedWordListId: string | null = null;
+    let usedWordListName: string | null = null;
 
     if (wordList && Array.isArray(wordList) && wordList.length >= BOARD_SIZE) {
         const cleanedWords = [
@@ -96,13 +101,15 @@ async function resolveGameWords(
         ];
         if (cleanedWords.length >= BOARD_SIZE) {
             words = cleanedWords;
+            usedWordListId = options.wordListId ? options.wordListId : null;
+            usedWordListName = options.wordListName ? options.wordListName : null;
             logger.info(`Using ${cleanedWords.length} custom words for room ${roomCode}`);
         } else {
             logger.warn(`Custom word list too small after cleaning (${cleanedWords.length}), using default`);
         }
     }
 
-    return { words, usedWordListId: null };
+    return { words, usedWordListId, usedWordListName };
 }
 
 // Zod schema for match carry-over data to prevent score manipulation.
@@ -164,6 +171,7 @@ function validateCarryOverConsistency(carry: z.infer<typeof matchCarryOverSchema
 function buildGameState(
     seed: string,
     usedWordListId: string | null,
+    usedWordListName: string | null,
     boardWords: string[],
     layout: ReturnType<typeof generateBoardLayout>,
     options: CreateGameOptions,
@@ -177,6 +185,7 @@ function buildGameState(
         id: randomUUID(),
         seed,
         wordListId: usedWordListId,
+        wordListName: usedWordListName,
         words: boardWords,
         types: layout.types,
         revealed: Array(BOARD_SIZE).fill(false),
@@ -306,10 +315,10 @@ export async function createGame(roomCode: string, options: CreateGameOptions = 
             const numericSeed = hashString(seed);
             const isDuet = options.gameMode === 'duet';
 
-            const { words, usedWordListId } = await resolveGameWords(roomCode, options);
+            const { words, usedWordListId, usedWordListName } = await resolveGameWords(roomCode, options);
             const boardWords = selectBoardWords(words, numericSeed);
             const layout = generateBoardLayout(numericSeed, isDuet);
-            const game = buildGameState(seed, usedWordListId, boardWords, layout, options, words);
+            const game = buildGameState(seed, usedWordListId, usedWordListName, boardWords, layout, options, words);
 
             await persistGameState(redis, roomCode, game);
             notifyGameMutation(roomCode);
@@ -864,9 +873,13 @@ export async function startNextRound(
             // words, so passing those would reshuffle the identical set every
             // round — draw from the persisted pool instead.
             const poolOverride = freshGame.wordPool && freshGame.wordPool.length > 0 ? freshGame.wordPool : undefined;
-            const { words, usedWordListId } = await resolveGameWords(roomCode, {
+            // Carry the saved-list provenance across match rounds — the round reuses
+            // the same pool, so it was "played with" the same list.
+            const { words, usedWordListId, usedWordListName } = await resolveGameWords(roomCode, {
                 ...options,
                 wordList: poolOverride ?? options.wordList,
+                wordListId: options.wordListId ?? freshGame.wordListId ?? undefined,
+                wordListName: options.wordListName ?? freshGame.wordListName ?? undefined,
             });
             const boardWords = selectBoardWords(words, numericSeed);
 
@@ -893,7 +906,15 @@ export async function startNextRound(
                 },
             };
 
-            const game = buildGameState(seed, usedWordListId, boardWords, layout, matchOptions, words);
+            const game = buildGameState(
+                seed,
+                usedWordListId,
+                usedWordListName,
+                boardWords,
+                layout,
+                matchOptions,
+                words
+            );
 
             await persistGameState(redis, roomCode, game);
             notifyGameMutation(roomCode);

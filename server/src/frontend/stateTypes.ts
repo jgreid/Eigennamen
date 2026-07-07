@@ -158,6 +158,11 @@ export interface AppState {
     activeWords: string[];
     wordSource: string;
     wordListMode: string;
+    // Provenance for the active list when it came from a saved library list,
+    // forwarded on game:start so the server can record "Played with <name>".
+    // Null whenever the active words are ad-hoc (typed/edited) or default.
+    wordListId: string | null;
+    wordListName: string | null;
     teamNames: TeamNames;
 
     // Roles

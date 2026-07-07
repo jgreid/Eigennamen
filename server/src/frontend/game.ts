@@ -113,7 +113,13 @@ export function initGame(seed: string, wordList?: string[]): boolean {
  * customizes something, so the common case sends an untouched `{}`.
  */
 export function buildStartGameOptions(): Record<string, unknown> {
-    return state.wordSource === 'default' ? {} : { wordList: state.activeWords };
+    if (state.wordSource === 'default') return {};
+    const options: Record<string, unknown> = { wordList: state.activeWords };
+    // Attach saved-list provenance when the active words came from the library
+    // verbatim, so the server can record "Played with <name>" for the recap.
+    if (state.wordListId) options.wordListId = state.wordListId;
+    if (state.wordListName) options.wordListName = state.wordListName;
+    return options;
 }
 
 export function newGame(): void {
