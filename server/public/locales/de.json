@@ -243,7 +243,9 @@
         "game": "Spiel",
         "dangerZone": "Gefahrenzone",
         "forfeitGame": "Aktuelles Spiel aufgeben",
-        "gameControls": "Spielsteuerung"
+        "gameControls": "Spielsteuerung",
+        "savedLists": "Gespeicherte Listen",
+        "savedListsLabel": "Gespeicherte Wortlisten"
     },
     "roomSettings": {
         "gameMode": "Spielmodus",
@@ -297,7 +299,23 @@
         "zeroWords": "0 Wörter (mindestens {{min}} benötigt)",
         "tooFewWords": "{{count}} Wörter (mindestens {{min}} benötigt)",
         "lowVariety": "{{count}} Wörter (funktioniert, aber mehr Abwechslung ist besser)",
-        "customWordCount": "{{count}} eigene Wörter"
+        "customWordCount": "{{count}} eigene Wörter",
+        "selectSavedList": "— Gespeicherte Listen —",
+        "savedListOption": "{{name}} ({{count}})",
+        "loadList": "Laden",
+        "deleteList": "Löschen",
+        "saveCurrentList": "Aktuelle Wörter speichern",
+        "listNamePlaceholder": "Listenname",
+        "listNameAria": "Neuer Listenname",
+        "selectListFirst": "Wähle zuerst eine gespeicherte Liste",
+        "listNotFound": "Diese Liste ist nicht mehr verfügbar",
+        "listLoaded": "„{{name}}“ geladen",
+        "listSaved": "„{{name}}“ gespeichert",
+        "listUpdated": "„{{name}}“ aktualisiert",
+        "listDeleted": "„{{name}}“ gelöscht",
+        "listNameRequired": "Gib einen Namen für die Liste ein",
+        "noWordsToSave": "Füge Wörter hinzu, bevor du speicherst",
+        "libraryFull": "Limit für gespeicherte Listen erreicht ({{max}})"
     },
     "rules": {
         "intro": "Zwei Teams versuchen, alle ihre Wörter zu finden. Geheimdienstchefs geben Hinweise, Ermittler decken Karten auf.",

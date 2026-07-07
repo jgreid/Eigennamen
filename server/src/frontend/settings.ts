@@ -5,6 +5,7 @@ import { updateURL, updateScoreboard, updateTurnIndicator } from './game.js';
 import { isClientConnected } from './clientAccessor.js';
 import { t } from './i18n.js';
 import { logger } from './logger.js';
+import { getSavedLists, getSavedList, saveList, deleteList, MAX_SAVED_LISTS } from './wordListLibrary.js';
 
 export function openSettings(): void {
     openModal('settings-modal');
@@ -46,6 +47,7 @@ export function openSettings(): void {
         customWordsTextarea.value = customWords || '';
     }
     updateWordCount();
+    refreshSavedListSelect();
 }
 
 export function closeSettings(): void {
@@ -273,6 +275,140 @@ export function resetWords(): void {
     updateWordCount();
 }
 
+/**
+ * Repopulate the saved-list dropdown from the library. Names are user content,
+ * so options are built with textContent (never innerHTML).
+ */
+export function refreshSavedListSelect(): void {
+    const select = document.getElementById('saved-list-select') as HTMLSelectElement | null;
+    if (!select) return;
+
+    const lists = getSavedLists();
+    const previous = select.value;
+    // Clear existing options
+    while (select.firstChild) {
+        select.removeChild(select.firstChild);
+    }
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = t('wordList.selectSavedList') || '— Saved lists —';
+    select.appendChild(placeholder);
+
+    for (const list of lists) {
+        const option = document.createElement('option');
+        option.value = list.id;
+        option.textContent = t('wordList.savedListOption', { name: list.name, count: list.words.length });
+        select.appendChild(option);
+    }
+
+    // Preserve the current selection if it still exists
+    if (previous && lists.some((l) => l.id === previous)) {
+        select.value = previous;
+    }
+
+    // Disable manage buttons when nothing is selected / no lists exist
+    updateSavedListControls();
+}
+
+/** Enable/disable the Load/Delete buttons based on the current selection. */
+function updateSavedListControls(): void {
+    const select = document.getElementById('saved-list-select') as HTMLSelectElement | null;
+    const loadBtn = document.getElementById('btn-load-list') as HTMLButtonElement | null;
+    const deleteBtn = document.getElementById('btn-delete-list') as HTMLButtonElement | null;
+    const hasSelection = !!(select && select.value);
+    if (loadBtn) loadBtn.disabled = !hasSelection;
+    if (deleteBtn) deleteBtn.disabled = !hasSelection;
+}
+
+/** Force the word-list mode radios to `mode` and sync the pill styling. */
+function setWordlistMode(mode: string): void {
+    const radios = document.querySelectorAll('input[name="wordlist-mode"]');
+    radios.forEach((r) => {
+        const radio = r as HTMLInputElement;
+        radio.checked = radio.value === mode;
+        radio.closest('.wordlist-pill')?.classList.toggle('selected', radio.checked);
+    });
+}
+
+/**
+ * Load the selected saved list into the custom-words editor and switch to
+ * "Custom only" mode so the list is used exactly as saved. The user still has
+ * to Save settings to apply it to a game.
+ */
+export function loadSavedList(): void {
+    const select = document.getElementById('saved-list-select') as HTMLSelectElement | null;
+    const id = select?.value;
+    if (!id) {
+        showToast(t('wordList.selectListFirst') || 'Select a saved list first', 'warning');
+        return;
+    }
+    const list = getSavedList(id);
+    if (!list) {
+        // Stale option (e.g. deleted in another tab) — resync the dropdown
+        refreshSavedListSelect();
+        showToast(t('wordList.listNotFound') || 'That list is no longer available', 'warning');
+        return;
+    }
+
+    const textarea = document.getElementById('custom-words') as HTMLTextAreaElement | null;
+    if (textarea) textarea.value = list.words.join('\n');
+    setWordlistMode('custom');
+    updateWordCount();
+    showToast(t('wordList.listLoaded', { name: list.name }) || `Loaded “${list.name}”`, 'success');
+}
+
+/** Delete the selected saved list from the library. */
+export function deleteSavedList(): void {
+    const select = document.getElementById('saved-list-select') as HTMLSelectElement | null;
+    const id = select?.value;
+    if (!id) {
+        showToast(t('wordList.selectListFirst') || 'Select a saved list first', 'warning');
+        return;
+    }
+    const list = getSavedList(id);
+    const removed = deleteList(id);
+    refreshSavedListSelect();
+    if (removed) {
+        const name = list?.name ?? '';
+        showToast(t('wordList.listDeleted', { name }) || `Deleted “${name}”`, 'success');
+    }
+}
+
+/**
+ * Save the words currently in the custom-words editor as a named list, using
+ * the name from the save-name input. Re-saving an existing name overwrites it.
+ */
+export function saveCurrentAsList(): void {
+    const nameInput = document.getElementById('save-list-name') as HTMLInputElement | null;
+    const textarea = document.getElementById('custom-words') as HTMLTextAreaElement | null;
+    const name = nameInput ? nameInput.value.trim() : '';
+    const words = textarea ? parseWords(textarea.value) : [];
+
+    const result = saveList(name, words);
+    if (!result.ok) {
+        const messages: Record<string, string> = {
+            name: t('wordList.listNameRequired') || 'Enter a name for the list',
+            empty: t('wordList.noWordsToSave') || 'Add some words before saving',
+            full: t('wordList.libraryFull', { max: MAX_SAVED_LISTS }) || 'Saved-list limit reached',
+            storage: t('settings.storageFailed') || 'Could not save — storage is unavailable',
+        };
+        showToast(messages[result.reason] ?? '', 'warning');
+        if (result.reason === 'name' && nameInput) nameInput.focus();
+        return;
+    }
+
+    if (nameInput) nameInput.value = '';
+    refreshSavedListSelect();
+    const select = document.getElementById('saved-list-select') as HTMLSelectElement | null;
+    if (select) {
+        select.value = result.list.id;
+        updateSavedListControls();
+    }
+    const key = result.overwritten ? 'wordList.listUpdated' : 'wordList.listSaved';
+    showToast(t(key, { name: result.list.name }) || `Saved “${result.list.name}”`, 'success');
+}
+
 export function loadLocalSettings(): void {
     // Load word list mode
     state.wordListMode = safeGetItem('eigennamen-wordlist-mode', 'combined') || '';
@@ -361,6 +497,11 @@ export function initSettingsListeners(): void {
     const customWordsEl = document.getElementById('custom-words');
     if (customWordsEl) {
         customWordsEl.addEventListener('input', updateWordCount);
+    }
+
+    const savedListSelect = document.getElementById('saved-list-select');
+    if (savedListSelect) {
+        savedListSelect.addEventListener('change', updateSavedListControls);
     }
 
     // Add event listeners for word list mode radio buttons

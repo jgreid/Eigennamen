@@ -243,7 +243,9 @@
         "game": "Jeu",
         "dangerZone": "Zone dangereuse",
         "forfeitGame": "Abandonner la partie en cours",
-        "gameControls": "Commandes de jeu"
+        "gameControls": "Commandes de jeu",
+        "savedLists": "Listes enregistrées",
+        "savedListsLabel": "Listes de mots enregistrées"
     },
     "roomSettings": {
         "gameMode": "Mode de jeu",
@@ -297,7 +299,23 @@
         "zeroWords": "0 mots ({{min}} minimum requis)",
         "tooFewWords": "{{count}} mots ({{min}} minimum requis)",
         "lowVariety": "{{count}} mots (ça fonctionne, mais plus de variété serait mieux)",
-        "customWordCount": "{{count}} mots personnalisés"
+        "customWordCount": "{{count}} mots personnalisés",
+        "selectSavedList": "— Listes enregistrées —",
+        "savedListOption": "{{name}} ({{count}})",
+        "loadList": "Charger",
+        "deleteList": "Supprimer",
+        "saveCurrentList": "Enregistrer les mots actuels",
+        "listNamePlaceholder": "Nom de la liste",
+        "listNameAria": "Nom de la nouvelle liste",
+        "selectListFirst": "Sélectionnez d'abord une liste enregistrée",
+        "listNotFound": "Cette liste n'est plus disponible",
+        "listLoaded": "« {{name}} » chargée",
+        "listSaved": "« {{name}} » enregistrée",
+        "listUpdated": "« {{name}} » mise à jour",
+        "listDeleted": "« {{name}} » supprimée",
+        "listNameRequired": "Saisissez un nom pour la liste",
+        "noWordsToSave": "Ajoutez des mots avant d'enregistrer",
+        "libraryFull": "Limite de listes enregistrées atteinte ({{max}})"
     },
     "rules": {
         "intro": "Deux équipes s'affrontent pour trouver tous leurs mots. Les Maîtres-espions donnent des indices, les Agents révèlent les cartes.",

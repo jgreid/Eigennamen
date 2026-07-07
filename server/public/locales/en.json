@@ -243,7 +243,9 @@
         "game": "Game",
         "dangerZone": "Danger Zone",
         "forfeitGame": "Forfeit Current Game",
-        "gameControls": "Game Controls"
+        "gameControls": "Game Controls",
+        "savedLists": "Saved lists",
+        "savedListsLabel": "Saved word lists"
     },
     "roomSettings": {
         "gameMode": "Game Mode",
@@ -297,7 +299,23 @@
         "zeroWords": "0 words (need at least {{min}})",
         "tooFewWords": "{{count}} words (need at least {{min}})",
         "lowVariety": "{{count}} words (works, but more variety is better)",
-        "customWordCount": "{{count}} custom words"
+        "customWordCount": "{{count}} custom words",
+        "selectSavedList": "— Saved lists —",
+        "savedListOption": "{{name}} ({{count}})",
+        "loadList": "Load",
+        "deleteList": "Delete",
+        "saveCurrentList": "Save current words",
+        "listNamePlaceholder": "List name",
+        "listNameAria": "New list name",
+        "selectListFirst": "Select a saved list first",
+        "listNotFound": "That list is no longer available",
+        "listLoaded": "Loaded “{{name}}”",
+        "listSaved": "Saved “{{name}}”",
+        "listUpdated": "Updated “{{name}}”",
+        "listDeleted": "Deleted “{{name}}”",
+        "listNameRequired": "Enter a name for the list",
+        "noWordsToSave": "Add some words before saving",
+        "libraryFull": "Saved-list limit reached ({{max}})"
     },
     "rules": {
         "intro": "Two teams race to find all their words. Spymasters give clues, Clickers reveal cards.",
