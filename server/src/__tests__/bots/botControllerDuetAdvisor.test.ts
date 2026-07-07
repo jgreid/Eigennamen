@@ -18,7 +18,11 @@ jest.mock('../../socket/handlers/gameActions', () => ({
     applyEndTurn: jest.fn().mockResolvedValue({}),
 }));
 jest.mock('../../services/gameService', () => ({ getGame: jest.fn() }));
-jest.mock('../../services/playerService', () => ({ getTeamMembers: jest.fn(), updatePlayer: jest.fn() }));
+jest.mock('../../services/playerService', () => ({
+    getTeamMembers: jest.fn(),
+    updatePlayer: jest.fn(),
+    getPlayersInRoom: jest.fn(),
+}));
 jest.mock('../../services/botService', () => ({ getBotConfig: jest.fn() }));
 jest.mock('../../socket/safeEmit', () => ({ safeEmitToRoom: jest.fn(), safeEmitToPlayers: jest.fn() }));
 jest.mock('../../utils/logger', () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() }));
@@ -44,6 +48,9 @@ describe('botController Duet blue-side advisor ownRemaining (P1-11)', () => {
             seed: 1,
         });
         suggestGuesses.mockReturnValue([]);
+        // E3: rooms here hold an advisor bot, so resolve as botful (an advisor
+        // isBot=true) — the tick must run to emit suggestions.
+        playerService.getPlayersInRoom.mockResolvedValue([{ isBot: true }]);
     });
     afterEach(() => stopBotController());
 

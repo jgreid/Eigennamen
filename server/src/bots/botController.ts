@@ -36,6 +36,14 @@ import { makeRng } from './rng';
 import { playOneAction } from './playOneAction';
 import { applyClue, applyReveal, applyEndTurn } from '../socket/handlers/gameActions';
 import type { GameActor } from '../socket/handlers/gameActions';
+import { isKnownBotless, isBotfulnessKnown, recordBotful, clearBotRoomCache } from './botRoomCache';
+
+/** Does the room hold any bot player at all? Used once per unknown room to seed
+ *  the botful-room cache (E3), so bot-less rooms stop paying per-mutation reads. */
+async function roomHasBot(roomCode: string): Promise<boolean> {
+    const players = await playerService.getPlayersInRoom(roomCode);
+    return players.some((p) => p.isBot);
+}
 
 /** Per-room de-dupe key for the last advisor suggestion emitted (avoids
  *  re-emitting identical suggestions on every unrelated mutation). */
@@ -290,6 +298,7 @@ export function stopBotController(): void {
     failureStreak.clear();
     suggestionKeys.clear();
     clueMemory.clear();
+    clearBotRoomCache();
     ioRef = null;
 }
 
@@ -379,6 +388,11 @@ async function emitAdvisorSuggestions(
 export async function tickRoom(roomCode: string): Promise<void> {
     const io = ioRef;
     if (!io) return;
+    // E3 fast path: a room we've confirmed has no bots needs no work, and
+    // re-confirming would cost a full game fetch + roster read on every mutation
+    // of a bot-less game. Zero Redis. (Unknown rooms fall through and are
+    // resolved once, below — never default-deny.)
+    if (isKnownBotless(roomCode)) return;
     if (inFlight.has(roomCode)) {
         // A tick is already running for this room. Record that new state arrived
         // so we re-tick once it finishes, instead of dropping the notification.
@@ -398,10 +412,19 @@ export async function tickRoom(roomCode: string): Promise<void> {
     // right team/nickname instead of a bare fallback.
     let lastActor: GameActor | null = null;
     try {
+        // E3: resolve an unknown room's botfulness ONCE (e.g. the first mutation
+        // of a bot-less game, or any room after a process restart when the cache
+        // is cold), then record it so subsequent mutations hit the fast path
+        // above. A read failure here throws to the outer catch → re-arm → the
+        // room stays unknown and re-checks. A confirmed bot-less room stops the
+        // tick cleanly without ever entering the action loop.
+        if (!isBotfulnessKnown(roomCode)) {
+            recordBotful(roomCode, await roomHasBot(roomCode));
+        }
         // Sequential by design: each bot action mutates shared game state under
         // the reveal lock and must complete before the next is computed.
         /* eslint-disable no-await-in-loop */
-        for (let i = 0; i < MAX_ACTIONS_PER_TICK; i++) {
+        for (let i = 0; !isKnownBotless(roomCode) && i < MAX_ACTIONS_PER_TICK; i++) {
             const game = await gameService.getGame(roomCode);
             if (!game || game.gameOver || game.paused) {
                 suggestionKeys.delete(roomCode);

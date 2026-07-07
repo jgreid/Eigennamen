@@ -21,6 +21,7 @@ import { botConfigSchema } from '../validators/botSchemas';
 import { ATOMIC_JOIN_SCRIPT } from '../scripts';
 import { withLock } from '../utils/distributedLock';
 import type { BotConfig } from '../bots/strategies/types';
+import { noteRoomHasBot, noteBotRemoved } from '../bots/botRoomCache';
 
 export interface AddBotOptions {
     team: Team;
@@ -147,6 +148,10 @@ async function addBotLocked(roomCode: string, opts: AddBotOptions): Promise<Play
         throw err;
     }
 
+    // The room now has a bot — tell the controller's botful-room cache so its
+    // tick fast-path drives this room instead of skipping it (E3).
+    noteRoomHasBot(roomCode);
+
     logger.info(`Bot ${nickname} (${sessionId}) added to room ${roomCode} as ${opts.team} ${opts.role}`);
     return player;
 }
@@ -186,6 +191,10 @@ export async function removeBot(roomCode: string, sessionId: string): Promise<vo
 
     await playerService.removePlayer(sessionId);
     await withTimeout(redis.del(botCfgKey(sessionId)), TIMEOUTS.REDIS_OPERATION, `removeBot-delCfg-${sessionId}`);
+
+    // The room may no longer have any bot — revert the cache to "unknown" so the
+    // controller re-resolves once on the next mutation rather than assuming (E3).
+    noteBotRemoved(roomCode);
 
     logger.info(`Bot ${sessionId} removed from room ${roomCode}`);
 }

@@ -13,7 +13,11 @@ jest.mock('../../socket/handlers/gameActions', () => ({
     applyEndTurn: jest.fn().mockResolvedValue({}),
 }));
 jest.mock('../../services/gameService', () => ({ getGame: jest.fn() }));
-jest.mock('../../services/playerService', () => ({ getTeamMembers: jest.fn(), updatePlayer: jest.fn() }));
+jest.mock('../../services/playerService', () => ({
+    getTeamMembers: jest.fn(),
+    updatePlayer: jest.fn(),
+    getPlayersInRoom: jest.fn(),
+}));
 jest.mock('../../services/botService', () => ({ getBotConfig: jest.fn() }));
 jest.mock('../../socket/safeEmit', () => ({ safeEmitToRoom: jest.fn(), safeEmitToPlayers: jest.fn() }));
 jest.mock('../../utils/logger', () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() }));
@@ -58,6 +62,10 @@ describe('botController.tickRoom', () => {
         stopBotController();
         initBotController(mockIo);
         playerService.updatePlayer.mockResolvedValue({});
+        // E3: the controller resolves a room's botfulness once via getPlayersInRoom.
+        // Default to a botful room so the acting-seat logic below runs as before;
+        // the bot-less-skip path is covered by its own test.
+        playerService.getPlayersInRoom.mockResolvedValue([spymasterBot]);
     });
     afterEach(() => stopBotController());
 
@@ -164,6 +172,38 @@ describe('botController.tickRoom', () => {
         expect(gameActions.applyClue).not.toHaveBeenCalled();
     });
 
+    it('resolves a bot-less room once, then skips it with zero further reads (E3)', async () => {
+        playerService.getPlayersInRoom.mockResolvedValue([]); // no bots at all
+        gameService.getGame.mockResolvedValue(gameNoClue);
+
+        await tickRoom('ROOM_EMPTY');
+        await tickRoom('ROOM_EMPTY');
+
+        // Botfulness resolved exactly once; the game blob and team roster are
+        // never read for a bot-less room, on this tick or the next.
+        expect(playerService.getPlayersInRoom).toHaveBeenCalledTimes(1);
+        expect(gameService.getGame).not.toHaveBeenCalled();
+        expect(playerService.getTeamMembers).not.toHaveBeenCalled();
+        expect(gameActions.applyClue).not.toHaveBeenCalled();
+    });
+
+    it('still drives a bot when the cache is cold, e.g. after a restart (E3)', async () => {
+        // The room never went through addBot in this process (cache empty), yet a
+        // botful room must be discovered lazily and driven — never default-denied.
+        playerService.getPlayersInRoom.mockResolvedValue([spymasterBot]);
+        gameService.getGame.mockResolvedValueOnce(gameNoClue).mockResolvedValue(gameWithClue);
+        playerService.getTeamMembers.mockResolvedValue([spymasterBot]);
+        botService.getBotConfig.mockResolvedValue({
+            strategyId: 'randomSpymaster',
+            skillPreset: 'intermediate',
+            seed: 1,
+        });
+
+        await tickRoom('ROOM_COLD');
+
+        expect(gameActions.applyClue).toHaveBeenCalledTimes(1);
+    });
+
     it('is a no-op before initialization', async () => {
         stopBotController();
         gameService.getGame.mockResolvedValue(gameNoClue);
@@ -185,6 +225,7 @@ describe('botController.tickRoom self-healing (re-arm)', () => {
             seed: 1,
         });
         playerService.getTeamMembers.mockResolvedValue([spymasterBot]);
+        playerService.getPlayersInRoom.mockResolvedValue([spymasterBot]);
     });
     afterEach(() => {
         stopBotController();
