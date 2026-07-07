@@ -103,6 +103,78 @@ describe('computeLeaderboard', () => {
         const board = computeLeaderboard(entrants, results);
         expect(board.every((s) => s.wins === 1)).toBe(true);
     });
+
+    it('attributes a competitive assassin loss only to the team that revealed it (G4)', () => {
+        const entrants: Entrant[] = [ENTRANT_A, ENTRANT_B];
+        const results: MatchResult[] = [
+            {
+                seed: 's',
+                gameMode: 'classic',
+                redEntrant: 'A',
+                blueEntrant: 'B',
+                winner: 'blue',
+                redScore: 3,
+                blueScore: 5,
+                redTotal: 9,
+                blueTotal: 8,
+                turns: 4,
+                clues: 4,
+                reveals: 10,
+                assassinHit: true,
+                assassinBy: 'red', // red revealed the assassin
+                endReason: 'assassin',
+            },
+        ];
+        const board = computeLeaderboard(entrants, results);
+        const a = board.find((s) => s.id === 'A');
+        const b = board.find((s) => s.id === 'B');
+        expect(a!.assassinHits).toBe(1);
+        expect(b!.assassinHits).toBe(0);
+    });
+
+    it('shares assassin attribution for duet, and for legacy results with no assassinBy', () => {
+        const entrants: Entrant[] = [ENTRANT_A, ENTRANT_B];
+        const results: MatchResult[] = [
+            {
+                seed: 's1',
+                gameMode: 'duet',
+                redEntrant: 'A',
+                blueEntrant: 'B',
+                winner: null,
+                redScore: 4,
+                blueScore: 4,
+                redTotal: 9,
+                blueTotal: 9,
+                turns: 4,
+                clues: 4,
+                reveals: 9,
+                assassinHit: true,
+                assassinBy: 'red',
+                endReason: 'assassin',
+            },
+            {
+                // legacy classic result: no assassinBy → shared fallback
+                seed: 's2',
+                gameMode: 'classic',
+                redEntrant: 'A',
+                blueEntrant: 'B',
+                winner: 'blue',
+                redScore: 2,
+                blueScore: 6,
+                redTotal: 9,
+                blueTotal: 8,
+                turns: 4,
+                clues: 4,
+                reveals: 9,
+                assassinHit: true,
+                endReason: 'assassin',
+            },
+        ];
+        const board = computeLeaderboard(entrants, results);
+        // duet shared (both +1) + legacy shared (both +1) = 2 each
+        expect(board.find((s) => s.id === 'A')!.assassinHits).toBe(2);
+        expect(board.find((s) => s.id === 'B')!.assassinHits).toBe(2);
+    });
 });
 
 describe('runTournament', () => {

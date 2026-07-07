@@ -60,8 +60,18 @@ export function computeLeaderboard(entrants: Entrant[], results: MatchResult[]):
         red.marginSum += r.redScore - r.blueScore;
         blue.marginSum += r.blueScore - r.redScore;
         if (r.assassinHit) {
-            red.assassinHits++;
-            blue.assassinHits++;
+            // Duet is cooperative — the assassin ends the shared game, so both
+            // entrants own it. In competitive modes only the team that revealed
+            // it should (G4); fall back to shared if the reveal-er is unknown
+            // (older results predating assassinBy).
+            if (r.gameMode === 'duet' || r.assassinBy == null) {
+                red.assassinHits++;
+                blue.assassinHits++;
+            } else if (r.assassinBy === 'red') {
+                red.assassinHits++;
+            } else {
+                blue.assassinHits++;
+            }
         }
 
         if (r.gameMode === 'duet') {

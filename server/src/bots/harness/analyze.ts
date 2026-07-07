@@ -24,6 +24,7 @@ import { playEngineGame, type GameEvent } from './playGame';
 import { getSemanticBackend } from '../semantics/selectBackend';
 import { PERSONAS } from '../personas';
 import { isClueLegalForBoard } from '../../shared/gameRules';
+import { makeBoardSafetyCheck } from '../strategies/clueSafety';
 
 /** Fixed yardstick margin — a neutral, persona-independent reference so every
  *  entrant's clues are measured against the SAME theoretical ceiling. */
@@ -240,9 +241,16 @@ export function boardBestLead(g: BoardGroups, backend: SemanticBackend, allBoard
     } else {
         pool = backend.vocabulary ? backend.vocabulary() : [];
     }
+    // The yardstick's universe must equal the player's: the spymaster's generator
+    // applies makeBoardSafetyCheck (cognate / near-duplicate rejection) on top of
+    // isClueLegalForBoard, so admitting candidates every entrant is forbidden to
+    // play would inflate the ceiling denominator and flag spurious selection gaps
+    // (G3).
+    const boardSafe = makeBoardSafetyCheck(boardWords);
     let best = 0;
     for (const clue of pool) {
         if (!isClueLegalForBoard(clue, boardWords)) continue;
+        if (!boardSafe(clue)) continue;
         const lead = referenceLead(clue, g, backend).safeLead;
         if (lead > best) best = lead;
         if (best >= g.own.length) break; // ceiling reached — covers everything

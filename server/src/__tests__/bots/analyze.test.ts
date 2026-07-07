@@ -337,6 +337,20 @@ describe('boardBestLead', () => {
         // The unrevealed-only fallback (no game at hand) would wrongly admit NAIL.
         expect(boardBestLead(groups, backend)).toBe(2);
     });
+
+    it('excludes candidates the spymaster’s board-safety filter would reject (G3)', () => {
+        // REVOLUCION is legal (a non-substring of REVOLUTION) but an orthographic
+        // near-duplicate the real generator drops via makeBoardSafetyCheck — a
+        // guesser reads it straight back to the board word. The ceiling must come
+        // from the clean candidate, not the cognate the player can never give.
+        const gg = game(['REVOLUTION', 'UPRISING', 'OPPO', 'ASSN'], ['red', 'red', 'blue', 'assassin']);
+        const backend = stub({
+            REVOLUCION: { REVOLUTION: 0.9, UPRISING: 0.8, OPPO: 0.1, ASSN: 0.0 }, // safeLead 2, but a cognate
+            REBELLION: { REVOLUTION: 0.9, UPRISING: 0.1, OPPO: 0.2, ASSN: 0.0 }, // safeLead 1, clean
+        });
+        // Without the board-safety filter this would report the cognate's 2.
+        expect(boardBestLead(boardGroupsFor(gg, 'red'), backend)).toBe(1);
+    });
 });
 
 describe('analyzeGames end-to-end', () => {
