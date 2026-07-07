@@ -144,6 +144,16 @@ const BONUS_FIELD_GAP = 0.2;
 const DEBT_FIT_BAR = 0.5;
 const DEBT_BOOST = 0.08;
 
+// A guesser only ever reaches for cards that PLAUSIBLY match the clue. Even a
+// noisy/weak one won't pick a card fitting far worse than the best candidate —
+// that is exactly how a blind random guess lands on the clue-unrelated assassin.
+// Both the blunder and the temperature sample draw from this plausible set (cards
+// scoring at least this fraction of the best card's fit), so a weak bot loses by
+// MISREADING among real candidates, not by self-destructing. The best card is
+// always in the set, so a lone strong card is still guessable, and a leaky clue
+// whose halo genuinely lights the assassin keeps it in play (the spymaster's fault).
+const PLAUSIBLE_FIT_FRAC = 0.5;
+
 /** Bonus for a card that fits the strongest owed (undelivered, unbounced)
  *  earlier clue, from the seat's optional memory. 0 without memory. */
 function debtBoost(ctx: BotContext, backend: SemanticBackend, currentClue: string, word: string): number {
@@ -263,10 +273,15 @@ export function makeGreedyClicker(
                 return { kind: 'endTurn' };
             }
 
-            // Blunder model: an occasional outright random guess.
+            // Cards that plausibly match the clue — a weak guess is a MISREAD among
+            // these, never a blind pick that could land on the clue-unrelated
+            // assassin. The temperature sample below draws from the same set.
+            const plausible = scored.filter((c) => c.score >= best.score * PLAUSIBLE_FIT_FRAC);
+
+            // Blunder model: an occasional guess among the plausible candidates.
             if (ctx.rng.next() < skill.blunderRate) {
-                const idx = choices[ctx.rng.int(choices.length)] as number;
-                return { kind: 'reveal', index: idx };
+                const pick = plausible[ctx.rng.int(plausible.length)] as { index: number };
+                return { kind: 'reveal', index: pick.index };
             }
 
             // After the first guess, a risk-averse bot stops if nothing looks related.
@@ -288,7 +303,7 @@ export function makeGreedyClicker(
                 }
             }
 
-            const index = selectIndexByTemperature(scored, skill.temperature, ctx.rng);
+            const index = selectIndexByTemperature(plausible, skill.temperature, ctx.rng);
             return { kind: 'reveal', index };
         },
     };
