@@ -107,6 +107,32 @@ describe('makeVectorBackend', () => {
         expect(b.collocation!('BOX', 'ENGINE')).toBe(0.8);
     });
 
+    it('preserves the fallback’s display-cased reference keys in vocabulary (G2)', () => {
+        // The fallback (baked table) offers proper references in canonical case;
+        // the merged vocab must keep that case, not flatten "Cinderella" to
+        // all-caps — else the clue-capitalization house rule vanishes on emit.
+        const fallback: SemanticBackend = {
+            id: 'ref-stub',
+            relatedness: () => 0,
+            vocabulary: () => ['Cinderella', 'NASA'],
+            displayCase: (w: string) => (w.toUpperCase() === 'CINDERELLA' ? 'Cinderella' : w),
+        };
+        const b = makeVectorBackend({ path: vecPath, fallback }) as SemanticBackend;
+        expect(b.vocabulary!()).toContain('Cinderella');
+        expect(b.vocabulary!()).not.toContain('CINDERELLA');
+    });
+
+    it('re-cases a generated all-caps reference key via the fallback chain (G2)', () => {
+        const fallback: SemanticBackend = {
+            id: 'ref-stub',
+            relatedness: () => 0,
+            displayCase: (w: string) => (w.toUpperCase() === 'CINDERELLA' ? 'Cinderella' : w),
+        };
+        const b = makeVectorBackend({ path: vecPath, fallback }) as SemanticBackend;
+        expect(b.displayCase!('CINDERELLA')).toBe('Cinderella'); // normalized key → canonical case
+        expect(b.displayCase!('KING')).toBe('KING'); // non-reference unchanged
+    });
+
     it('reports channel ABSENCE when the fallback has none (preserves the no-op contract)', () => {
         // clueRetrieval/scoreClue guard on `!backend.collocation` /
         // `backend.edgeInfo` — a channel-less chain must keep those falsy.

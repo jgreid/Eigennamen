@@ -683,6 +683,12 @@ export function makeEmbeddingSpymaster(
             const groups = groupBoard(view);
             const legalCandidates = generateClueCandidates(view, groups, backend);
             const style = resolveStyle(skill);
+            // Restore the house-rule display case of a generated clue at emit time:
+            // nearest() returns normalized (uppercase) keys, so a reference like
+            // "Cinderella" would otherwise go out as legacy-neutral "CINDERELLA" and
+            // lose its reference signal (G2). Only ever changes case, so it's applied
+            // after all legality/scoring. A no-op for non-references and lexical backends.
+            const emitCase = (word: string): string => backend.displayCase?.(word) ?? word;
 
             // Match mode: value each own card by its point value so the scorer can
             // prefer clues that cover the most valuable cards. Every value is 1
@@ -704,7 +710,7 @@ export function makeEmbeddingSpymaster(
             // Occasional blunder: a random legal clue (weak-player model).
             if (legalCandidates.length > 0 && ctx.rng.next() < skill.blunderRate) {
                 const word = legalCandidates[ctx.rng.int(legalCandidates.length)] as string;
-                return { kind: 'clue', word, number: 1 };
+                return { kind: 'clue', word: emitCase(word), number: 1 };
             }
 
             // Per-decision board context. desperate: exactly one opponent card
@@ -778,7 +784,7 @@ export function makeEmbeddingSpymaster(
                     // normal cap.
                     const cap = chosen.coversAll ? CLUE_NUMBER_MAX : MAX_CLUE_NUMBER;
                     const number = Math.max(1, Math.min(chosen.leadOwn, cap));
-                    return { kind: 'clue', word: chosen.word, number };
+                    return { kind: 'clue', word: emitCase(chosen.word), number };
                 }
                 return null;
             };
@@ -804,7 +810,7 @@ export function makeEmbeddingSpymaster(
             if (!fallback) {
                 return { kind: 'clue', word: pickFallbackClue(view), number: 1 };
             }
-            return { kind: 'clue', word: fallback.word, number: fallback.number };
+            return { kind: 'clue', word: emitCase(fallback.word), number: fallback.number };
         },
     };
 }

@@ -169,6 +169,11 @@ export const tableBackend: SemanticBackend = {
         // reference verbatim ("Cinderella") is itself the case signal.
         return [...INDEX.table.keys(), ...PROPER_DISPLAY.values()];
     },
+    displayCase(word: string): string {
+        // A normalized reference key back to its canonical case ("CINDERELLA" →
+        // "Cinderella"); any non-reference word is returned unchanged (G2).
+        return PROPER_DISPLAY.get(normalizeClueWord(word)) ?? word;
+    },
     commonness(word: string): number {
         // Fame prior for proper references ("only clue culture references the
         // guessers are going to know"): feeds the spymaster's rarity penalty,

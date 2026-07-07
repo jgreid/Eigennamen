@@ -253,11 +253,17 @@ export function makeVectorBackend(options: VectorBackendOptions): SemanticBacken
     const tableVocab = fallback.vocabulary ? fallback.vocabulary() : [];
     const merged: string[] = [];
     const seen = new Set<string>();
-    for (const w of [...vocab, ...tableVocab]) {
+    // Dedupe on the normalized key but keep the ORIGINAL word, so the fallback
+    // table's display-cased proper references ("Cinderella", "NASA") survive into
+    // vocabulary() instead of being flattened to all-caps — otherwise the
+    // clue-capitalization house rule silently vanishes on the giving side (G2).
+    // tableVocab FIRST so a display-cased reference key wins the dedupe over an
+    // embeddings token of the same normalized form, and survives the vocabCap.
+    for (const w of [...tableVocab, ...vocab]) {
         const k = normalizeClueWord(w);
         if (k && !seen.has(k)) {
             seen.add(k);
-            merged.push(k);
+            merged.push(w);
             if (merged.length >= opts.vocabCap) break;
         }
     }
@@ -379,6 +385,12 @@ export function makeVectorBackend(options: VectorBackendOptions): SemanticBacken
             const rank = ranks?.get(key);
             if (rank === undefined) return fallback.commonness?.(word) ?? 1;
             return 1 - rank / vecs.size;
+        },
+        displayCase(word: string): string {
+            // Reference display case lives in the curated tables beneath the
+            // embeddings (the model conflates every sense under one vector), so a
+            // generated all-caps reference key is re-cased via the fallback chain (G2).
+            return fallback.displayCase?.(word) ?? word;
         },
         nearest(words: string[], k: number): Array<{ word: string; score: number }> {
             if (dim === 0 || k <= 0) return [];
