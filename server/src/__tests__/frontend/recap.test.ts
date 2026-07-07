@@ -65,6 +65,7 @@ function setBody(): void {
         <div id="btn-view-recap" hidden></div>
         <div id="recap-result"></div>
         <div id="recap-stats"></div>
+        <div id="recap-highlights"></div>
         <div id="recap-timeline"></div>
     `;
 }
@@ -104,6 +105,57 @@ describe('openRecap', () => {
 
         // currentReplayData is populated so the share-link flow can reuse it.
         expect(state.currentReplayData).toEqual(sampleReplay);
+    });
+
+    test('tags each clue block with an efficiency badge reflecting its outcome', async () => {
+        (globalThis as Record<string, unknown>).fetch = jest.fn(() =>
+            Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ replay: sampleReplay }) })
+        );
+
+        await openRecap();
+
+        // ANIMAL(2): 1 correct + 1 neutral → partial; SPACE(1): 1 correct → clean;
+        // DANGER(1): assassin → assassin.
+        expect(document.querySelector('#recap-timeline .recap-clue-eff-partial')).not.toBeNull();
+        expect(document.querySelector('#recap-timeline .recap-clue-eff-clean')).not.toBeNull();
+        expect(document.querySelector('#recap-timeline .recap-clue-eff-assassin')).not.toBeNull();
+        // Badge text is landed/promised.
+        const clean = document.querySelector('#recap-timeline .recap-clue-eff-clean');
+        expect(clean?.textContent).toBe('1/1');
+    });
+
+    test('surfaces the best and worst clue by efficiency', async () => {
+        (globalThis as Record<string, unknown>).fetch = jest.fn(() =>
+            Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ replay: sampleReplay }) })
+        );
+
+        await openRecap();
+
+        const best = document.querySelector('#recap-highlights .recap-highlight.best');
+        const worst = document.querySelector('#recap-highlights .recap-highlight.worst');
+        expect(best).not.toBeNull();
+        expect(worst).not.toBeNull();
+        // Best is the clean SPACE(1); worst is the assassin DANGER(1).
+        expect(best?.textContent).toContain('SPACE');
+        expect(worst?.textContent).toContain('DANGER');
+        expect(worst?.textContent).toContain('recap.hitAssassin');
+    });
+
+    test('omits the best/worst highlights when there is only one clue', async () => {
+        const oneClue = {
+            ...sampleReplay,
+            events: [
+                { type: 'clue', data: { team: 'red', word: 'ANIMAL', number: 1 } },
+                { type: 'reveal', data: { team: 'red', word: 'CAT', type: 'red' } },
+            ],
+        };
+        (globalThis as Record<string, unknown>).fetch = jest.fn(() =>
+            Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ replay: oneClue }) })
+        );
+
+        await openRecap();
+
+        expect(document.getElementById('recap-highlights')?.children.length).toBe(0);
     });
 
     test('renders the "Played with <name>" provenance line when present', async () => {

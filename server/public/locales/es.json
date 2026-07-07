@@ -284,7 +284,20 @@
         "noMoves": "No se hicieron jugadas en esta partida.",
         "noGuesses": "Sin intentos.",
         "unavailable": "El resumen aún no está disponible para esta partida.",
-        "playedWith": "Jugado con {{name}}"
+        "playedWith": "Jugado con {{name}}",
+        "bestClue": "Mejor pista",
+        "worstClue": "Peor pista",
+        "cardsLanded": "{{count}} acertadas",
+        "hitAssassin": "Tocó al asesino",
+        "leaked": "Regaló una carta",
+        "whiffed": "Sin aciertos",
+        "fellShort": "Se quedó corta",
+        "rating": {
+            "clean": "Perfecta — cumplió la pista",
+            "partial": "Parcial — se detuvo antes",
+            "leak": "Cedió una carta al otro equipo",
+            "assassin": "Tocó al asesino"
+        }
     },
     "wordList": {
         "default": "Palabras predeterminadas",
