@@ -3,7 +3,7 @@
  */
 import { tableBackend } from '../../bots/semantics/tableBackend';
 import { ASSOCIATIONS } from '../../bots/semantics/associations';
-import { makeEmbeddingSpymaster, groupBoard, scoreClue } from '../../bots/strategies/spymasters';
+import { makeEmbeddingSpymaster, groupBoard, scoreClue, admitClosingTraps } from '../../bots/strategies/spymasters';
 import { resolveStyle } from '../../bots/strategies/types';
 import { makeGreedyClicker } from '../../bots/strategies/clickers';
 import { suggestGuesses } from '../../bots/strategies/advisor';
@@ -628,6 +628,56 @@ describe('match-mode value awareness', () => {
         expect(groups.ownTraps).toEqual([]);
         expect(ev).not.toBeNull();
         expect(ev!.coversAll).toBe(true);
+    });
+
+    // G1 remainder: traps re-enter targeting so a winnable round can be CLOSED.
+    describe('admitClosingTraps (endgame trap targeting)', () => {
+        const view = matchView(['A', 'TRAP', 'OPP', 'ASSN'], ['red', 'red', 'blue', 'assassin'], [2, -1, 1, 0]);
+        const valueOf = (w: string) => ({ A: 2, TRAP: -1, OPP: 1, ASSN: 0 })[w] ?? 0;
+
+        it('re-admits a trap when the round-win bonus outweighs its cost', () => {
+            const groups = groupBoard(view); // own:[A], ownTraps:[TRAP]
+            admitClosingTraps(groups, true, valueOf); // bonus 7 > trap cost 1
+            expect(groups.own.sort()).toEqual(['A', 'TRAP']);
+            expect(groups.ownTraps).toEqual([]);
+            expect(groups.neutral).not.toContain('TRAP');
+        });
+
+        it('re-admits when the only own cards left are traps', () => {
+            const trapOnly = matchView(['TRAP', 'OPP', 'ASSN'], ['red', 'blue', 'assassin'], [-1, 1, 0]);
+            const groups = groupBoard(trapOnly); // own:[], ownTraps:[TRAP]
+            expect(groups.own).toEqual([]);
+            admitClosingTraps(groups, true, (w) => (w === 'TRAP' ? -1 : 0));
+            expect(groups.own).toEqual(['TRAP']);
+            expect(groups.ownTraps).toEqual([]);
+        });
+
+        it('does NOT re-admit when non-trap own cards remain and the cost exceeds the bonus', () => {
+            const costly = matchView(['A', 'TRAP', 'OPP', 'ASSN'], ['red', 'red', 'blue', 'assassin'], [2, -8, 1, 0]);
+            const groups = groupBoard(costly);
+            admitClosingTraps(groups, true, (w) => (w === 'TRAP' ? -8 : w === 'A' ? 2 : 0)); // cost 8 > bonus 7
+            expect(groups.own).toEqual(['A']);
+            expect(groups.ownTraps).toEqual(['TRAP']);
+        });
+
+        it('is a no-op outside match mode', () => {
+            const groups = groupBoard(view);
+            const before = { own: [...groups.own], ownTraps: [...groups.ownTraps] };
+            admitClosingTraps(groups, false, valueOf);
+            expect(groups.own).toEqual(before.own);
+            expect(groups.ownTraps).toEqual(before.ownTraps);
+        });
+
+        it('lets the spymaster clue toward the trap so a trap-only round can be finished', () => {
+            const trapOnly = matchView(['TRAPW', 'OPPW', 'ASSW'], ['red', 'blue', 'assassin'], [-1, 1, -2]);
+            const backend = scoringStub({
+                TRAPFIT: { TRAPW: 0.9, OPPW: 0.1, ASSW: 0.1 },
+            });
+            const action = makeEmbeddingSpymaster(resolveSkill('expert', 3), backend).chooseClue(trapOnly, ctx(3));
+            // Without re-admission the only own card (a trap) is untargetable and the
+            // bot falls back to a placeholder; with it, the bot clues toward the trap.
+            expect(action).toMatchObject({ kind: 'clue', word: 'TRAPFIT' });
+        });
     });
 });
 
