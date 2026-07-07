@@ -31,7 +31,15 @@ token cost when done.
 
 Options: `--out <path>`, `--model <id>` (default `claude-opus-4-8`),
 `--batch-size <n>` (default 60), `--passes <n>` (default 2),
-`--language <code>` (default `en`).
+`--language <code>` (default `en`), `--list-id <id>`, `--list-name "<name>"`.
+
+If you saved the list in the in-app **word-list library** (Settings → Game →
+Saved lists), pass its id via `--list-id` (and optionally `--list-name`). The
+map is then filed under `<listId>.json` and stamped with those fields, mirroring
+the `wordListId` provenance a game records when it is played with that list (the
+recap's "Played with …" line). This is traceability today — the runtime still
+merges every map by content overlap (below) — and the seed for future per-list
+map selection.
 
 **Authentication**: the builder uses the Anthropic SDK's standard credential
 resolution — set `ANTHROPIC_API_KEY`, or log in once with `ant auth login`.
@@ -120,6 +128,10 @@ plain string is still a weight-1 edge, so the two styles mix freely:
 - Maps are plain JSON — hand-edit them freely (add an in-joke reference your
   group loves, delete an association that keeps misfiring). The runtime
   validates the shape on load.
+- `listId` / `listName` (optional): provenance stamped by `--list-id` /
+  `--list-name`, tying the map to a saved word-list-library list. The loader
+  logs which lists the loaded maps serve (operator visibility) but does not yet
+  select a map by id — see Scope below.
 
 ## Scope and caveats
 
@@ -133,3 +145,11 @@ plain string is still a weight-1 edge, so the two styles mix freely:
   is forwarded on `game:start` and becomes the list for the whole room. This
   works identically in standalone and hosted multiplayer; the map only
   depends on the words, not on how the list reaches a game.
+- **No per-list selection yet.** Because associations fire only for on-board
+  words, all maps are merged into one overlay regardless of which list a game
+  uses — so a game's `wordListId` (recorded since the word-list-library work)
+  does not pick a specific map at runtime. `listId`/`listName` are provenance
+  and operator-visibility only. Selecting a map by the game's `wordListId`
+  would need a per-game backend rather than the current process-wide singleton;
+  it is deliberately left as a future enhancement since merge-all is already
+  correct.

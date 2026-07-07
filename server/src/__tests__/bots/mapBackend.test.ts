@@ -95,6 +95,12 @@ describe('isSemanticMap', () => {
         // v1 stays strictly the original shape: weighted edges need version 2.
         expect(isSemanticMap({ version: 1, words: ['A'], concepts: { X: [{ word: 'A', weight: 0.8 }] } })).toBe(false);
     });
+
+    it('accepts (and tolerates) the optional listId/listName provenance fields', () => {
+        expect(
+            isSemanticMap({ version: 1, words: ['A'], concepts: {}, listId: 'wl_scifi', listName: 'Sci-Fi Words' })
+        ).toBe(true);
+    });
 });
 
 describe('loadSemanticMaps', () => {
@@ -116,6 +122,22 @@ describe('loadSemanticMaps', () => {
 
     it('returns [] for a missing directory', () => {
         expect(loadSemanticMaps(join(dir, 'nope'))).toEqual([]);
+    });
+
+    it('preserves listId/listName provenance on a loaded map', () => {
+        const pdir = mkdtempSync(join(tmpdir(), 'eig-maps-prov-'));
+        try {
+            writeFileSync(
+                join(pdir, 'wl_scifi.json'),
+                JSON.stringify({ ...CUSTOM_MAP, listId: 'wl_scifi', listName: 'Sci-Fi Words' })
+            );
+            const maps = loadSemanticMaps(pdir);
+            expect(maps).toHaveLength(1);
+            expect(maps[0]!.listId).toBe('wl_scifi');
+            expect(maps[0]!.listName).toBe('Sci-Fi Words');
+        } finally {
+            rmSync(pdir, { recursive: true, force: true });
+        }
     });
 });
 
