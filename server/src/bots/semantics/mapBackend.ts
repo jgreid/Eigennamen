@@ -357,6 +357,11 @@ export function makeCustomMapBackend(maps: SemanticMap[], fallback: SemanticBack
             const own = [...index.table.keys(), ...properDisplay.values()];
             return [...own, ...(fallback.vocabulary ? fallback.vocabulary() : [])];
         },
+        displayCase(word: string): string {
+            // This map's own reference case wins; else defer down the chain to the
+            // baked table's proper table (G2).
+            return properDisplay.get(normalizeClueWord(word)) ?? fallback.displayCase?.(word) ?? word;
+        },
         commonness(word: string): number {
             const key = normalizeClueWord(word);
             const concept = conceptCommonness.get(key);

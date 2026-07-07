@@ -84,6 +84,17 @@ export interface SemanticBackend {
      * it and the rarity penalty is skipped (treated as commonness 1).
      */
     commonness?(word: string): number;
+    /**
+     * The house-rule DISPLAY case for a clue word: a curated proper-reference key
+     * in its canonical case ("CINDERELLA" → "Cinderella", "NASA" → "NASA"), else
+     * the word unchanged. The clue-capitalization house rule makes case a signal
+     * (mixed case = a specific reference), but a generated clue arrives normalized
+     * (uppercase) from nearest(); this restores the reference's case at emit time
+     * so it reads as the reference, not a legacy all-caps token (G2). Optional:
+     * backends without a proper table (lexical) omit it and callers keep the word
+     * as-is. Only ever changes CASE, so it never affects legality/board-safety.
+     */
+    displayCase?(word: string): string;
 }
 
 /** Character bigrams of an uppercased word (e.g. "FRUIT" -> FR,RU,UI,IT). */

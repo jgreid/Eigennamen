@@ -707,6 +707,28 @@ describe('embeddingSpymaster generates board-specific clues via nearest()', () =
         const action = makeEmbeddingSpymaster(resolveSkill('expert', 7), backend).chooseClue(view, ctx(7));
         expect(action).toEqual({ kind: 'clue', word: 'PREDATOR', number: 2 });
     });
+
+    it('emits a generated reference clue in its house-rule display case (G2)', () => {
+        // nearest() yields a proper-reference key NORMALIZED (all-caps "VADER");
+        // displayCase restores its canonical case so it goes out as the reference,
+        // not a legacy all-caps token that reads as the common sense.
+        const rel: Record<string, Record<string, number>> = {
+            VADER: { SABER: 0.9, EMPIRE: 0.85, APPLE: 0.1, CAR: 0.1, DEATH: 0.1 },
+        };
+        const backend: SemanticBackend = {
+            id: 'vec-stub',
+            relatedness: (a: string, b: string) => rel[a]?.[b.toUpperCase()] ?? rel[b]?.[a.toUpperCase()] ?? 0,
+            vocabulary: () => [],
+            nearest: () => [{ word: 'VADER', score: 0.9 }],
+            displayCase: (w: string) => (w.toUpperCase() === 'VADER' ? 'Vader' : w),
+        };
+        const view = spymasterView(
+            ['SABER', 'EMPIRE', 'APPLE', 'CAR', 'DEATH'],
+            ['red', 'red', 'blue', 'neutral', 'assassin']
+        );
+        const action = makeEmbeddingSpymaster(resolveSkill('expert', 7), backend).chooseClue(view, ctx(7));
+        expect(action).toMatchObject({ kind: 'clue', word: 'Vader' });
+    });
 });
 
 describe('advisor suggestGuesses', () => {
