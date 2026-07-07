@@ -15,21 +15,28 @@
  *      clicker reason over embeddings (cosine similarity) instead of the weak floor.
  *
  * Usage (from the server/ directory):
- *   npm run dev:bots                       # default model (glove): fetch-if-missing, then run
- *   npm run dev:bots -- --model=fasttext   # richer vocabulary (bigger download)
- *   npm run dev:bots -- --trim=50000       # smaller on-disk vectors file
- *   npm run bots:embeddings                # only prepare embeddings, don't start the server
+ *   npm run dev:bots                                 # default model (glove): fetch-if-missing, then run
+ *   npm run dev:bots -- --model=fasttext             # richer vocabulary (bigger download)
+ *   npm run dev:bots -- --model=numberbatch --board  # knowledge-graph, distilled to board vectors
+ *   npm run dev:bots -- --trim=50000                 # smaller on-disk vectors file (frequency models)
+ *   npm run bots:embeddings                          # only prepare embeddings, don't start the server
  *
- * Env knobs (flags win over env): BOT_MODEL (glove|fasttext), BOT_TRIM (default 100000).
+ * Env knobs (flags win over env): BOT_MODEL (glove|fasttext|numberbatch),
+ * BOT_TRIM (default 100000), BOT_BOARD (1 = distil to compact board vectors).
  *
- * Only frequency-ordered models are offered here (glove, fasttext) because the
- * loader keeps the first N vectors — for those, "first N" means "most common N".
- * ConceptNet Numberbatch is alphabetical, so use scripts/fetch-bot-embeddings.sh
- * for it instead (see docs/BOT_EMBEDDINGS.md).
+ * Frequency-ordered models (glove, fasttext) can be used as-is: the loader keeps the
+ * first N vectors, and "first N" means "most common N". ConceptNet Numberbatch is a
+ * knowledge-graph model — the best fit for a word game and reachable where the
+ * GloVe/fastText hosts are blocked — but it is ALPHABETICAL, so it must be distilled
+ * with `--board` (build-board-vectors.mjs): that keeps every board/concept word plus a
+ * breadth sample instead of the early alphabet a first-N cut would keep. `--board`
+ * works for any model and is the recommended production artifact (small, full-coverage;
+ * see docs/BOT_EMBEDDINGS.md "Board-restricted vectors").
  */
 import { createReadStream, createWriteStream, existsSync, mkdirSync, rmSync, renameSync, statSync } from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
+import { createGunzip } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import https from 'node:https';
@@ -56,12 +63,30 @@ const MODELS = {
         out: 'wiki-news-300d-1M.vec',
         kind: 'zip',
     },
+    numberbatch: {
+        // ConceptNet Numberbatch — a knowledge-graph model (COLD~PENGUIN is a real
+        // edge), the best fit for a word game AND reachable where GloVe/fastText's
+        // hosts are blocked by a network policy. It is ALPHABETICAL, so it must be
+        // distilled to board vectors (--board / BOT_BOARD): a first-N line trim would
+        // keep only the early alphabet. gz, single stream (no archive member).
+        url: 'https://conceptnet.s3.amazonaws.com/downloads/2019/numberbatch/numberbatch-en-19.08.txt.gz',
+        archive: 'numberbatch-en-19.08.vec.gz',
+        out: 'numberbatch-en-19.08.vec',
+        kind: 'gz',
+        alphabetical: true, // a first-N trim is meaningless; use --board
+    },
 };
 
 function parseArgs(argv) {
-    const opts = { model: process.env.BOT_MODEL || 'glove', trim: Number(process.env.BOT_TRIM || 100000), run: true };
+    const opts = {
+        model: process.env.BOT_MODEL || 'glove',
+        trim: Number(process.env.BOT_TRIM || 100000),
+        board: process.env.BOT_BOARD === '1',
+        run: true,
+    };
     for (const arg of argv) {
         if (arg === '--no-run' || arg === '--setup-only') opts.run = false;
+        else if (arg === '--board') opts.board = true;
         else if (arg.startsWith('--model=')) opts.model = arg.slice('--model='.length);
         else if (arg.startsWith('--trim=')) opts.trim = Number(arg.slice('--trim='.length));
         else if (arg === '-h' || arg === '--help') opts.help = true;
@@ -205,6 +230,20 @@ async function download(url, dest) {
     throw lastErr ?? new Error(`download failed: ${url}`);
 }
 
+/** Gunzip `src` → `dest` (pure Node, no external tool — used for the Numberbatch .gz). */
+function gunzipFile(src, dest) {
+    return new Promise((resolve, reject) => {
+        const input = createReadStream(src);
+        const gz = createGunzip();
+        const out = createWriteStream(dest);
+        input.on('error', reject);
+        gz.on('error', reject);
+        out.on('error', reject);
+        out.on('finish', resolve);
+        input.pipe(gz).pipe(out);
+    });
+}
+
 /** Extract `member` from a zip into `destDir`, trying unzip then tar (Win10+ has tar.exe). */
 function extractZip(archivePath, member, destDir) {
     const attempts = [
@@ -261,21 +300,27 @@ async function ensureModel(model, trim) {
     await download(spec.url, archivePath);
 
     console.log('   extracting…');
-    const tool = extractZip(archivePath, spec.member, DATA_DIR);
-    if (!tool) {
-        rmSync(archivePath, { force: true });
-        console.error('\n❌ Could not extract the archive: neither `unzip` nor `tar` is available.');
-        console.error('   Windows 10/11 include tar.exe by default; otherwise install unzip, or download');
-        console.error('   the vectors manually per docs/BOT_EMBEDDINGS.md, then re-run.');
-        process.exit(1);
-    }
-
-    const memberPath = join(DATA_DIR, spec.member);
-    if (memberPath !== outPath) {
+    if (spec.kind === 'gz') {
+        // Single gzip stream (no archive member) — gunzip in-process.
         rmSync(outPath, { force: true });
-        renameSync(memberPath, outPath);
+        await gunzipFile(archivePath, outPath);
+        rmSync(archivePath, { force: true });
+    } else {
+        const tool = extractZip(archivePath, spec.member, DATA_DIR);
+        if (!tool) {
+            rmSync(archivePath, { force: true });
+            console.error('\n❌ Could not extract the archive: neither `unzip` nor `tar` is available.');
+            console.error('   Windows 10/11 include tar.exe by default; otherwise install unzip, or download');
+            console.error('   the vectors manually per docs/BOT_EMBEDDINGS.md, then re-run.');
+            process.exit(1);
+        }
+        const memberPath = join(DATA_DIR, spec.member);
+        if (memberPath !== outPath) {
+            rmSync(outPath, { force: true });
+            renameSync(memberPath, outPath);
+        }
+        rmSync(archivePath, { force: true });
     }
-    rmSync(archivePath, { force: true });
 
     // Sanity-check the extracted file (catches a failed/truncated download) before
     // trimming, so a deliberately small --trim can't false-trip this guard.
@@ -284,7 +329,10 @@ async function ensureModel(model, trim) {
         process.exit(1);
     }
 
-    if (trim && Number.isFinite(trim) && trim > 0) {
+    // A first-N line trim only means "most common N" for a frequency-ordered model;
+    // for an alphabetical source (Numberbatch) it would keep the early alphabet, so
+    // never trim one. Board mode (below) also needs the full model to distil from.
+    if (!spec.alphabetical && trim && Number.isFinite(trim) && trim > 0) {
         console.log(`   trimming to top ${trim} vectors…`);
         await trimToLines(outPath, trim);
     }
@@ -292,10 +340,32 @@ async function ensureModel(model, trim) {
     return spec.out;
 }
 
+/**
+ * Distil the downloaded model to a compact board-restricted vectors file
+ * (build-board-vectors.mjs): every board/concept word guaranteed, plus a breadth
+ * sample for clue generation. A few MB vs. hundreds, full coverage, and the ONLY
+ * correct way to consume an alphabetical model (Numberbatch). Returns the artifact
+ * name written into DATA_DIR.
+ */
+function distilBoardVectors(modelVecName) {
+    const inPath = join(DATA_DIR, modelVecName);
+    const outVec = join(DATA_DIR, 'board-vectors.vec');
+    const script = join(SCRIPT_DIR, 'build-board-vectors.mjs');
+    console.log('🧬 Distilling board-restricted vectors (board/concept coverage + breadth sample)…');
+    const r = spawnSync(process.execPath, [script, '--in', inPath, '--out', outVec, '--breadth', '40000'], {
+        stdio: 'inherit',
+    });
+    if (r.error || r.status !== 0) {
+        console.error(`❌ board-vector distillation failed${r.error ? `: ${r.error.message}` : ''}.`);
+        process.exit(r.status || 1);
+    }
+    return 'board-vectors.vec';
+}
+
 async function main() {
     const opts = parseArgs(process.argv.slice(2));
     if (opts.help) {
-        console.log('Usage: npm run dev:bots [-- --model=glove|fasttext] [--trim=N] [--no-run]');
+        console.log('Usage: npm run dev:bots [-- --model=glove|fasttext|numberbatch] [--board] [--trim=N] [--no-run]');
         return;
     }
 
@@ -307,7 +377,9 @@ async function main() {
         process.exit(1);
     }
 
-    const outName = await ensureModel(opts.model, opts.trim);
+    // Board mode reads the FULL model to distil from, so never trim the source first.
+    const modelName = await ensureModel(opts.model, opts.board ? 0 : opts.trim);
+    const outName = opts.board ? distilBoardVectors(modelName) : modelName;
     const relPath = `src/bots/data/${outName}`; // relative to server/ (the dev server's cwd)
     console.log(`✓ BOT_EMBEDDINGS_PATH=${relPath}`);
 

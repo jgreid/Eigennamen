@@ -62,6 +62,18 @@ const breadth = Math.max(0, parseInt(arg('--breadth', '40000'), 10) || 0);
 const freqPath = arg('--freq', null);
 const freqTop = Math.max(0, parseInt(arg('--freq-top', '60000'), 10) || 0);
 
+// Resolve a source file that lives under either the repo layout (`<root>/server/…`,
+// local checkout) or a flattened layout (`<root>/…`, e.g. the Docker builder, which
+// copies `server/src` → `/app/src`). Falls back to the repo-layout path so a genuine
+// miss errors with an informative ENOENT rather than silently emitting an empty target.
+function resolveSource(...rel) {
+    for (const base of [['server'], []]) {
+        const p = join(ROOT, ...base, ...rel);
+        if (existsSync(p)) return p;
+    }
+    return join(ROOT, 'server', ...rel);
+}
+
 // --- Normalisation: match the runtime loader (NFKC, uppercase, /c/en/ strip) ---
 const norm = (t) => t.normalize('NFKC').replace(/^\/c\/[a-z]+\//, '').replace(/[_\s]+/g, ' ').trim().toLocaleUpperCase('en-US');
 
@@ -70,13 +82,13 @@ const target = new Set();
 
 // English board words: parse DEFAULT_WORDS out of gameRules.ts (same approach
 // as generate-associations.mjs).
-const grc = readFileSync(join(ROOT, 'server/src/shared/gameRules.ts'), 'utf8');
+const grc = readFileSync(resolveSource('src/shared/gameRules.ts'), 'utf8');
 const dw = grc.match(/DEFAULT_WORDS\s*=\s*\[([\s\S]*?)\]\s*as const;/);
 if (dw) for (const m of dw[1].match(/'[^']+'/g) || []) target.add(norm(m.replace(/'/g, '')));
 
 // Locale board words.
 for (const loc of ['de', 'es', 'fr']) {
-    const p = join(ROOT, `server/public/locales/wordlist-${loc}.txt`);
+    const p = resolveSource(`public/locales/wordlist-${loc}.txt`);
     if (!existsSync(p)) continue;
     for (const line of readFileSync(p, 'utf8').split(/\r?\n/)) {
         const w = line.trim();
@@ -86,7 +98,7 @@ for (const loc of ['de', 'es', 'fr']) {
 
 // Baked association concept keys — the bot's curated clue vocabulary; give them
 // real vectors so scored/generated clues are graded by embeddings too.
-const assoc = readFileSync(join(ROOT, 'server/src/bots/semantics/associations.ts'), 'utf8');
+const assoc = readFileSync(resolveSource('src/bots/semantics/associations.ts'), 'utf8');
 for (const m of assoc.match(/^\s{4}([A-Z][A-Z]+):/gm) || []) target.add(norm(m.replace(/[:\s]/g, '')));
 
 // Single-token targets only — the loader skips multi-word/underscore tokens,
