@@ -16,7 +16,6 @@ const roomCreateSchema = z.object({
                 .optional(),
             turnTimer: z.number().int().min(TIMER.MIN_TURN_SECONDS).max(TIMER.MAX_TURN_SECONDS).nullable().optional(),
             allowSpectators: z.boolean().optional(),
-            wordListId: z.string().uuid().nullable().optional(),
             gameMode: z.enum(['classic', 'duet', 'match']).optional().default('match'),
             nickname: createNicknameSchema().optional(),
         })

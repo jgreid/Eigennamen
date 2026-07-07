@@ -34,7 +34,6 @@ import { applyClue, applyReveal, applyEndTurn } from './gameActions';
  * Game start input
  */
 interface GameStartInput {
-    wordListId?: string;
     wordList?: string[];
 }
 
@@ -112,7 +111,6 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                     const gameMode = room?.settings?.gameMode || 'match';
 
                     const game: GameState = await gameService.createGame(ctx.roomCode, {
-                        wordListId: validated.wordListId,
                         wordList: validated.wordList,
                         gameMode,
                     });
@@ -444,7 +442,6 @@ function gameHandlers(io: Server, socket: GameSocket): void {
 
             const game: GameState = await gameService.startNextRound(ctx.roomCode, ctx.game, {
                 gameMode: 'match',
-                wordListId: room?.settings?.wordListId ?? undefined,
                 // Prefer the full pool; fall back to the board words for pre-existing
                 // games that predate wordPool persistence.
                 wordList: ctx.game.wordPool ?? ctx.game.words,

@@ -34,8 +34,6 @@ export interface RoomSettings {
     turnTimer: number | null;
     /** Whether spectators are allowed */
     allowSpectators: boolean;
-    /** ID of word list to use */
-    wordListId?: string | null;
     /** Game mode (classic or duet) */
     gameMode: GameMode;
 }

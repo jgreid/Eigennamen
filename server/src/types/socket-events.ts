@@ -20,7 +20,6 @@ export interface RoomCreatePayload {
         teamNames?: TeamNames;
         turnTimer?: number | null;
         allowSpectators?: boolean;
-        wordListId?: string | null;
         nickname?: string;
     };
 }
@@ -54,7 +53,6 @@ export interface RoomSettingsPayload {
  * Game start payload
  */
 export interface GameStartPayload {
-    wordListId?: string | null;
     wordList?: string[];
 }
 

@@ -257,9 +257,7 @@ export interface PlayerGameState extends Omit<
  * Options for creating a new game
  */
 export interface CreateGameOptions {
-    /** UUID of a database word list to use */
-    wordListId?: string;
-    /** Custom words to use (takes precedence over wordListId) */
+    /** Custom words to use */
     wordList?: string[];
     /** Game mode (classic, duet, match) */
     gameMode?: GameMode;

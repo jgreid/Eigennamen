@@ -12,9 +12,7 @@ import { removeControlChars } from '../utils/sanitize';
 
 const gameStartSchema = z
     .object({
-        // Option 1: Reference a word list stored in database (requires database)
-        wordListId: z.string().uuid().nullable().optional(),
-        // Option 2: Pass custom words directly (works without database)
+        // Pass custom words directly.
         // Apply removeControlChars to each word for XSS prevention
         wordList: z
             .array(

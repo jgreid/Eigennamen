@@ -65,6 +65,15 @@ describe('gameStartSchema', () => {
         const result = gameStartSchema.safeParse(undefined);
         expect(result.success).toBe(true);
     });
+
+    // F4: wordListId was a dead, always-null param and has been removed from the
+    // schema. A client still sending it is accepted (non-strict) but the field is
+    // stripped — it never reaches the game.
+    test('strips the removed wordListId field instead of surfacing it', () => {
+        const result = gameStartSchema.safeParse({ wordListId: '123e4567-e89b-12d3-a456-426614174000' });
+        expect(result.success).toBe(true);
+        expect(result.data).not.toHaveProperty('wordListId');
+    });
 });
 
 describe('gameHistoryLimitSchema', () => {

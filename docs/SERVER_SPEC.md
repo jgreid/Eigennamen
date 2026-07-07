@@ -195,8 +195,7 @@ io.connect(SERVER_URL, {
 socket.emit('room:create', {
     settings: {
         teamNames: { red: "Red", blue: "Blue" },
-        turnTimer: null, // or seconds
-        wordListId: null // or UUID
+        turnTimer: null // or seconds
     }
 });
 
@@ -289,7 +288,7 @@ socket.on('player:updated', {
 
 // Start new game (host only)
 socket.emit('game:start', {
-    wordListId: null // Optional custom word list
+    wordList: [] // Optional: 25+ custom words (omit for the default list)
 });
 
 // Give a clue (spymaster of the team whose turn it is only)
@@ -775,8 +774,7 @@ const schemas = {
                 red: z.string().max(20).default('Red'),
                 blue: z.string().max(20).default('Blue')
             }).optional(),
-            turnTimer: z.number().min(30).max(300).nullable().optional(),
-            wordListId: z.string().uuid().nullable().optional()
+            turnTimer: z.number().min(30).max(300).nullable().optional()
         }).optional()
     }),
 
