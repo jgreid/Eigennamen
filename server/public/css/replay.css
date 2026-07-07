@@ -589,6 +589,99 @@
     opacity: 0.7;
 }
 
+/* Per-clue efficiency badge (landed / promised), colored by outcome. */
+.recap-clue-eff {
+    margin-left: auto;
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-secondary, #a0a0b0);
+}
+
+.recap-clue-eff-clean {
+    background: rgba(46, 204, 113, 0.18);
+    color: #2ecc71;
+}
+
+.recap-clue-eff-partial {
+    background: rgba(241, 196, 15, 0.18);
+    color: #f1c40f;
+}
+
+.recap-clue-eff-leak {
+    background: rgba(231, 76, 60, 0.18);
+    color: #e74c3c;
+}
+
+.recap-clue-eff-assassin {
+    background: rgba(44, 44, 44, 0.55);
+    color: #ff6b6b;
+}
+
+/* Best / worst clue highlight cards. */
+.recap-highlights {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.recap-highlights:empty {
+    display: none;
+}
+
+.recap-highlight {
+    flex: 1 1 160px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.recap-highlight.best {
+    border-color: rgba(46, 204, 113, 0.4);
+}
+
+.recap-highlight.worst {
+    border-color: rgba(231, 76, 60, 0.4);
+}
+
+.recap-highlight-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.75;
+}
+
+.recap-highlight-body {
+    display: flex;
+    flex-direction: column;
+    margin-top: 4px;
+}
+
+.recap-highlight-clue {
+    font-weight: 700;
+}
+
+.recap-highlight-clue.red {
+    color: var(--red-team, #e74c3c);
+}
+
+.recap-highlight-clue.blue {
+    color: var(--blue-team, #3498db);
+}
+
+.recap-highlight-detail {
+    font-size: 0.8rem;
+    opacity: 0.8;
+}
+
 .recap-guess-list {
     list-style: none;
     margin: 6px 0 0;

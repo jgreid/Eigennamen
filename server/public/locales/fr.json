@@ -284,7 +284,20 @@
         "noMoves": "Aucun coup n’a été joué dans cette partie.",
         "noGuesses": "Aucune proposition.",
         "unavailable": "Le récapitulatif n’est pas encore disponible pour cette partie.",
-        "playedWith": "Joué avec {{name}}"
+        "playedWith": "Joué avec {{name}}",
+        "bestClue": "Meilleur indice",
+        "worstClue": "Pire indice",
+        "cardsLanded": "{{count}} trouvées",
+        "hitAssassin": "A touché l'assassin",
+        "leaked": "A donné une carte",
+        "whiffed": "Aucune carte trouvée",
+        "fellShort": "Insuffisant",
+        "rating": {
+            "clean": "Parfait — indice rempli",
+            "partial": "Partiel — arrêté trop tôt",
+            "leak": "A cédé une carte à l'autre équipe",
+            "assassin": "A touché l'assassin"
+        }
     },
     "wordList": {
         "default": "Mots par défaut",

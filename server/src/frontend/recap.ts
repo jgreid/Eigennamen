@@ -72,6 +72,44 @@ function groupClueBlocks(events: ReplayEvent[]): RecapClueBlock[] {
     return blocks;
 }
 
+/** How efficiently a clue converted: 'clean' met its number with all-correct
+ *  guesses; 'partial' landed some but stopped short or wasted a neutral; 'leak'
+ *  gave the opponent a card; 'assassin' hit the assassin. */
+type ClueRating = 'clean' | 'partial' | 'leak' | 'assassin';
+
+interface ClueEfficiency {
+    landed: number; // own cards correctly found under this clue
+    promised: number; // the clue number
+    wrong: number; // opponent cards revealed
+    neutral: number; // neutral cards revealed
+    assassin: number; // assassin revealed (0 or 1)
+    rating: ClueRating;
+    /** Ranking score — higher is better (used to pick best/worst clue). */
+    score: number;
+}
+
+function computeClueEfficiency(block: RecapClueBlock): ClueEfficiency {
+    let landed = 0;
+    let wrong = 0;
+    let neutral = 0;
+    let assassin = 0;
+    for (const g of block.guesses) {
+        if (g.result === 'correct') landed++;
+        else if (g.result === 'wrong') wrong++;
+        else if (g.result === 'neutral') neutral++;
+        else if (g.result === 'assassin') assassin++;
+    }
+    const promised = block.number;
+    let rating: ClueRating;
+    if (assassin > 0) rating = 'assassin';
+    else if (wrong > 0) rating = 'leak';
+    else if (neutral > 0 || landed < promised) rating = 'partial';
+    else rating = 'clean';
+    // Reward cards landed, punish leaks/neutrals, punish the assassin heavily.
+    const score = landed * 2 - wrong * 3 - neutral - assassin * 10;
+    return { landed, promised, wrong, neutral, assassin, rating, score };
+}
+
 interface RecapStats {
     redCorrect: number;
     blueCorrect: number;
@@ -175,6 +213,13 @@ function renderTimeline(replay: ReplayData): void {
         header.appendChild(el('span', 'recap-clue-team', teamName(block.team, replay)));
         header.appendChild(el('span', 'recap-clue-word', block.word));
         header.appendChild(el('span', 'recap-clue-number', `(${block.number})`));
+
+        // Efficiency badge: cards landed / promised, colored by outcome.
+        const eff = computeClueEfficiency(block);
+        const badge = el('span', `recap-clue-eff recap-clue-eff-${eff.rating}`, `${eff.landed}/${eff.promised}`);
+        badge.title = t(`recap.rating.${eff.rating}`);
+        badge.setAttribute('aria-label', t(`recap.rating.${eff.rating}`));
+        header.appendChild(badge);
         blockEl.appendChild(header);
 
         if (block.guesses.length > 0) {
@@ -196,11 +241,64 @@ function renderTimeline(replay: ReplayData): void {
     }
 }
 
+/** Short reason a clue was the worst of the game, for the highlight label. */
+function worstReason(eff: ClueEfficiency): string {
+    if (eff.assassin > 0) return t('recap.hitAssassin');
+    if (eff.wrong > 0) return t('recap.leaked');
+    if (eff.landed === 0) return t('recap.whiffed');
+    return t('recap.fellShort');
+}
+
+/**
+ * Best/worst clue of the game, by conversion efficiency. Only shown when there
+ * are at least two clues to compare and the two picks actually differ.
+ */
+function renderHighlights(replay: ReplayData): void {
+    const container = document.getElementById('recap-highlights');
+    if (!container) return;
+    container.replaceChildren();
+
+    const blocks = groupClueBlocks(replay.events || []);
+    if (blocks.length < 2) return;
+
+    const [first, ...rest] = blocks.map((block) => ({ block, eff: computeClueEfficiency(block) }));
+    if (!first) return;
+    let best = first;
+    let worst = first;
+    for (const s of rest) {
+        if (s.eff.score > best.eff.score) best = s;
+        if (s.eff.score < worst.eff.score) worst = s;
+    }
+    // Nothing meaningful to contrast if every clue scored the same.
+    if (best.eff.score === worst.eff.score) return;
+
+    const card = (cls: string, icon: string, label: string, block: RecapClueBlock, detail: string): HTMLElement => {
+        const item = el('div', `recap-highlight ${cls}`);
+        const head = el('div', 'recap-highlight-head');
+        const iconEl = el('span', 'recap-highlight-icon', icon);
+        iconEl.setAttribute('aria-hidden', 'true');
+        head.appendChild(iconEl);
+        head.appendChild(el('span', 'recap-highlight-label', label));
+        item.appendChild(head);
+        const body = el('div', 'recap-highlight-body');
+        body.appendChild(el('span', `recap-highlight-clue ${block.team}`, `${block.word} (${block.number})`));
+        body.appendChild(el('span', 'recap-highlight-detail', detail));
+        item.appendChild(body);
+        return item;
+    };
+
+    container.appendChild(
+        card('best', '🎯', t('recap.bestClue'), best.block, t('recap.cardsLanded', { count: best.eff.landed }))
+    );
+    container.appendChild(card('worst', '💥', t('recap.worstClue'), worst.block, worstReason(worst.eff)));
+}
+
 function renderRecap(replay: ReplayData): void {
     // Populate state.currentReplayData so the share-link + full-replay reuse works.
     state.currentReplayData = replay;
     renderResult(replay);
     renderStats(replay);
+    renderHighlights(replay);
     renderTimeline(replay);
 }
 

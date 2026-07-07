@@ -284,7 +284,20 @@
         "noMoves": "No moves were made this game.",
         "noGuesses": "No guesses.",
         "unavailable": "The recap isn’t available for this game yet.",
-        "playedWith": "Played with {{name}}"
+        "playedWith": "Played with {{name}}",
+        "bestClue": "Best clue",
+        "worstClue": "Worst clue",
+        "cardsLanded": "{{count}} landed",
+        "hitAssassin": "Hit the assassin",
+        "leaked": "Gave a card away",
+        "whiffed": "No cards found",
+        "fellShort": "Fell short",
+        "rating": {
+            "clean": "Clean — met the clue",
+            "partial": "Partial — stopped short",
+            "leak": "Leaked a card to the other team",
+            "assassin": "Hit the assassin"
+        }
     },
     "wordList": {
         "default": "Default Words",

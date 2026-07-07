@@ -26,7 +26,7 @@ const OFFLINE_ASSETS = [
     '/css/multiplayer.css',
     '/css/setup.css',
     '/css/replay.css',
-    '/js/modules/app.js?v=0ba9e049',
+    '/js/modules/app.js?v=3b1e55cc',
     '/js/app-fallback.js',
     '/js/modules/chunks/chunk-TTNTQE4G.js',
     '/js/modules/chunks/history-BW37BH4F.js',
