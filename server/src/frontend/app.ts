@@ -62,6 +62,9 @@ import {
     loadLocalSettings,
     tryLoadWordlistFile,
     initSettingsListeners,
+    loadSavedList,
+    deleteSavedList,
+    saveCurrentAsList,
 } from './settings.js';
 import { initI18n, setLanguage } from './i18n.js';
 import { initColorBlindMode, initKeyboardShortcuts } from './accessibility.js';
@@ -212,6 +215,15 @@ function setupEventListeners(): void {
                 break;
             case 'reset-words':
                 resetWords();
+                break;
+            case 'load-word-list':
+                loadSavedList();
+                break;
+            case 'delete-word-list':
+                deleteSavedList();
+                break;
+            case 'save-word-list':
+                saveCurrentAsList();
                 break;
             case 'close-settings':
                 closeSettings();

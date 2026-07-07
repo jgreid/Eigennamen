@@ -243,7 +243,9 @@
         "game": "Juego",
         "dangerZone": "Zona peligrosa",
         "forfeitGame": "Abandonar partida actual",
-        "gameControls": "Controles del juego"
+        "gameControls": "Controles del juego",
+        "savedLists": "Listas guardadas",
+        "savedListsLabel": "Listas de palabras guardadas"
     },
     "roomSettings": {
         "gameMode": "Modo de juego",
@@ -297,7 +299,23 @@
         "zeroWords": "0 palabras (se necesitan al menos {{min}})",
         "tooFewWords": "{{count}} palabras (se necesitan al menos {{min}})",
         "lowVariety": "{{count}} palabras (funciona, pero más variedad es mejor)",
-        "customWordCount": "{{count}} palabras personalizadas"
+        "customWordCount": "{{count}} palabras personalizadas",
+        "selectSavedList": "— Listas guardadas —",
+        "savedListOption": "{{name}} ({{count}})",
+        "loadList": "Cargar",
+        "deleteList": "Eliminar",
+        "saveCurrentList": "Guardar palabras actuales",
+        "listNamePlaceholder": "Nombre de la lista",
+        "listNameAria": "Nombre de la nueva lista",
+        "selectListFirst": "Primero selecciona una lista guardada",
+        "listNotFound": "Esa lista ya no está disponible",
+        "listLoaded": "Se cargó «{{name}}»",
+        "listSaved": "Se guardó «{{name}}»",
+        "listUpdated": "Se actualizó «{{name}}»",
+        "listDeleted": "Se eliminó «{{name}}»",
+        "listNameRequired": "Escribe un nombre para la lista",
+        "noWordsToSave": "Añade palabras antes de guardar",
+        "libraryFull": "Límite de listas guardadas alcanzado ({{max}})"
     },
     "rules": {
         "intro": "Dos equipos compiten por encontrar todas sus palabras. Los Jefes de espías dan pistas, los Agentes revelan cartas.",

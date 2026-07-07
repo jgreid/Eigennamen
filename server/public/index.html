@@ -990,6 +990,64 @@
               </div>
             </div>
 
+            <!-- Saved Lists Section (word-list library) -->
+            <div class="modal-section saved-lists-section">
+              <h4 class="settings-subsection-title" data-i18n="settings.savedLists">
+                Saved lists
+              </h4>
+              <div class="saved-lists-row">
+                <select
+                  id="saved-list-select"
+                  aria-label="Saved word lists"
+                  data-i18n-arialabel="settings.savedListsLabel"
+                >
+                  <option value="" data-i18n="wordList.selectSavedList">
+                    — Saved lists —
+                  </option>
+                </select>
+                <button
+                  type="button"
+                  id="btn-load-list"
+                  class="btn btn-secondary btn-sm"
+                  data-action="load-word-list"
+                  data-i18n="wordList.loadList"
+                  disabled
+                >
+                  Load
+                </button>
+                <button
+                  type="button"
+                  id="btn-delete-list"
+                  class="btn btn-secondary btn-sm"
+                  data-action="delete-word-list"
+                  data-i18n="wordList.deleteList"
+                  disabled
+                >
+                  Delete
+                </button>
+              </div>
+              <div class="save-list-row">
+                <input
+                  type="text"
+                  id="save-list-name"
+                  maxlength="60"
+                  placeholder="List name"
+                  data-i18n-placeholder="wordList.listNamePlaceholder"
+                  aria-label="New list name"
+                  data-i18n-arialabel="wordList.listNameAria"
+                />
+                <button
+                  type="button"
+                  id="btn-save-list"
+                  class="btn btn-secondary btn-sm"
+                  data-action="save-word-list"
+                  data-i18n="wordList.saveCurrentList"
+                >
+                  Save current words
+                </button>
+              </div>
+            </div>
+
             <!-- Game Mode Section (Multiplayer Host Only) -->
             <div
               class="settings-game-mode-section"
@@ -1954,7 +2012,7 @@
       </div>
     </div>
 
-    <script type="module" src="/js/modules/app.js?v=6b2df9d1"></script>
+    <script type="module" src="/js/modules/app.js?v=a9a91795"></script>
     <!-- Fallback: detect if the ES module failed to load + service worker registration -->
     <script src="/js/app-fallback.js"></script>
   </body>
