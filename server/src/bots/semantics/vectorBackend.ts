@@ -274,6 +274,67 @@ export function makeVectorBackend(options: VectorBackendOptions): SemanticBacken
     const NEAREST_CACHE_MAX = 4096;
     const nearestCache = new Map<string, Array<{ word: string; score: number }>>();
 
+    // Shared scan primitives, so the sync nearest() and the async prewarm()
+    // produce BYTE-IDENTICAL cache entries (same candidateKeys order, same
+    // centroid, same top-k tiebreak) — a prewarmed query is exactly what a later
+    // nearest() would compute.
+    const NEAREST_KEY = (inputSet: Set<string>, k: number): string => `${k}|${[...inputSet].sort().join(' ')}`;
+    const better = (a: { word: string; score: number }, b: { word: string; score: number }): boolean =>
+        a.score > b.score || (a.score === b.score && a.word < b.word);
+    /** L2-normalised centroid of the input words' vectors, or null if none had one. */
+    const buildCentroid = (inputSet: Set<string>): Float32Array | null => {
+        const centroid = new Float32Array(dim);
+        let n = 0;
+        for (const key of inputSet) {
+            const v = vecs.get(key);
+            if (!v) continue;
+            for (let i = 0; i < dim; i++) centroid[i] = (centroid[i] as number) + (v[i] as number);
+            n++;
+        }
+        if (n === 0) return null;
+        let norm = 0;
+        for (let i = 0; i < dim; i++) norm += (centroid[i] as number) ** 2;
+        if (norm === 0) return null;
+        const inv = 1 / Math.sqrt(norm);
+        for (let i = 0; i < dim; i++) centroid[i] = (centroid[i] as number) * inv;
+        return centroid;
+    };
+    /** Cosine of a candidate against the centroid, or null to skip (input/≤0). */
+    const scoreCandidate = (centroid: Float32Array, cand: string, inputSet: Set<string>): number | null => {
+        if (inputSet.has(cand)) return null; // never suggest an input word itself
+        const cv = vecs.get(cand) as Float32Array;
+        let dot = 0;
+        for (let i = 0; i < dim; i++) dot += (centroid[i] as number) * (cv[i] as number);
+        return dot > 0 ? Math.min(1, dot) : null;
+    };
+    /** Bounded top-k insertion under the (score desc, word asc) total order. */
+    const insertTopK = (
+        top: Array<{ word: string; score: number }>,
+        entry: { word: string; score: number },
+        k: number
+    ): void => {
+        if (top.length === k && !better(entry, top[k - 1] as { word: string; score: number })) return;
+        let lo = 0;
+        let hi = top.length;
+        while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            if (better(entry, top[mid] as { word: string; score: number })) hi = mid;
+            else lo = mid + 1;
+        }
+        top.splice(lo, 0, entry);
+        if (top.length > k) top.pop();
+    };
+    const storeNearest = (cacheKey: string, top: Array<{ word: string; score: number }>): void => {
+        if (nearestCache.size >= NEAREST_CACHE_MAX) {
+            const oldest = nearestCache.keys().next().value;
+            if (oldest !== undefined) nearestCache.delete(oldest);
+        }
+        nearestCache.set(cacheKey, top);
+    };
+    /** Candidates scanned between event-loop yields in prewarm() (E4). */
+    const PREWARM_CHUNK = 5000;
+    const yieldEventLoop = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
+
     const backend: SemanticBackend = {
         id: 'vectors',
         relatedness(a: string, b: string): number {
@@ -323,60 +384,52 @@ export function makeVectorBackend(options: VectorBackendOptions): SemanticBacken
             if (dim === 0 || k <= 0) return [];
             const inputSet = new Set<string>();
             for (const w of words) inputSet.add(normalizeClueWord(w));
-            const cacheKey = `${k}|${[...inputSet].sort().join(' ')}`;
+            const cacheKey = NEAREST_KEY(inputSet, k);
             const cached = nearestCache.get(cacheKey);
             if (cached) return cached;
 
-            // Centroid of the input words' vectors (those we have), then L2-normalise
-            // so scores are cosine similarities in [0, 1].
-            const centroid = new Float32Array(dim);
-            let n = 0;
-            for (const key of inputSet) {
-                const v = vecs.get(key);
-                if (!v) continue;
-                for (let i = 0; i < dim; i++) centroid[i] = (centroid[i] as number) + (v[i] as number);
-                n++;
-            }
-            if (n === 0) return [];
-            let norm = 0;
-            for (let i = 0; i < dim; i++) norm += (centroid[i] as number) ** 2;
-            if (norm === 0) return [];
-            const inv = 1 / Math.sqrt(norm);
-            for (let i = 0; i < dim; i++) centroid[i] = (centroid[i] as number) * inv;
+            const centroid = buildCentroid(inputSet);
+            if (!centroid) return []; // no input vector — not cached (cheap to redo)
 
             // Bounded top-k selection under the total order (score desc, word asc
             // tiebreak) — identical results to sorting every positive-scoring
             // candidate, without materialising and sorting ~half the vocabulary
             // per call (which measurably dominates the cost beyond the
             // unavoidable O(candidates × dim) scan).
-            const better = (a: { word: string; score: number }, b: { word: string; score: number }): boolean =>
-                a.score > b.score || (a.score === b.score && a.word < b.word);
             const top: Array<{ word: string; score: number }> = [];
             for (const cand of candidateKeys) {
-                if (inputSet.has(cand)) continue; // never suggest an input word itself
-                const cv = vecs.get(cand) as Float32Array;
-                let dot = 0;
-                for (let i = 0; i < dim; i++) dot += (centroid[i] as number) * (cv[i] as number);
-                if (dot <= 0) continue;
-                const entry = { word: cand, score: Math.min(1, dot) };
-                if (top.length === k && !better(entry, top[k - 1] as { word: string; score: number })) continue;
-                let lo = 0;
-                let hi = top.length;
-                while (lo < hi) {
-                    const mid = (lo + hi) >> 1;
-                    if (better(entry, top[mid] as { word: string; score: number })) hi = mid;
-                    else lo = mid + 1;
-                }
-                top.splice(lo, 0, entry);
-                if (top.length > k) top.pop();
+                const score = scoreCandidate(centroid, cand, inputSet);
+                if (score !== null) insertTopK(top, { word: cand, score }, k);
             }
-
-            if (nearestCache.size >= NEAREST_CACHE_MAX) {
-                const oldest = nearestCache.keys().next().value;
-                if (oldest !== undefined) nearestCache.delete(oldest);
-            }
-            nearestCache.set(cacheKey, top);
+            storeNearest(cacheKey, top);
             return top;
+        },
+        async prewarm(queries: ReadonlyArray<{ words: readonly string[]; k: number }>): Promise<void> {
+            if (dim === 0) return;
+            // Sequential + deliberate awaits: each yield hands the event loop back
+            // between chunks so the scan burst can't monopolise it — the whole
+            // point of prewarm (E4).
+            /* eslint-disable no-await-in-loop */
+            for (const q of queries) {
+                if (q.k <= 0) continue;
+                const inputSet = new Set<string>();
+                for (const w of q.words) inputSet.add(normalizeClueWord(w));
+                const cacheKey = NEAREST_KEY(inputSet, q.k);
+                if (nearestCache.has(cacheKey)) continue; // already warm
+                const centroid = buildCentroid(inputSet);
+                if (!centroid) continue; // matches nearest(): no-vector queries aren't cached
+                const top: Array<{ word: string; score: number }> = [];
+                let scanned = 0;
+                for (const cand of candidateKeys) {
+                    const score = scoreCandidate(centroid, cand, inputSet);
+                    if (score !== null) insertTopK(top, { word: cand, score }, q.k);
+                    // Yield the event loop every chunk so a burst of full-vocabulary
+                    // scans doesn't monopolise it and stall every other room (E4).
+                    if (++scanned % PREWARM_CHUNK === 0) await yieldEventLoop();
+                }
+                storeNearest(cacheKey, top);
+            }
+            /* eslint-enable no-await-in-loop */
         },
     };
 

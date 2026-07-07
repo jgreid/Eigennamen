@@ -11,6 +11,8 @@
 import type { GameState, Player, CardType } from '../types';
 import type { GameMode } from '../shared/gameRules';
 import { getGameStateForPlayer } from '../services/game/revealEngine';
+import type { SemanticBackend } from './semantics/backend';
+import { groupBoard, clueCandidateQueries } from './strategies/spymasters';
 import type {
     BotAction,
     BotClickerView,
@@ -62,6 +64,26 @@ function buildClickerView(game: GameState, seat: Player, team: 'red' | 'blue'): 
         guessesUsed: game.guessesUsed ?? 0,
         guessesAllowed: game.guessesAllowed ?? 0,
     };
+}
+
+/**
+ * Warm the semantic backend's nearest() cache for the clue queries a spymaster
+ * decision is about to make, yielding the event loop between chunks (E4). The
+ * subsequent SYNC playOneAction → chooseClue → generateClueCandidates then hits
+ * the warm cache instead of running up to 16 full-vocabulary scans inline. A
+ * no-op unless the backend implements prewarm (only the vectors backend does) and
+ * the seat is a spymaster with own cards. Its query list comes from the same
+ * clueCandidateQueries generateClueCandidates uses, so it can never drift.
+ */
+export async function prewarmSpymasterClues(
+    game: GameState,
+    team: 'red' | 'blue',
+    backend: SemanticBackend
+): Promise<void> {
+    if (!backend.prewarm || !backend.nearest) return;
+    const view = buildSpymasterView(game, team);
+    const queries = clueCandidateQueries(groupBoard(view), backend);
+    if (queries.length > 0) await backend.prewarm(queries);
 }
 
 export function playOneAction(

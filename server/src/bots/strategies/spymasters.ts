@@ -602,6 +602,44 @@ const PAIR_NEIGHBOURS = 6;
  * With a table/lexical backend (no nearest) it degrades to scanning the fixed
  * vocabulary(), so those backends behave exactly as before.
  */
+/**
+ * The exact nearest() queries generateClueCandidates issues for a board: the full
+ * own-card centroid, one per own card, and the pair centroids of the densest own
+ * cards (2-card bridges). Exported as the SINGLE SOURCE OF TRUTH so the live
+ * driver can prewarm them off the event loop before the (sync) clue decision (E4)
+ * — generateClueCandidates runs exactly this list, so the prewarm and the
+ * decision can never drift. Empty when the backend can't generate (no nearest()).
+ */
+export function clueCandidateQueries(
+    groups: BoardGroups,
+    backend: SemanticBackend
+): Array<{ words: string[]; k: number }> {
+    if (!backend.nearest || groups.own.length === 0) return [];
+    const queries: Array<{ words: string[]; k: number }> = [{ words: groups.own, k: CENTROID_NEIGHBOURS }];
+    for (const w of groups.own) queries.push({ words: [w], k: PER_CARD_NEIGHBOURS });
+    // Pair-centroid bridges. Skipped below three own cards: with two, the full
+    // centroid above IS the pair centroid. Density (total relatedness to the
+    // other own cards) picks which cards get paired, keeping the extra nearest()
+    // calls bounded at C(PAIR_TOP_CARDS, 2).
+    if (groups.own.length > 2) {
+        const density = new Map<string, number>();
+        for (const w of groups.own) {
+            let d = 0;
+            for (const o of groups.own) if (o !== w) d += backend.relatedness(w, o);
+            density.set(w, d);
+        }
+        const top = [...groups.own]
+            .sort((a, b) => (density.get(b) ?? 0) - (density.get(a) ?? 0))
+            .slice(0, PAIR_TOP_CARDS);
+        for (let i = 0; i < top.length; i++) {
+            for (let j = i + 1; j < top.length; j++) {
+                queries.push({ words: [top[i] as string, top[j] as string], k: PAIR_NEIGHBOURS });
+            }
+        }
+    }
+    return queries;
+}
+
 function generateClueCandidates(view: BotSpymasterView, groups: BoardGroups, backend: SemanticBackend): string[] {
     // Board-safe AND legal: the substring/stem legality gate plus the embeddings
     // hygiene filter (cognate near-duplicates, wrong-language tokens). Applied at
@@ -613,32 +651,11 @@ function generateClueCandidates(view: BotSpymasterView, groups: BoardGroups, bac
     const legal = (candidates: string[]): string[] =>
         candidates.filter((c) => isClueLegalForBoard(c, words) && boardSafe(c));
 
-    if (backend.nearest && groups.own.length > 0) {
+    const queries = clueCandidateQueries(groups, backend);
+    if (backend.nearest && queries.length > 0) {
         const pool = new Set<string>();
-        for (const c of backend.nearest(groups.own, CENTROID_NEIGHBOURS)) pool.add(c.word);
-        for (const w of groups.own) {
-            for (const c of backend.nearest([w], PER_CARD_NEIGHBOURS)) pool.add(c.word);
-        }
-        // Pair-centroid bridges. Skipped below three own cards: with two, the
-        // full centroid above IS the pair centroid. Density (total relatedness
-        // to the other own cards) picks which cards get paired, keeping the
-        // extra nearest() calls bounded at C(PAIR_TOP_CARDS, 2).
-        if (groups.own.length > 2) {
-            const density = new Map<string, number>();
-            for (const w of groups.own) {
-                let d = 0;
-                for (const o of groups.own) if (o !== w) d += backend.relatedness(w, o);
-                density.set(w, d);
-            }
-            const top = [...groups.own]
-                .sort((a, b) => (density.get(b) ?? 0) - (density.get(a) ?? 0))
-                .slice(0, PAIR_TOP_CARDS);
-            for (let i = 0; i < top.length; i++) {
-                for (let j = i + 1; j < top.length; j++) {
-                    const pair = [top[i] as string, top[j] as string];
-                    for (const c of backend.nearest(pair, PAIR_NEIGHBOURS)) pool.add(c.word);
-                }
-            }
+        for (const q of queries) {
+            for (const c of backend.nearest(q.words, q.k)) pool.add(c.word);
         }
         const legalPool = legal([...pool]);
         if (legalPool.length > 0) return legalPool;

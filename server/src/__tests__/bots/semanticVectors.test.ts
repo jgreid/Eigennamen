@@ -132,6 +132,64 @@ describe('makeVectorBackend', () => {
         expect(words).not.toContain('APPLE');
         expect(b.nearest!(['KING'], 2).every((n) => n.score >= 0 && n.score <= 1)).toBe(true);
     });
+
+    // E4: prewarm() fills the same cache nearest() reads, off the event loop.
+    describe('prewarm() (E4 async cache warm)', () => {
+        it('warms the cache so a later nearest() is byte-identical to a cold one', async () => {
+            const warm = makeVectorBackend({ path: vecPath }) as SemanticBackend;
+            const cold = makeVectorBackend({ path: vecPath }) as SemanticBackend;
+
+            await warm.prewarm!([{ words: ['KING'], k: 2 }]);
+            // Same reference back (served from cache), and identical to a cold scan.
+            expect(warm.nearest!(['KING'], 2)).toEqual(cold.nearest!(['KING'], 2));
+        });
+
+        it('is idempotent and safe on already-cached / empty / no-vector queries', async () => {
+            const b = makeVectorBackend({ path: vecPath }) as SemanticBackend;
+            b.nearest!(['KING'], 2); // pre-cache
+            await expect(
+                b.prewarm!([
+                    { words: ['KING'], k: 2 }, // already cached
+                    { words: [], k: 3 }, // no input vector
+                    { words: ['ZZZOOV'], k: 3 }, // OOV → no centroid
+                    { words: ['QUEEN'], k: 0 }, // k <= 0
+                ])
+            ).resolves.toBeUndefined();
+        });
+
+        it('yields the event loop while scanning a large vocabulary (no monopolising block)', async () => {
+            // candidateKeys only admits letter-only words of len 3–12, so generate
+            // >2×PREWARM_CHUNK (5000) unique 3-letter tokens to force ≥2 yields.
+            const letters = 'abcdefghijklmnopqrstuvwxyz';
+            const wordFor = (i: number): string => {
+                let s = '';
+                let n = i;
+                for (let d = 0; d < 3; d++) {
+                    s = letters[n % 26] + s;
+                    n = Math.floor(n / 26);
+                }
+                return s;
+            };
+            const bigPath = join(dir, 'big.vec');
+            const rows = ['12000 3'];
+            for (let i = 0; i < 12000; i++) rows.push(`${wordFor(i)} ${(i % 7) / 7} ${(i % 5) / 5} ${(i % 3) / 3}`);
+            rows.push('');
+            writeFileSync(bigPath, rows.join('\n'));
+            const b = makeVectorBackend({ path: bigPath, vocabCap: 12000, maxWords: 20000 }) as SemanticBackend;
+
+            let ranDuringScan = false;
+            // wordFor(1) ('aab') has a non-zero vector, so it yields a centroid and
+            // the full scan actually runs (wordFor(0) is the zero vector → skipped).
+            const p = b.prewarm!([{ words: [wordFor(1)], k: 3 }]);
+            // If prewarm yields mid-scan, this immediate runs before it resolves;
+            // a fully-synchronous scan would resolve p (microtask) first.
+            setImmediate(() => {
+                ranDuringScan = true;
+            });
+            await p;
+            expect(ranDuringScan).toBe(true);
+        });
+    });
 });
 
 describe('commonness (file-rank frequency prior)', () => {
