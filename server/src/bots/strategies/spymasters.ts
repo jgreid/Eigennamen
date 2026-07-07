@@ -171,6 +171,36 @@ export function admitClosingTraps(groups: BoardGroups, isMatch: boolean, valueOf
     groups.ownTraps = [];
 }
 
+/**
+ * Build the spymaster's targetable board groups together with the match value
+ * function, admitting closing traps (G1) BEFORE returning. This is the single
+ * source of truth for "which own cards the spymaster is aiming at this turn",
+ * shared by the live strategy (chooseClue) and the async prewarm
+ * (prewarmSpymasterClues). Sharing it guarantees candidate generation targets
+ * the trap cards when revealing them closes the round, and that the E4 prewarm
+ * warms exactly the nearest() keys the live scan will read (no drift).
+ */
+export function buildTargeting(view: BotSpymasterView): {
+    groups: BoardGroups;
+    isMatch: boolean;
+    valueOf: (word: string) => number;
+} {
+    const groups = groupBoard(view);
+    // Match mode: value each own card by its point value so the scorer can prefer
+    // clues that cover the most valuable cards. Every value is 1 outside match,
+    // making the value term a no-op there.
+    const isMatch = view.gameMode === 'match';
+    const values = new Map<string, number>();
+    if (isMatch && view.cardScores) {
+        for (let i = 0; i < view.words.length; i++) {
+            values.set(view.words[i] as string, view.cardScores[i] ?? 0);
+        }
+    }
+    const valueOf = (w: string): number => (isMatch ? (values.get(w) ?? 0) : 1);
+    admitClosingTraps(groups, isMatch, valueOf);
+    return { groups, isMatch, valueOf };
+}
+
 const MAX_CLUE_NUMBER = 4;
 
 // Scoring weights. leadOwn (an integer card count) is the dominant term; the
@@ -680,7 +710,11 @@ export function makeEmbeddingSpymaster(
     return {
         strategyId: 'embeddingSpymaster',
         chooseClue(view: BotSpymasterView, ctx: BotContext): BotAction {
-            const groups = groupBoard(view);
+            // G1 endgame trap targeting: buildTargeting admits closing traps into
+            // the own set BEFORE candidate generation, so when revealing traps wins
+            // the round the candidate pool actually contains trap-bridging clues
+            // (not just re-scored after generation). Shared with the E4 prewarm.
+            const { groups, isMatch, valueOf } = buildTargeting(view);
             const legalCandidates = generateClueCandidates(view, groups, backend);
             const style = resolveStyle(skill);
             // Restore the house-rule display case of a generated clue at emit time:
@@ -689,23 +723,6 @@ export function makeEmbeddingSpymaster(
             // lose its reference signal (G2). Only ever changes case, so it's applied
             // after all legality/scoring. A no-op for non-references and lexical backends.
             const emitCase = (word: string): string => backend.displayCase?.(word) ?? word;
-
-            // Match mode: value each own card by its point value so the scorer can
-            // prefer clues that cover the most valuable cards. Every value is 1
-            // outside match, making the value term a no-op there.
-            const isMatch = view.gameMode === 'match';
-            const values = new Map<string, number>();
-            if (isMatch && view.cardScores) {
-                for (let i = 0; i < view.words.length; i++) {
-                    values.set(view.words[i] as string, view.cardScores[i] ?? 0);
-                }
-            }
-            const valueOf = (w: string): number => (isMatch ? (values.get(w) ?? 0) : 1);
-
-            // G1 endgame trap targeting: let the bot CLOSE a round it could win by
-            // re-admitting match traps into the targetable own set when revealing
-            // them is correct (see admitClosingTraps).
-            admitClosingTraps(groups, isMatch, valueOf);
 
             // Occasional blunder: a random legal clue (weak-player model).
             if (legalCandidates.length > 0 && ctx.rng.next() < skill.blunderRate) {

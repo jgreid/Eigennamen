@@ -12,7 +12,7 @@ import type { GameState, Player, CardType } from '../types';
 import type { GameMode } from '../shared/gameRules';
 import { getGameStateForPlayer } from '../services/game/revealEngine';
 import type { SemanticBackend } from './semantics/backend';
-import { groupBoard, clueCandidateQueries } from './strategies/spymasters';
+import { buildTargeting, clueCandidateQueries } from './strategies/spymasters';
 import type {
     BotAction,
     BotClickerView,
@@ -82,7 +82,11 @@ export async function prewarmSpymasterClues(
 ): Promise<void> {
     if (!backend.prewarm || !backend.nearest) return;
     const view = buildSpymasterView(game, team);
-    const queries = clueCandidateQueries(groupBoard(view), backend);
+    // buildTargeting is the SAME helper chooseClue uses to derive the targetable
+    // groups (incl. G1 closing-trap admission), so the prewarmed keys match the
+    // live scan exactly — including the trap-bridging queries the closing case
+    // needs. Using groupBoard() alone here would drift from the strategy.
+    const queries = clueCandidateQueries(buildTargeting(view).groups, backend);
     if (queries.length > 0) await backend.prewarm(queries);
 }
 

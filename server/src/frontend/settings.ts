@@ -7,6 +7,15 @@ import { t } from './i18n.js';
 import { logger } from './logger.js';
 import { getSavedLists, getSavedList, saveList, deleteList, MAX_SAVED_LISTS } from './wordListLibrary.js';
 
+// Saved-list provenance staged by a Load / Save-as click but NOT yet committed.
+// It is promoted to the live state.wordListId/Name only when the user actually
+// applies the settings ("Save & Apply" -> saveSettings). Binding provenance to
+// the commit rather than the click means a Load the user abandons via "Close"
+// (which commits nothing) can never mis-credit a later game to a list whose
+// words were never applied. Cleared whenever the words diverge from a loaded
+// list (clearWordListProvenance) or the settings modal is dismissed.
+let pendingProvenance: { id: string; name: string } | null = null;
+
 export function openSettings(): void {
     openModal('settings-modal');
     // Reset to Game panel when opening
@@ -51,6 +60,10 @@ export function openSettings(): void {
 }
 
 export function closeSettings(): void {
+    // Discard any provenance staged by a Load/Save-as that was never committed.
+    // saveSettings consumes and nulls it before calling this, so a real
+    // "Save & Apply" keeps its credit; only a bare dismiss drops the staged id.
+    pendingProvenance = null;
     closeModal('settings-modal');
 }
 
@@ -239,10 +252,19 @@ export function saveSettings(): void {
 
     // Provenance only applies when the active list IS a saved list verbatim,
     // i.e. "Custom only" mode. Combined/default mixes or replaces it, so drop
-    // any lingering saved-list identity.
-    if (selectedMode !== 'custom') {
+    // any lingering saved-list identity. In custom mode, promote the id staged
+    // by a Load/Save-as (if any) now that the words are actually committed; if
+    // nothing was staged, leave the existing committed provenance untouched so a
+    // no-op re-save of an already-credited list keeps its credit.
+    if (selectedMode === 'custom') {
+        if (pendingProvenance) {
+            state.wordListId = pendingProvenance.id;
+            state.wordListName = pendingProvenance.name;
+        }
+    } else {
         clearWordListProvenance();
     }
+    pendingProvenance = null;
 
     // Clear any error state
     if (wordError) wordError.classList.remove('visible');
@@ -362,9 +384,11 @@ export function loadSavedList(): void {
     const textarea = document.getElementById('custom-words') as HTMLTextAreaElement | null;
     if (textarea) textarea.value = list.words.join('\n');
     setWordlistMode('custom');
-    // Record provenance: the active words now ARE this saved list, verbatim.
-    state.wordListId = list.id;
-    state.wordListName = list.name;
+    // Stage provenance: the editor now holds this saved list verbatim, but the
+    // words don't reach state.activeWords until the user clicks "Save & Apply".
+    // Committing the id here (pre-apply) would mis-credit a game if the user
+    // then dismissed via "Close"; saveSettings promotes this on commit instead.
+    pendingProvenance = { id: list.id, name: list.name };
     updateWordCount();
     showToast(t('wordList.listLoaded', { name: list.name }) || `Loaded “${list.name}”`, 'success');
 }
@@ -377,6 +401,9 @@ export function loadSavedList(): void {
 export function clearWordListProvenance(): void {
     state.wordListId = null;
     state.wordListName = null;
+    // Words diverged from any loaded list — drop the staged credit too, so a
+    // subsequent apply doesn't promote a list the words no longer match.
+    pendingProvenance = null;
 }
 
 /** Delete the selected saved list from the library. */
@@ -393,6 +420,10 @@ export function deleteSavedList(): void {
     if (removed) {
         const name = list?.name ?? '';
         showToast(t('wordList.listDeleted', { name }) || `Deleted “${name}”`, 'success');
+    } else if (list) {
+        // The list existed but the pruned library couldn't be persisted (private
+        // mode / quota) — surface the failure instead of a silent no-op.
+        showToast(t('settings.storageFailed') || 'Could not delete — storage is unavailable', 'warning');
     }
 }
 
@@ -420,10 +451,10 @@ export function saveCurrentAsList(): void {
     }
 
     if (nameInput) nameInput.value = '';
-    // The editor content now IS this saved list — attach its provenance so a
-    // game started right after saving is credited to it.
-    state.wordListId = result.list.id;
-    state.wordListName = result.list.name;
+    // The editor content now IS this saved list — stage its provenance so a game
+    // started after the user applies settings is credited to it. Committed by
+    // saveSettings, not here, so an un-applied save can't mis-credit a game.
+    pendingProvenance = { id: result.list.id, name: result.list.name };
     refreshSavedListSelect();
     const select = document.getElementById('saved-list-select') as HTMLSelectElement | null;
     if (select) {

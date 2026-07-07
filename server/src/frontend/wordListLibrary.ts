@@ -140,11 +140,12 @@ export function saveList(name: string, words: string[]): SaveResult {
     return { ok: true, list: saved, overwritten };
 }
 
-/** Delete a saved list by id. Returns true if a list was removed. */
+/** Delete a saved list by id. Returns true only if a list was found AND the
+ *  pruned library was successfully written back; a storage-write failure
+ *  (private mode / quota) returns false so callers don't report a false success. */
 export function deleteList(id: string): boolean {
     const lists = getSavedLists();
     const next = lists.filter((l) => l.id !== id);
     if (next.length === lists.length) return false;
-    persist(next);
-    return true;
+    return persist(next);
 }

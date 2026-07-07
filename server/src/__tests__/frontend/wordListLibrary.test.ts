@@ -164,4 +164,16 @@ describe('deleteList', () => {
         expect(deleteList('nonexistent')).toBe(false);
         expect(getSavedLists()).toHaveLength(1);
     });
+
+    test('returns false when the pruned library cannot be persisted (storage write fails)', () => {
+        const { safeSetItem } = require('../../frontend/utils');
+        const a = saveList('A', words(25)); // create write succeeds
+        safeSetItem.mockReturnValueOnce(false); // the delete's write fails (quota / private mode)
+
+        // The list existed, so it's not a "not found" false — it's a write-failure
+        // false. Callers rely on this to avoid reporting a phantom "Deleted".
+        expect(deleteList(a.list.id)).toBe(false);
+        // The prune was never persisted, so the list is still there.
+        expect(getSavedList(a.list.id)).not.toBeNull();
+    });
 });

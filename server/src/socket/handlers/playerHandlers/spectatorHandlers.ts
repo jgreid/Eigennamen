@@ -20,8 +20,12 @@ export default function spectatorHandlers(io: Server, socket: GameSocket): void 
             SOCKET_EVENTS.SPECTATOR_REQUEST_JOIN,
             spectatorJoinRequestSchema,
             async (ctx: RoomContext, validated: { team: string }) => {
-                // Only spectators can request to join
-                if (ctx.player.team && ctx.player.role !== 'spectator') {
+                // Only a genuine spectator (masked-board view) may use this flow.
+                // Require the role to be EXACTLY 'spectator' — a teamless `observer`
+                // has seen the fully unmasked board (incl. the assassin), so letting
+                // it slip through here would seat it as a live clicker and reopen the
+                // observer -> clicker laundering path that canChangeTeamOrRole closes.
+                if (ctx.player.role !== 'spectator') {
                     throw PlayerError.notAuthorized();
                 }
 
@@ -63,8 +67,9 @@ export default function spectatorHandlers(io: Server, socket: GameSocket): void 
                 }
 
                 // Verify the requester is actually a spectator to prevent team players
-                // from exploiting the spectator join flow
-                if (requester.team && requester.role !== 'spectator') {
+                // — and teamless observers, who have seen the unmasked board — from
+                // exploiting the spectator join flow. Role must be EXACTLY 'spectator'.
+                if (requester.role !== 'spectator') {
                     throw PlayerError.notAuthorized();
                 }
 

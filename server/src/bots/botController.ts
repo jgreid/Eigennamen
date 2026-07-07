@@ -419,7 +419,14 @@ export async function tickRoom(roomCode: string): Promise<void> {
         // room stays unknown and re-checks. A confirmed bot-less room stops the
         // tick cleanly without ever entering the action loop.
         if (!isBotfulnessKnown(roomCode)) {
-            recordBotful(roomCode, await roomHasBot(roomCode));
+            const hasBot = await roomHasBot(roomCode);
+            // Re-check after the await: a concurrent bot:add may have called
+            // noteRoomHasBot(true) while we were reading the roster. Without this
+            // guard a stale `false` read would clobber that `true`, marking the
+            // room bot-less forever and freezing the just-added bot.
+            if (!isBotfulnessKnown(roomCode)) {
+                recordBotful(roomCode, hasBot);
+            }
         }
         // Sequential by design: each bot action mutates shared game state under
         // the reveal lock and must complete before the next is computed.
