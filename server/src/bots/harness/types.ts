@@ -31,6 +31,10 @@ export interface MatchResult {
     clues: number;
     reveals: number;
     assassinHit: boolean;
+    /** Which team revealed the assassin (competitive modes), null/absent
+     *  otherwise. Lets the leaderboard blame the reveal-er, not both entrants
+     *  (G4); absent → shared attribution (back-compat with older results). */
+    assassinBy?: Team | null;
     endReason: string | null;
     // Duet (cooperative) fields, when applicable.
     greenFound?: number;

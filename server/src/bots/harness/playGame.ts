@@ -85,6 +85,7 @@ export function playEngineGame(opts: PlayGameOptions): MatchResult {
     let reveals = 0;
     let turns = 0;
     let endReason: string | null = null;
+    let assassinBy: Team | null = null;
     const maxActions = opts.maxActions ?? 2000;
 
     // Within-game clue-debt memory (Phase 4.3), threaded per team as data so
@@ -136,6 +137,7 @@ export function playEngineGame(opts: PlayGameOptions): MatchResult {
                 else liveClue.bounced = true;
             }
             endReason = result.endReason ?? endReason;
+            if (result.endReason === 'assassin') assassinBy = team;
             reveals++;
             opts.onEvent?.({ kind: 'reveal', team, index: action.index, result }, game);
         } else if (action.kind === 'endTurn') {
@@ -162,6 +164,7 @@ export function playEngineGame(opts: PlayGameOptions): MatchResult {
         clues,
         reveals,
         assassinHit: endReason === 'assassin',
+        assassinBy,
         endReason,
     };
     if (gameMode === 'duet') {
