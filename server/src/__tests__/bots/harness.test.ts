@@ -5,6 +5,8 @@ import type { Entrant, MatchResult } from '../../bots/harness/types';
 import { playEngineGame } from '../../bots/harness/playGame';
 import { wilsonInterval, computeLeaderboard } from '../../bots/harness/scoring';
 import { runTournament, DEFAULT_ENTRANTS } from '../../bots/harness/runMatches';
+import { referenceLead, type BoardGroups } from '../../bots/harness/analyze';
+import type { SemanticBackend } from '../../bots/semantics/backend';
 
 const ENTRANT_A: Entrant = {
     id: 'A',
@@ -16,6 +18,43 @@ const ENTRANT_B: Entrant = {
     spymaster: { strategyId: 'randomSpymaster', skillPreset: 'intermediate' },
     clicker: { strategyId: 'randomClicker', skillPreset: 'novice' },
 };
+
+describe('referenceLead dangerNext (magnitude-aware halo)', () => {
+    // Relatedness keyed by BOARD word; the clue word is constant. clueRetrieval
+    // has no collocation channel here, so it returns bare relatedness.
+    const stub = (rel: Record<string, number>): SemanticBackend => ({
+        id: 'stub',
+        relatedness: (_a: string, b: string) => rel[b] ?? 0,
+    });
+    const groups: BoardGroups = { own: ['OWN'], opp: ['OPP'], neutral: ['NEU'], assassin: ['ASS'] };
+
+    it('does NOT flag a danger card that is comfortably cleared (the dense-backend fix)', () => {
+        // Brightest non-own is the opponent (0.3 > neutral 0.2), so the old
+        // position-only test flagged this — but the own card leads it by 0.6, far
+        // beyond DANGER_BERTH, so no guesser would reach the opponent first.
+        const r = referenceLead('CLUE', groups, stub({ OWN: 0.9, OPP: 0.3, NEU: 0.2, ASS: 0.1 }));
+        expect(r.safeLead).toBe(1);
+        expect(r.dangerNext).toBe(false);
+    });
+
+    it('flags a safely-led clue whose opponent halo sits within DANGER_BERTH of the own card', () => {
+        // Leads one own card (0.55 ≥ 0.48 + REF_MARGIN) but the opponent is only
+        // 0.07 behind — a genuine hot halo one misread from losing material.
+        const r = referenceLead('CLUE', groups, stub({ OWN: 0.55, OPP: 0.48, NEU: 0.2, ASS: 0.1 }));
+        expect(r.safeLead).toBe(1);
+        expect(r.dangerNext).toBe(true);
+    });
+
+    it('flags a tight assassin halo', () => {
+        const r = referenceLead('CLUE', groups, stub({ OWN: 0.6, OPP: 0.1, NEU: 0.2, ASS: 0.55 }));
+        expect(r.dangerNext).toBe(true);
+    });
+
+    it('does NOT flag when the brightest non-own is a neutral (spillover only wastes a guess)', () => {
+        const r = referenceLead('CLUE', groups, stub({ OWN: 0.9, OPP: 0.2, NEU: 0.5, ASS: 0.1 }));
+        expect(r.dangerNext).toBe(false);
+    });
+});
 
 describe('playEngineGame', () => {
     it('plays a complete classic game and reports a result', () => {

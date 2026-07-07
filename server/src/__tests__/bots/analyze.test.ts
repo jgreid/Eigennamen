@@ -82,12 +82,15 @@ describe('referenceLead', () => {
         expect(ref.assassinArgmax).toBe(true);
     });
 
-    it('reports the halo heat and whether the brightest spillover is lethal', () => {
-        // Best non-own is the OPPONENT card (0.3 > assassin 0.1, no neutral on
-        // this board) — the clue's misfire loses material, not just a guess.
-        const backend = stub({ LINK: { OWNA: 0.9, OWNB: 0.8, OPPO: 0.3, ASSN: 0.1 } });
+    it('reports the halo heat and flags a lethal spillover within the danger berth', () => {
+        // Brightest non-own is the OPPONENT (0.75 > assassin 0.1, no neutral) AND
+        // it sits only 0.05 behind the weakest led own card (0.8) — within
+        // DANGER_BERTH, so a misread loses material. Magnitude-aware dangerNext
+        // flags it; a comfortably-cleared danger card would not be (see
+        // harness.test.ts).
+        const backend = stub({ LINK: { OWNA: 0.9, OWNB: 0.8, OPPO: 0.75, ASSN: 0.1 } });
         const ref = referenceLead('LINK', boardGroupsFor(g, 'red'), backend);
-        expect(ref.heat).toBeCloseTo(0.3);
+        expect(ref.heat).toBeCloseTo(0.75);
         expect(ref.dangerNext).toBe(true);
     });
 

@@ -51,6 +51,21 @@ fixed pools.
 **Gate:** new metrics appear in `npm run bots:analyze`, deterministic under
 `--seed`; existing metric values unchanged (pure addition).
 
+**0.3 Magnitude-aware `dangerNext` (backend comparability). 🟢 (implemented)**
+The original `dangerNext` was **position-only** — it fired whenever the
+brightest non-own card was an opponent/assassin rather than a neutral, with no
+regard for how *close* that card sat to the own cards. That is not comparable
+across backends: a sparse table scores most non-own pairs at 0, so it fired
+near-never; a dense embeddings model scores every pair, so it fired near its
+~chance baseline (≈9 danger cards vs 7 neutrals) *regardless of actual safety* —
+inflating the embeddings danger read to 34–47% while realized leak/assassin were
+~0%. `referenceLead` (`analyze.ts`) now gates on **proximity**: a danger card
+counts only when it is both the brightest non-own AND within `DANGER_BERTH`
+(2×`REF_MARGIN`) of the own card a guesser reaches for. Post-fix the rate reads
+1–11% (table) and 0–5% (embeddings) — comparable, and reflecting true danger
+rather than backend density. Harness-only; no gameplay change. Unit-tested in
+`harness.test.ts` (comfortably-cleared vs tight-halo vs neutral-brightest).
+
 ## Phase 1 — Free safety wins (existing scoring paths, no interface change)
 
 **1.1 Number-inventory guard (2.15)** *(lesson 18: Tinder 3 → GOLD; round-2
