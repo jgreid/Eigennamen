@@ -32,6 +32,13 @@
  * breadth sample instead of the early alphabet a first-N cut would keep. `--board`
  * works for any model and is the recommended production artifact (small, full-coverage;
  * see docs/BOT_EMBEDDINGS.md "Board-restricted vectors").
+ *
+ * `--board` also fetches a small frequency reference (FREQ_REF) and distils WITH
+ * `--freq`, so the output is most-common-first and the runtime re-enables its
+ * rank→commonness prior. That prior is what keeps clue words recognizable: without
+ * it a Numberbatch board surfaces obscure/non-word clues (ADELING, SEASPIDER…) that
+ * pass legality but mean nothing to a human. The reference fetch is best-effort —
+ * if it fails the board build still succeeds, just without the prior (a warning).
  */
 import { createReadStream, createWriteStream, existsSync, mkdirSync, rmSync, renameSync, statSync } from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
@@ -75,6 +82,22 @@ const MODELS = {
         kind: 'gz',
         alphabetical: true, // a first-N trim is meaningless; use --board
     },
+};
+
+// A tiny, most-frequent-first English word list used ONLY as a commonness
+// reference for the --board distillation's --freq pass (build-board-vectors.mjs):
+// it restricts the breadth sample to common words and orders the output so the
+// runtime re-enables its rank→commonness prior. Without it a Numberbatch board
+// distillation carries NO frequency signal, so the spymaster surfaces obscure /
+// non-word clues (ADELING, SEASPIDER…) that pass legality but mean nothing to a
+// human. It is reachable where GloVe/fastText's hosts (the docs' other freq
+// references) are blocked. "word count" lines — build-board-vectors reads only the
+// leading token. CC-BY-SA-4.0 (hermitdave/FrequencyWords); a bake that uses it
+// derives from it, alongside the CC-BY-SA-4.0 Numberbatch model.
+const FREQ_REF = {
+    url: 'https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/en/en_50k.txt',
+    out: 'en_50k.txt',
+    top: 40000, // --freq-top: how much of the reference's common head to admit
 };
 
 function parseArgs(argv) {
@@ -341,18 +364,55 @@ async function ensureModel(model, trim) {
 }
 
 /**
+ * Best-effort fetch of the small frequency reference (FREQ_REF) used to turn the
+ * runtime commonness prior ON for a board distillation. Reused if already on disk.
+ * Returns its path, or null if the download fails — a null lets the board build
+ * proceed WITHOUT the prior (a warning, not a hard failure) so a flaky network
+ * still yields a usable-if-coarser artifact rather than no artifact at all.
+ */
+async function ensureFreqReference() {
+    mkdirSync(DATA_DIR, { recursive: true });
+    const outPath = join(DATA_DIR, FREQ_REF.out);
+    if (existsSync(outPath) && fileSize(outPath) > 4096) {
+        console.log(`✓ Reusing frequency reference: ${outPath}`);
+        return outPath;
+    }
+    console.log('📥 Fetching commonness reference (small; enables the clue rarity tax)…');
+    try {
+        await download(FREQ_REF.url, outPath);
+        if (fileSize(outPath) < 4096) throw new Error('frequency reference looks too small');
+        console.log(`✓ Frequency reference ready: ${outPath}`);
+        return outPath;
+    } catch (err) {
+        console.warn(
+            `   ⚠ could not fetch the frequency reference (${err.message || err}); ` +
+                'building board vectors WITHOUT the commonness prior (clues may run obscure).'
+        );
+        rmSync(outPath, { force: true }); // don't leave a truncated file to be "reused"
+        return null;
+    }
+}
+
+/**
  * Distil the downloaded model to a compact board-restricted vectors file
  * (build-board-vectors.mjs): every board/concept word guaranteed, plus a breadth
  * sample for clue generation. A few MB vs. hundreds, full coverage, and the ONLY
- * correct way to consume an alphabetical model (Numberbatch). Returns the artifact
- * name written into DATA_DIR.
+ * correct way to consume an alphabetical model (Numberbatch). When `freqPath` is
+ * given, the distillation runs with `--freq` so the output is written
+ * most-common-first and the runtime re-enables its rank→commonness prior — the
+ * difference between recognizable clues and obscure ones for a Numberbatch board.
+ * Returns the artifact name written into DATA_DIR.
  */
-function distilBoardVectors(modelVecName) {
+function distilBoardVectors(modelVecName, freqPath) {
     const inPath = join(DATA_DIR, modelVecName);
     const outVec = join(DATA_DIR, 'board-vectors.vec');
     const script = join(SCRIPT_DIR, 'build-board-vectors.mjs');
-    console.log('🧬 Distilling board-restricted vectors (board/concept coverage + breadth sample)…');
-    const r = spawnSync(process.execPath, [script, '--in', inPath, '--out', outVec, '--breadth', '40000'], {
+    const args = [script, '--in', inPath, '--out', outVec, '--breadth', '40000'];
+    if (freqPath) args.push('--freq', freqPath, '--freq-top', String(FREQ_REF.top));
+    console.log(
+        `🧬 Distilling board-restricted vectors (board/concept coverage + breadth sample${freqPath ? ', commonness prior ON' : ''})…`
+    );
+    const r = spawnSync(process.execPath, args, {
         stdio: 'inherit',
     });
     if (r.error || r.status !== 0) {
@@ -379,7 +439,12 @@ async function main() {
 
     // Board mode reads the FULL model to distil from, so never trim the source first.
     const modelName = await ensureModel(opts.model, opts.board ? 0 : opts.trim);
-    const outName = opts.board ? distilBoardVectors(modelName) : modelName;
+    // Board mode also pulls a small frequency reference so the distillation writes
+    // most-common-first and the runtime commonness prior is ON — without it a
+    // Numberbatch board surfaces obscure/non-word clues. Best-effort: a fetch
+    // failure degrades to a prior-off build rather than aborting.
+    const freqPath = opts.board ? await ensureFreqReference() : null;
+    const outName = opts.board ? distilBoardVectors(modelName, freqPath) : modelName;
     const relPath = `src/bots/data/${outName}`; // relative to server/ (the dev server's cwd)
     console.log(`✓ BOT_EMBEDDINGS_PATH=${relPath}`);
 

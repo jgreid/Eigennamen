@@ -134,6 +134,12 @@ is unaffected either way, so the leak-closing benefit holds at any breadth.
 
 ### Commonness prior with an alphabetical source (`--freq`)
 
+> **The `--board` bake does this for you.** `npm run dev:bots -- --board` and the
+> Docker/Fly bake (`BOT_EMBEDDINGS_BOARD=1`, the default) auto-fetch a small
+> frequency reference and pass `--freq` — so a production Numberbatch board already
+> ships with the commonness prior ON. The manual recipe below is for building a
+> board file by hand, or supplying your own reference.
+
 An alphabetical source like Numberbatch carries no frequency signal, so the
 runtime loader disables its rank-based commonness prior and nothing taxes an
 obscure generated clue (e.g. `OVERBOUGHT`), and a uniform stride can sample such
@@ -229,6 +235,17 @@ Numberbatch model (a first-N trim would keep only the early alphabet). `numberba
 is recommended: it is a common-sense knowledge graph (so `COLD`~`PENGUIN` is a real
 edge) and is reachable where the GloVe/fastText hosts are blocked by a network policy.
 
+The board bake also fetches a **small frequency reference** (hermitdave/FrequencyWords
+`en_50k.txt`, ~600 KB, reachable where the GloVe/fastText freq references are blocked)
+and distils **with `--freq`**, so the output is written most-common-first and the
+runtime re-enables its rank→commonness prior. This matters a lot: an alphabetical
+Numberbatch board carries no frequency signal, so **without** the prior the spymaster
+readily surfaces obscure or non-word clues (`ADELING`, `SEASPIDER`, `POLOCYTE`) that
+pass legality but mean nothing to a human — in a 400-board opening-clue measurement,
+85% of prior-off clues fell outside the top-50k English words, versus ~19% with the
+prior on. The reference fetch is **best-effort**: if it fails the board build still
+succeeds, just without the prior (a warning), so a flaky network never blocks a deploy.
+
 Set `BOT_EMBEDDINGS_BOARD=0` to bake the legacy coarse trim instead (fetch
 `BOT_EMBEDDINGS_MODEL`, keep the first `BOT_EMBEDDINGS_TRIM` vectors, default 100000 —
 frequency-ordered models only). The build needs network access to the model host and
@@ -239,7 +256,11 @@ deploy still runs.
 > **Attribution.** ConceptNet Numberbatch is licensed **CC BY-SA 4.0**
 > (https://github.com/commonsense/conceptnet-numberbatch); a deploy that bakes it
 > incorporates a derived work and must carry that attribution. GloVe (PDDL/ODC-BY) and
-> fastText (CC BY-SA 3.0) have their own terms — see each model's page.
+> fastText (CC BY-SA 3.0) have their own terms — see each model's page. The board
+> bake's frequency reference, **hermitdave/FrequencyWords** `en_50k.txt`
+> (https://github.com/hermitdave/FrequencyWords), is also **CC BY-SA 4.0** — a bake
+> that uses it derives from it too. Both CC-BY-SA-4.0 inputs are share-alike
+> compatible; the baked `vectors.vec` is a git-ignored build artifact, not committed.
 
 ## Tuning
 
@@ -252,6 +273,8 @@ deploy still runs.
 ## Licensing
 
 Embedding models are licensed by their authors — GloVe (PDDL / ODC-BY),
-fastText (CC-BY-SA-3.0), ConceptNet Numberbatch (CC-BY-SA-4.0). They are **not**
-bundled with this repository (the data directory is git-ignored). Review the
-model's license before redistributing it with a deployment.
+fastText (CC-BY-SA-3.0), ConceptNet Numberbatch (CC-BY-SA-4.0). The board bake's
+frequency reference, hermitdave/FrequencyWords `en_50k.txt`, is CC-BY-SA-4.0. None
+are **bundled** with this repository (the data directory is git-ignored); they are
+fetched at build time. Review each source's license before redistributing it with a
+deployment.
