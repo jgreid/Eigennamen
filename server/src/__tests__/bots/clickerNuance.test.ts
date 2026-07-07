@@ -7,7 +7,7 @@
  *      frames transfer nothing),
  *  4.4 number-conditional rarity (lesson 26 — the singles doctrine).
  */
-import { lexicalBackend } from '../../bots/semantics/backend';
+import { lexicalBackend, type SemanticBackend } from '../../bots/semantics/backend';
 import { tableBackend } from '../../bots/semantics/tableBackend';
 import { makeCustomMapBackend, type SemanticMap } from '../../bots/semantics/mapBackend';
 import { resolveClueFrame } from '../../bots/strategies/clueFrame';
@@ -324,5 +324,33 @@ describe('4.4 number-conditional rarity: the singles doctrine', () => {
             ctx(s)
         );
         expect(action).toMatchObject({ kind: 'clue', word: 'COMKEY', number: 2 });
+    });
+});
+
+describe('clicker plausibility guard (no suicidal picks)', () => {
+    // One card matches the clue; the other three are clue-unrelated — the assassin
+    // analog. clueRetrieval on this backend is bare relatedness (no collocation).
+    const stub = (rel: Record<string, number>): SemanticBackend => ({
+        id: 'plausible-stub',
+        relatedness: (a: string, b: string) => rel[a.toUpperCase()] ?? rel[b.toUpperCase()] ?? 0,
+    });
+
+    it('a max-noise, blunder-prone clicker never reveals a clue-unrelated card', () => {
+        const be = stub({ GOOD: 0.9, BAD1: 0, BAD2: 0, BAD3: 0 });
+        // Cranked-up noise: high temperature + a 90% blunder rate + low caution.
+        // Pre-guard, a blunder was a UNIFORM random pick (¾ of the time a BAD card,
+        // i.e. the assassin); the plausibility guard restricts every pick to cards
+        // that actually match the clue, so it only ever takes GOOD.
+        const s = skill({ temperature: 2.0, blunderRate: 0.9, riskAversion: 0.1 });
+        const clicker = makeGreedyClicker(s, be);
+        for (let seed = 0; seed < 200; seed++) {
+            const view = clickerView(['GOOD', 'BAD1', 'BAD2', 'BAD3'], 'X', 1);
+            const action = clicker.chooseGuess(view, {
+                gameMode: 'classic',
+                skill: { ...s, seed },
+                rng: makeRng(seed),
+            });
+            expect(action).toEqual({ kind: 'reveal', index: 0 });
+        }
     });
 });

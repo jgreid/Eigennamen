@@ -13,8 +13,12 @@ current state, the code in `server/src/bots/` is authoritative.**
   + clarity + a graded assassin penalty + a defensive "don't arm the opponent"
   penalty + (match mode) a card-value bonus. The `temperature` knob is now wired
   as a softmax over candidates, so one strategy spans "scary good" (temp 0) →
-  "off-kilter but sensible" (high temp); the `novice`/`intermediate`/`expert`
-  presets are a real self-play-verified ladder.
+  "off-kilter but sensible" (high temp); the five-rung
+  `novice`/`beginner`/`intermediate`/`advanced`/`expert` presets are a real
+  self-play-verified ladder (monotonic win-rate on the embeddings tournament).
+  The clicker's noise only draws from the *plausible* set (cards scoring ≥ half
+  the best card's clue-fit), so weak rungs misread real candidates instead of
+  blundering onto the clue-unrelated assassin.
 - **Embedding-backed clue GENERATION**: `SemanticBackend.nearest()` lets the
   spymaster generate board-specific candidates (nearest own-card neighbours),
   not just score a fixed vocabulary. Enabled via `BOT_EMBEDDINGS_PATH` (opt-in in
@@ -385,7 +389,7 @@ export interface StrategyFactory {
 /** Persisted per-bot descriptor (Redis bot:{sessionId}:cfg). */
 export interface BotConfig {
     readonly strategyId: string;
-    readonly skillPreset: string; // 'novice' | 'intermediate' | 'expert' | …
+    readonly skillPreset: string; // 'novice' | 'beginner' | 'intermediate' | 'advanced' | 'expert' | …
     readonly seed?: number;
 }
 ```
@@ -642,7 +646,7 @@ server/src/bots/
 ├── rng.ts                  # Mulberry32-based per-bot SeededRng
 ├── playOneAction.ts        # pure shared decision helper (live + harness)
 ├── botController.ts        # singleton; onGameMutation subscriber, tickRoom, reentrancy guard, lastSeen refresh
-├── presets.ts              # named SkillParams presets (novice/intermediate/expert); routes persona ids
+├── presets.ts              # named SkillParams presets (5-rung novice→beginner→intermediate→advanced→expert); routes persona ids
 ├── personas.ts             # persona registry (difficulty + style knobs) → SkillParams; resolvePersona/isPersona
 ├── strategies/
 │   ├── types.ts            # BotAction, Spymaster/ClickerStrategy, views, SeededRng, SkillParams (+ style knobs), StyleParams/resolveStyle, BotContext, BotConfig

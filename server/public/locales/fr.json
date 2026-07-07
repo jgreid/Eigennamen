@@ -36,6 +36,8 @@
         "skillExpert": "Expert",
         "skillIntermediate": "Intermédiaire",
         "skillNovice": "Novice",
+        "skillBeginner": "Débutant",
+        "skillAdvanced": "Avancé",
         "difficultyGroup": "Difficulté",
         "personaGroup": "Personnages",
         "add": "Ajouter un bot",

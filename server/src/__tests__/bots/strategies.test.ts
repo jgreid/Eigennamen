@@ -5,7 +5,7 @@
 import { makeRandomClicker, makeCautiousClicker, makeGreedyClicker } from '../../bots/strategies/clickers';
 import { makeRandomSpymaster } from '../../bots/strategies/spymasters';
 import { resolveClicker, resolveSpymaster, isStrategyId, strategyLabel } from '../../bots/strategies/registry';
-import { resolveSkill, isSkillPreset } from '../../bots/presets';
+import { resolveSkill, isSkillPreset, SKILL_PRESETS } from '../../bots/presets';
 import { makeRng } from '../../bots/rng';
 import { lexicalBackend } from '../../bots/semantics/backend';
 import type { BotClickerView, BotSpymasterView, BotContext } from '../../bots/strategies/types';
@@ -165,5 +165,23 @@ describe('registry & presets', () => {
         expect(expert.temperature).toBe(0);
         expect(expert.blunderRate).toBe(0);
         expect(expert.seed).toBe(5);
+    });
+});
+
+describe('skill preset ladder (5 monotonic rungs)', () => {
+    it('is ordered weakest→strongest with a monotonic knob gradient', () => {
+        expect([...SKILL_PRESETS]).toEqual(['novice', 'beginner', 'intermediate', 'advanced', 'expert']);
+        const rungs = SKILL_PRESETS.map((p) => resolveSkill(p, 1));
+        for (let i = 1; i < rungs.length; i++) {
+            // Each step up: strictly-not-worse selection noise + blunders, and
+            // strictly-not-lower caution — a smooth, monotonic difficulty ladder.
+            expect(rungs[i]!.temperature).toBeLessThanOrEqual(rungs[i - 1]!.temperature);
+            expect(rungs[i]!.blunderRate).toBeLessThanOrEqual(rungs[i - 1]!.blunderRate);
+            expect(rungs[i]!.riskAversion).toBeGreaterThanOrEqual(rungs[i - 1]!.riskAversion);
+        }
+        // The two ends anchor the spectrum: novice noisy/reckless, expert exact.
+        expect(rungs[0]!.temperature).toBeGreaterThan(rungs[4]!.temperature);
+        expect(rungs[4]!.temperature).toBe(0);
+        expect(rungs[4]!.blunderRate).toBe(0);
     });
 });
