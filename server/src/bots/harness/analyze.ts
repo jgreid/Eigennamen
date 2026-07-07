@@ -30,6 +30,16 @@ import { makeBoardSafetyCheck } from '../strategies/clueSafety';
  *  entrant's clues are measured against the SAME theoretical ceiling. */
 export const REF_MARGIN = 0.05;
 
+/** How close a material-losing (opponent/assassin) card must sit to the own card
+ *  a guesser reaches for before the clue counts as "danger-next". Sized at
+ *  2×REF_MARGIN — the same comfortable-clearance scale the safe-lead assassin
+ *  berth uses — so a clue whose lethal spillover is cleared by more than this is
+ *  NOT flagged. Gating dangerNext on this proximity (not on which card is merely
+ *  brightest) makes the metric comparable across a sparse backend (the table
+ *  scores most non-own pairs at 0) and a dense one (embeddings score every pair,
+ *  so a position-only test fires near its chance baseline regardless of safety). */
+export const DANGER_BERTH = 2 * REF_MARGIN;
+
 /** Endgame slice: a clue given with this many own cards (or fewer) unrevealed.
  *  Both live-play assassin hits (rounds 2–3) were endgame events — spymasters
  *  relax late while guessers lower their thresholds (ledger lesson 11/18), so
@@ -212,10 +222,17 @@ export function referenceLead(
     const assassinArgmax = g.assassin.length > 0 && maxAss >= Math.max(maxOwn, maxOpp, maxNeu);
     // The failure-mode split: a clue always spills SOMEWHERE, but spilling onto
     // an opponent/assassin card loses material while a neutral only wastes the
-    // guess. dangerNext marks the former (ties count — a shared brightest
-    // non-own card is one coin-flip from lethal).
+    // guess. dangerNext marks the former — the brightest non-own is a
+    // material-losing card (ties count: a shared brightest non-own is one
+    // coin-flip from lethal) — AND that card sits within DANGER_BERTH of the own
+    // card a guesser reaches for, so it could plausibly be picked. The proximity
+    // gate is what makes the signal comparable across sparse and dense backends;
+    // a merely-brightest-but-comfortably-cleared danger card is not a threat.
     const maxDanger = Math.max(maxOpp, maxAss);
-    const dangerNext = maxDanger > 0 && maxDanger >= maxNeu;
+    // The own card the guesser aims at: the weakest safely-led card, or (when the
+    // clue leads none safely) its strongest own pull.
+    const ownReach = lead > 0 ? (ownRel[lead - 1] as number) : maxOwn;
+    const dangerNext = maxDanger > 0 && maxDanger >= maxNeu && ownReach - maxDanger < DANGER_BERTH;
     return { safeLead: lead, clarity, assassinArgmax, dangerNext, heat: maxNonOwn };
 }
 
