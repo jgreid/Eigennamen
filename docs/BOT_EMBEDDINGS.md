@@ -112,7 +112,7 @@ downloaded model down to exactly what the game needs:
 
 1. **Guaranteed** — every single-token board word across all locales
    (`DEFAULT_WORDS` + `wordlist-{de,es,fr}.txt`) and every baked association
-   concept key, so scored *and* generated clues are graded by real vectors.
+   concept key, so scored _and_ generated clues are graded by real vectors.
 2. **Breadth** — a sample of the rest of the model's word-like English tokens
    (default 40 000), so the spymaster's `nearest()` clue generation has a wide
    candidate pool.
@@ -201,37 +201,53 @@ into the image at build time with a build-arg (off by default — the normal bui
 unchanged and downloads nothing):
 
 ```bash
-# Docker (build context = repo root)
-docker build --build-arg BOT_EMBEDDINGS_MODEL=glove -f server/Dockerfile -t eigennamen .
+# Docker (build context = repo root) — recommended: knowledge-graph model,
+# distilled to compact board-restricted vectors (the default when a model is baked):
+docker build --build-arg BOT_EMBEDDINGS_MODEL=numberbatch -f server/Dockerfile -t eigennamen .
 # then run with the path set:
 docker run -e BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec ... eigennamen
 ```
 
 ```bash
 # docker compose — one command sets both the build-arg and the runtime path:
-BOT_EMBEDDINGS_MODEL=glove BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec \
+BOT_EMBEDDINGS_MODEL=numberbatch BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec \
   docker compose up -d --build
 ```
 
 ```bash
 # Fly.io
-fly deploy --build-arg BOT_EMBEDDINGS_MODEL=glove
+fly deploy --build-arg BOT_EMBEDDINGS_MODEL=numberbatch
 fly secrets set BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec
 ```
 
-The bake fetches `BOT_EMBEDDINGS_MODEL` (`glove` | `fasttext`), trims to
-`BOT_EMBEDDINGS_TRIM` (default 100000), and writes `/app/embeddings/vectors.vec`.
-The build needs network access; it adds the model size (trimmed GloVe ≈ 130 MB) to
-the image. If `BOT_EMBEDDINGS_PATH` points at a missing file the server logs a
-warning and falls back to the baked table, so a misconfigured deploy still runs.
+The bake fetches `BOT_EMBEDDINGS_MODEL` (`numberbatch` | `glove` | `fasttext`) and,
+**by default (`BOT_EMBEDDINGS_BOARD=1`)**, distils it to compact **board-restricted
+vectors** (build-board-vectors.mjs) — every board/concept word guaranteed plus a
+clue-generation breadth sample, a few MB with full coverage. This is both the best
+artifact for a word game and the _only_ correct way to consume the alphabetical
+Numberbatch model (a first-N trim would keep only the early alphabet). `numberbatch`
+is recommended: it is a common-sense knowledge graph (so `COLD`~`PENGUIN` is a real
+edge) and is reachable where the GloVe/fastText hosts are blocked by a network policy.
+
+Set `BOT_EMBEDDINGS_BOARD=0` to bake the legacy coarse trim instead (fetch
+`BOT_EMBEDDINGS_MODEL`, keep the first `BOT_EMBEDDINGS_TRIM` vectors, default 100000 —
+frequency-ordered models only). The build needs network access to the model host and
+writes `/app/embeddings/vectors.vec`. If `BOT_EMBEDDINGS_PATH` points at a missing
+file the server logs a warning and falls back to the baked table, so a misconfigured
+deploy still runs.
+
+> **Attribution.** ConceptNet Numberbatch is licensed **CC BY-SA 4.0**
+> (https://github.com/commonsense/conceptnet-numberbatch); a deploy that bakes it
+> incorporates a derived work and must carry that attribution. GloVe (PDDL/ODC-BY) and
+> fastText (CC BY-SA 3.0) have their own terms — see each model's page.
 
 ## Tuning
 
-| Env var | Default | Purpose |
-|---------|---------|---------|
-| `BOT_EMBEDDINGS_PATH` | _(unset)_ | Path to the vectors file. Unset ⇒ baked table. |
-| `BOT_EMBEDDINGS_MAX_WORDS` | `50000` | Cap on vectors loaded into memory. The loader reads in bounded chunks and stops at the cap — a multi-GB file is never slurped whole. For **frequency-ordered** files (GloVe/fastText) the cap keeps the most common words; for **alphabetical** files (Numberbatch) it keeps the early alphabet AND the loader disables its commonness prior — so build a `board-vectors.vec` with `npm run bots:embeddings:board` (optionally `--freq`) instead of relying on a raw cap. |
-| `BOT_EMBEDDINGS_VOCAB_CAP` | `2000` | Cap on the spymaster's clue candidate list (embedding vocab ∪ table vocab). Larger ⇒ richer clues, slower per-turn scan. |
+| Env var                    | Default   | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BOT_EMBEDDINGS_PATH`      | _(unset)_ | Path to the vectors file. Unset ⇒ baked table.                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `BOT_EMBEDDINGS_MAX_WORDS` | `50000`   | Cap on vectors loaded into memory. The loader reads in bounded chunks and stops at the cap — a multi-GB file is never slurped whole. For **frequency-ordered** files (GloVe/fastText) the cap keeps the most common words; for **alphabetical** files (Numberbatch) it keeps the early alphabet AND the loader disables its commonness prior — so build a `board-vectors.vec` with `npm run bots:embeddings:board` (optionally `--freq`) instead of relying on a raw cap. |
+| `BOT_EMBEDDINGS_VOCAB_CAP` | `2000`    | Cap on the spymaster's clue candidate list (embedding vocab ∪ table vocab). Larger ⇒ richer clues, slower per-turn scan.                                                                                                                                                                                                                                                                                                                                                  |
 
 ## Licensing
 

@@ -27,16 +27,29 @@ RUN npm run build
 # --- Optional: bake bot word-embeddings into the image (OFF by default) ---
 # With no build-arg the build is byte-for-byte unchanged (/app/embeddings holds only
 # a .keep placeholder). To ship strong bots in a deployed image, build with e.g.:
-#   docker build --build-arg BOT_EMBEDDINGS_MODEL=glove -f server/Dockerfile .
+#   docker build --build-arg BOT_EMBEDDINGS_MODEL=numberbatch -f server/Dockerfile .
 # then set BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec on the running container.
+#
+# By default the model is distilled to COMPACT board-restricted vectors
+# (build-board-vectors.mjs): a few MB with guaranteed coverage of every board/concept
+# word plus a clue-generation breadth sample — far better than a generic first-N trim,
+# and the only correct way to consume the alphabetical Numberbatch model (the best fit
+# for a word game and reachable where the GloVe/fastText hosts are blocked). Set
+# BOT_EMBEDDINGS_BOARD=0 to bake the legacy coarse trim instead.
 ARG BOT_EMBEDDINGS_MODEL=
 ARG BOT_EMBEDDINGS_TRIM=100000
+ARG BOT_EMBEDDINGS_BOARD=1
 COPY scripts/ ./scripts/
 RUN mkdir -p /app/embeddings && touch /app/embeddings/.keep && \
     if [ -n "$BOT_EMBEDDINGS_MODEL" ]; then \
         apk add --no-cache unzip && \
-        BOT_MODEL="$BOT_EMBEDDINGS_MODEL" BOT_TRIM="$BOT_EMBEDDINGS_TRIM" node scripts/dev-bots.mjs --no-run && \
-        cp /app/server/src/bots/data/*.vec /app/embeddings/vectors.vec; \
+        if [ "$BOT_EMBEDDINGS_BOARD" = "0" ]; then \
+            BOT_MODEL="$BOT_EMBEDDINGS_MODEL" BOT_TRIM="$BOT_EMBEDDINGS_TRIM" node scripts/dev-bots.mjs --no-run && \
+            cp /app/server/src/bots/data/*.vec /app/embeddings/vectors.vec; \
+        else \
+            BOT_MODEL="$BOT_EMBEDDINGS_MODEL" node scripts/dev-bots.mjs --no-run --board && \
+            cp /app/server/src/bots/data/board-vectors.vec /app/embeddings/vectors.vec; \
+        fi; \
     fi
 
 # Production stage
