@@ -35,6 +35,8 @@ import { applyClue, applyReveal, applyEndTurn } from './gameActions';
  */
 interface GameStartInput {
     wordList?: string[];
+    wordListId?: string;
+    wordListName?: string;
 }
 
 /**
@@ -112,6 +114,8 @@ function gameHandlers(io: Server, socket: GameSocket): void {
 
                     const game: GameState = await gameService.createGame(ctx.roomCode, {
                         wordList: validated.wordList,
+                        wordListId: validated.wordListId || null,
+                        wordListName: validated.wordListName || null,
                         gameMode,
                     });
 

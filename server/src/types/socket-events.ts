@@ -54,6 +54,10 @@ export interface RoomSettingsPayload {
  */
 export interface GameStartPayload {
     wordList?: string[];
+    /** Provenance: stable id of the saved word list the words came from (if any). */
+    wordListId?: string | null;
+    /** Provenance: human-facing name of that saved word list (if any). */
+    wordListName?: string | null;
 }
 
 /**

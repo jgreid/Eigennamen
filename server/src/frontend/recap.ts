@@ -118,6 +118,11 @@ function renderResult(replay: ReplayData): void {
         heading.textContent = t('recap.noWinner');
     }
     container.appendChild(heading);
+
+    // Provenance: which saved word list this game was played with, if any.
+    if (replay.wordListName) {
+        container.appendChild(el('div', 'recap-wordlist', t('recap.playedWith', { name: replay.wordListName })));
+    }
 }
 
 function renderStats(replay: ReplayData): void {

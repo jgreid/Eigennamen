@@ -50,6 +50,7 @@ const gameStateSchema = z
         createdAt: z.number().optional(),
         gameMode: z.string().optional(),
         wordListId: z.string().nullable().optional(),
+        wordListName: z.string().nullable().optional(),
         // Full word pool the board was drawn from (match mode reuses it for
         // fresh rounds). Not length-checked against words/types/revealed.
         wordPool: z.preprocess(emptyObjToArray, z.array(z.string())).optional(),

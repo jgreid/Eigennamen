@@ -28,6 +28,7 @@ const gameHistoryEntrySchema = z.object({
     endReason: z.string().optional(),
     teamNames: z.unknown().optional(),
     wordListId: z.string().nullable().optional(),
+    wordListName: z.string().nullable().optional(),
     stateVersion: z.number().optional(),
     gameMode: z.string().optional(),
 });
@@ -141,6 +142,7 @@ export async function saveGameResult(roomCode: string, gameData: GameDataInput):
 
         // Metadata
         wordListId: gameData.wordListId || null,
+        wordListName: gameData.wordListName || null,
         stateVersion: gameData.stateVersion || 1,
     };
 

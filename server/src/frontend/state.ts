@@ -85,6 +85,8 @@ const _rawState: AppState = {
     activeWords: [...DEFAULT_WORDS],
     wordSource: 'default',
     wordListMode: 'combined',
+    wordListId: null,
+    wordListName: null,
     teamNames: { red: 'Red', blue: 'Blue' },
 
     isHost: false,

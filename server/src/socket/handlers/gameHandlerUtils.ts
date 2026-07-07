@@ -83,6 +83,7 @@ export async function saveCompletedGameHistory(roomCode: string): Promise<void> 
                 history: completedGame.history.map(toHistoryEntry),
                 teamNames: roomForHistory?.settings?.teamNames || { red: 'Red', blue: 'Blue' },
                 wordListId: completedGame.wordListId,
+                wordListName: completedGame.wordListName ?? null,
                 stateVersion: completedGame.stateVersion,
             };
             await gameHistoryService.saveGameResult(roomCode, gameData);

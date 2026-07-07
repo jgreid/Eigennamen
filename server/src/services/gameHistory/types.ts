@@ -85,6 +85,7 @@ export interface GameDataInput {
     history?: HistoryEntry[];
     teamNames?: TeamNames;
     wordListId?: string | null;
+    wordListName?: string | null;
     stateVersion?: number;
 }
 
@@ -103,6 +104,7 @@ export interface GameHistoryEntry {
     history: HistoryEntry[];
     teamNames: TeamNames;
     wordListId: string | null;
+    wordListName: string | null;
     stateVersion: number;
 }
 
@@ -154,6 +156,9 @@ export interface ReplayData {
     duration: number;
     totalMoves: number;
     totalClues: number;
+    /** Provenance: saved word list this game was played with (if any). */
+    wordListId?: string | null;
+    wordListName?: string | null;
     /** Number of corrupted history entries skipped during replay construction */
     skippedEntries?: number;
 }

@@ -30,6 +30,22 @@ const gameStartSchema = z
                 `Must have at least ${BOARD_SIZE} unique words (case-insensitive)`
             )
             .optional(),
+        // Provenance for the client's word-list library: the stable id and name
+        // of the saved list `wordList` came from. Recorded on the game/history so
+        // the recap can show "Played with <name>". These are NOT selectors — the
+        // words themselves still travel in `wordList`; the server never resolves a
+        // list by id. Sanitized (control chars stripped) and length-bounded; the
+        // display path uses textContent, so no markup can execute.
+        wordListId: z
+            .string()
+            .max(64, 'wordListId too long')
+            .transform((val: string) => removeControlChars(val).trim())
+            .optional(),
+        wordListName: z
+            .string()
+            .max(80, 'wordListName too long')
+            .transform((val: string) => removeControlChars(val).trim())
+            .optional(),
     })
     .optional()
     .default({});

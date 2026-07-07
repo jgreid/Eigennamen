@@ -283,7 +283,8 @@
         "assassin": "Assassin",
         "noMoves": "Aucun coup n’a été joué dans cette partie.",
         "noGuesses": "Aucune proposition.",
-        "unavailable": "Le récapitulatif n’est pas encore disponible pour cette partie."
+        "unavailable": "Le récapitulatif n’est pas encore disponible pour cette partie.",
+        "playedWith": "Joué avec {{name}}"
     },
     "wordList": {
         "default": "Mots par défaut",

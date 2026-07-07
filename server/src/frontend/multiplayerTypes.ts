@@ -340,6 +340,9 @@ export interface ReplayData {
     duration?: number;
     totalMoves?: number;
     totalClues?: number;
+    /** Provenance: the saved word list this game was played with (if any). */
+    wordListId?: string | null;
+    wordListName?: string | null;
     initialBoard?: {
         words?: string[];
         types?: string[];

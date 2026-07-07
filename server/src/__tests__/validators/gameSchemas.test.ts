@@ -66,13 +66,33 @@ describe('gameStartSchema', () => {
         expect(result.success).toBe(true);
     });
 
-    // F4: wordListId was a dead, always-null param and has been removed from the
-    // schema. A client still sending it is accepted (non-strict) but the field is
-    // stripped — it never reaches the game.
-    test('strips the removed wordListId field instead of surfacing it', () => {
-        const result = gameStartSchema.safeParse({ wordListId: '123e4567-e89b-12d3-a456-426614174000' });
+    // A1 tranche 2: wordListId/wordListName came back as *provenance* (not a
+    // selector). They are accepted, sanitized, and pass through so the server can
+    // record which saved list a game was played with.
+    test('accepts and surfaces wordListId + wordListName provenance', () => {
+        const result = gameStartSchema.safeParse({
+            wordList: validWords,
+            wordListId: 'wl_abc123',
+            wordListName: 'Sci-Fi Words',
+        });
         expect(result.success).toBe(true);
-        expect(result.data).not.toHaveProperty('wordListId');
+        expect(result.data.wordListId).toBe('wl_abc123');
+        expect(result.data.wordListName).toBe('Sci-Fi Words');
+    });
+
+    test('sanitizes control characters from the provenance fields', () => {
+        const result = gameStartSchema.safeParse({
+            wordListId: 'wl_\x00abc',
+            wordListName: 'My\x01List',
+        });
+        expect(result.success).toBe(true);
+        expect(result.data.wordListId).toBe('wl_abc');
+        expect(result.data.wordListName).toBe('MyList');
+    });
+
+    test('rejects an over-long wordListName', () => {
+        const result = gameStartSchema.safeParse({ wordListName: 'x'.repeat(81) });
+        expect(result.success).toBe(false);
     });
 });
 
