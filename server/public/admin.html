@@ -106,6 +106,32 @@
             </div>
         </div>
 
+        <div class="section">
+            <h2>Audit Log</h2>
+            <div class="audit-controls">
+                <label for="audit-category">Category
+                    <select id="audit-category">
+                        <option value="all">All</option>
+                        <option value="admin">Admin</option>
+                        <option value="security">Security</option>
+                    </select>
+                </label>
+                <label for="audit-severity">Severity
+                    <select id="audit-severity">
+                        <option value="all">All</option>
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </label>
+            </div>
+            <div id="audit-summary" class="audit-summary"></div>
+            <div id="audit-container">
+                <div class="loading">Loading audit log...</div>
+            </div>
+        </div>
+
         <div class="last-update">
             Last updated: <span id="last-update">-</span>
             <br>

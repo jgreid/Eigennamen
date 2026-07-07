@@ -452,12 +452,95 @@ document.getElementById('rooms-container').addEventListener('click', function(e)
     }
 });
 
+// ===== Audit Log (F3) =====
+const AUDIT_SEVERITY_ORDER = ['critical', 'high', 'medium', 'low'];
+
+async function fetchAuditLogs() {
+    const category = document.getElementById('audit-category')?.value || 'all';
+    const severity = document.getElementById('audit-severity')?.value || 'all';
+    const params = new URLSearchParams({ category, limit: '100' });
+    if (severity !== 'all') params.set('severity', severity);
+
+    try {
+        const response = await fetch(`/admin/api/audit?${params.toString()}`);
+        if (!response.ok) throw new Error('Failed to fetch audit logs');
+        const data = await response.json();
+        renderAuditSummary(data.summary);
+        renderAuditLog(data.logs);
+    } catch (error) {
+        console.error('Error fetching audit logs:', error);
+        const container = document.getElementById('audit-container');
+        if (container) {
+            container.innerHTML = `<div class="error">${escapeHTML(error.message)}</div>`;
+        }
+    }
+}
+
+function renderAuditSummary(summary) {
+    const el = document.getElementById('audit-summary');
+    if (!el) return;
+    if (!summary) {
+        el.innerHTML = '';
+        return;
+    }
+    const sev = summary.bySeverity || {};
+    const sevChips = AUDIT_SEVERITY_ORDER.filter((s) => sev[s])
+        .map((s) => `<span class="audit-sev audit-sev-${s}">${escapeHTML(s)}: ${Number(sev[s]) || 0}</span>`)
+        .join(' ');
+    el.innerHTML = `
+        <span class="audit-count">Total: ${Number(summary.total) || 0}</span>
+        <span class="audit-count">Admin: ${Number(summary.admin) || 0}</span>
+        <span class="audit-count">Security: ${Number(summary.security) || 0}</span>
+        ${sevChips}
+    `;
+}
+
+function renderAuditLog(logs) {
+    const container = document.getElementById('audit-container');
+    if (!container) return;
+    if (!Array.isArray(logs) || logs.length === 0) {
+        container.innerHTML = '<div class="loading">No audit events.</div>';
+        return;
+    }
+    const rows = logs
+        .map((log) => {
+            const time = escapeHTML(new Date(log.timestamp).toLocaleString());
+            const severity = escapeHTML(String(log.severity || 'low'));
+            return `
+            <tr>
+                <td class="audit-time">${time}</td>
+                <td><span class="audit-sev audit-sev-${severity}">${severity}</span></td>
+                <td>${escapeHTML(log.event)}</td>
+                <td>${escapeHTML(log.actor)}</td>
+                <td>${escapeHTML(log.target || '')}</td>
+                <td>${escapeHTML(log.ip || '')}</td>
+            </tr>`;
+        })
+        .join('');
+    container.innerHTML = `
+        <table class="audit-table">
+            <thead>
+                <tr><th>Time</th><th>Severity</th><th>Event</th><th>Actor</th><th>Target</th><th>IP</th></tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>
+    `;
+}
+
+// Refetch immediately when a filter changes
+['audit-category', 'audit-severity'].forEach((id) => {
+    const sel = document.getElementById(id);
+    if (sel) sel.addEventListener('change', fetchAuditLogs);
+});
+
 // Initial load
 fetchStats();
 fetchRooms();
+fetchAuditLogs();
 
 // Auto-refresh
 setInterval(() => {
     fetchStats();
     fetchRooms();
+    fetchAuditLogs();
 }, REFRESH_INTERVAL);

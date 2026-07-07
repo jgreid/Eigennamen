@@ -884,9 +884,11 @@ Each of these carries either real runtime cost or a misleading API surface today
 
 ---
 
-### F3 — Admin audit log and SSE stats stream have no dashboard UI
+### F3 — Admin audit log and SSE stats stream have no dashboard UI — **FIXED (finish audit + delete SSE)**
 
 **Severity:** Medium · **Area:** Feature gap (admin)
+
+**Resolution (shipped):** the admin dashboard now surfaces the audit log, and the dead SSE stream was removed. `admin.html`/`admin.js` gained an **Audit Log** section — category (all/admin/security) + severity (all/critical/high/medium/low) selects, a summary line (total/admin/security counts + per-severity chips), and a table of events (time/severity/event/actor/target/IP) — that calls `GET /admin/api/audit`, refetches on filter change, and joins the existing 10s refresh cycle (all values `escapeHTML`-escaped, matching admin.js's convention). The SSE branch took the plan's **delete path**: `/admin/api/stats/stream` (`statsRoutes.ts`) was removed — it had zero consumers/tests and its payload diverged from `/admin/api/stats` (no `connections`/room counts the dashboard renders), so wiring it would have degraded the dashboard; the 10s poll stays. Tests: the audit route is already covered (`routes/auditRoutes.test.ts`); added a jsdom dashboard smoke test (`frontend/adminAudit.test.ts`) that loads the real admin page + admin.js against a mocked fetch and asserts the audit table renders entries.
 
 **What exists:** `/admin/api/audit` (`routes/admin/auditRoutes.ts:19`) with category/severity filtering; `/admin/api/stats/stream` SSE (`statsRoutes.ts:116`). **What's missing:** `admin.html`/`admin.js` never call the audit endpoint (security audit events — failed auths, kicks, admin actions — are reachable only by hand-crafted curl), and the dashboard polls stats every 10s instead of using the SSE stream (dead code carrying connection-management complexity).
 
