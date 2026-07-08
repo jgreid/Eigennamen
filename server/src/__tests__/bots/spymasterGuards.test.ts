@@ -101,6 +101,55 @@ describe('PROMISE_FLOOR trims absolutely-weak tail promises', () => {
     });
 });
 
+describe('PROMISE_FLOOR scales to the backend relatedness range', () => {
+    // A dense vector backend's cosine scale is compressed: a genuinely-related own
+    // pair sits ~0.22 and the strongest own card only ~0.33. A flat 0.3 floor would
+    // trim ~84% of safe multi-card clues on such a backend purely on scale, not on
+    // gettability (Numberbatch red-team, Step 4). The floor is therefore scaled to
+    // the board's own strongest pull, clamped so it can only ever RELAX (never
+    // exceed 0.3) and never drop below the noise guard. The relaxation is keyed on
+    // the backend exposing nearest() (a dense generative model); a stub therefore
+    // carries an (empty) nearest() so the candidate pool falls back to vocabulary()
+    // while the backend still reads as dense.
+    const dense = (rel: Record<string, Record<string, number>>): SemanticBackend => ({
+        ...stub(rel),
+        nearest: () => [],
+    });
+    it('promises a safe second card that sits below the flat floor but above the scaled floor', () => {
+        // Compressed board: best own 0.34, second 0.23 — the second clears the cold
+        // field by the safety margin AND clears the scaled floor (0.34 * 0.6 ≈ 0.20),
+        // so it is a real second card. Under a flat 0.3 floor it would be trimmed to 1.
+        const board = view(['OWNA', 'OWNB', 'OPPO', 'OPPOX', 'NEUT'], ['red', 'red', 'blue', 'blue', 'neutral']);
+        const backend = dense({ LINK: { OWNA: 0.34, OWNB: 0.23, OPPO: 0.02, NEUT: 0.02 } });
+        const skill = base({});
+        const action = makeEmbeddingSpymaster(skill, backend).chooseClue(board, ctx(skill));
+        expect(action).toMatchObject({ kind: 'clue', word: 'LINK', number: 2 });
+    });
+
+    it('still trims a tail below the scaled floor (the floor relaxes, it does not vanish)', () => {
+        // Same compressed best card (0.34 → scaled floor ≈ 0.20), but the second
+        // card (0.16) clears the field margin yet sits below the scaled floor: it is
+        // a noise-level tail the clicker would not chase, so the number trims to 1.
+        const board = view(['OWNA', 'OWNB', 'OPPO', 'OPPOX', 'NEUT'], ['red', 'red', 'blue', 'blue', 'neutral']);
+        const backend = dense({ LINK: { OWNA: 0.34, OWNB: 0.16, OPPO: 0.02, NEUT: 0.02 } });
+        const skill = base({});
+        const action = makeEmbeddingSpymaster(skill, backend).chooseClue(board, ctx(skill));
+        expect(action).toMatchObject({ kind: 'clue', word: 'LINK', number: 1 });
+    });
+
+    it('leaves the non-dense (curated table) floor at 0.3: a 0.25 tail is still trimmed', () => {
+        // The same compressed-looking board on a backend WITHOUT nearest() (the
+        // curated table / maps / lexical) keeps the absolute 0.3 floor: a 0.25 second
+        // card is trimmed to 1 exactly as before, so the discrete-weight backends are
+        // untouched by the compressed-scale relaxation.
+        const board = view(['OWNA', 'OWNB', 'OPPO', 'OPPOX', 'NEUT'], ['red', 'red', 'blue', 'blue', 'neutral']);
+        const backend = stub({ LINK: { OWNA: 0.34, OWNB: 0.25, OPPO: 0.02, NEUT: 0.02 } });
+        const skill = base({});
+        const action = makeEmbeddingSpymaster(skill, backend).chooseClue(board, ctx(skill));
+        expect(action).toMatchObject({ kind: 'clue', word: 'LINK', number: 1 });
+    });
+});
+
 describe('passesAssassinGate (give-time re-gate invariant)', () => {
     it('passes when the weakest promised card clears the assassin by the berth', () => {
         expect(passesAssassinGate({ weakestIntended: 0.5, maxAss: 0.3, berth: 0.2 })).toBe(true);
