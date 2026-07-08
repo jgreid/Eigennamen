@@ -349,7 +349,9 @@ import {
     joinRoom as _joinRoom,
     leaveRoom as _leaveRoom,
     ensureRoomHasHost as _ensureRoomHasHost,
+    selectHostSuccessor as _selectHostSuccessor,
 } from './room/membership';
 export const joinRoom = _joinRoom;
 export const leaveRoom = _leaveRoom;
 export const ensureRoomHasHost = _ensureRoomHasHost;
+export const selectHostSuccessor = _selectHostSuccessor;

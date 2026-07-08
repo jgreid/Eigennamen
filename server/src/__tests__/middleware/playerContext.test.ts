@@ -365,6 +365,56 @@ describe('playerContext', () => {
             expect(result.allowed).toBe(true);
         });
 
+        // Regression (N4): nobody may BECOME an observer mid-game — an observer
+        // receives the fully unmasked board, so self-promoting into the role from a
+        // spectator/waiting seat is a free full-board reveal with no host approval.
+        it('blocks a spectator from becoming an observer during an active game', () => {
+            const result = canChangeTeamOrRole(
+                {
+                    player: { role: 'spectator', team: null },
+                    game: { gameOver: false, currentTurn: 'red' },
+                },
+                { targetRole: 'observer' }
+            );
+            expect(result.allowed).toBe(false);
+            expect(result.code).toBe('OBSERVER_CANNOT_JOIN_MIDGAME');
+        });
+
+        it('blocks a waiting-team clicker from becoming an observer during an active game', () => {
+            const result = canChangeTeamOrRole(
+                {
+                    player: { role: 'clicker', team: 'blue' },
+                    game: { gameOver: false, currentTurn: 'red' },
+                },
+                { targetRole: 'observer' }
+            );
+            expect(result.allowed).toBe(false);
+            expect(result.code).toBe('OBSERVER_CANNOT_JOIN_MIDGAME');
+        });
+
+        it('allows becoming an observer before the game starts', () => {
+            const result = canChangeTeamOrRole(
+                { player: { role: 'spectator', team: null }, game: null },
+                { targetRole: 'observer' }
+            );
+            expect(result.allowed).toBe(true);
+        });
+
+        // Regression (N11): an observer changing team (targetRole absent) was slipping
+        // past the observer lockout, dropping a full-board-knowledge player onto a team
+        // roster mid-game. A bare team change is now blocked too.
+        it('blocks an observer from a bare team change during an active game', () => {
+            const result = canChangeTeamOrRole(
+                {
+                    player: { role: 'observer', team: null },
+                    game: { gameOver: false, currentTurn: 'red' },
+                },
+                { isTeamChange: true }
+            );
+            expect(result.allowed).toBe(false);
+            expect(result.reason).toContain('observer');
+        });
+
         // Regression: a spymaster has seen the FULL unmasked board this game, so —
         // like the observer case above — they cannot leave the role at all while a
         // game is active. Previously this only blocked team changes and allowed a

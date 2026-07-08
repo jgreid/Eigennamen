@@ -590,6 +590,47 @@ describe('Game Handlers', () => {
             );
         });
 
+        // Regression (N5): a host SEATED on a team in a competitive game may only
+        // forfeit their own team. Forfeiting the opponent would hand the host's team
+        // the win (and, in match mode, the round bonus).
+        test('rejects a seated host forfeiting the opposing team', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                isHost: true,
+                team: 'red',
+            });
+            gameService.getGame.mockResolvedValue({ gameOver: false, currentTurn: 'red', gameMode: 'classic' });
+
+            const handlers = mockSocket.on.mock.calls;
+            const forfeitHandler = handlers.find((h) => h[0] === 'game:forfeit');
+            await forfeitHandler[1]({ team: 'blue' });
+
+            expect(gameService.forfeitGame).not.toHaveBeenCalled();
+            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({}));
+        });
+
+        test('allows a seated host to forfeit their own team', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                isHost: true,
+                team: 'red',
+            });
+            gameService.getGame.mockResolvedValue({ gameOver: false, currentTurn: 'red', gameMode: 'classic' });
+            gameService.forfeitGame.mockResolvedValue({
+                winner: 'blue',
+                forfeitingTeam: 'red',
+                allTypes: ['red', 'blue', 'neutral', 'assassin'],
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const forfeitHandler = handlers.find((h) => h[0] === 'game:forfeit');
+            await forfeitHandler[1]({ team: 'red' });
+
+            expect(gameService.forfeitGame).toHaveBeenCalledWith('TEST12', 'red');
+        });
+
         test('rejects when game is already over', async () => {
             playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'TEST12', isHost: true });
             gameService.getGame.mockResolvedValue({ gameOver: true, currentTurn: 'red' });

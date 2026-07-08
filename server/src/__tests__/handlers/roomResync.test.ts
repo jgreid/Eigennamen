@@ -71,6 +71,10 @@ describe('Room Resync and Recovery Handlers', () => {
         jest.clearAllMocks();
         clearGameStateCache();
 
+        // Public-player projection used at peer-broadcast sites (N2) — pass through.
+        playerService.toPublicPlayer.mockImplementation((p) => p);
+        playerService.toPublicPlayers.mockImplementation((arr) => arr);
+
         // Create mock socket
         mockSocket = {
             id: 'socket-123',

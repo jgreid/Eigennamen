@@ -39,6 +39,9 @@ jest.mock('../../services/playerService', () => ({
     // Default: no live newer socket owns the session, so the zombie-socket guard
     // falls through and the disconnect is handled normally.
     getSocketId: jest.fn().mockResolvedValue(null),
+    // Public-player projection used at peer-broadcast sites (N2).
+    toPublicPlayer: jest.fn((p) => p),
+    toPublicPlayers: jest.fn((arr) => arr),
 }));
 
 jest.mock('../../services/gameService', () => ({
@@ -48,6 +51,15 @@ jest.mock('../../services/gameService', () => ({
 
 jest.mock('../../services/roomService', () => ({
     getRoom: jest.fn(),
+    // Faithful copy of the real pure helper (services/room/membership.ts) so the
+    // host-transfer path selects the same candidate it does in production (N3).
+    selectHostSuccessor: jest.fn(
+        (candidates: Array<{ connected?: boolean; isBot?: boolean }>) =>
+            candidates.find((p) => p.connected && !p.isBot) ??
+            candidates.find((p) => !p.isBot) ??
+            candidates.find((p) => p.connected) ??
+            null
+    ),
 }));
 
 jest.mock('../../socket/safeEmit', () => ({

@@ -103,6 +103,16 @@ export async function applyReveal(
     if (result.gameOver) {
         await getSocketFunctions().stopTurnTimer(roomCode);
 
+        // Finalize the match round BEFORE broadcasting GAME_OVER. The client's
+        // auto "New game" (frontend/game.ts) fires the moment it receives GAME_OVER
+        // (gameOver && !matchOver). If finalization hasn't run yet, that
+        // startNextRound persists round N+1 first, after which the `!gameOver`
+        // guard in finalizeMatchRound makes round N's finalization a silent no-op —
+        // dropping the ROUND_WIN_BONUS, reusing the round number, and never emitting
+        // roundEnded/matchOver. Finalizing first banks the round before any client
+        // can react, so the nextRound it triggers sees the corrected state. (N2b)
+        await handleMatchRoundFinalization(io, roomCode);
+
         const gameOverPayload: Record<string, unknown> = {
             winner: result.winner,
             reason: result.endReason,
@@ -114,7 +124,6 @@ export async function applyReveal(
         safeEmitToRoom(io, roomCode, SOCKET_EVENTS.GAME_OVER, gameOverPayload);
 
         await saveCompletedGameHistory(roomCode);
-        await handleMatchRoundFinalization(io, roomCode);
     }
 
     await debouncedRefreshRoomTTL(roomCode);

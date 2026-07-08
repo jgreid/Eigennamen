@@ -232,9 +232,9 @@ export default function roomReconnectionHandlers(io: Server, socket: GameSocket)
 
                 socket.emit(SOCKET_EVENTS.ROOM_RECONNECTED, {
                     room,
-                    players,
+                    players: playerService.toPublicPlayers(players),
                     game: gameState,
-                    you: player,
+                    you: playerService.toPublicPlayer(player),
                     stats: roomStats,
                     reconnectionToken: newReconnectionToken,
                 });

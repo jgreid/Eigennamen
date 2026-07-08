@@ -156,6 +156,30 @@ export async function joinRoom(roomId: string, sessionId: string, nickname: stri
 }
 
 /**
+ * Choose the best host successor from a candidate pool.
+ *
+ * A human ALWAYS beats a bot: a bot is a first-class player that never
+ * disconnects but can run no host-only function (start game, settings, kick,
+ * add/remove bot, pause), so handing it host bricks the room until TTL — and
+ * `ensureRoomHasHost` won't repair it because a bot-host is a live, resolvable
+ * player. Preference order: connected human → any human → connected non-human
+ * (last resort so an in-progress transfer still names someone). Returns null if
+ * the pool is empty or holds only disconnected bots.
+ *
+ * Shared by the disconnect and explicit-leave host-transfer paths so their
+ * selection can't drift (the leave path previously took `remainingPlayers[0]`
+ * with no filter and could hand host to a bot — N3).
+ */
+export function selectHostSuccessor(candidates: Player[]): Player | null {
+    return (
+        candidates.find((p) => p.connected && !p.isBot) ??
+        candidates.find((p) => !p.isBot) ??
+        candidates.find((p) => p.connected) ??
+        null
+    );
+}
+
+/**
  * Leave a room
  */
 export async function leaveRoom(code: string, sessionId: string): Promise<LeaveRoomResult> {
@@ -196,8 +220,11 @@ export async function leaveRoom(code: string, sessionId: string): Promise<LeaveR
     // Previously removePlayer was called first, which deleted the old host's data and caused
     // atomicHostTransfer to always fail with OLD_HOST_NOT_FOUND, falling back to non-atomic path.
     // Uses distributed lock to prevent race with disconnectHandler's host transfer.
-    const firstPlayer = remainingPlayers[0];
-    if (room.hostSessionId === sessionId && remainingPlayers.length > 0 && firstPlayer) {
+    // Prefer a connected human successor; never hand host to a bot (N3). If only
+    // bots remain, firstPlayer is null and we skip the transfer — the room is torn
+    // down below anyway (no humans remain).
+    const firstPlayer = selectHostSuccessor(remainingPlayers);
+    if (room.hostSessionId === sessionId && firstPlayer) {
         const lockKey = `lock:host-transfer:${code}`;
         let lockAcquired = false;
         let lockValue: string | undefined;
