@@ -28,6 +28,7 @@
     "format": "prettier --write \"src/**/*.ts\" \"e2e/**/*.js\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"e2e/**/*.js\"",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.frontend.json",
+    "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
     "setup": "../scripts/dev-setup.sh",
     "health": "../scripts/health-check.sh",
     "predeploy": "../scripts/pre-deploy-check.sh",

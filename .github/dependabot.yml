@@ -84,3 +84,9 @@ updates:
       - "docker"
     commit-message:
       prefix: "chore(docker):"
+    # Never auto-bump the Node base image to a new major. Odd "Current" lines reach
+    # EOL quickly and CI only tests the even LTS majors; the pin is asserted by the
+    # "docker-node-major" CI guard. Review/raise the LTS major manually.
+    ignore:
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]

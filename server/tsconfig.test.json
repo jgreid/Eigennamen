@@ -1,0 +1,36 @@
+{
+  // Type-checks the BACKEND test suites, which the main tsconfig.json deliberately
+  // EXCLUDES (so `tsc --noEmit` never sees them) and which ts-jest transpiles
+  // without diagnostics under `isolatedModules: true`. Without this pass, a test
+  // that calls a service with the wrong types, or builds a mock whose shape has
+  // drifted from the real interface, compiles and runs green — the exact drift
+  // class docs/IMPROVEMENT_PLAN.md D4 documented (docs/CODEBASE_REVIEW_PLAN.md N27).
+  //
+  // Run with `npm run typecheck:test`. This is currently ADVISORY, not part of the
+  // blocking `typecheck` gate: the test tree has a large backlog of pre-existing
+  // type errors (implicit-any fixtures, `require()`-scoped files that read as
+  // scripts, etc.) accumulated over the whole period it was never compiled.
+  // Clearing that backlog so this can gate is a tracked follow-up; until then the
+  // script exists so that cleanup work has a foothold and new files can be checked
+  // in isolation.
+  //
+  // Frontend tests (src/__tests__/frontend/**) additionally need the DOM lib and
+  // bundler resolution and so are NOT covered here — they belong under a
+  // frontend-test config extending tsconfig.frontend.json; also a follow-up.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // Ambient globals the excluded-from-the-base test files need: node (process,
+    // fs, module, Buffer, …) and jest (describe/it/expect/jest). Listing `types`
+    // explicitly is required because these files were never in a type-checked
+    // project before.
+    "types": ["node", "jest"],
+    // Tests intentionally use `any` in mocks (eslint disables no-explicit-any for
+    // them) and frequently leave locals/params unused in fixtures. Relax those two
+    // so the pass flags real type errors, not test-fixture noise.
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "coverage", "src/frontend", "src/__tests__/frontend"]
+}
