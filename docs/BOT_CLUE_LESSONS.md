@@ -695,3 +695,34 @@ tightening `PROMISE_FLOOR_REL` does not move it (its thin, low-`assassinCaution`
 berth is the driver, not the promise floor). The other five personae and all of
 classic/match are safe or improved. This is the intended high-variance end of the
 spectrum (contrast the Guardian at ~0.5%), not a regression to chase.
+
+## Part 11 — Round 9: duet is the weak mode, but the residual is difficulty, not a bug (batch self-play)
+
+A dedicated red-team of the post-2.30 bots, all three modes, embeddings backend,
+asked "where is the next weakness now that cluing is healthy?" **Classic and match
+are clean** — delivery ~100%, misfire 0%, assassin ~0% across every persona; the
+only flags are the persona-by-design selection gaps on the defensive personae (they
+deliberately sit below the aggressive ceiling). **Duet is the outlier**: assassin
+0.5–3.7%, misfire 1–10%, fallback 2–14%, delivery 91–98% — and it holds across ALL
+personae, including the defensive ones that never err in classic.
+
+### New lesson (44)
+
+| # | Lesson | Illustration |
+|---|--------|--------------|
+| 44 | **A mode's error rate is not one mechanism.** Reveal-event classification (compare each hit card's clue-relatedness to the best *still-unrevealed* own card) split duet's errors two ways, and the split is the whole story: ~62% of assassin hits and ~41% of misfires are "the clue lit it" (no own card was brighter), the rest are "clicker noise" (a brighter own card existed, a noisy persona picked worse). The cluing half is almost entirely an **endgame own-depletion** artifact — late in a duet round the strong greens are gone, the spymaster is forced to clue faint leftovers, and against a thin field the assassin is relatively bright. At CLUE time the spymaster almost never makes the assassin the raw argmax (`pickBestEffort` already prefers an own- or neutral-brighter clue), so the cluing-side lever has near-zero headroom. The noise half is the persona difficulty ladder working as designed (a temp-1.2 apprentice clicker is *supposed* to misread). | strategist self-play gave 0 assassin-argmax clues at give time over many games, yet still hit the assassin ~1.4% of duet clues; the hits land at reveal time, in the depleted endgame, not at clue time. |
+
+### Disposition (no code change)
+
+The only lever with real headroom is the **clicker's first guess**: it always takes
+guess #1 (the cliff stop guards guesses 2+ only), so a no-signal duet clue's first
+guess can be the assassin. A duet first-guess floor — decline to guess (spend a
+timer token) when the best card clears nothing — would cut both halves, but it is a
+genuine **co-op caution design decision** (guess-and-risk vs pass-and-spend), it is
+duet-specific, and it risks delivery/win-rate; it is NOT a clean bug like 2.30. Call:
+**accept duet as harder by design** and log the lever rather than ship a speculative
+behavior change. Classic and match — the modes without a co-op assassin-ends-it
+rule — are clean and need nothing. If duet caution is ever revisited, the measurement
+to gate it is: cut duet assassin/misfire without dropping delivery or the duet
+win-rate ladder, and with zero change to classic/match (the floor must almost never
+fire there).
