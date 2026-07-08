@@ -117,7 +117,20 @@ export function playEngineGame(opts: PlayGameOptions): MatchResult {
 
         const decisionSeed = hashString(`${seed}:${team}:${role}:${game.stateVersion ?? 0}`);
         const teamMemory = memory[team === 'red' ? 'red' : 'blue'];
-        const ctx = { gameMode, skill: binding.skill, rng: makeRng(decisionSeed), memory: { clues: teamMemory } };
+        // A spymaster sizes its guesser-safety margin to its own team clicker's
+        // competence (all harness seats are bots, so the clicker temperature is
+        // always known here). Only meaningful for the spymaster decision.
+        const guesserTemperature =
+            role === 'spymaster'
+                ? (bindings[`${team}:clicker`] as SeatBinding | undefined)?.skill.temperature
+                : undefined;
+        const ctx = {
+            gameMode,
+            skill: binding.skill,
+            rng: makeRng(decisionSeed),
+            memory: { clues: teamMemory },
+            guesserTemperature,
+        };
         const strategy = role === 'spymaster' ? binding.spymaster : binding.clicker;
         if (!strategy) break; // bound at construction; guard satisfies the type narrowing
 

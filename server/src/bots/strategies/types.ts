@@ -102,6 +102,13 @@ export interface BotContext {
     /** Optional within-game memory (clue debt). Absent = no adjustment —
      *  threaded by the harness game loop and the live bot controller. */
     readonly memory?: BotSeatMemory;
+    /** Temperature of the team's CLICKER, when that clicker is a known bot — the
+     *  spymaster uses it to size the guesser-safety margin: a low-temperature
+     *  (argmax) bot guesser reads a tight clue correctly, so the spymaster can
+     *  cover more cards. ABSENT means the guesser is unknown/human, so the margin
+     *  stays at its full, misread-tolerant width. Only ever RELAXES the margin for
+     *  a known-competent guesser; it never widens it. */
+    readonly guesserTemperature?: number;
 }
 
 /** A clue that has been given this turn (clicker view). */

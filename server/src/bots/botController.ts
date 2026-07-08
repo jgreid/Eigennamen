@@ -474,6 +474,18 @@ export async function tickRoom(roomCode: string): Promise<void> {
             const skill = resolveSkill(cfg.skillPreset, seed);
             const strategy =
                 role === 'spymaster' ? resolveSpymaster(cfg.strategyId, skill) : resolveClicker(cfg.strategyId, skill);
+            // A spymaster sizes its guesser-safety margin to its own team CLICKER's
+            // competence — but ONLY when that clicker is a known bot. A human (or
+            // absent) clicker leaves it undefined, so the margin stays at its full
+            // human-safe width: the tightening is never applied to a human guesser.
+            let guesserTemperature: number | undefined;
+            if (role === 'spymaster') {
+                const clickerSeat = members.find((p) => p.isBot && p.connected && p.role === 'clicker');
+                if (clickerSeat) {
+                    const clickerCfg = await botService.getBotConfig(clickerSeat.sessionId);
+                    if (clickerCfg) guesserTemperature = resolveSkill(clickerCfg.skillPreset, seed).temperature;
+                }
+            }
             const ctx = {
                 gameMode: (game.gameMode as GameMode) ?? 'classic',
                 skill,
@@ -482,6 +494,7 @@ export async function tickRoom(roomCode: string): Promise<void> {
                 // immutable even if a strategy misbehaves — the tracker is
                 // shared room state.
                 memory: { clues: [...memoryTracker.clues[team]] },
+                guesserTemperature,
             };
 
             // E4: for a spymaster decision, warm the embeddings nearest() cache
