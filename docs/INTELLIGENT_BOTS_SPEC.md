@@ -494,6 +494,20 @@ boldest persona can never make the assassin the clicker's top card nor let an
 intended card hug it. (The berth only applies while an assassin remains
 unrevealed — with none left there is nothing to steer clear of.)
 
+**Guesser-competence margin** (persona-independent): the field `margin` is the
+buffer that keeps an own card far enough ahead of the brightest non-own that the
+*guesser* takes it and not a look-alike — so its right size depends on how noisily
+the guesser reads, not on the giver's caution. The spymaster scales `baseMargin` by
+its own team clicker's competence (`guesserMarginScale` from
+`BotContext.guesserTemperature`): a known low-temperature (argmax) bot clicker earns
+a tight margin (much more coverage — strong self-play ceiling utilization ~0.5→~0.83,
+expert-ladder win-rate 83%→90%), while a noisy bot clicker — or an unknown/human
+guesser, where `guesserTemperature` is absent — keeps the full misread-tolerant
+width. It only ever RELAXES for a known-competent guesser and never tightens for a
+human, so a bot spymaster's clues to a human teammate are unchanged; the assassin
+berth/floor above are untouched (this sizes the field margin only). Lesson 45 /
+ledger 2.32.
+
 **Turn economy** (persona-independent, shared by every spymaster): a clue that
 safely covers *every* remaining own card wins the board this turn, is decisively
 preferred (`WIN_BONUS`), and may carry its true count past the normal

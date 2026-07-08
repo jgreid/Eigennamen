@@ -586,7 +586,7 @@ describe('match-mode value awareness', () => {
     // groupBoard keeps match traps out of `own` but tracks them in `ownTraps`, and
     // scoreClue reads coversAll off both (G1). The final number cap keys off
     // coversAll (CLUE_NUMBER_MAX vs MAX_CLUE_NUMBER), so this is the load-bearing bit.
-    const g1ScoreCtx = { desperate: false, assassinBerthFloor: 0, strandPenalty: () => 0 };
+    const g1ScoreCtx = { desperate: false, assassinBerthFloor: 0, strandPenalty: () => 0, marginScale: 1 };
     function g1Score(view: BotSpymasterView, clue: string, rel: Record<string, number>) {
         const groups = groupBoard(view);
         const skill = resolveSkill('expert', 1);

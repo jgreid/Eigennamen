@@ -726,3 +726,52 @@ rule — are clean and need nothing. If duet caution is ever revisited, the meas
 to gate it is: cut duet assassin/misfire without dropping delivery or the duet
 win-rate ladder, and with zero change to classic/match (the floor must almost never
 fire there).
+
+## Part 12 — Round 10: the guesser-safety margin belongs to the guesser, not the giver
+
+Asked to *maximize* classic clueing (not just remove bugs), a measurement of the
+strongest bot's cluing showed real headroom: the strategist used only ~67% of the
+board's safe-line ceiling, and even after 2.30 the residual was a **selection gap**
+(the scorer picks a clue that safely leads fewer cards than the board's best),
+tracking the persona's safety `baseMargin`. On the compressed Numberbatch scale that
+margin (~0.10–0.13) is 2–2.6× the yardstick's reference (0.05), so strong bots
+under-cover. But a global margin cut is a trap: it 2–3×'d misfire for a noisy/human
+guesser (an argmax bot clicker stays 0% at half-margin; an intermediate/novice
+clicker jumps to 11–13%). The margin is the buffer that keeps an own card ahead of
+the field so the **guesser** takes it and not a look-alike — its right size is a
+property of the *reader*, not the giver.
+
+### New lesson (45)
+
+| # | Lesson | Illustration |
+|---|--------|--------------|
+| 45 | **The guesser-safety margin is calibrated to the GUESSER's noise, not the giver's caution.** The spymaster's `baseMargin` was driven by its own `riskAversion` — so the expert preset (riskAversion 0.8) gave the WIDEST, most conservative margin, even though its clicker is argmax (temperature 0) and reads the tightest clue correctly. That inversion is the whole selection gap: strong bots gave over-cautious clues their own strong clickers didn't need. Size the margin to the team clicker's competence instead — tight for a known argmax bot guesser, full width for a noisy bot / unknown / human guesser — and the coverage headroom is realized without a misfire cost. It is the guesser-side analogue of 2.30's PROMISE_FLOOR scale fix: an absolute threshold tuned for one reader is wrong for a different one. | At margin×0.5 a strategist spymaster + expert clicker covers ceilUse 0.84 at misfire 0%; the SAME half-margin + a noisy clicker misfires 13%. Competence-aware, the strong self-play jumps ceilUse 0.45–0.66 → 0.79–0.83 (misfire 0%), while strong-spymaster + noisy-clicker stays ~3–6% (the wide-margin baseline), and the human/unknown guesser is untouched. |
+
+### Engineering addition (2.32 — shipped)
+
+**2.32 Clicker-competence-aware margin. 🟢 (shipped)** `BotContext.guesserTemperature`
+carries the team clicker's temperature when that clicker is a known bot (plumbed by
+`botController` from the teammate seat's config, and by the harness from the clicker
+binding); `guesserMarginScale` maps it to a multiplier on `baseMargin` —
+`MARGIN_SCALE_MIN` (0.5) at temperature 0, interpolating up to 1.0 by
+`GUESSER_TEMP_REF` (0.4), and **1.0 when absent** (human/unknown). It only ever
+RELAXES the margin for a known-competent guesser, so a bot spymaster's clues to a
+human are byte-for-byte unchanged. Validated: strong self-play ceilUse 0.79–0.83 at
+misfire/assassin 0%; the 5-rung difficulty ladder stayed monotonic and the strong
+end got stronger (expert 83%→90% win, ~4.5 clues/game vs ~5.8 for the weak rungs);
+strong-spymaster + noisy-clicker misfire held at the wide-margin baseline (3–6%, not
+the naive-tightening 11–13%). Regression-tested in `spymasterGuards.test.ts`
+(argmax guesser → promises 2; noisy or absent guesser → promises 1). The assassin
+berth and hard floor are untouched — this sizes the field margin only.
+
+### Still open (2.33)
+
+**2.33 The guessing side's absolute floors are the same shape. 🟡** The clicker's own
+opportunistic `+1` bonus (`BONUS_FLOOR_BASE` 0.6) is dead on the compressed backend
+for the same reason PROMISE_FLOOR was, and the cliff/confidence floors are absolute
+too. Unlike the spymaster margin, the clicker's own guesses are its own risk (no
+human in the loop), so a backend-relative bonus is safe in principle — but the
+compressed scale makes "this leftover is clearly a safe extra" hard to establish, so
+enabling it risks fishing into the halo. Deferred: measure whether a core-relative
+bonus (take the +1 only when the top leftover reads as tight as the core already
+taken — the intent CLAUDE.md already documents) gains cards without adding misfire.

@@ -203,6 +203,30 @@ export function buildTargeting(view: BotSpymasterView): {
 
 const MAX_CLUE_NUMBER = 4;
 
+// Guesser-competence margin scaling. The safety margin (baseMargin, below) is the
+// buffer that keeps an own card ahead of the field by enough that the GUESSER
+// takes it and not a look-alike neutral/opponent — so its right size depends on
+// how noisily the guesser reads, NOT on the spymaster's own caution. A known
+// low-temperature (argmax) bot clicker reads a tight clue correctly; against it
+// the spymaster can narrow the margin toward the reference and cover more cards.
+// A high-temperature bot clicker, or an unknown/human guesser (temperature
+// undefined), keeps the full misread-tolerant width. MARGIN_SCALE_MIN is the
+// tightest the margin ever goes (an argmax guesser); it interpolates up to 1.0 as
+// the guesser's temperature rises to GUESSER_TEMP_REF, so only genuinely-sharp
+// guessers earn the narrower margin and everyone else is unchanged. This is the
+// guesser-side analogue of the PROMISE_FLOOR scale fix: an absolute margin tuned
+// for one reader is wrong for a different one.
+const MARGIN_SCALE_MIN = 0.5;
+const GUESSER_TEMP_REF = 0.4;
+
+/** Margin multiplier from the team clicker's temperature (see MARGIN_SCALE_MIN).
+ *  Undefined guesser (human/unknown) ⇒ 1 (full width). Only ever ≤ 1. */
+function guesserMarginScale(guesserTemperature: number | undefined): number {
+    if (guesserTemperature === undefined) return 1;
+    const t = Math.min(1, Math.max(0, guesserTemperature) / GUESSER_TEMP_REF);
+    return MARGIN_SCALE_MIN + (1 - MARGIN_SCALE_MIN) * t;
+}
+
 // Scoring weights. leadOwn (an integer card count) is the dominant term; the
 // rest are sub-unit adjustments so coverage always wins between comparably-safe
 // clues, while the penalties still break ties toward safer / less-helpful clues.
@@ -350,6 +374,10 @@ interface ScoreContext {
     /** Cost of the own cards a clue would leave behind, by how clue-able they
      *  remain together (stranded singles cost future turns). */
     strandPenalty: (residual: readonly string[]) => number;
+    /** Multiplier on the guesser-safety margin, from the team clicker's competence
+     *  (guesserMarginScale). 1 = full width (unknown/human/noisy guesser); < 1
+     *  narrows it for a known argmax bot guesser that reads a tight clue correctly. */
+    marginScale: number;
 }
 
 /** Highest retrieval of `clue` against any word in `words` (0 if the group is
@@ -409,7 +437,7 @@ export function scoreClue(
     // Desperation shrinks it much further: with the opponent one card from
     // winning, a thin multi-card clue dominates a safe single that hands them
     // the game on the next turn.
-    const baseMargin = (0.05 + 0.1 * caution) * (1 - 0.5 * style.aggression);
+    const baseMargin = (0.05 + 0.1 * caution) * (1 - 0.5 * style.aggression) * ctx.marginScale;
     const margin = ctx.desperate
         ? Math.max(DESPERATION_MARGIN_MIN, baseMargin * DESPERATION_MARGIN_FACTOR)
         : baseMargin;
@@ -811,8 +839,18 @@ export function makeEmbeddingSpymaster(
             // where candidates are cached or carried between planning and give
             // time. A failing candidate is dropped and selection re-runs on the
             // remainder; an emptied pool returns null.
+            // Size the guesser-safety margin to the team clicker's competence:
+            // a known argmax bot guesser earns a tighter margin (more coverage);
+            // an unknown/human/noisy guesser keeps the full width. Constant per
+            // decision, so computed once outside the per-candidate scoring loop.
+            const marginScale = guesserMarginScale(ctx.guesserTemperature);
             const emitAt = (berthFloor: number): BotAction | null => {
-                const scoreCtx: ScoreContext = { desperate, assassinBerthFloor: berthFloor, strandPenalty };
+                const scoreCtx: ScoreContext = {
+                    desperate,
+                    assassinBerthFloor: berthFloor,
+                    strandPenalty,
+                    marginScale,
+                };
                 const scored: ClueEval[] = [];
                 for (const clue of legalCandidates) {
                     const ev = scoreClue(clue, groups, backend, skill.riskAversion, valueOf, style, scoreCtx);

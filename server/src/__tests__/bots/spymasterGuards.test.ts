@@ -150,6 +150,42 @@ describe('PROMISE_FLOOR scales to the backend relatedness range', () => {
     });
 });
 
+describe('guesser-competence margin (the team clicker sizes coverage)', () => {
+    // Own OWNA(0.6) and OWNB(0.35) over a cold field whose brightest non-own is a
+    // neutral at 0.25 — OWNB clears the field by 0.10. The full (human/unknown-
+    // guesser) safety margin (~0.11 for this skill) rejects OWNB, so the clue can
+    // only promise 1; a known argmax bot guesser (temperature 0) halves the margin
+    // to ~0.055, OWNB now clears it, and the same clue safely promises 2. No
+    // assassin on the board, so only the field margin is in play.
+    // Two opponents so the board is NOT desperate (one opponent left shrinks the
+    // margin for a last-stand and would mask the guesser-competence effect).
+    const board = view(['OWNA', 'OWNB', 'OPPO', 'OPP2', 'NEUT'], ['red', 'red', 'blue', 'blue', 'neutral']);
+    const backend = stub({ LINK: { OWNA: 0.6, OWNB: 0.35, OPPO: 0.1, OPP2: 0.1, NEUT: 0.25 } });
+    const skill = base({});
+    const withGuesser = (t: number | undefined): BotContext => ({
+        gameMode: 'classic',
+        skill,
+        rng: makeRng(1),
+        guesserTemperature: t,
+    });
+
+    it('keeps the full margin for an unknown/human guesser (promises 1)', () => {
+        const action = makeEmbeddingSpymaster(skill, backend).chooseClue(board, withGuesser(undefined));
+        expect(action).toMatchObject({ kind: 'clue', word: 'LINK', number: 1 });
+    });
+
+    it('narrows the margin for a known argmax bot guesser (promises 2)', () => {
+        const action = makeEmbeddingSpymaster(skill, backend).chooseClue(board, withGuesser(0));
+        expect(action).toMatchObject({ kind: 'clue', word: 'LINK', number: 2 });
+    });
+
+    it('keeps the full margin for a noisy bot guesser (promises 1)', () => {
+        // temperature 0.6 is past GUESSER_TEMP_REF, so the margin stays full width.
+        const action = makeEmbeddingSpymaster(skill, backend).chooseClue(board, withGuesser(0.6));
+        expect(action).toMatchObject({ kind: 'clue', word: 'LINK', number: 1 });
+    });
+});
+
 describe('passesAssassinGate (give-time re-gate invariant)', () => {
     it('passes when the weakest promised card clears the assassin by the berth', () => {
         expect(passesAssassinGate({ weakestIntended: 0.5, maxAss: 0.3, berth: 0.2 })).toBe(true);
