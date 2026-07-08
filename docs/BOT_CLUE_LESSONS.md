@@ -643,3 +643,55 @@ independent of anything it might accidentally also hit. A clue can pass every
 assassin/opponent gate in this document and still be a bad clue, because the
 gates all ask "what's the worst it touches" and none of them ask "how
 confident is the read on the thing it's aimed at."
+
+## Part 10 — Round 8: absolute thresholds are backend-scale-relative (batch self-play on the shipped Numberbatch backend)
+
+With the distilled Numberbatch board-vectors now the shipped production backend
+(Steps 1–3 of the English-strength push), a batch red-team of `bots:analyze`
+across all three modes surfaced one dominant, persona-independent gap: **the
+spymaster almost never gives a 2 or a 3.** avgNum sat at 1.06–1.32 for every
+persona and `ceilingUtilization` at 0.41–0.59 — i.e. safe multi-card lines that
+the *relative-margin* yardstick credited were being left on the table, uniformly,
+across novice→expert and all six personae.
+
+### New lesson (43)
+
+| # | Lesson | Illustration |
+|---|--------|--------------|
+| 43 | **An absolute relatedness threshold is only meaningful relative to the backend's scale.** Lesson 42 / addition 2.29 read "~0.3 is the coin-flip floor" as a property of clue quality; it is really a property of the *curated table's* scale. A dense vector backend's cosine similarities are compressed — under distilled Numberbatch a genuinely-related own pair sits ~0.22 and the strongest own card only ~0.33 — so `PROMISE_FLOOR = 0.3` (calibrated on the table, aligned to the clicker's `CLIFF_ABS_CEILING`) was not gating coin-flips, it was trimming ~84% of safe 2-card clues down to 1s *purely on scale*. The number is a promise, but the floor that trims the promise must live on the same scale the promise is measured in. | Over 300 opening boards, all 300 offered a safe 2+ by the relative-margin yardstick; the 2nd promised card's absolute relatedness had median 0.224 (mean 0.237) — below 0.3, so 84% were trimmed. Fixing the floor to scale with the board's strongest own pull lifted daredevil avgNum 1.32→1.79 / ceilUse 0.59→0.86 and strategist 1.29→1.43 / 0.57→0.65 with delivery held at ~100% and leak/misfire/assassin unchanged (~0). |
+
+### Engineering addition (2.30 — shipped)
+
+**2.30 Backend-relative promise floor. 🟢 (shipped)** `scoreClue`'s promise trim
+now scales `PROMISE_FLOOR` to the board's strongest own pull (`own[0] *
+PROMISE_FLOOR_REL`), clamped so it can only ever *relax* the floor (≤ the original
+0.3, so the curated table is byte-for-byte unchanged) and never below a noise guard
+(`PROMISE_FLOOR_MIN`). Safety is untouched: the assassin berth and relative safety
+margin already certified every promised card, so the worst case of a relaxed floor
+is a short-delivery, never a lit assassin — borne out by the batch numbers (delivery
+~100%, misfire/assassin ~0 in classic and match; the 5-rung difficulty ladder stayed
+monotonically ordered). Regression-tested in `spymasterGuards.test.ts` (compressed
+backend promises the safe 2; a sub-floor tail still trims; the high-scale table floor
+stays pinned at 0.3).
+
+### Still open (2.31)
+
+**2.31 The other absolute constants share the latent miscalibration. 🟡** The same
+table-calibrated absolutes live in the clicker (`CLIFF_ABS_CEILING`,
+`BONUS_FLOOR_BASE`) and the spymaster's cohesion/debt terms (`STRAND_THRESHOLD`,
+`DEBT_FIT_BAR`). Delivery held at ~100% after 2.30, so the clicker's cliff is not
+currently *blocking* the bigger numbers (it also requires the "blurred" condition,
+which a distinct target clears) — but on a still-more-compressed backend those
+floors would bite the same way `PROMISE_FLOOR` did. The principled end state is a
+single backend-scale signal the strategies read, rather than N independently-tuned
+absolutes; deferred until a backend actually trips one of them (measure first).
+
+### One persona to watch
+
+In **duet** (cooperative, denser assassins, no opponent group), the by-design
+reckless **daredevil** — already flagged for assassin exposure pre-change — rises
+from 2.6% to 3.7% assassin as it now acts on the bigger numbers 2.30 unlocks;
+tightening `PROMISE_FLOOR_REL` does not move it (its thin, low-`assassinCaution`
+berth is the driver, not the promise floor). The other five personae and all of
+classic/match are safe or improved. This is the intended high-variance end of the
+spectrum (contrast the Guardian at ~0.5%), not a regression to chase.

@@ -253,7 +253,24 @@ const DESPERATION_MARGIN_MIN = 0.02;
 // clicker's CLIFF_ABS_CEILING (0.3): below it a guesser is in the
 // no-information state a clue never promised. Never trims below 1 — a single
 // is always promiseable (one guess is the argmax; there is no excess promise).
+//
+// 0.3 is calibrated to a relatedness scale where a strong own pull sits ~0.6–0.9
+// (the curated table). A dense vector backend's cosine scale is COMPRESSED —
+// under Numberbatch a genuinely-related own pair sits ~0.22, and the strongest
+// own card only ~0.33 — so a flat 0.3 floor trims ~84% of safe multi-card clues
+// down to a 1 purely on scale, not on gettability. For a dense generative backend
+// (one with nearest() — the vector models) the *effective* floor is therefore
+// scaled to the board's own demonstrated strong signal (own[0]): it can only ever
+// LOWER the floor (capped at PROMISE_FLOOR) and never below PROMISE_FLOOR_MIN so a
+// cold board can't over-promise a noise card. The curated table / semantic maps /
+// lexical floor (no nearest(), explicit 0–1 weights where 0.3 is the real
+// coin-flip line — ledger 2.29) keep the flat 0.3 untouched. Assassin/opponent
+// safety is untouched either way — this only tunes the NUMBER on cards the relative
+// margin + assassin berth already certified safe, so the worst case of over-
+// promising is a short-delivery, never a lit assassin.
 const PROMISE_FLOOR = 0.3;
+const PROMISE_FLOOR_REL = 0.6;
+const PROMISE_FLOOR_MIN = 0.15;
 // Endgame assassin discipline (ledger lessons 11/18): as own cards dwindle,
 // spymasters relax and guessers lower their acceptance thresholds — the exact
 // phase where both live-play assassin hits landed. The berth FLOOR therefore
@@ -457,7 +474,19 @@ export function scoreClue(
     // keeps its full number. The assassin berth already vetted every one of
     // those cards; desperation thins promises, never the assassin wall.
     const desperateWinAttempt = ctx.desperate && fullLead;
-    while (!desperateWinAttempt && intended > 1 && (own[intended - 1] as number) < PROMISE_FLOOR) intended--;
+    // Scale the promise floor to this board's strongest own pull so a compressed
+    // vector backend isn't taxed on a flat 0.3 (see PROMISE_FLOOR). Clamped so it
+    // can only relax the floor (≤ PROMISE_FLOOR) and never drop below the noise
+    // guard (≥ PROMISE_FLOOR_MIN). ONLY for dense generative backends (those with
+    // nearest() — the vector models, whose cosine scale is compressed): the curated
+    // table / semantic maps / lexical floor carry explicit 0–1 weights where 0.3 is
+    // the real coin-flip line (ledger lesson 2.29), so they keep the absolute floor
+    // untouched — scaling to a per-board own[0] there would wrongly relax a genuinely
+    // weak clue as if the whole scale were compressed.
+    const promiseFloor = backend.nearest
+        ? Math.max(PROMISE_FLOOR_MIN, Math.min(PROMISE_FLOOR, (own[0] as number) * PROMISE_FLOOR_REL))
+        : PROMISE_FLOOR;
+    while (!desperateWinAttempt && intended > 1 && (own[intended - 1] as number) < promiseFloor) intended--;
     const coversAll = fullLead && intended === leadOwn;
     // A trimmed full-board lead is no longer a win attempt, so it re-enters the
     // normal number cap like any other partial clue.
