@@ -1,4 +1,5 @@
 import { botAddSchema, botRemoveSchema, botConfigSchema } from '../../validators/botSchemas';
+import { derivePlayerId } from '../../services/player/publicId';
 
 describe('botAddSchema', () => {
     it('accepts a valid bot spec', () => {
@@ -59,11 +60,14 @@ describe('botAddSchema', () => {
 });
 
 describe('botRemoveSchema', () => {
-    it('accepts a session id', () => {
-        expect(botRemoveSchema.safeParse({ sessionId: 'bot-abc' }).success).toBe(true);
+    it('accepts a derived public player id', () => {
+        expect(botRemoveSchema.safeParse({ playerId: derivePlayerId('bot-abc') }).success).toBe(true);
     });
-    it('rejects an empty session id', () => {
-        expect(botRemoveSchema.safeParse({ sessionId: '' }).success).toBe(false);
+    it('rejects an empty player id', () => {
+        expect(botRemoveSchema.safeParse({ playerId: '' }).success).toBe(false);
+    });
+    it('rejects a non-hex player id (e.g. a raw session id)', () => {
+        expect(botRemoveSchema.safeParse({ playerId: 'bot-abc' }).success).toBe(false);
     });
 });
 

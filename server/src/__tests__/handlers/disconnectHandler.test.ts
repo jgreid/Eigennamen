@@ -42,6 +42,8 @@ jest.mock('../../services/playerService', () => ({
     // Public-player projection used at peer-broadcast sites (N2).
     toPublicPlayer: jest.fn((p) => p),
     toPublicPlayers: jest.fn((arr) => arr),
+    // Real one-way derivation — peer payloads carry playerId, never sessionId (N1).
+    derivePlayerId: jest.requireActual('../../services/player/publicId').derivePlayerId,
 }));
 
 jest.mock('../../services/gameService', () => ({
@@ -78,6 +80,7 @@ const roomService = require('../../services/roomService');
 const { safeEmitToRoom } = require('../../socket/safeEmit');
 const { isRedisHealthy } = require('../../config/redis');
 const logger = require('../../utils/logger');
+const { derivePlayerId } = require('../../services/player/publicId');
 
 describe('disconnectHandler', () => {
     let mockIo: any;
@@ -153,7 +156,7 @@ describe('disconnectHandler', () => {
                 mockIo,
                 'ROOM01',
                 expect.stringContaining('disconnected'),
-                expect.objectContaining({ sessionId: 'sess-1', nickname: 'Alice' })
+                expect.objectContaining({ playerId: derivePlayerId('sess-1'), nickname: 'Alice' })
             );
         });
 
@@ -181,7 +184,7 @@ describe('disconnectHandler', () => {
                 mockIo,
                 'ROOM01',
                 expect.stringContaining('hostChanged'),
-                expect.objectContaining({ newHostSessionId: 'sess-2' })
+                expect.objectContaining({ newHostPlayerId: derivePlayerId('sess-2') })
             );
         });
 

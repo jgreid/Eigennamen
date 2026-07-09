@@ -16,7 +16,7 @@ const OFFLINE_ASSETS = [
     '/icons/icon-180.png',
     '/icons/icon.svg',
     '/js/socket.io.min.js?v=9336af8f',
-    '/js/socket-client.js?v=f4b42255',
+    '/js/socket-client.js?v=123676f2',
     '/css/variables.css',
     '/css/layout.css',
     '/css/components.css',

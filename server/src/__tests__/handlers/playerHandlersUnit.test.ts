@@ -18,6 +18,11 @@ jest.mock('../../socket/rateLimitHandler', () => ({
 
 const playerService = require('../../services/playerService');
 const gameService = require('../../services/gameService');
+const { derivePlayerId } = require('../../services/player/publicId');
+
+// Opaque public ids clients use to reference players (N1).
+const SELF_PLAYER_ID = derivePlayerId('session-1');
+const TARGET_PLAYER_ID = derivePlayerId('session-2');
 
 describe('Player Handlers', () => {
     let mockIo;
@@ -88,6 +93,13 @@ describe('Player Handlers', () => {
         playerService.getSocketId.mockResolvedValue(null);
         playerService.removePlayer.mockResolvedValue();
         playerService.getRoomStats.mockResolvedValue({});
+        // Real one-way derivation through the auto-mocked barrel — broadcasts
+        // carry playerId, never sessionId (N1); rosters go through the public
+        // projection (N2), pass-through here.
+        playerService.derivePlayerId.mockImplementation(
+            jest.requireActual('../../services/player/publicId').derivePlayerId
+        );
+        playerService.toPublicPlayers.mockImplementation((arr) => arr);
 
         // Default game mock - no game
         gameService.getGame.mockResolvedValue(null);
@@ -107,7 +119,7 @@ describe('Player Handlers', () => {
             expect(playerService.setTeam).toHaveBeenCalledWith('session-1', 'blue', false);
             expect(mockIo.to).toHaveBeenCalledWith('room:TEST12');
             expect(mockIo.to().emit).toHaveBeenCalledWith('player:updated', {
-                sessionId: 'session-1',
+                playerId: SELF_PLAYER_ID,
                 changes: { team: 'blue' },
             });
         });
@@ -365,7 +377,7 @@ describe('Player Handlers', () => {
             await eventHandlers['player:setNickname']({ nickname: 'CleanNickname' });
 
             expect(mockIo.to().emit).toHaveBeenCalledWith('player:updated', {
-                sessionId: 'session-1',
+                playerId: SELF_PLAYER_ID,
                 changes: { nickname: expect.any(String) },
             });
         });
@@ -381,25 +393,26 @@ describe('Player Handlers', () => {
     describe('player:kick', () => {
         beforeEach(() => {
             // Setup host as requester
-            playerService.getPlayer
-                .mockResolvedValueOnce({
-                    // First call for requester
-                    sessionId: 'session-1',
-                    nickname: 'Host',
-                    roomCode: 'TEST12',
-                    isHost: true,
-                })
-                .mockResolvedValueOnce({
-                    // Second call for target
-                    sessionId: 'session-2',
-                    nickname: 'Target',
-                    roomCode: 'TEST12',
-                    isHost: false,
-                });
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                nickname: 'Host',
+                roomCode: 'TEST12',
+                isHost: true,
+            });
+            // Target is referenced by its opaque playerId and resolved within
+            // the room (N1).
+            playerService.findPlayerByPublicId.mockResolvedValue({
+                sessionId: 'session-2',
+                nickname: 'Target',
+                roomCode: 'TEST12',
+                isHost: false,
+            });
         });
 
         test('successfully kicks player', async () => {
-            await eventHandlers['player:kick']({ targetSessionId: 'session-2' });
+            await eventHandlers['player:kick']({ targetPlayerId: TARGET_PLAYER_ID });
+
+            expect(playerService.findPlayerByPublicId).toHaveBeenCalledWith('TEST12', TARGET_PLAYER_ID);
 
             expect(playerService.removePlayer).toHaveBeenCalledWith('session-2');
             expect(mockIo.to).toHaveBeenCalledWith('room:TEST12');
@@ -411,7 +424,7 @@ describe('Player Handlers', () => {
             playerService.getPlayer.mockReset();
             playerService.getPlayer.mockResolvedValue(null);
 
-            await eventHandlers['player:kick']({ targetSessionId: 'session-2' });
+            await eventHandlers['player:kick']({ targetPlayerId: TARGET_PLAYER_ID });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
@@ -419,7 +432,7 @@ describe('Player Handlers', () => {
             });
         });
 
-        test('emits error when no target session ID provided', async () => {
+        test('emits error when no target player ID provided', async () => {
             await eventHandlers['player:kick']({});
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
@@ -446,7 +459,7 @@ describe('Player Handlers', () => {
                 isHost: false,
             });
 
-            await eventHandlers['player:kick']({ targetSessionId: 'session-2' });
+            await eventHandlers['player:kick']({ targetPlayerId: TARGET_PLAYER_ID });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
@@ -462,8 +475,16 @@ describe('Player Handlers', () => {
                 roomCode: 'TEST12',
                 isHost: true,
             });
+            // The self-kick check happens AFTER the playerId resolves to the
+            // host's own session (N1).
+            playerService.findPlayerByPublicId.mockResolvedValue({
+                sessionId: 'session-1',
+                nickname: 'Host',
+                roomCode: 'TEST12',
+                isHost: true,
+            });
 
-            await eventHandlers['player:kick']({ targetSessionId: 'session-1' });
+            await eventHandlers['player:kick']({ targetPlayerId: SELF_PLAYER_ID });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
@@ -472,17 +493,11 @@ describe('Player Handlers', () => {
         });
 
         test('emits error when target player not found', async () => {
-            playerService.getPlayer.mockReset();
-            playerService.getPlayer
-                .mockResolvedValueOnce({
-                    sessionId: 'session-1',
-                    isHost: true,
-                    roomCode: 'TEST12',
-                })
-                .mockResolvedValueOnce(null);
+            playerService.findPlayerByPublicId.mockResolvedValue(null);
 
-            await eventHandlers['player:kick']({ targetSessionId: 'session-2' });
+            await eventHandlers['player:kick']({ targetPlayerId: TARGET_PLAYER_ID });
 
+            expect(playerService.removePlayer).not.toHaveBeenCalled();
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
                 message: expect.any(String),
@@ -490,19 +505,11 @@ describe('Player Handlers', () => {
         });
 
         test('emits error when target player in different room', async () => {
-            playerService.getPlayer.mockReset();
-            playerService.getPlayer
-                .mockResolvedValueOnce({
-                    sessionId: 'session-1',
-                    isHost: true,
-                    roomCode: 'TEST12',
-                })
-                .mockResolvedValueOnce({
-                    sessionId: 'session-2',
-                    roomCode: 'OTHER',
-                });
+            // findPlayerByPublicId is room-scoped, so a target seated in another
+            // room never resolves within this room's roster (N1).
+            playerService.findPlayerByPublicId.mockResolvedValue(null);
 
-            await eventHandlers['player:kick']({ targetSessionId: 'session-2' });
+            await eventHandlers['player:kick']({ targetPlayerId: TARGET_PLAYER_ID });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
@@ -520,7 +527,7 @@ describe('Player Handlers', () => {
                 fetchSockets: jest.fn().mockResolvedValue([mockTargetSocket]),
             });
 
-            await eventHandlers['player:kick']({ targetSessionId: 'session-2' });
+            await eventHandlers['player:kick']({ targetPlayerId: TARGET_PLAYER_ID });
 
             // Targets the player room, not the session→socket mapping.
             expect(mockIo.in).toHaveBeenCalledWith('player:session-2');
@@ -536,20 +543,20 @@ describe('Player Handlers', () => {
                 fetchSockets: jest.fn().mockResolvedValue([]),
             });
 
-            await eventHandlers['player:kick']({ targetSessionId: 'session-2' });
+            await eventHandlers['player:kick']({ targetPlayerId: TARGET_PLAYER_ID });
 
             // Should still complete without error
             expect(playerService.removePlayer).toHaveBeenCalledWith('session-2');
         });
 
         test('removes player on kick', async () => {
-            await eventHandlers['player:kick']({ targetSessionId: 'session-2' });
+            await eventHandlers['player:kick']({ targetPlayerId: TARGET_PLAYER_ID });
 
             expect(playerService.removePlayer).toHaveBeenCalled();
         });
 
         test('broadcasts updated player list after kick', async () => {
-            await eventHandlers['player:kick']({ targetSessionId: 'session-2' });
+            await eventHandlers['player:kick']({ targetPlayerId: TARGET_PLAYER_ID });
 
             expect(mockIo.to().emit).toHaveBeenCalledWith('room:playerLeft', expect.any(Object));
         });
@@ -583,7 +590,7 @@ describe('Player Handlers', () => {
             expect(playerService.setRole).toHaveBeenCalledWith('session-1', 'spymaster');
             expect(mockIo.to).toHaveBeenCalledWith('room:TEST12');
             expect(mockIo.to().emit).toHaveBeenCalledWith('player:updated', {
-                sessionId: 'session-1',
+                playerId: SELF_PLAYER_ID,
                 changes: { team: 'blue', role: 'spymaster' },
             });
         });
@@ -735,27 +742,23 @@ describe('Player Handlers', () => {
 
     describe('player:kick edge cases', () => {
         test('handles target socket not in sockets map', async () => {
-            playerService.getPlayer.mockImplementation(async (sessionId: string) => {
-                if (sessionId === 'session-1') {
-                    return {
-                        sessionId: 'session-1',
-                        roomCode: 'TEST12',
-                        isHost: true,
-                        nickname: 'Host',
-                    };
-                }
-                return {
-                    sessionId: 'target-session',
-                    roomCode: 'TEST12',
-                    nickname: 'TargetPlayer',
-                    isHost: false,
-                };
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                roomCode: 'TEST12',
+                isHost: true,
+                nickname: 'Host',
+            });
+            playerService.findPlayerByPublicId.mockResolvedValue({
+                sessionId: 'target-session',
+                roomCode: 'TEST12',
+                nickname: 'TargetPlayer',
+                isHost: false,
             });
             playerService.getSocketId.mockResolvedValue('nonexistent-socket-id');
             playerService.removePlayer.mockResolvedValue();
             playerService.getPlayersInRoom.mockResolvedValue([]);
 
-            await eventHandlers['player:kick']({ targetSessionId: 'target-session' });
+            await eventHandlers['player:kick']({ targetPlayerId: derivePlayerId('target-session') });
 
             // Should still complete without crashing
             expect(playerService.removePlayer).toHaveBeenCalled();

@@ -74,6 +74,15 @@ describe('Room Resync and Recovery Handlers', () => {
         // Public-player projection used at peer-broadcast sites (N2) — pass through.
         playerService.toPublicPlayer.mockImplementation((p) => p);
         playerService.toPublicPlayers.mockImplementation((arr) => arr);
+        // Direct-to-self projection (room:resynced/room:reconnected `you`) —
+        // pass through, like the public projections above.
+        playerService.toSelfPlayer.mockImplementation((p) => p);
+        // Real one-way derivation for peer-facing playerId fields (N1).
+        playerService.derivePlayerId.mockImplementation(
+            jest.requireActual('../../services/player/publicId').derivePlayerId
+        );
+        // Per-session auth secret minted into room:reconnected (N1).
+        playerService.mintSessionAuthSecret.mockResolvedValue('ab'.repeat(32));
 
         // Create mock socket
         mockSocket = {
@@ -418,6 +427,8 @@ describe('Room Resync and Recovery Handlers', () => {
                     room: mockRoom,
                     players: mockPlayers,
                     you: mockPlayer,
+                    // Per-session auth secret is (re)delivered to the owner (N1).
+                    sessionToken: 'ab'.repeat(32),
                 })
             );
 

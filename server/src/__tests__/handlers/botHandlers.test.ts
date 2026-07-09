@@ -29,6 +29,7 @@ const botService = require('../../services/botService');
 const playerService = require('../../services/playerService');
 const gameService = require('../../services/gameService');
 const { clearGameStateCache } = require('../../socket/playerContext');
+const { derivePlayerId } = require('../../services/player/publicId');
 
 describe('Bot Handlers', () => {
     let mockSocket;
@@ -131,11 +132,33 @@ describe('Bot Handlers', () => {
     });
 
     it('removes a bot and broadcasts the departure (host)', async () => {
+        const botPlayerId = derivePlayerId('bot-1');
         botService.removeBot.mockResolvedValue(undefined);
+        // Handler resolves the client-supplied opaque playerId back to the bot (N1).
+        playerService.findPlayerByPublicId.mockResolvedValue({
+            sessionId: 'bot-1',
+            roomCode: 'ROOM12',
+            nickname: 'Greedy Bot',
+            team: 'red',
+            role: 'clicker',
+            isBot: true,
+            connected: true,
+        });
 
-        await handlerFor('bot:remove')({ sessionId: 'bot-1' });
+        await handlerFor('bot:remove')({ playerId: botPlayerId });
 
+        expect(playerService.findPlayerByPublicId).toHaveBeenCalledWith('ROOM12', botPlayerId);
         expect(botService.removeBot).toHaveBeenCalledWith('ROOM12', 'bot-1');
-        expect(mockIo.emit).toHaveBeenCalledWith('room:playerLeft', expect.objectContaining({ sessionId: 'bot-1' }));
+        expect(mockIo.emit).toHaveBeenCalledWith('room:playerLeft', expect.objectContaining({ playerId: botPlayerId }));
+        // Roster in the departure broadcast goes through the public projection (N2).
+        expect(playerService.toPublicPlayers).toHaveBeenCalled();
+    });
+
+    it('rejects bot:remove for a playerId not in the room', async () => {
+        playerService.findPlayerByPublicId.mockResolvedValue(null);
+
+        await handlerFor('bot:remove')({ playerId: derivePlayerId('not-here') });
+
+        expect(botService.removeBot).not.toHaveBeenCalled();
     });
 });

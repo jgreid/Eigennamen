@@ -57,6 +57,12 @@ describe('Game Handlers', () => {
         jest.clearAllMocks();
         clearGameStateCache();
 
+        // Peer-facing payloads carry the derived playerId, never sessionId (N1).
+        // Use the real one-way derivation through the auto-mocked barrel.
+        playerService.derivePlayerId.mockImplementation(
+            jest.requireActual('../../services/player/publicId').derivePlayerId
+        );
+
         // Create mock socket
         mockSocket = {
             id: 'socket-123',
@@ -161,11 +167,12 @@ describe('Game Handlers', () => {
             const startHandler = handlers.find((h) => h[0] === 'game:start');
             await startHandler[1]({});
 
+            const { derivePlayerId } = jest.requireActual('../../services/player/publicId');
             // The bot's PLAYER_UPDATED carries its real role, not a hardcoded spectator.
             expect(mockIo.emit).toHaveBeenCalledWith(
                 'player:updated',
                 expect.objectContaining({
-                    sessionId: 'bot-1',
+                    playerId: derivePlayerId('bot-1'),
                     changes: expect.objectContaining({ role: 'spymaster', team: 'red' }),
                 })
             );
@@ -173,7 +180,7 @@ describe('Game Handlers', () => {
             expect(mockIo.emit).toHaveBeenCalledWith(
                 'player:updated',
                 expect.objectContaining({
-                    sessionId: 'session-456',
+                    playerId: derivePlayerId('session-456'),
                     changes: expect.objectContaining({ role: 'clicker', team: 'red' }),
                 })
             );

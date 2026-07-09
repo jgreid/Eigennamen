@@ -17,6 +17,8 @@ jest.mock('../../services/playerService', () => ({
     getTeamMembers: jest.fn(),
     updatePlayer: jest.fn(),
     getPlayersInRoom: jest.fn(),
+    // Real one-way derivation — advisor payloads carry playerId, never sessionId (N1).
+    derivePlayerId: jest.requireActual('../../services/player/publicId').derivePlayerId,
 }));
 jest.mock('../../services/botService', () => ({ getBotConfig: jest.fn() }));
 jest.mock('../../socket/safeEmit', () => ({ safeEmitToRoom: jest.fn(), safeEmitToPlayers: jest.fn() }));
@@ -151,13 +153,14 @@ describe('botController.tickRoom', () => {
             'game:botSuggestion',
             expect.anything()
         );
+        const { derivePlayerId } = jest.requireActual('../../services/player/publicId');
         expect(safeEmitToPlayers).toHaveBeenCalledWith(
             mockIo,
             redTeamMembers,
             'game:botSuggestion',
             expect.objectContaining({
                 team: 'red',
-                advisor: expect.objectContaining({ sessionId: 'adv-1' }),
+                advisor: expect.objectContaining({ playerId: derivePlayerId('adv-1') }),
                 suggestions: expect.arrayContaining([expect.objectContaining({ index: 0 })]), // BEAR fits ANIMAL
             })
         );

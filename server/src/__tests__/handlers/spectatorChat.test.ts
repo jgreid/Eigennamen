@@ -30,6 +30,7 @@ const playerService = require('../../services/playerService');
 const gameService = require('../../services/gameService');
 const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
 const { spectatorChatSchema } = require('../../validators/schemas');
+const { derivePlayerId } = require('../../services/player/publicId');
 
 describe('Spectator Chat Feature', () => {
     describe('Schema Validation', () => {
@@ -142,7 +143,7 @@ describe('Spectator Chat Feature', () => {
                     expect.objectContaining({
                         text: 'Go team!',
                         from: expect.objectContaining({
-                            sessionId: 'session-456',
+                            playerId: derivePlayerId('session-456'),
                             nickname: 'Spectator1',
                             role: 'spectator',
                         }),
@@ -271,12 +272,14 @@ describe('Spectator Chat Feature', () => {
                 const emittedMessage = mockIo.emit.mock.calls[0][1];
                 expect(emittedMessage.from).toEqual(
                     expect.objectContaining({
-                        sessionId: 'session-456',
+                        playerId: derivePlayerId('session-456'),
                         nickname: 'Spectator1',
                         team: null,
                         role: 'spectator',
                     })
                 );
+                // The raw session credential must never appear in peer payloads (N1).
+                expect(emittedMessage.from.sessionId).toBeUndefined();
             });
         });
 
