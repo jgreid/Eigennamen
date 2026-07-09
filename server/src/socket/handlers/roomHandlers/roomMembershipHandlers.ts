@@ -63,7 +63,11 @@ export default function roomMembershipHandlers(io: Server, socket: GameSocket): 
                     return computeFallbackStats([player]);
                 });
 
-                socket.emit(SOCKET_EVENTS.ROOM_CREATED, { room, player, stats: roomStats });
+                socket.emit(SOCKET_EVENTS.ROOM_CREATED, {
+                    room,
+                    player: playerService.toPublicPlayer(player),
+                    stats: roomStats,
+                });
 
                 logger.info(`Room created: ${room.code} by ${socket.sessionId}`);
             }
@@ -147,7 +151,13 @@ export default function roomMembershipHandlers(io: Server, socket: GameSocket): 
                 'room:join-parallel-ops'
             )) as [void, RoomStats, PlayerGameState | null];
 
-            socket.emit(SOCKET_EVENTS.ROOM_JOINED, { room, players, game: gameState, you: player, stats: roomStats });
+            socket.emit(SOCKET_EVENTS.ROOM_JOINED, {
+                room,
+                players: playerService.toPublicPlayers(players),
+                game: gameState,
+                you: playerService.toPublicPlayer(player),
+                stats: roomStats,
+            });
 
             // Notify client if stats used fallback data so it can request resync
             if (statsUsedFallback) {
@@ -169,7 +179,9 @@ export default function roomMembershipHandlers(io: Server, socket: GameSocket): 
                     team: player.team,
                 });
             } else {
-                socket.to(`room:${room.code}`).emit(SOCKET_EVENTS.ROOM_PLAYER_JOINED, { player });
+                socket
+                    .to(`room:${room.code}`)
+                    .emit(SOCKET_EVENTS.ROOM_PLAYER_JOINED, { player: playerService.toPublicPlayer(player) });
             }
 
             logger.info(`Player ${validated.nickname} joined room ${room.code}`);
@@ -200,7 +212,7 @@ export default function roomMembershipHandlers(io: Server, socket: GameSocket): 
             safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_PLAYER_LEFT, {
                 sessionId: ctx.sessionId,
                 newHost: result?.newHostId || null,
-                players: remainingPlayers || [],
+                players: playerService.toPublicPlayers(remainingPlayers || []),
             });
 
             // Broadcast updated stats so clients reflect the player departure

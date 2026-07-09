@@ -384,10 +384,32 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 }
                 if (ctx.game.paused) throw GameStateError.gamePaused();
 
+                // A host seated on a team in a competitive game may only forfeit
+                // THEIR OWN team — never the opponent's. Forfeiting the other team
+                // makes that host's team the winner and, in match mode, banks the
+                // round-win bonus, so an unrestricted `team` param let a seated host
+                // win by resigning the opposition. Duet is cooperative (teamless),
+                // and a teamless host (a moderator running a match between others)
+                // keeps the full forfeit-either-team control the UI exposes. (N5)
+                if (
+                    ctx.game.gameMode !== 'duet' &&
+                    ctx.player.team &&
+                    validated.team &&
+                    validated.team !== ctx.player.team
+                ) {
+                    throw PlayerError.notAuthorized();
+                }
+
                 // Stop timer
                 await getSocketFunctions().stopTurnTimer(ctx.roomCode);
 
                 const result: ForfeitResult = await gameService.forfeitGame(ctx.roomCode, validated.team);
+
+                // Match mode: finalize the round BEFORE broadcasting GAME_OVER, so a
+                // client's auto nextRound (which fires on GAME_OVER) can't race ahead
+                // of finalization and silently drop the round bonus/number. Same
+                // ordering rationale as the reveal path in gameActions.ts. (N2b)
+                await handleMatchRoundFinalization(io, ctx.roomCode);
 
                 // Duet mode: forfeit is a cooperative abandonment, not a team action
                 const gameOverPayload: Record<string, unknown> = {
@@ -402,9 +424,6 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_OVER, gameOverPayload);
 
                 await saveCompletedGameHistory(ctx.roomCode);
-
-                // Match mode: atomically finalize round and emit result
-                await handleMatchRoundFinalization(io, ctx.roomCode);
 
                 // Audit log game end (forfeit)
                 const forfeitIp = socket.clientIP || socket.handshake.address;

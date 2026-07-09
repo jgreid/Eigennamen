@@ -82,7 +82,7 @@ export default function playerModerationHandlers(io: Server, socket: GameSocket)
                 safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_PLAYER_LEFT, {
                     sessionId: validated.targetSessionId,
                     newHost: null,
-                    players: remainingPlayers || [],
+                    players: playerService.toPublicPlayers(remainingPlayers || []),
                 });
 
                 // Broadcast updated stats so clients refresh team counters

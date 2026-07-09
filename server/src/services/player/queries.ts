@@ -1,6 +1,31 @@
 import type { Team, Role, Player, RedisClient } from '../../types';
 
 import { getRedis } from '../../config/redis';
+export type PublicPlayer = Omit<Player, 'lastIP' | 'userId'>;
+
+/**
+ * Project a stored Player to the shape safe to broadcast to room peers.
+ *
+ * `lastIP` and `userId` are server-internal (IP-consistency checks, auth
+ * linkage) and are referenced nowhere on the client, but the raw Player record
+ * was being emitted verbatim in ROOM_JOINED / ROOM_PLAYER_JOINED /
+ * PLAYER_DISCONNECTED / ROOM_PLAYER_LEFT / resync / reconnect payloads — leaking
+ * every player's real IP address to anyone else in the room. Strip them at every
+ * peer-facing emit boundary. (N2)
+ *
+ * NOTE: `sessionId` is intentionally still included — the client keys player
+ * identity off it in ~38 places. Removing it (the N1 session-adoption hardening)
+ * is a larger identity refactor tracked separately.
+ */
+export function toPublicPlayer(player: Player): PublicPlayer {
+    const { lastIP: _lastIP, userId: _userId, ...pub } = player;
+    return pub;
+}
+
+/** Map a list of players through {@link toPublicPlayer}. */
+export function toPublicPlayers(players: Player[]): PublicPlayer[] {
+    return players.map(toPublicPlayer);
+}
 import logger from '../../utils/logger';
 import { withTimeout, TIMEOUTS } from '../../utils/timeout';
 import { tryParseJSON } from '../../utils/parseJSON';

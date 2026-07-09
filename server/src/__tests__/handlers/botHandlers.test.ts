@@ -39,6 +39,10 @@ describe('Bot Handlers', () => {
         jest.clearAllMocks();
         clearGameStateCache();
 
+        // Public-player projection used at peer-broadcast sites (N2) — pass through.
+        playerService.toPublicPlayer.mockImplementation((p) => p);
+        playerService.toPublicPlayers.mockImplementation((arr) => arr);
+
         mockSocket = {
             id: 'socket-1',
             sessionId: 'host-session',

@@ -45,7 +45,11 @@ function botHandlers(io: Server, socket: GameSocket): void {
                 });
 
                 // Announce the bot to everyone (including the host) like a join.
-                safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_PLAYER_JOINED, { player: bot });
+                // Route through the same public-player projection as the human join
+                // path so the ROOM_PLAYER_JOINED payload shape stays identical (N2).
+                safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_PLAYER_JOINED, {
+                    player: playerService.toPublicPlayer(bot),
+                });
 
                 const players: Player[] = await playerService.getPlayersInRoom(ctx.roomCode);
                 const stats: RoomStats = await playerService.getRoomStats(ctx.roomCode, players);

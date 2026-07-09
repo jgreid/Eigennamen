@@ -271,8 +271,8 @@ async function handleDisconnect(
                 team: player.team,
                 reason: reason,
                 timestamp: Date.now(),
-                // Include updated player list for state consistency
-                players: updatedPlayers,
+                // Include updated player list for state consistency (peer PII stripped, N2)
+                players: playerService.toPublicPlayers(updatedPlayers),
                 // Indicate player may reconnect and when the window closes
                 // Token is NOT broadcast - stored server-side only for security
                 reconnecting: !!reconnectionToken,
@@ -321,18 +321,15 @@ async function handleDisconnect(
                             // Exclude bots as host candidates: a bot cannot start
                             // games or manage the room, so handing it host locks
                             // every host-only function. Prefer a human; only fall
-                            // back to bots if no human remains connected.
+                            // back to bots if no human remains connected. Shared
+                            // selection helper keeps this in lockstep with the
+                            // explicit-leave path (N3).
                             const connectedPlayers = players.filter(
                                 (p: Player) => p.connected && p.sessionId !== socket.sessionId
                             );
-                            const humanCandidates = connectedPlayers.filter((p: Player) => !p.isBot);
-                            const hostCandidates = humanCandidates.length > 0 ? humanCandidates : connectedPlayers;
+                            const newHost = roomService.selectHostSuccessor(connectedPlayers);
 
-                            if (hostCandidates.length > 0) {
-                                // Transfer host to first eligible player
-                                // Safe to cast: we just verified length > 0
-                                const newHost = hostCandidates[0] as Player;
-
+                            if (newHost) {
                                 // Use atomic host transfer to prevent race conditions
                                 // This atomically updates old host, new host, and room in a single Lua script
                                 const transferResult = await playerService.atomicHostTransfer(

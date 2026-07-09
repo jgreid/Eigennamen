@@ -281,12 +281,27 @@ function canChangeTeamOrRole(
         };
     }
 
+    // Nobody may BECOME an observer mid-game. An observer receives the fully
+    // unmasked board (every card type incl. the assassin), so self-promoting into
+    // the role from a spectator/waiting seat is a free full-board reveal that
+    // bypasses the host-approved spectator->seat flow. Observers must be declared
+    // before the game starts; during a game the role is entry-locked. (N4)
+    if (targetRole === 'observer' && player.role !== 'observer') {
+        return {
+            allowed: false,
+            reason: 'Cannot become an observer during an active game — the observer sees the whole board',
+            code: ERROR_CODES.OBSERVER_CANNOT_JOIN_MIDGAME,
+        };
+    }
+
     // Observers have seen the FULL unmasked board, so they cannot change into any
     // other role while a game is active — not even a plain spectator. Allowing the
     // step-down to spectator opened a laundering path (observer -> spectator ->
     // clicker) that let a player rejoin a playing seat with full board knowledge.
+    // A bare team change (targetRole null) is the same hazard — it would drop a
+    // full-board-knowledge player onto a team roster mid-game — so block that too. (N11)
     // They remain an observer until the game ends (or may leave the room).
-    if (player.role === 'observer' && targetRole && targetRole !== 'observer') {
+    if (player.role === 'observer' && ((targetRole && targetRole !== 'observer') || isTeamChange)) {
         return {
             allowed: false,
             reason: 'Cannot leave the observer role during an active game — you have seen the whole board',

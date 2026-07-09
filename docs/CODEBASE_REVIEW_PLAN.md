@@ -33,7 +33,9 @@ pass changes the disposition of an already-tracked item, that is recorded in
 
 ## Phase 1 — Exploitable / integrity bugs reachable in normal play
 
-### N1 — A player's session can be adopted by any room peer; `sessionId` is the only credential and it is broadcast to everyone
+### N1 — A player's session can be adopted by any room peer; `sessionId` is the only credential and it is broadcast to everyone — **DEFERRED to its own PR**
+
+**Status:** The PII half (N2) shipped. The session-adoption fix itself is deferred to a dedicated PR: the frontend keys player identity off peer `sessionId` in ~38 places, so the opaque-`playerId` path is a large client+server identity refactor, and the auth-token alternative is worse today (the client sends no `reconnectToken`, so gating auth on one re-creates the documented reconnection Catch-22). Either path is a sizable change to the fragile auth/reconnect surface and wants its own PR with dedicated E2E reconnection coverage.
 
 **Severity:** High (Critical when `ALLOW_IP_MISMATCH=true`) · **Area:** AuthN / game integrity / session hijack
 
@@ -84,7 +86,9 @@ contains `sessionId`.
 
 ---
 
-### N2 — Every player's real IP (`lastIP`) and `userId` are broadcast to all room members
+### N2 — Every player's real IP (`lastIP`) and `userId` are broadcast to all room members — **FIXED**
+
+**Resolution:** `playerService.toPublicPlayer`/`toPublicPlayers` (`services/player/queries.ts`) strip `lastIP`/`userId`, applied at every peer-facing emit site (ROOM_CREATED/JOINED/PLAYER_JOINED/PLAYER_LEFT, resync, reconnect, disconnect, bot-join). Unit-tested in `hostSuccessorPublicPlayer.test.ts`.
 
 **Severity:** Medium · **Area:** Privacy / PII exposure (shares root cause with N1)
 
@@ -105,7 +109,9 @@ omits `lastIP`, `userId`, and `sessionId`.
 
 ---
 
-### N2b — Match-round finalization is silently dropped when `game:nextRound`/`game:start` lands in the post-`game:over` window (re-opens A7)
+### N2b — Match-round finalization is silently dropped when `game:nextRound`/`game:start` lands in the post-`game:over` window (re-opens A7) — **FIXED**
+
+**Resolution:** `handleMatchRoundFinalization` now runs BEFORE the `GAME_OVER` broadcast in both the reveal path (`gameActions.ts`) and the forfeit handler (`gameHandlers.ts`), so the round is banked before any client can trigger `nextRound` off `GAME_OVER`.
 
 **Severity:** High · **Area:** Match-mode correctness / race
 
@@ -143,7 +149,9 @@ applied once, and a target-crossing score produces `matchOver` rather than anoth
 
 ---
 
-### N3 — `leaveRoom` host transfer has no connected/non-bot filter and can permanently lock the room by handing host to a bot
+### N3 — `leaveRoom` host transfer has no connected/non-bot filter and can permanently lock the room by handing host to a bot — **FIXED**
+
+**Resolution:** New shared `selectHostSuccessor` helper (`services/room/membership.ts`, re-exported from `roomService`) prefers a connected human and never selects a bot; used by both `leaveRoom` and the disconnect path. Unit-tested in `hostSuccessorPublicPlayer.test.ts`.
 
 **Severity:** Medium-High · **Area:** Host lifecycle / room lockout
 
@@ -174,7 +182,9 @@ is the human and the room stays controllable.
 
 ---
 
-### N4 — A spectator can self-promote to `observer` mid-game and receive the fully unmasked board with no host approval
+### N4 — A spectator can self-promote to `observer` mid-game and receive the fully unmasked board with no host approval — **FIXED**
+
+**Resolution:** `canChangeTeamOrRole` (`socket/playerContext.ts`) now rejects `targetRole === 'observer'` for any non-observer while a game is active (new `OBSERVER_CANNOT_JOIN_MIDGAME` code); observers must be declared before `game:start`. Tested in `playerContext.test.ts`.
 
 **Severity:** Medium · **Area:** Permission check / data-audience / gameplay integrity
 
@@ -202,7 +212,9 @@ require observers to be declared before `game:start`).
 
 ---
 
-### N5 — A host can forfeit the *opposing* team, handing their own team the match-round bonus
+### N5 — A host can forfeit the *opposing* team, handing their own team the match-round bonus — **FIXED**
+
+**Resolution:** The forfeit handler (`gameHandlers.ts`) rejects a competitive-mode forfeit whose `team` differs from a seated host's own team; a teamless (moderator) host keeps full control, duet is unaffected. Tested in `gameHandlers.test.ts`.
 
 **Severity:** Low-Medium · **Area:** Rules integrity / authorization
 
@@ -339,7 +351,9 @@ then DEL only on full-recovery success.
 
 ---
 
-### N11 — `player:setTeam` lets an observer join a team while keeping the observer role
+### N11 — `player:setTeam` lets an observer join a team while keeping the observer role — **FIXED**
+
+**Resolution:** `canChangeTeamOrRole` now blocks an observer from a bare team change (`isTeamChange`) during an active game, alongside the existing role-change lockout. Tested in `playerContext.test.ts`.
 
 **Severity:** Low · **Area:** Role/permission gating
 
@@ -657,7 +671,9 @@ re-add a bot → the game proceeds.
 
 ## Phase 5 — Test / CI / build / ops signal
 
-### N26 — B13 has REGRESSED: the production Dockerfile is back on EOL Node 25 via an auto-merged Dependabot bump
+### N26 — B13 has REGRESSED: the production Dockerfile is back on EOL Node 25 via an auto-merged Dependabot bump — **FIXED**
+
+**Resolution:** Both Dockerfile stages re-pinned to `node:24-alpine3.21`; `.github/dependabot.yml` now ignores `node` major bumps; a new blocking `docker-node-major` CI job asserts the Dockerfile's Node major is in the test matrix.
 
 **Severity:** High · **Area:** Deploy / dependency hygiene / ledger integrity
 
@@ -680,7 +696,9 @@ fails unless it appears in the test matrix; (4) correct B13's ledger header (reg
 
 ---
 
-### N27 — No tool type-checks the test suites: `typecheck` excludes them and ts-jest is transpile-only under `isolatedModules`
+### N27 — No tool type-checks the test suites: `typecheck` excludes them and ts-jest is transpile-only under `isolatedModules` — **PARTIAL (mechanism shipped)**
+
+**Resolution:** `tsconfig.test.json` + `npm run typecheck:test` now type-check the backend test tree. Kept **advisory** (not in the blocking `typecheck` gate) because the first-ever compile surfaces a large backlog of pre-existing errors (implicit-any fixtures, `require()`-scoped files) — clearing that backlog so it can gate, plus a frontend-test config, remains a tracked follow-up.
 
 **Severity:** Medium-High · **Area:** Test-signal / CI gate
 

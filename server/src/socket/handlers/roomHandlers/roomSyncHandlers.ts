@@ -59,9 +59,9 @@ export default function roomSyncHandlers(_io: unknown, socket: GameSocket): void
 
             socket.emit(SOCKET_EVENTS.ROOM_RESYNCED, {
                 room,
-                players,
+                players: playerService.toPublicPlayers(players),
                 game: gameState,
-                you: ctx.player,
+                you: playerService.toPublicPlayer(ctx.player),
                 stats: roomStats,
             });
 

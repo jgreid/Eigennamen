@@ -669,6 +669,48 @@ jobs:
           fi
 
   # ── Gate: all checks must pass before merge ────────────────────────────
+  # ── Guard: Dockerfile Node major must be tested by the matrix ───────────
+  # Prevents the B13/N26 regression class: a Dependabot (or manual) bump of the
+  # production base image to a Node major the test matrix never exercises — e.g.
+  # an odd "Current" line already past EOL. Fails if either Dockerfile FROM stage
+  # pins a Node major absent from the `test` job's `node-version` matrix.
+  docker-node-major:
+    name: Docker Node Major
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+
+      - name: Assert Dockerfile Node major is in the CI test matrix
+        run: |
+          set -euo pipefail
+          # Node majors the test matrix actually runs (single source of truth: the
+          # `node-version: [..]` line in this workflow).
+          matrix_line=$(grep -oE 'node-version: \[[0-9, ]+\]' .github/workflows/ci.yml | head -1)
+          if [ -z "$matrix_line" ]; then
+            echo "::error::Could not locate the test matrix node-version line in ci.yml"
+            exit 1
+          fi
+          matrix_majors=$(echo "$matrix_line" | grep -oE '[0-9]+' | sort -u | tr '\n' ' ')
+          echo "Test matrix Node majors: $matrix_majors"
+
+          # Every `FROM node:<major>...` major in the production Dockerfile.
+          docker_majors=$(grep -oE '^FROM node:[0-9]+' server/Dockerfile | grep -oE '[0-9]+' | sort -u)
+          if [ -z "$docker_majors" ]; then
+            echo "::error::No 'FROM node:<major>' lines found in server/Dockerfile"
+            exit 1
+          fi
+
+          status=0
+          for major in $docker_majors; do
+            if echo " $matrix_majors " | grep -q " $major "; then
+              echo "OK: Dockerfile Node $major is covered by the test matrix"
+            else
+              echo "::error::server/Dockerfile pins Node $major, which the CI test matrix ($matrix_majors) never runs. Pin an even LTS major that the matrix tests, or add it to the matrix."
+              status=1
+            fi
+          done
+          exit $status
+
   ci-passed:
     name: CI Passed
     if: always()
@@ -679,7 +721,7 @@ jobs:
     # but does not gate merge. `e2e-smoke` — a small single-context slice that
     # doesn't hit that flaky class — IS a dependency, so real end-to-end
     # coverage still gates merges (docs/HARDENING_PLAN.md P1-9).
-    needs: [lint, typecheck, build, test, security, docker, e2e-smoke]
+    needs: [lint, typecheck, build, test, security, docker, e2e-smoke, docker-node-major]
     runs-on: ubuntu-latest
     steps:
       - name: Check all jobs
@@ -691,6 +733,7 @@ jobs:
           echo "Security: ${{ needs.security.result }}"
           echo "Docker: ${{ needs.docker.result }}"
           echo "E2E Smoke: ${{ needs.e2e-smoke.result }}"
+          echo "Docker Node Major: ${{ needs.docker-node-major.result }}"
 
           # Fail if any required (blocking) job failed
           if [ "${{ needs.lint.result }}" != "success" ] || \
@@ -699,7 +742,8 @@ jobs:
              [ "${{ needs.test.result }}" != "success" ] || \
              [ "${{ needs.security.result }}" != "success" ] || \
              [ "${{ needs.docker.result }}" != "success" ] || \
-             [ "${{ needs.e2e-smoke.result }}" != "success" ]; then
+             [ "${{ needs.e2e-smoke.result }}" != "success" ] || \
+             [ "${{ needs.docker-node-major.result }}" != "success" ]; then
             echo "::error::One or more required CI jobs failed"
             exit 1
           fi

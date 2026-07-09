@@ -1,6 +1,6 @@
 # Build stage
 # Note: Build context is repo root (where fly.toml is located)
-FROM node:25-alpine3.21 AS builder
+FROM node:24-alpine3.21 AS builder
 
 WORKDIR /app
 
@@ -57,7 +57,12 @@ RUN mkdir -p /app/embeddings && touch /app/embeddings/.keep && \
     fi
 
 # Production stage
-FROM node:25-alpine3.21
+# Pinned to Node 24 (active LTS). Do NOT bump to an odd "Current" line (25, 27, …):
+# those reach end-of-life on a ~6-month cadence with no security patches, and CI's
+# test matrix (.github/workflows/ci.yml) only runs the even LTS majors. The Dockerfile
+# major is asserted against that matrix by the "docker-node-major" CI guard, and
+# .github/dependabot.yml ignores node major bumps so this pin can't be auto-reverted.
+FROM node:24-alpine3.21
 
 WORKDIR /app
 
