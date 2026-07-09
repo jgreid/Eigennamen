@@ -23,7 +23,8 @@ jest.mock('../../frontend/i18n', () => ({
 
 jest.mock('../../frontend/clientAccessor', () => ({
     getClient: () => null,
-    isClientConnected: () => true,
+    // jest.fn so individual tests can simulate a disconnected client (N15).
+    isClientConnected: jest.fn(() => true),
 }));
 
 jest.mock('../../frontend/board', () => ({
@@ -160,6 +161,42 @@ describe('setTeam (multiplayer)', () => {
 
         // State should remain as optimistically set
         expect(state.playerTeam).toBe('red');
+    });
+});
+
+// ========== N15: disconnected team/role changes must not fall through ==========
+// While disconnected in multiplayer, team/role changes must NOT mutate local
+// state via the standalone engine (which flips the board to a misleading masked
+// view). Mirror A3's disconnected guard.
+describe('disconnected team/role guard (N15)', () => {
+    const { isClientConnected } = require('../../frontend/clientAccessor');
+
+    beforeEach(() => {
+        (isClientConnected as jest.Mock).mockReturnValue(false);
+        state.isMultiplayerMode = true;
+        state.playerTeam = null;
+        state.spymasterTeam = null;
+        state.clickerTeam = null;
+    });
+
+    afterEach(() => {
+        (isClientConnected as jest.Mock).mockReturnValue(true);
+    });
+
+    test('setTeam while disconnected does not mutate state and warns', () => {
+        setTeam('red');
+
+        expect(state.playerTeam).toBeNull();
+        expect(mockSetTeam).not.toHaveBeenCalled();
+        expect(showToast).toHaveBeenCalledWith('multiplayer.reconnecting', 'warning');
+    });
+
+    test('setSpymaster while disconnected does not mutate state and warns', () => {
+        setSpymaster('red');
+
+        expect(state.spymasterTeam).toBeNull();
+        expect(mockSetTeamRole).not.toHaveBeenCalled();
+        expect(showToast).toHaveBeenCalledWith('multiplayer.reconnecting', 'warning');
     });
 });
 

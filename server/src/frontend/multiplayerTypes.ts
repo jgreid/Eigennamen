@@ -124,8 +124,13 @@ export interface ServerErrorData {
 }
 
 export interface TimerEventData {
+    active?: boolean;
     remainingSeconds?: number;
+    remaining?: number;
     duration?: number;
+    endTime?: number;
+    /** Present on timer:status — whether the game (and thus the timer) is paused (N14). */
+    isPaused?: boolean;
 }
 
 export interface SettingsUpdatedData {

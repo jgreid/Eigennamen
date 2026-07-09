@@ -181,21 +181,32 @@ describe('locale key regressions (P1-11)', () => {
                 .filter((f) => f.endsWith('.ts'))
                 .map((f) => path.join(HANDLERS_DIR, f)),
             path.join(__dirname, '../../frontend/multiplayerSync.ts'),
+            // N18 added setMpStatus() here as an i18n sink to guard.
+            path.join(__dirname, '../../frontend/multiplayer.ts'),
         ];
-        const literalToast = /showToast\(\s*['"`]/;
+        // User-facing sinks that bypass the DOM data-i18n scan. Every one must be
+        // fed a t() result, never a raw literal. announceToScreenReader/setMpStatus
+        // were added by N18 after real bypass strings shipped through them; the
+        // `[^'"\`)]` requires a NON-EMPTY literal so empty-string clears
+        // (setMpStatus('', '')) aren't false-flagged.
+        const literalSinkPatterns = [
+            /showToast\(\s*['"`]/,
+            /announceToScreenReader\(\s*['"`][^'"`)]/,
+            /setMpStatus\(\s*['"`][^'"`)]/,
+        ];
 
         it('scans a realistic number of handler files', () => {
             expect(scannedFiles.length).toBeGreaterThan(4);
         });
 
         it.each(scannedFiles.map((f) => [path.basename(f), f] as const))(
-            '%s has no hardcoded showToast string literal',
+            '%s has no hardcoded user-facing string literal (showToast / announceToScreenReader / setMpStatus)',
             (_name, file) => {
                 const source = fs.readFileSync(file, 'utf-8');
                 const offenders = source
                     .split('\n')
                     .map((line, i) => [i + 1, line] as const)
-                    .filter(([, line]) => literalToast.test(line));
+                    .filter(([, line]) => literalSinkPatterns.some((re) => re.test(line)));
                 expect(offenders).toEqual([]);
             }
         );

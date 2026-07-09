@@ -36,6 +36,7 @@ import type {
 } from '../multiplayerTypes.js';
 import { updateSpectatorCount, updateRoomStats } from '../multiplayerUI.js';
 import { getClient } from '../clientAccessor.js';
+import { handleTimerStopped } from '../timer.js';
 
 /**
  * Sync team names from room settings into local state.
@@ -112,6 +113,11 @@ export function registerRoomHandlers(): void {
         // Guard: prevent individual update events from interleaving with
         // a full resync, which replaces all state atomically.
         state.resyncInProgress = true;
+        // Clear any stale local countdown left over from before this resync. The
+        // server has no active timer emits nothing (so a leftover countdown would
+        // never be reconciled); when a timer IS live, the following timer:status
+        // re-arms it — honoring isPaused so a paused game doesn't tick. (N14)
+        handleTimerStopped();
         try {
             batch(() => {
                 // Sync current player's state from server response
@@ -178,6 +184,10 @@ export function registerRoomHandlers(): void {
 
         // Guard: full state replacement — defer individual update events
         state.resyncInProgress = true;
+        // Clear any stale local countdown from before the disconnect. If a timer
+        // is live the following timer:status re-arms it (honoring isPaused); if
+        // not, the server emits nothing, so clearing here is the only reconcile. (N14)
+        handleTimerStopped();
         try {
             const changes = detectOfflineChanges(data);
 

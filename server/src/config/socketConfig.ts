@@ -76,7 +76,7 @@ export const SOCKET_EVENTS = {
     GAME_RESUME: 'game:resume',
     GAME_PAUSED: 'game:paused',
     GAME_RESUMED: 'game:resumed',
-    GAME_TYPING: 'game:typing',
+    // GAME_TYPING removed (N19) — dead wiring, no client emitter/listener.
     GAME_ERROR: 'game:error',
 
     // Bot events

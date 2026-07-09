@@ -306,6 +306,16 @@ export function setTeam(team: string | null): void {
         return;
     }
 
+    // Multiplayer but disconnected: do NOT fall through to the standalone engine
+    // below. Mutating team/role locally while offline flips the board to a
+    // misleading masked view and shows a clue form whose submit silently no-ops
+    // — a confusing flap the next resync undoes. Mirror A3's disconnected guard
+    // (reveal/endTurn/newGame) for team/role too. (N15)
+    if (state.isMultiplayerMode) {
+        showToast(t('multiplayer.reconnecting'), 'warning');
+        return;
+    }
+
     // Standalone mode: update local state directly
     // When changing teams, clear any team-specific roles
     const hadRole = state.spymasterTeam || state.clickerTeam;
@@ -412,6 +422,14 @@ function setRoleForTeam(
 
         // The absolute timeout (ROLE_CHANGE_ABSOLUTE_TIMEOUT_MS) handles lost-ack recovery.
         // No per-operation timeout needed — a single mechanism prevents state-machine stalls.
+        return;
+    }
+
+    // Multiplayer but disconnected: don't fall through to the standalone engine
+    // (would locally "become" spymaster and flip the board to a masked view).
+    // Mirror A3's disconnected guard. (N15)
+    if (state.isMultiplayerMode) {
+        showToast(t('multiplayer.reconnecting'), 'warning');
         return;
     }
 

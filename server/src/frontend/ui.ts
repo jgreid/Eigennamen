@@ -76,8 +76,10 @@ export function showToast(message: string, type: string = 'error', duration: num
     };
     toastTimers.set(toast, timers);
 
-    // Announce to screen readers with message type for context
-    const typeLabel = safeType === 'error' ? 'Error: ' : safeType === 'warning' ? 'Warning: ' : '';
+    // Announce to screen readers with message type for context. The prefixes
+    // were hardcoded English shipped to de/es/fr users (N18) — route through t().
+    const typeLabel =
+        safeType === 'error' ? t('a11y.errorPrefix') : safeType === 'warning' ? t('a11y.warningPrefix') : '';
     announceToScreenReader(typeLabel + message);
 
     return toast;

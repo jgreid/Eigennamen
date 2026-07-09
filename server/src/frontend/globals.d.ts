@@ -90,6 +90,8 @@ interface EigennamenClientAPI {
     on(event: string, callback: (...args: never[]) => void): void;
     once(event: string, callback: (...args: never[]) => void): void;
     off(event: string, callback?: (...args: never[]) => void): void;
+    /** Registered internal-bus listeners, keyed by event name (used for drift-proof cleanup — N12). */
+    listeners?: Record<string, unknown[]>;
 }
 
 declare const EigennamenClient: EigennamenClientAPI;

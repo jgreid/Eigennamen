@@ -384,7 +384,9 @@ active game" intent and is fragile if future code keys team membership off role 
 
 ## Phase 3 — Frontend correctness & accessibility
 
-### N12 — Seven registered client events are missing from the listener-cleanup list, so their handlers duplicate across room cycles
+### N12 — Seven registered client events are missing from the listener-cleanup list, so their handlers duplicate across room cycles — **FIXED**
+
+**Resolution:** The seven missing events (`gamePaused`/`gameResumed`/`timerPaused`/`timerResumed`/`spectatorJoinRequest`/`spectatorJoinApproved`/`spectatorJoinDenied`, plus `timerTimeAdded`) are now in `multiplayerEventNames`, and — to make the list drift-proof — `cleanupMultiplayerListeners` sweeps the UNION of that list and the client's actually-registered listener keys (`EigennamenClient.listeners`), so a future handler added without updating the list can't accumulate. Tests: cleanup sweeps an undocumented registered key; the seven names are present.
 
 **Severity:** Medium · **Area:** Listener leak / correctness
 
@@ -408,7 +410,9 @@ registered event name (iterate `Object.keys(listeners)`, not a hardcoded list).
 
 ---
 
-### N13 — Keyboard shortcuts are permanently disabled after a kick or failed rejoin — i.e. after every production deploy
+### N13 — Keyboard shortcuts are permanently disabled after a kick or failed rejoin — i.e. after every production deploy — **FIXED**
+
+**Resolution:** Deleted the `removeKeyboardShortcuts()` call (and its now-unused import) from `leaveMultiplayerMode()` — the shortcut handler is global app UI attached once, idempotently, at init, not room-scoped. Test: `leaveMultiplayerMode()` no longer calls `removeKeyboardShortcuts`.
 
 **Severity:** Medium · **Area:** Accessibility / listener lifecycle
 
@@ -430,7 +434,9 @@ global app UI, not room-scoped, and its init is idempotent).
 
 ---
 
-### N14 — `timer:status` on join/resync/reconnect ignores `isPaused`, so a client (re)joining a paused game runs a live countdown
+### N14 — `timer:status` on join/resync/reconnect ignores `isPaused`, so a client (re)joining a paused game runs a live countdown — **FIXED**
+
+**Resolution:** `handleTimerStatus` now honors `isPaused` — when set, it displays the frozen time without starting the countdown (mirrors `handleTimerPaused`); `TimerEventData` gained `isPaused`. The reconnect (`handleReconnection`) and resync (`roomResynced`) handlers now call `handleTimerStopped()` up front, so a stale local countdown is cleared even when the server (having no active timer) emits nothing; a following `timer:status` re-arms a live timer. Tests: paused status leaves `intervalId` null; live status starts the countdown.
 
 **Severity:** Medium · **Area:** Client/server desync
 
@@ -456,7 +462,9 @@ timer is live).
 
 ---
 
-### N15 — Team/role changes while disconnected fall through to the standalone engine (the A3 class, unfixed for roles)
+### N15 — Team/role changes while disconnected fall through to the standalone engine (the A3 class, unfixed for roles) — **FIXED**
+
+**Resolution:** `setTeam` and `setRoleForTeam` (`frontend/roles.ts`) now mirror A3's disconnected guard — after the connected branch, an `isMultiplayerMode` client that is disconnected shows the `multiplayer.reconnecting` toast and returns instead of falling through to the standalone engine (which would flip the board to a misleading masked view). Tests: disconnected `setTeam`/`setSpymaster` mutate no state and warn.
 
 **Severity:** Low-Medium · **Area:** Standalone-vs-multiplayer bleed
 
@@ -476,7 +484,9 @@ mutation, reconnecting toast (same shape as the A3 tests).
 
 ---
 
-### N16 — Host setup flow races `room:settings` against the auto `game:start`, so the first game can start in the wrong mode / without the timer
+### N16 — Host setup flow races `room:settings` against the auto `game:start`, so the first game can start in the wrong mode / without the timer — **FIXED**
+
+**Resolution:** The host auto-start is deferred until the `room:settings` write is confirmed by a `settingsUpdated` broadcast (`autoStartWhenSettingsConfirmed` in `frontend/multiplayer.ts`), with a 2s timeout fallback so a dropped event can't leave the room gameless. `game:start` reads `gameMode`/`turnTimer` from Redis and carries neither, so gating on the confirmation removes the race entirely. Test: `startGame` is not emitted until `settingsUpdated` arrives.
 
 **Severity:** Low-Medium · **Area:** Init race / desync
 
@@ -498,7 +508,9 @@ ack callback on `updateSettings`) before the auto-start.
 
 ---
 
-### N17 — The pause overlay is an always-assertive live region *and* is manually announced (C2's bug class, reintroduced by the F1 wiring)
+### N17 — The pause overlay is an always-assertive live region *and* is manually announced (C2's bug class, reintroduced by the F1 wiring) — **FIXED**
+
+**Resolution:** Dropped `role="alert"`/`aria-live` from `#pause-overlay` (`public/index.html`); the `gamePaused` handler's explicit `announceToScreenReader` remains the single SR channel. The C2 source-scan test (`ui.test.ts`) is extended to assert the pause overlay is not a live region.
 
 **Severity:** Low · **Area:** Accessibility
 
@@ -516,7 +528,9 @@ live region with a handler-driven announcement.
 
 ---
 
-### N18 — i18n bypass bundle: user-facing strings the C5 `showToast` lint guard structurally cannot catch
+### N18 — i18n bypass bundle: user-facing strings the C5 `showToast` lint guard structurally cannot catch — **FIXED**
+
+**Resolution:** Routed every bypass sink through `t()` with new keys ×4 (`a11y.*` SR role/team announces + Error/Warning prefixes, `time.*` relative timestamps, `game.roundBonusSuffix`, `multiplayer.roomIdEnterNickname`, `history.clueDetail`/`revealDetail`). The C5 lint guard (`localeKeys.test.ts`) is extended to also scan `announceToScreenReader(` and `setMpStatus(` for non-empty raw literals, and to cover `multiplayer.ts`. Locale-key parity across all four files verified by the existing scan.
 
 **Severity:** Low · **Area:** i18n
 
@@ -534,7 +548,9 @@ the replay log detail in `history-replay.ts:202`. (Locale-key parity itself is c
 
 ---
 
-### N19 — `game:typing` is fully dormant end-to-end on the client (undispositioned half-built feature)
+### N19 — `game:typing` is fully dormant end-to-end on the client (undispositioned half-built feature) — **FIXED**
+
+**Resolution:** Deleted (delete path) — the frontend never emitted or listened for it and it escaped the Phase-F pass. Removed the server handler, the `SOCKET_EVENTS.GAME_TYPING` constant, the `game:typing` rate-limit entry, and the CLAUDE.md event-table row; recorded the disposition in `docs/FEATURE_ROADMAP.md`.
 
 **Severity:** Low · **Area:** Dead wiring / doc drift
 

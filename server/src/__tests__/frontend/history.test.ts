@@ -45,6 +45,9 @@ jest.mock('../../frontend/i18n', () => ({
         if (key === 'history.noEvents') return 'No events';
         if (key === 'history.gaveClue') return 'gave clue';
         if (key === 'history.revealed') return 'revealed';
+        // Replay detail fragments are now i18n-routed (N18).
+        if (key === 'history.clueDetail') return `"${params?.word}" for ${params?.number}`;
+        if (key === 'history.revealDetail') return `${params?.word} (${params?.type})`;
         if (key === 'history.endedTurn') return 'ended turn';
         if (key === 'history.forfeited') return 'forfeited';
         if (key === 'history.replayBoard') return 'Replay Board';

@@ -373,7 +373,8 @@ function showRoundSummary(
 ): void {
     const roundWinner = roundResult.roundWinner;
     const winnerName = roundWinner === 'red' ? state.teamNames.red : state.teamNames.blue;
-    const bonusText = roundResult.redBonusAwarded || roundResult.blueBonusAwarded ? ' (+7 bonus)' : '';
+    // Was a hardcoded English fragment shipped to de/es/fr users (N18).
+    const bonusText = roundResult.redBonusAwarded || roundResult.blueBonusAwarded ? t('game.roundBonusSuffix') : '';
 
     const msg = t('game.roundComplete', {
         round: String(roundResult.roundNumber),

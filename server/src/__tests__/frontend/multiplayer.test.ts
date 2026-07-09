@@ -128,6 +128,8 @@ jest.mock('../../frontend/multiplayerListeners', () => ({
 
 jest.mock('../../frontend/clientAccessor', () => ({
     isClientConnected: jest.fn(() => true),
+    // getClient is used by the deferred host auto-start (N16).
+    getClient: jest.fn(() => (global as any).EigennamenClient),
 }));
 
 // Mock EigennamenClient global
@@ -138,7 +140,18 @@ jest.mock('../../frontend/clientAccessor', () => ({
     joinRoom: jest.fn().mockResolvedValue({ room: { code: 'TESTROOM' }, players: [] }),
     createRoom: jest.fn().mockResolvedValue({ room: { code: 'NEWROOM' }, players: [] }),
     startGame: jest.fn(),
+    // Internal event bus used by the deferred auto-start's settingsUpdated gate (N16).
+    on: jest.fn(),
+    off: jest.fn(),
 };
+
+/** Fire the settingsUpdated listener the deferred auto-start registered via client.on. */
+function fireSettingsUpdated(): void {
+    const client = (global as any).EigennamenClient;
+    for (const [event, cb] of client.on.mock.calls) {
+        if (event === 'settingsUpdated' && typeof cb === 'function') cb();
+    }
+}
 
 import {
     openMultiplayer,
@@ -326,15 +339,20 @@ describe('multiplayer module', () => {
             expect(state.isHost).toBe(true);
         });
 
-        test('auto-starts game when creating as host without existing game', () => {
+        test('auto-starts game when creating as host — only AFTER settings are confirmed (N16)', () => {
             setupMultiplayerDOM();
             onMultiplayerJoined({ room: { code: 'R' }, players: [] }, true);
+            // The start is DEFERRED until the room:settings write is confirmed, so
+            // game:start's server-side gameMode/timer read can't race it (N16).
+            expect((global as any).EigennamenClient.startGame).not.toHaveBeenCalled();
+            fireSettingsUpdated();
             expect((global as any).EigennamenClient.startGame).toHaveBeenCalledWith({});
         });
 
         test('does not auto-start when joining (not host)', () => {
             setupMultiplayerDOM();
             onMultiplayerJoined({ room: { code: 'R' }, players: [] }, false);
+            fireSettingsUpdated();
             expect((global as any).EigennamenClient.startGame).not.toHaveBeenCalled();
         });
 
@@ -343,6 +361,7 @@ describe('multiplayer module', () => {
             const { buildStartGameOptions } = require('../../frontend/game');
             (buildStartGameOptions as jest.Mock).mockReturnValueOnce({ wordList: ['A', 'B', 'C'] });
             onMultiplayerJoined({ room: { code: 'R' }, players: [] }, true);
+            fireSettingsUpdated();
             expect((global as any).EigennamenClient.startGame).toHaveBeenCalledWith({ wordList: ['A', 'B', 'C'] });
         });
 
