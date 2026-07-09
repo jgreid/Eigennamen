@@ -3,6 +3,7 @@ import type { Player, Team, Role } from '../../types';
 import type { GameSocket, RoomContext } from './types';
 
 import * as playerService from '../../services/playerService';
+import { derivePlayerId } from '../../services/player/publicId';
 import { chatMessageSchema, spectatorChatSchema } from '../../validators/schemas';
 import logger from '../../utils/logger';
 import { SOCKET_EVENTS } from '../../config/constants';
@@ -34,7 +35,7 @@ interface SpectatorChatInput {
  */
 interface ChatMessage {
     from: {
-        sessionId: string;
+        playerId: string;
         nickname: string;
         team: Team | null;
         role: Role;
@@ -58,7 +59,7 @@ function chatHandlers(io: Server, socket: GameSocket): void {
             async (ctx: RoomContext, validated: ChatMessageInput) => {
                 const message: ChatMessage = {
                     from: {
-                        sessionId: ctx.player.sessionId,
+                        playerId: derivePlayerId(ctx.player.sessionId),
                         nickname: ctx.player.nickname,
                         team: ctx.player.team,
                         role: ctx.player.role,
@@ -113,7 +114,7 @@ function chatHandlers(io: Server, socket: GameSocket): void {
 
                 const message = {
                     from: {
-                        sessionId: ctx.player.sessionId,
+                        playerId: derivePlayerId(ctx.player.sessionId),
                         nickname: ctx.player.nickname,
                         team: ctx.player.team,
                         role: ctx.player.role,

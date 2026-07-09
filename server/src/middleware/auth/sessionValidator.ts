@@ -3,6 +3,7 @@ import type { Player } from '../../types';
 import { isValidUuid } from '../../utils/uuid';
 import logger from '../../utils/logger';
 import * as playerService from '../../services/playerService';
+import { validateSessionAuthSecret } from '../../services/player/sessionAuth';
 import { getRedis } from '../../config/redis';
 import { SESSION_SECURITY, REDIS_TTL, ERROR_CODES } from '../../config/constants';
 import { ATOMIC_RATE_LIMIT_SCRIPT } from '../../scripts';
@@ -302,7 +303,7 @@ async function validateRoomReconnectToken(
  * and verifies reconnection tokens. Uses early returns to keep nesting flat.
  */
 async function resolveSessionId(
-    auth: { sessionId?: string; token?: string; reconnectToken?: string },
+    auth: { sessionId?: string; token?: string; reconnectToken?: string; sessionToken?: string },
     currentIP: string
 ): Promise<SessionResolutionResult> {
     const { sessionId } = auth;
@@ -329,6 +330,24 @@ async function resolveSessionId(
     // Allow it (session will be created fresh when they join a room)
     if (!existingPlayer) {
         return { validatedSessionId: sessionId, sessionValidation: null, ipMismatch: false };
+    }
+
+    // N1: adopting an EXISTING player's session requires the per-session auth
+    // secret minted at room create/join and delivered only to that client.
+    // 'missing' = record predates secrets — fall back to the legacy IP-only
+    // checks below (bounded by the player-record TTL); every session minted
+    // since always has one. This is Catch-22-free where the old reconnect-token
+    // gate wasn't: the secret sits in the same sessionStorage as the sessionId,
+    // so any client that can present the id can present the secret — only a
+    // peer who harvested someone else's id cannot.
+    const secretCheck = await validateSessionAuthSecret(sessionId, auth.sessionToken);
+    if (secretCheck === 'invalid') {
+        logger.warn('Session adoption blocked: session auth secret invalid or absent', {
+            sessionId,
+            clientIP: currentIP,
+            playerConnected: existingPlayer.connected,
+        });
+        return noSession;
     }
 
     // Player is currently connected — possible page refresh or network blip
@@ -369,13 +388,9 @@ async function resolveSessionId(
         return { validatedSessionId: null, sessionValidation, ipMismatch: false };
     }
 
-    // For the auth middleware, session ID + IP validation is sufficient.
-    // Reconnection tokens are validated separately in the room:reconnect flow
-    // for cross-device reconnection scenarios.
-    //
-    // Previously, token validation here created a Catch-22: when connected,
-    // the session was blocked as "hijacking"; when disconnected, it was blocked
-    // for missing a token the client never had after a page refresh.
+    // Single-use room:reconnect tokens are still validated separately in the
+    // room:reconnect flow for full state recovery; the session auth secret
+    // above is what gates adoption at the handshake.
     logger.debug('Session validated for reconnection', {
         sessionId,
         ipMismatch: sessionValidation.ipMismatch,

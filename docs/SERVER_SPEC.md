@@ -180,10 +180,18 @@ GET /api/replays/:roomCode/:gameId
 // Client connects with session info
 io.connect(SERVER_URL, {
     auth: {
-        sessionId: "uuid", // From localStorage or generated
-        token: "jwt"       // Optional, for logged-in users
+        sessionId: "uuid",         // From sessionStorage or generated
+        sessionToken: "64-hex",    // Per-session auth secret (from room:created/joined/reconnected).
+                                   // Required to re-adopt an existing session — a sessionId alone
+                                   // no longer resolves another player's seat (N1).
+        token: "jwt"               // Optional, for logged-in users
     }
 });
+
+// NOTE ON IDENTITY: peers are identified ONLY by an opaque `playerId`
+// (16-hex, derived server-side). A player's own `sessionId` appears solely
+// in payloads addressed to that player (room:created player / room:joined
+// you / room:reconnected you); it is never broadcast to other players.
 ```
 
 #### Room Events
@@ -218,26 +226,28 @@ socket.emit('room:settings', {
 // Room created successfully
 socket.on('room:created', {
     room: { id, code, settings },
-    player: { sessionId, nickname, isHost: true }
+    player: { playerId, sessionId, nickname, isHost: true }, // own identity
+    sessionToken: "64-hex" // present the secret in subsequent handshakes
 });
 
 // Joined room successfully
 socket.on('room:joined', {
     room: { id, code, settings, status },
-    players: [...],
+    players: [...],            // each: { playerId, nickname, team, role, ... } — no sessionId
     game: {...} || null,
-    you: { sessionId, nickname, team, role }
+    you: { playerId, sessionId, nickname, team, role },
+    sessionToken: "64-hex"
 });
 
 // Another player joined
 socket.on('room:playerJoined', {
-    player: { sessionId, nickname, team, role }
+    player: { playerId, nickname, team, role }
 });
 
 // Player left
 socket.on('room:playerLeft', {
-    sessionId: "uuid",
-    newHost: "uuid" || null // If host left
+    playerId: "16-hex",
+    newHost: "16-hex" || null // playerId of the new host, if the host left
 });
 
 // Settings updated
@@ -276,7 +286,7 @@ socket.emit('player:setNickname', {
 
 // Player updated (broadcast to room)
 socket.on('player:updated', {
-    sessionId: "uuid",
+    playerId: "16-hex",
     changes: { team: "red", role: "spymaster" }
 });
 ```
@@ -329,7 +339,7 @@ socket.on('game:clueGiven', {
     number: 3,
     team: "red",
     guessesAllowed: 4,
-    spymaster: { sessionId: "uuid", nickname: "Alice" }
+    spymaster: { playerId: "16-hex", nickname: "Alice" }
 });
 
 // Card revealed
@@ -363,7 +373,7 @@ socket.emit('game:readyCheck');            // host only
 socket.emit('game:ready');                 // any room member
 socket.on('game:readyStatus', {
     active: true,
-    players: [{ sessionId, nickname, ready: false }],
+    players: [{ playerId, nickname, ready: false }],
     startedBy: "session-id",
     timeout: 30000
 });
@@ -396,7 +406,7 @@ socket.emit('bot:add', {
 
 // Remove a bot player
 socket.emit('bot:remove', {
-    sessionId: "bot-uuid"
+    playerId: "16-hex" // the bot's public playerId from the room roster
 });
 
 // ===== SERVER → CLIENT =====
@@ -426,7 +436,7 @@ socket.emit('chat:message', {
 // ===== SERVER → CLIENT =====
 
 socket.on('chat:message', {
-    from: { sessionId, nickname, team },
+    from: { playerId, nickname, team },
     text: "Hello team!",
     teamOnly: false,
     timestamp: 1234567890
@@ -528,34 +538,35 @@ socket.on('room:reconnectionToken', {
 // Reconnected successfully
 socket.on('room:reconnected', {
     room: {...},
-    players: [...],
+    players: [...],            // each: { playerId, ... } — no sessionId
     game: {...},
-    you: { sessionId, nickname, team, role }
+    you: { playerId, sessionId, nickname, team, role },
+    sessionToken: "64-hex"
 });
 
 // Room resynced (response to room:resync)
 socket.on('room:resynced', {
     room: {...},
-    players: [...],
+    players: [...],            // each: { playerId, ... } — no sessionId
     game: {...},
-    you: { sessionId, nickname, team, role }
+    you: { playerId, sessionId, nickname, team, role }
 });
 
 // Player disconnected (broadcast to room)
 socket.on('player:disconnected', {
-    sessionId: "uuid",
+    playerId: "16-hex",
     nickname: "Alice"
 });
 
 // Player reconnected (broadcast to room)
 socket.on('room:playerReconnected', {
-    sessionId: "uuid",
+    playerId: "16-hex",
     nickname: "Alice"
 });
 
 // Host changed (when previous host disconnects)
 socket.on('room:hostChanged', {
-    newHostSessionId: "uuid",
+    newHostPlayerId: "16-hex",
     newHostNickname: "Bob"
 });
 ```
@@ -572,7 +583,7 @@ socket.emit('chat:spectator', {
 
 // Kick a player (host only)
 socket.emit('player:kick', {
-    sessionId: "uuid-to-kick"
+    targetPlayerId: "16-hex" // the target's public playerId from the roster
 });
 
 // ===== SERVER → CLIENT =====
@@ -586,7 +597,7 @@ socket.on('chat:spectatorMessage', {
 
 // Player kicked
 socket.on('player:kicked', {
-    sessionId: "uuid",
+    playerId: "16-hex",
     nickname: "BadPlayer"
 });
 

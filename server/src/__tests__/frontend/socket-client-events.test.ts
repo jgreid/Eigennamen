@@ -22,6 +22,7 @@ function setup() {
         roomCode: null as string | null,
         player: null as Player | null,
         sessionId: null as string | null,
+        sessionToken: null as string | null,
         saveSession: jest.fn(),
     };
 
@@ -39,11 +40,13 @@ describe('registerAllEventListeners', () => {
 
             handlers['room:created']({
                 room: { code: 'ABC' },
-                player: { sessionId: 'new-server-session', nickname: 'Host' },
+                player: { playerId: 'pid-1', sessionId: 'new-server-session', nickname: 'Host' },
+                sessionToken: 'tok-1',
             });
 
             // Must overwrite the stale ID with the server-assigned one
             expect(client.sessionId).toBe('new-server-session');
+            expect(client.sessionToken).toBe('tok-1');
             expect(client.roomCode).toBe('ABC');
             expect(client.saveSession).toHaveBeenCalled();
         });
@@ -54,7 +57,7 @@ describe('registerAllEventListeners', () => {
 
             handlers['room:created']({
                 room: { code: 'XYZ' },
-                player: { sessionId: 'fresh-session', nickname: 'Host' },
+                player: { playerId: 'pid-2', sessionId: 'fresh-session', nickname: 'Host' },
             });
 
             expect(client.sessionId).toBe('fresh-session');
@@ -75,7 +78,7 @@ describe('registerAllEventListeners', () => {
 
         test('emits roomCreated with full data', () => {
             const { handlers, emit } = setup();
-            const data = { room: { code: 'ABC' }, player: { sessionId: 's1' } };
+            const data = { room: { code: 'ABC' }, player: { playerId: 'pid-3', sessionId: 's1' } };
 
             handlers['room:created'](data);
 
@@ -90,18 +93,24 @@ describe('registerAllEventListeners', () => {
 
             handlers['room:joined']({
                 room: { code: 'GAME' },
-                you: { sessionId: 'server-assigned-session', nickname: 'Joiner' },
+                you: { playerId: 'pid-j', sessionId: 'server-assigned-session', nickname: 'Joiner' },
+                sessionToken: 'tok-j',
             });
 
             expect(client.sessionId).toBe('server-assigned-session');
-            expect(client.player).toEqual({ sessionId: 'server-assigned-session', nickname: 'Joiner' });
+            expect(client.sessionToken).toBe('tok-j');
+            expect(client.player).toEqual({
+                playerId: 'pid-j',
+                sessionId: 'server-assigned-session',
+                nickname: 'Joiner',
+            });
             expect(client.roomCode).toBe('GAME');
             expect(client.saveSession).toHaveBeenCalled();
         });
 
         test('emits roomJoined with full data', () => {
             const { handlers, emit } = setup();
-            const data = { room: { code: 'GAME' }, you: { sessionId: 's2' } };
+            const data = { room: { code: 'GAME' }, you: { playerId: 'pid-4', sessionId: 's2' } };
 
             handlers['room:joined'](data);
 
@@ -113,7 +122,7 @@ describe('registerAllEventListeners', () => {
         test('clears roomCode and player on kick', () => {
             const { handlers, client, emit } = setup();
             client.roomCode = 'ABC';
-            client.player = { sessionId: 's1', nickname: 'Me' } as Player;
+            client.player = { playerId: 'pid-1', sessionId: 's1', nickname: 'Me' } as Player;
 
             handlers['room:kicked']({ reason: 'bad behavior' });
 
@@ -126,18 +135,18 @@ describe('registerAllEventListeners', () => {
     describe('room:hostChanged', () => {
         test('sets isHost when current player becomes host', () => {
             const { handlers, client } = setup();
-            client.player = { sessionId: 'me-123', nickname: 'Me', isHost: false } as Player;
+            client.player = { playerId: 'me-123', sessionId: 'sess-me', nickname: 'Me', isHost: false } as Player;
 
-            handlers['room:hostChanged']({ newHostSessionId: 'me-123' });
+            handlers['room:hostChanged']({ newHostPlayerId: 'me-123' });
 
             expect(client.player!.isHost).toBe(true);
         });
 
         test('does not set isHost when another player becomes host', () => {
             const { handlers, client } = setup();
-            client.player = { sessionId: 'me-123', nickname: 'Me', isHost: false } as Player;
+            client.player = { playerId: 'me-123', sessionId: 'sess-me', nickname: 'Me', isHost: false } as Player;
 
-            handlers['room:hostChanged']({ newHostSessionId: 'someone-else' });
+            handlers['room:hostChanged']({ newHostPlayerId: 'someone-else' });
 
             expect(client.player!.isHost).toBe(false);
         });
@@ -146,9 +155,9 @@ describe('registerAllEventListeners', () => {
     describe('player:updated', () => {
         test('merges changes when update matches current player', () => {
             const { handlers, client } = setup();
-            client.player = { sessionId: 'p1', nickname: 'Old', team: 'red', role: 'guesser' } as Player;
+            client.player = { playerId: 'p1', nickname: 'Old', team: 'red', role: 'guesser' } as Player;
 
-            handlers['player:updated']({ sessionId: 'p1', changes: { team: 'blue' } });
+            handlers['player:updated']({ playerId: 'p1', changes: { team: 'blue' } });
 
             expect(client.player!.team).toBe('blue');
             expect(client.player!.nickname).toBe('Old'); // unchanged
@@ -156,9 +165,9 @@ describe('registerAllEventListeners', () => {
 
         test('ignores update for a different player', () => {
             const { handlers, client } = setup();
-            client.player = { sessionId: 'p1', nickname: 'Me', team: 'red' } as Player;
+            client.player = { playerId: 'p1', nickname: 'Me', team: 'red' } as Player;
 
-            handlers['player:updated']({ sessionId: 'p2', changes: { team: 'blue' } });
+            handlers['player:updated']({ playerId: 'p2', changes: { team: 'blue' } });
 
             expect(client.player!.team).toBe('red'); // unchanged
         });
@@ -170,11 +179,11 @@ describe('registerAllEventListeners', () => {
 
             handlers['room:resynced']({
                 room: { code: 'SYNC' },
-                you: { sessionId: 'p1', nickname: 'Synced' },
+                you: { playerId: 'pid-s', sessionId: 'p1', nickname: 'Synced' },
             });
 
             expect(client.roomCode).toBe('SYNC');
-            expect(client.player).toEqual({ sessionId: 'p1', nickname: 'Synced' });
+            expect(client.player).toEqual({ playerId: 'pid-s', sessionId: 'p1', nickname: 'Synced' });
         });
     });
 
@@ -259,7 +268,7 @@ describe('registerAllEventListeners', () => {
     describe('room:playerJoined', () => {
         test('emits playerJoined with data', () => {
             const { handlers, emit } = setup();
-            const data = { sessionId: 'p1', nickname: 'NewPlayer' };
+            const data = { player: { playerId: 'p1', nickname: 'NewPlayer' } };
 
             handlers['room:playerJoined'](data);
 
@@ -270,7 +279,7 @@ describe('registerAllEventListeners', () => {
     describe('room:playerLeft', () => {
         test('emits playerLeft with data', () => {
             const { handlers, emit } = setup();
-            const data = { sessionId: 'p2', nickname: 'Leaver' };
+            const data = { playerId: 'p2', nickname: 'Leaver' };
 
             handlers['room:playerLeft'](data);
 
@@ -303,7 +312,7 @@ describe('registerAllEventListeners', () => {
     describe('player:kicked', () => {
         test('emits playerKicked with data', () => {
             const { handlers, emit } = setup();
-            const data = { sessionId: 'p3', reason: 'inactivity' };
+            const data = { playerId: 'p3', reason: 'inactivity' };
 
             handlers['player:kicked'](data);
 
@@ -326,17 +335,19 @@ describe('registerAllEventListeners', () => {
         test('updates roomCode, player, calls saveSession, and emits roomReconnected', () => {
             const { handlers, client, emit } = setup();
             client.roomCode = 'OLD';
-            client.player = { sessionId: 'old-p', nickname: 'Old' } as Player;
+            client.player = { playerId: 'old-pid', sessionId: 'old-p', nickname: 'Old' } as Player;
 
             const data = {
                 room: { code: 'RECON' },
-                you: { sessionId: 'new-p', nickname: 'Reconnected' },
+                you: { playerId: 'new-pid', sessionId: 'new-p', nickname: 'Reconnected' },
+                sessionToken: 'tok-r',
             };
 
             handlers['room:reconnected'](data);
 
             expect(client.roomCode).toBe('RECON');
-            expect(client.player).toEqual({ sessionId: 'new-p', nickname: 'Reconnected' });
+            expect(client.sessionToken).toBe('tok-r');
+            expect(client.player).toEqual({ playerId: 'new-pid', sessionId: 'new-p', nickname: 'Reconnected' });
             expect(client.saveSession).toHaveBeenCalled();
             expect(emit).toHaveBeenCalledWith('roomReconnected', data);
         });
@@ -345,25 +356,25 @@ describe('registerAllEventListeners', () => {
             const { handlers, client } = setup();
             client.roomCode = 'KEEP';
 
-            handlers['room:reconnected']({ room: {}, you: { sessionId: 'p1' } });
+            handlers['room:reconnected']({ room: {}, you: { playerId: 'pid-k', sessionId: 'p1' } });
 
             expect(client.roomCode).toBe('KEEP');
         });
 
         test('keeps existing player when you is missing', () => {
             const { handlers, client } = setup();
-            client.player = { sessionId: 'keep-me', nickname: 'Kept' } as Player;
+            client.player = { playerId: 'keep-me', sessionId: 'sess-keep', nickname: 'Kept' } as Player;
 
             handlers['room:reconnected']({ room: { code: 'R1' } });
 
-            expect(client.player).toEqual({ sessionId: 'keep-me', nickname: 'Kept' });
+            expect(client.player).toEqual({ playerId: 'keep-me', sessionId: 'sess-keep', nickname: 'Kept' });
         });
     });
 
     describe('player:disconnected', () => {
         test('emits playerDisconnected with data', () => {
             const { handlers, emit } = setup();
-            const data = { sessionId: 'p4', nickname: 'DCPlayer' };
+            const data = { playerId: 'p4', nickname: 'DCPlayer' };
 
             handlers['player:disconnected'](data);
 
@@ -374,7 +385,7 @@ describe('registerAllEventListeners', () => {
     describe('player:reconnected', () => {
         test('emits playerReconnected with data', () => {
             const { handlers, emit } = setup();
-            const data = { sessionId: 'p5', nickname: 'ReconPlayer' };
+            const data = { playerId: 'p5', nickname: 'ReconPlayer' };
 
             handlers['player:reconnected'](data);
 
@@ -385,7 +396,7 @@ describe('registerAllEventListeners', () => {
     describe('room:playerReconnected', () => {
         test('emits playerReconnected with data', () => {
             const { handlers, emit } = setup();
-            const data = { sessionId: 'p6', nickname: 'TokenRecon' };
+            const data = { playerId: 'p6', nickname: 'TokenRecon' };
 
             handlers['room:playerReconnected'](data);
 

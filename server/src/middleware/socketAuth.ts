@@ -28,7 +28,12 @@ async function authenticateSocket(socket: Socket, next: (err?: Error) => void): 
         const currentIP = getClientIP(socket);
 
         // Step 3: Resolve session ID from auth params
-        const auth = socket.handshake.auth as { sessionId?: string; token?: string; reconnectToken?: string };
+        const auth = socket.handshake.auth as {
+            sessionId?: string;
+            token?: string;
+            reconnectToken?: string;
+            sessionToken?: string;
+        };
         const resolution = await resolveSessionId(auth, currentIP);
 
         // Use validated session ID or generate new one

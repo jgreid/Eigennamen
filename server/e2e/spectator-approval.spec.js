@@ -77,7 +77,7 @@ test.describe('Spectator Approval (real sockets, protocol-level; UI unit-tested 
             const joinRequest1 = waitForEvent(host, 'spectator:joinRequest');
             spectator1.emit('spectator:requestJoin', { team: 'red' });
             const request1 = await joinRequest1;
-            expect(request1).toMatchObject({ requesterId: spectator1Player.sessionId, team: 'red' });
+            expect(request1).toMatchObject({ requesterId: spectator1Player.playerId, team: 'red' });
 
             // Host approves spectator 1 — the server actually SEATS them onto red
             // as a clicker (not just a notification). Watch for both the approval
@@ -91,7 +91,7 @@ test.describe('Spectator Approval (real sockets, protocol-level; UI unit-tested 
                 spectator1.on('player:updated', (data) => {
                     if (
                         data &&
-                        data.sessionId === spectator1Player.sessionId &&
+                        data.playerId === spectator1Player.playerId &&
                         data.changes &&
                         data.changes.role === 'clicker'
                     ) {
@@ -101,13 +101,13 @@ test.describe('Spectator Approval (real sockets, protocol-level; UI unit-tested 
                 });
             });
             host.emit('spectator:approveJoin', {
-                requesterId: spectator1Player.sessionId,
+                requesterId: spectator1Player.playerId,
                 approved: true,
                 team: 'red',
             });
             await expect(approved1).resolves.toMatchObject({ team: 'red', message: expect.any(String) });
             await expect(seated1).resolves.toMatchObject({
-                sessionId: spectator1Player.sessionId,
+                playerId: spectator1Player.playerId,
                 changes: expect.objectContaining({ team: 'red', role: 'clicker' }),
             });
 
@@ -115,12 +115,12 @@ test.describe('Spectator Approval (real sockets, protocol-level; UI unit-tested 
             const joinRequest2 = waitForEvent(host, 'spectator:joinRequest');
             spectator2.emit('spectator:requestJoin', { team: 'blue' });
             const request2 = await joinRequest2;
-            expect(request2).toMatchObject({ requesterId: spectator2Player.sessionId, team: 'blue' });
+            expect(request2).toMatchObject({ requesterId: spectator2Player.playerId, team: 'blue' });
 
             // Host denies spectator 2 (team is ignored on a denial).
             const denied2 = waitForEvent(spectator2, 'spectator:joinDenied');
             host.emit('spectator:approveJoin', {
-                requesterId: spectator2Player.sessionId,
+                requesterId: spectator2Player.playerId,
                 approved: false,
                 team: 'blue',
             });
@@ -170,7 +170,7 @@ test.describe('Spectator Approval (real sockets, protocol-level; UI unit-tested 
             // Errors for an event route to `${domain}:error` (rateLimitHandler
             // convention) — spectator:approveJoin's failures land on spectator:error.
             const nonHostError = waitForEvent(nonHost, 'spectator:error');
-            nonHost.emit('spectator:approveJoin', { requesterId: spectatorPlayer.sessionId, approved: true });
+            nonHost.emit('spectator:approveJoin', { requesterId: spectatorPlayer.playerId, approved: true });
             const error = await nonHostError;
             expect(error.code).toBe('NOT_HOST');
         } finally {

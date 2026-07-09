@@ -1,5 +1,8 @@
 export interface ServerPlayerData {
-    sessionId: string;
+    /** Opaque public player id — the only peer identity the server sends (N1) */
+    playerId: string;
+    /** Own sessionId — present ONLY on self payloads (room:created player / room:joined you) */
+    sessionId?: string;
     nickname: string;
     team: 'red' | 'blue' | null;
     role: 'spymaster' | 'clicker' | 'spectator' | null;
@@ -60,13 +63,13 @@ export interface ClueGivenData {
     number: number;
     team: string;
     guessesAllowed?: number;
-    spymaster?: { sessionId: string; nickname: string };
+    spymaster?: { playerId: string; nickname: string };
 }
 
 export interface BotSuggestionData {
     team: string;
     clue: { word: string; number: number };
-    advisor: { sessionId: string; nickname: string };
+    advisor: { playerId: string; nickname: string };
     suggestions: { index: number; confidence: number; reason: string; warning?: string }[];
 }
 
@@ -76,6 +79,8 @@ export interface JoinCreateResult {
     players?: ServerPlayerData[];
     you?: ServerPlayerData;
     game?: ServerGameData;
+    /** Per-session auth secret required by the socket handshake to re-adopt this session (N1) */
+    sessionToken?: string;
 }
 
 export interface CardRevealedData {
@@ -139,7 +144,7 @@ export interface StatsUpdatedData {
 export interface SpectatorChatData {
     text: string;
     from?: {
-        sessionId?: string;
+        playerId?: string;
         nickname?: string;
         team?: string;
         role?: string;
@@ -169,7 +174,7 @@ export interface SpectatorJoinDeniedData {
 // Chat message data from server
 export interface ChatMessageData {
     from: {
-        sessionId: string;
+        playerId: string;
         nickname: string;
         team: string | null;
         role: string;
@@ -181,12 +186,12 @@ export interface ChatMessageData {
 }
 
 export interface HostChangedData {
-    newHostSessionId?: string;
+    newHostPlayerId?: string;
     newHostNickname?: string;
 }
 
 export interface PlayerUpdatedData {
-    sessionId?: string;
+    playerId?: string;
     changes?: Partial<ServerPlayerData>;
 }
 
@@ -195,6 +200,8 @@ export interface ReconnectionData {
     players?: ServerPlayerData[];
     game?: ServerGameData;
     you?: ServerPlayerData;
+    /** Per-session auth secret required by the socket handshake to re-adopt this session (N1) */
+    sessionToken?: string;
     error?: ServerErrorData;
 }
 
@@ -249,7 +256,7 @@ export interface MatchOverData {
 }
 
 export interface ReadyCheckPlayer {
-    sessionId: string;
+    playerId: string;
     nickname: string;
     ready: boolean;
 }
@@ -259,7 +266,7 @@ export interface ReadyStatusData {
     startedBy?: string;
     timeout?: number;
     playerReady?: {
-        sessionId: string;
+        playerId: string;
         nickname: string;
     };
 }
@@ -277,12 +284,12 @@ export interface PlayerJoinedData {
 
 export interface PlayerLeftData {
     players?: ServerPlayerData[];
-    sessionId?: string;
+    playerId?: string;
     nickname?: string;
 }
 
 export interface PlayerDisconnectedData {
-    sessionId?: string;
+    playerId?: string;
     nickname?: string;
 }
 
@@ -291,7 +298,7 @@ export interface KickedData {
 }
 
 export interface PlayerKickedData {
-    sessionId?: string;
+    playerId?: string;
     nickname?: string;
 }
 

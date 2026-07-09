@@ -40,7 +40,7 @@ export default function spectatorHandlers(io: Server, socket: GameSocket): void 
                 // the `player:${sessionId}` room (joined at room-join/reconnect), so we
                 // address it through safeEmitToPlayer rather than the bare sessionId.
                 safeEmitToPlayer(io, host.sessionId, SOCKET_EVENTS.SPECTATOR_JOIN_REQUEST, {
-                    requesterId: ctx.sessionId,
+                    requesterId: playerService.derivePlayerId(ctx.sessionId),
                     requesterNickname: ctx.player.nickname,
                     team: validated.team,
                     timestamp: Date.now(),
@@ -61,10 +61,16 @@ export default function spectatorHandlers(io: Server, socket: GameSocket): void 
             SOCKET_EVENTS.SPECTATOR_APPROVE_JOIN,
             spectatorJoinResponseSchema,
             async (ctx: RoomContext, validated: { requesterId: string; approved: boolean; team?: 'red' | 'blue' }) => {
-                const requester: Player | null = await playerService.getPlayer(validated.requesterId);
-                if (!requester || requester.roomCode !== ctx.roomCode) {
+                // requesterId is the requester's opaque playerId (N1) — resolve it
+                // back to their session within this room.
+                const requester: Player | null = await playerService.findPlayerByPublicId(
+                    ctx.roomCode,
+                    validated.requesterId
+                );
+                if (!requester) {
                     throw new PlayerError(ERROR_CODES.PLAYER_NOT_FOUND, 'Requester not found in room');
                 }
+                const requesterSessionId = requester.sessionId;
 
                 // Verify the requester is actually a spectator to prevent team players
                 // — and teamless observers, who have seen the unmasked board — from
@@ -85,11 +91,11 @@ export default function spectatorHandlers(io: Server, socket: GameSocket): void 
                     // clicker seat is already taken, setRole throws ROLE_TAKEN — revert the
                     // team move so the requester stays a clean spectator, and surface the
                     // error to the host.
-                    await playerService.setTeam(validated.requesterId, team);
+                    await playerService.setTeam(requesterSessionId, team);
                     try {
-                        await playerService.setRole(validated.requesterId, 'clicker');
+                        await playerService.setRole(requesterSessionId, 'clicker');
                     } catch (roleErr) {
-                        await playerService.setTeam(validated.requesterId, null).catch(() => {
+                        await playerService.setTeam(requesterSessionId, null).catch(() => {
                             /* best-effort revert */
                         });
                         throw roleErr;
@@ -97,14 +103,14 @@ export default function spectatorHandlers(io: Server, socket: GameSocket): void 
 
                     // Tell the whole room the requester is now a team clicker.
                     safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
-                        sessionId: validated.requesterId,
+                        playerId: validated.requesterId,
                         changes: { team, role: 'clicker' },
                     });
 
                     // Notify the requester they've been approved (via their player: room).
                     // The client resyncs on this so its board, role banner, and socket
                     // room memberships (leaving the spectators room) update correctly.
-                    safeEmitToPlayer(io, validated.requesterId, SOCKET_EVENTS.SPECTATOR_JOIN_APPROVED, {
+                    safeEmitToPlayer(io, requesterSessionId, SOCKET_EVENTS.SPECTATOR_JOIN_APPROVED, {
                         team,
                         message: 'Your request to join a team has been approved',
                         timestamp: Date.now(),
@@ -115,7 +121,7 @@ export default function spectatorHandlers(io: Server, socket: GameSocket): void 
                     );
                 } else {
                     // Notify the requester they've been denied (via their player: room).
-                    safeEmitToPlayer(io, validated.requesterId, SOCKET_EVENTS.SPECTATOR_JOIN_DENIED, {
+                    safeEmitToPlayer(io, requesterSessionId, SOCKET_EVENTS.SPECTATOR_JOIN_DENIED, {
                         message: 'Your request to join a team was denied',
                         timestamp: Date.now(),
                     });

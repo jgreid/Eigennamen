@@ -75,7 +75,7 @@ jest.mock('../../frontend/clientAccessor', () => ({
 
 // Mock EigennamenClient global
 (global as any).EigennamenClient = {
-    player: { sessionId: 'session1', isHost: true, nickname: 'TestHost' },
+    player: { playerId: 'session1', sessionId: 'sess-1', isHost: true, nickname: 'TestHost' },
     isConnected: jest.fn(() => true),
     kickPlayer: jest.fn(),
     forfeit: jest.fn(),
@@ -197,7 +197,7 @@ describe('multiplayerUI module', () => {
 
         test('marks current player with (You)', () => {
             const ul = document.createElement('ul');
-            (global as any).EigennamenClient.player.sessionId = 'session1';
+            (global as any).EigennamenClient.player.playerId = 'session1';
             const players: ServerPlayerData[] = [
                 createPlayer('session1', 'Me', true),
                 createPlayer('session2', 'Other', false),
@@ -233,7 +233,7 @@ describe('multiplayerUI module', () => {
 
         test('shows kick button for non-self players when host', () => {
             const ul = document.createElement('ul');
-            (global as any).EigennamenClient.player = { sessionId: 'host-session', isHost: true };
+            (global as any).EigennamenClient.player = { playerId: 'host-session', isHost: true };
             const players: ServerPlayerData[] = [
                 createPlayer('host-session', 'Host', true),
                 createPlayer('guest-session', 'Guest', false),
@@ -243,7 +243,7 @@ describe('multiplayerUI module', () => {
 
             const kickButtons = ul.querySelectorAll('.btn-kick');
             expect(kickButtons).toHaveLength(1);
-            expect((kickButtons[0] as HTMLElement).dataset.session).toBe('guest-session');
+            expect((kickButtons[0] as HTMLElement).dataset.player).toBe('guest-session');
         });
 
         test('shows role text for players with roles', () => {
@@ -528,11 +528,11 @@ function setupIndicatorDOM(): void {
 }
 
 function createPlayer(
-    sessionId: string,
+    playerId: string,
     nickname: string,
     isHost: boolean,
     team: string | null = null,
     role: string | null = null
 ): ServerPlayerData {
-    return { sessionId, nickname, isHost, team, role, connected: true };
+    return { playerId, nickname, isHost, team, role, connected: true };
 }

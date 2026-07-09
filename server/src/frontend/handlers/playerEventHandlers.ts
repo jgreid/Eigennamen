@@ -21,9 +21,7 @@ export function registerPlayerHandlers(): void {
             state.multiplayerPlayers = data.players;
         } else if (data.player) {
             // Add new player to list if not already present
-            const exists = state.multiplayerPlayers.some(
-                (p: ServerPlayerData) => p.sessionId === data.player!.sessionId
-            );
+            const exists = state.multiplayerPlayers.some((p: ServerPlayerData) => p.playerId === data.player!.playerId);
             if (!exists) {
                 state.multiplayerPlayers = [...state.multiplayerPlayers, data.player];
             }
@@ -40,10 +38,10 @@ export function registerPlayerHandlers(): void {
         if (state.resyncInProgress) return;
         if (data.players) {
             state.multiplayerPlayers = data.players;
-        } else if (data.sessionId) {
+        } else if (data.playerId) {
             // Remove player from list
             state.multiplayerPlayers = state.multiplayerPlayers.filter(
-                (p: ServerPlayerData) => p.sessionId !== data.sessionId
+                (p: ServerPlayerData) => p.playerId !== data.playerId
             );
         }
         updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
@@ -62,17 +60,17 @@ export function registerPlayerHandlers(): void {
         // Skip individual updates during a full state resync — the resync
         // data already contains the latest state for all players.
         if (state.resyncInProgress) return;
-        if (data.sessionId && data.changes) {
+        if (data.playerId && data.changes) {
             // Update player in local list
             state.multiplayerPlayers = state.multiplayerPlayers.map((p: ServerPlayerData) =>
-                p.sessionId === data.sessionId ? ({ ...p, ...data.changes } as ServerPlayerData) : p
+                p.playerId === data.playerId ? ({ ...p, ...data.changes } as ServerPlayerData) : p
             );
             updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
 
             // Announce role/team changes to screen readers
             if (data.changes.role || data.changes.team !== undefined) {
                 const changedPlayer = state.multiplayerPlayers.find(
-                    (p: ServerPlayerData) => p.sessionId === data.sessionId
+                    (p: ServerPlayerData) => p.playerId === data.playerId
                 );
                 const name = changedPlayer?.nickname || 'A player';
                 if (data.changes.role) {
@@ -89,16 +87,16 @@ export function registerPlayerHandlers(): void {
             }
 
             // If this is the current player, update local state variables
-            if (data.sessionId === EigennamenClient.player?.sessionId) {
+            if (data.playerId === EigennamenClient.player?.playerId) {
                 let updatedPlayer = state.multiplayerPlayers.find(
-                    (p: ServerPlayerData) => p.sessionId === data.sessionId
+                    (p: ServerPlayerData) => p.playerId === data.playerId
                 );
 
                 // Bug #8 fix: If player not in list, construct from changes and EigennamenClient.player
                 if (!updatedPlayer) {
                     const basePlayer = EigennamenClient.player || {};
                     updatedPlayer = { ...basePlayer, ...data.changes } as ServerPlayerData;
-                    if (updatedPlayer.sessionId) {
+                    if (updatedPlayer.playerId) {
                         state.multiplayerPlayers = [...state.multiplayerPlayers, updatedPlayer];
                         updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
                     }
@@ -137,9 +135,9 @@ export function registerPlayerHandlers(): void {
     EigennamenClient.on('playerDisconnected', (data: PlayerDisconnectedData) => {
         if (state.resyncInProgress) return;
         // Mark player as disconnected in local list
-        if (data.sessionId) {
+        if (data.playerId) {
             state.multiplayerPlayers = state.multiplayerPlayers.map((p: ServerPlayerData) =>
-                p.sessionId === data.sessionId ? { ...p, connected: false } : p
+                p.playerId === data.playerId ? { ...p, connected: false } : p
             );
             updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
             // Update controls and board - clicker disconnecting enables other team members
@@ -153,9 +151,9 @@ export function registerPlayerHandlers(): void {
     EigennamenClient.on('playerReconnected', (data: PlayerDisconnectedData) => {
         if (state.resyncInProgress) return;
         // Mark player as connected in local list
-        if (data.sessionId) {
+        if (data.playerId) {
             state.multiplayerPlayers = state.multiplayerPlayers.map((p: ServerPlayerData) =>
-                p.sessionId === data.sessionId ? { ...p, connected: true } : p
+                p.playerId === data.playerId ? { ...p, connected: true } : p
             );
             updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
             // Update controls and board - clicker reconnecting restores normal behavior

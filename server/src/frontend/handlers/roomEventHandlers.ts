@@ -56,13 +56,13 @@ export function registerRoomHandlers(): void {
         if (state.resyncInProgress) return;
         // Update global isHost based on whether we became the new host
         const wasHost = state.isHost;
-        state.isHost = data.newHostSessionId === EigennamenClient.player?.sessionId;
+        state.isHost = data.newHostPlayerId === EigennamenClient.player?.playerId;
 
         // Update host status in players list
-        if (data.newHostSessionId) {
+        if (data.newHostPlayerId) {
             state.multiplayerPlayers = state.multiplayerPlayers.map((p: ServerPlayerData) => ({
                 ...p,
-                isHost: p.sessionId === data.newHostSessionId,
+                isHost: p.playerId === data.newHostPlayerId,
             }));
             updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
         }
@@ -271,7 +271,7 @@ export function registerRoomHandlers(): void {
         if (state.resyncInProgress) return;
         // Update player list
         state.multiplayerPlayers = state.multiplayerPlayers.filter(
-            (p: ServerPlayerData) => p.sessionId !== data.sessionId
+            (p: ServerPlayerData) => p.playerId !== data.playerId
         );
         updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
         // Refresh controls and board — kicked player may have held the active

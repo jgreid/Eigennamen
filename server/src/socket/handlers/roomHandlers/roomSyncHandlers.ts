@@ -61,7 +61,7 @@ export default function roomSyncHandlers(_io: unknown, socket: GameSocket): void
                 room,
                 players: playerService.toPublicPlayers(players),
                 game: gameState,
-                you: playerService.toPublicPlayer(ctx.player),
+                you: playerService.toSelfPlayer(ctx.player),
                 stats: roomStats,
             });
 

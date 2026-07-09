@@ -1,30 +1,54 @@
 import type { Team, Role, Player, RedisClient } from '../../types';
 
 import { getRedis } from '../../config/redis';
-export type PublicPlayer = Omit<Player, 'lastIP' | 'userId'>;
+import { derivePlayerId } from './publicId';
+
+export type PublicPlayer = Omit<Player, 'sessionId' | 'lastIP' | 'userId'> & { playerId: string };
 
 /**
  * Project a stored Player to the shape safe to broadcast to room peers.
  *
  * `lastIP` and `userId` are server-internal (IP-consistency checks, auth
- * linkage) and are referenced nowhere on the client, but the raw Player record
- * was being emitted verbatim in ROOM_JOINED / ROOM_PLAYER_JOINED /
- * PLAYER_DISCONNECTED / ROOM_PLAYER_LEFT / resync / reconnect payloads — leaking
- * every player's real IP address to anyone else in the room. Strip them at every
- * peer-facing emit boundary. (N2)
+ * linkage) — stripping them was N2. `sessionId` is stripped too: it is the
+ * bearer credential the socket handshake adopts, so broadcasting it handed
+ * every room peer the ability to hijack any other player's seat (N1). Peers
+ * instead identify players by the opaque derived `playerId`.
  *
- * NOTE: `sessionId` is intentionally still included — the client keys player
- * identity off it in ~38 places. Removing it (the N1 session-adoption hardening)
- * is a larger identity refactor tracked separately.
+ * Direct-to-self payloads (ROOM_CREATED player / ROOM_JOINED you /
+ * ROOM_RECONNECTED player) may still carry the recipient's OWN sessionId —
+ * never route those through this projection for other recipients.
  */
 export function toPublicPlayer(player: Player): PublicPlayer {
-    const { lastIP: _lastIP, userId: _userId, ...pub } = player;
-    return pub;
+    const { sessionId, lastIP: _lastIP, userId: _userId, ...pub } = player;
+    return { ...pub, playerId: derivePlayerId(sessionId) };
 }
 
 /** Map a list of players through {@link toPublicPlayer}. */
 export function toPublicPlayers(players: Player[]): PublicPlayer[] {
     return players.map(toPublicPlayer);
+}
+
+export type SelfPlayer = PublicPlayer & { sessionId: string };
+
+/**
+ * Project a player for a payload delivered ONLY to that player's own socket
+ * (ROOM_CREATED player / ROOM_JOINED you / ROOM_RECONNECTED player). Same as
+ * {@link toPublicPlayer} plus the recipient's own sessionId, which the client
+ * persists for its socket handshake. Never emit this shape to other players.
+ */
+export function toSelfPlayer(player: Player): SelfPlayer {
+    return { ...toPublicPlayer(player), sessionId: player.sessionId };
+}
+
+/**
+ * Resolve a client-supplied public playerId back to the matching player in a
+ * room. Returns null when no roster member matches. Used by handlers whose
+ * payload targets another player (kick, bot remove, spectator approval) —
+ * clients only ever see playerIds, never peer sessionIds.
+ */
+export async function findPlayerByPublicId(roomCode: string, playerId: string): Promise<Player | null> {
+    const players = await getPlayersInRoom(roomCode);
+    return players.find((p) => derivePlayerId(p.sessionId) === playerId) ?? null;
 }
 import logger from '../../utils/logger';
 import { withTimeout, TIMEOUTS } from '../../utils/timeout';

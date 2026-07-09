@@ -237,7 +237,7 @@ export interface AppState {
 
 export interface ReadyCheckState {
     active: boolean;
-    players: { sessionId: string; nickname: string; ready: boolean }[];
+    players: { playerId: string; nickname: string; ready: boolean }[];
     startedBy: string;
     timeout: number;
 }

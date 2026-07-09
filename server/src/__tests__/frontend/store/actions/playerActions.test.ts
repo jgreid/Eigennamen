@@ -71,7 +71,7 @@ describe('clearPlayerRole', () => {
 describe('syncLocalPlayerState', () => {
     test('syncs from server player data', () => {
         syncLocalPlayerState({
-            sessionId: '123',
+            playerId: '123',
             nickname: 'test',
             team: 'blue',
             role: 'clicker',
@@ -97,7 +97,7 @@ describe('setHost', () => {
 
 describe('player list operations', () => {
     const player1 = {
-        sessionId: 'a',
+        playerId: 'a',
         nickname: 'Alice',
         team: 'red',
         role: 'clicker',
@@ -105,7 +105,7 @@ describe('player list operations', () => {
         connected: true,
     } as any;
     const player2 = {
-        sessionId: 'b',
+        playerId: 'b',
         nickname: 'Bob',
         team: 'blue',
         role: 'spymaster',
@@ -130,11 +130,11 @@ describe('player list operations', () => {
         expect(state.multiplayerPlayers).toHaveLength(1);
     });
 
-    test('removePlayer removes by sessionId', () => {
+    test('removePlayer removes by playerId', () => {
         setPlayers([player1, player2]);
         removePlayer('a');
         expect(state.multiplayerPlayers).toHaveLength(1);
-        expect(state.multiplayerPlayers[0].sessionId).toBe('b');
+        expect(state.multiplayerPlayers[0].playerId).toBe('b');
     });
 
     test('updatePlayer replaces matching player', () => {
@@ -142,6 +142,6 @@ describe('player list operations', () => {
         const updated = { ...player1, nickname: 'Alice Updated' };
         updatePlayer(updated);
         expect(state.multiplayerPlayers[0].nickname).toBe('Alice Updated');
-        expect(state.multiplayerPlayers[1].sessionId).toBe('b');
+        expect(state.multiplayerPlayers[1].playerId).toBe('b');
     });
 });

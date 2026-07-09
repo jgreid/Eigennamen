@@ -160,7 +160,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 // the server still treats them as their real role.
                 for (const p of players) {
                     safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
-                        sessionId: p.sessionId,
+                        playerId: playerService.derivePlayerId(p.sessionId),
                         changes: { role: p.role ?? 'spectator', team: p.team },
                     });
                 }
@@ -487,7 +487,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
             // consistent with server state.
             for (const p of players) {
                 safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
-                    sessionId: p.sessionId,
+                    playerId: playerService.derivePlayerId(p.sessionId),
                     changes: { role: p.role ?? 'spectator', team: p.team },
                 });
             }
@@ -577,7 +577,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
 
             safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_READY_STATUS, {
                 players: players.map((p: Player) => ({
-                    sessionId: p.sessionId,
+                    playerId: playerService.derivePlayerId(p.sessionId),
                     nickname: p.nickname,
                     ready: false,
                 })),
@@ -597,7 +597,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
         createRoomHandler(socket, SOCKET_EVENTS.GAME_READY, gameReadySchema, async (ctx: RoomContext) => {
             safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_READY_STATUS, {
                 playerReady: {
-                    sessionId: ctx.player.sessionId,
+                    playerId: playerService.derivePlayerId(ctx.player.sessionId),
                     nickname: ctx.player.nickname,
                 },
             });
@@ -655,7 +655,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
         SOCKET_EVENTS.GAME_TYPING,
         createGameHandler(socket, SOCKET_EVENTS.GAME_TYPING, z.object({}).strict(), async (ctx: GameContext) => {
             safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_TYPING, {
-                sessionId: ctx.player.sessionId,
+                playerId: playerService.derivePlayerId(ctx.player.sessionId),
                 nickname: ctx.player.nickname,
             });
         })

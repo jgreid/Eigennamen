@@ -230,11 +230,16 @@ export default function roomReconnectionHandlers(io: Server, socket: GameSocket)
                     }
                 }
 
+                // Refresh the session auth secret for the reconnected client so
+                // its next handshake can re-adopt this session (N1)
+                const sessionToken = await playerService.mintSessionAuthSecret(socket.sessionId);
+
                 socket.emit(SOCKET_EVENTS.ROOM_RECONNECTED, {
                     room,
                     players: playerService.toPublicPlayers(players),
                     game: gameState,
-                    you: playerService.toPublicPlayer(player),
+                    you: playerService.toSelfPlayer(player),
+                    sessionToken,
                     stats: roomStats,
                     reconnectionToken: newReconnectionToken,
                 });
@@ -245,7 +250,7 @@ export default function roomReconnectionHandlers(io: Server, socket: GameSocket)
                 ]);
 
                 socket.to(`room:${code}`).emit(SOCKET_EVENTS.ROOM_PLAYER_RECONNECTED, {
-                    sessionId: socket.sessionId,
+                    playerId: playerService.derivePlayerId(socket.sessionId),
                     nickname: player.nickname,
                     team: player.team,
                 });

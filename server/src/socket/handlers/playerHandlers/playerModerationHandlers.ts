@@ -14,7 +14,7 @@ import { sanitizeHtml } from '../../../utils/sanitize';
 import { safeEmitToRoom } from '../../safeEmit';
 
 interface PlayerKickInput {
-    targetSessionId: string;
+    targetPlayerId: string;
 }
 
 export default function playerModerationHandlers(io: Server, socket: GameSocket): void {
@@ -28,20 +28,25 @@ export default function playerModerationHandlers(io: Server, socket: GameSocket)
             SOCKET_EVENTS.PLAYER_KICK,
             playerKickSchema,
             async (ctx: RoomContext, validated: PlayerKickInput) => {
-                // Cannot kick yourself
-                if (validated.targetSessionId === ctx.sessionId) {
-                    throw new ValidationError('Cannot kick yourself');
+                // Clients identify peers only by their opaque playerId (N1);
+                // resolve it back to the target's session within this room.
+                const targetPlayer: Player | null = await playerService.findPlayerByPublicId(
+                    ctx.roomCode,
+                    validated.targetPlayerId
+                );
+                if (!targetPlayer) {
+                    throw PlayerError.notFound(validated.targetPlayerId);
                 }
+                const targetSessionId = targetPlayer.sessionId;
 
-                // Get target player
-                const targetPlayer: Player | null = await playerService.getPlayer(validated.targetSessionId);
-                if (!targetPlayer || targetPlayer.roomCode !== ctx.roomCode) {
-                    throw PlayerError.notFound(validated.targetSessionId);
+                // Cannot kick yourself
+                if (targetSessionId === ctx.sessionId) {
+                    throw new ValidationError('Cannot kick yourself');
                 }
 
                 // Broadcast kick event before removing player
                 safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_KICKED, {
-                    sessionId: validated.targetSessionId,
+                    playerId: validated.targetPlayerId,
                     nickname: targetPlayer.nickname,
                     kickedBy: ctx.player.nickname,
                 });
@@ -55,7 +60,7 @@ export default function playerModerationHandlers(io: Server, socket: GameSocket)
                 // which left a kicked player's socket connected and still a member of
                 // the room, receiving every broadcast for the game they were removed
                 // from (A4).
-                const targetSockets = await io.in(`player:${validated.targetSessionId}`).fetchSockets();
+                const targetSockets = await io.in(`player:${targetSessionId}`).fetchSockets();
                 for (const targetSocket of targetSockets) {
                     targetSocket.emit(SOCKET_EVENTS.ROOM_KICKED, {
                         reason: 'You were removed from the room by the host',
@@ -65,22 +70,22 @@ export default function playerModerationHandlers(io: Server, socket: GameSocket)
                 }
 
                 // Invalidate reconnection token so kicked player cannot rejoin
-                await playerService.invalidateRoomReconnectToken(validated.targetSessionId);
+                await playerService.invalidateRoomReconnectToken(targetSessionId);
 
                 // Remove player from room data (after socket is disconnected).
                 // Bots carry a strategy config blob (bot:{sessionId}:cfg); route their
                 // removal through botService so that key is cleaned up rather than
                 // orphaned until its TTL expires.
                 if (targetPlayer.isBot) {
-                    await botService.removeBot(ctx.roomCode, validated.targetSessionId);
+                    await botService.removeBot(ctx.roomCode, targetSessionId);
                 } else {
-                    await playerService.removePlayer(validated.targetSessionId);
+                    await playerService.removePlayer(targetSessionId);
                 }
 
                 // Update player list for remaining players
                 const remainingPlayers: Player[] = await playerService.getPlayersInRoom(ctx.roomCode);
                 safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_PLAYER_LEFT, {
-                    sessionId: validated.targetSessionId,
+                    playerId: validated.targetPlayerId,
                     newHost: null,
                     players: playerService.toPublicPlayers(remainingPlayers || []),
                 });

@@ -20,6 +20,7 @@ import { getSocketFunctions } from '../socketFunctionProvider';
 import { safeEmitToRoom } from '../safeEmit';
 import { withTimeout, TIMEOUTS } from '../../utils/timeout';
 import { saveCompletedGameHistory, handleMatchRoundFinalization } from './gameHandlerUtils';
+import { derivePlayerId } from '../../services/player/publicId';
 
 /** Who is performing the action (human player or bot). */
 export interface GameActor {
@@ -55,7 +56,7 @@ export async function applyClue(
         number: result.number,
         team: result.team,
         guessesAllowed: result.guessesAllowed,
-        spymaster: { sessionId: actor.sessionId, nickname: actor.nickname },
+        spymaster: { playerId: derivePlayerId(actor.sessionId), nickname: actor.nickname },
     });
 
     await debouncedRefreshRoomTTL(roomCode);
@@ -87,7 +88,7 @@ export async function applyReveal(
         turnEnded: result.turnEnded,
         gameOver: result.gameOver,
         winner: result.winner,
-        player: { sessionId: actor.sessionId, nickname: actor.nickname, team: actor.team },
+        player: { playerId: derivePlayerId(actor.sessionId), nickname: actor.nickname, team: actor.team },
     };
     if (result.timerTokens !== undefined) revealPayload.timerTokens = result.timerTokens;
     if (result.greenFound !== undefined) revealPayload.greenFound = result.greenFound;

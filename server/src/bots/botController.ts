@@ -371,7 +371,7 @@ async function emitAdvisorSuggestions(
     safeEmitToPlayers(io, members, SOCKET_EVENTS.GAME_BOT_SUGGESTION, {
         team,
         clue: { word: clue.word, number: clue.number },
-        advisor: { sessionId: advisor.sessionId, nickname: advisor.nickname },
+        advisor: { playerId: playerService.derivePlayerId(advisor.sessionId), nickname: advisor.nickname },
         suggestions,
     });
     // Keep the advisor alive across the disconnect GC window, like an acting bot.

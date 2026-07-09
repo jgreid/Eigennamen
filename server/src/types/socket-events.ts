@@ -235,7 +235,7 @@ export interface PlayerJoinedPayload {
  * Player left notification
  */
 export interface PlayerLeftPayload {
-    sessionId: string;
+    playerId: string;
     players: PlayerInfo[];
     newHostId?: string | null;
 }
@@ -244,7 +244,7 @@ export interface PlayerLeftPayload {
  * Player updated notification
  */
 export interface PlayerUpdatedPayload {
-    sessionId: string;
+    playerId: string;
     updates: Partial<PlayerInfo>;
     players: PlayerInfo[];
 }
@@ -253,7 +253,7 @@ export interface PlayerUpdatedPayload {
  * Player kicked notification
  */
 export interface PlayerKickedPayload {
-    sessionId: string;
+    playerId: string;
     reason: string;
 }
 
@@ -294,7 +294,7 @@ export interface GameOverPayload {
  */
 export interface ChatReceivedPayload {
     from: string;
-    sessionId: string;
+    playerId: string;
     text: string;
     team: Team | null;
     teamOnly: boolean;
@@ -306,7 +306,7 @@ export interface ChatReceivedPayload {
  */
 export interface SpectatorChatReceivedPayload {
     from: string;
-    sessionId: string;
+    playerId: string;
     message: string;
     timestamp: number;
 }
@@ -401,7 +401,7 @@ export interface ServerToClientEvents {
     // Player events
     'player:updated': (data: PlayerUpdatedPayload) => void;
     'player:kicked': (data: PlayerKickedPayload) => void;
-    'player:disconnected': (data: { sessionId: string }) => void;
+    'player:disconnected': (data: { playerId: string }) => void;
     'player:error': (data: ErrorResponse) => void;
 
     // Chat events

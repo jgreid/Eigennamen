@@ -97,7 +97,7 @@ export default function playerRoleHandlers(io: Server, socket: GameSocket): void
 
                         // Broadcast to room
                         safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
-                            sessionId: ctx.sessionId,
+                            playerId: playerService.derivePlayerId(ctx.sessionId),
                             changes,
                         });
 
@@ -161,7 +161,7 @@ export default function playerRoleHandlers(io: Server, socket: GameSocket): void
 
                         // Broadcast to room
                         safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
-                            sessionId: ctx.sessionId,
+                            playerId: playerService.derivePlayerId(ctx.sessionId),
                             changes: { role: player.role },
                         });
 
@@ -267,7 +267,7 @@ export default function playerRoleHandlers(io: Server, socket: GameSocket): void
 
                         // Broadcast the combined change
                         safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
-                            sessionId: ctx.sessionId,
+                            playerId: playerService.derivePlayerId(ctx.sessionId),
                             changes: { team: player.team, role: player.role },
                         });
 

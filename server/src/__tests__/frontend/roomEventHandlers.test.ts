@@ -18,7 +18,7 @@ const mockUpdateSettings = jest.fn();
         if (!mockListeners[event]) mockListeners[event] = [];
         mockListeners[event].push(handler);
     }),
-    player: { sessionId: 's1', nickname: 'Me', isHost: false, role: 'clicker', team: 'red' },
+    player: { playerId: 's1', sessionId: 'sess-1', nickname: 'Me', isHost: false, role: 'clicker', team: 'red' },
     getRoomCode: mockGetRoomCode,
     requestResync: mockRequestResync,
     updateSettings: mockUpdateSettings,
@@ -34,8 +34,8 @@ jest.mock('../../frontend/state', () => ({
         isHost: false,
         resyncInProgress: false,
         multiplayerPlayers: [
-            { sessionId: 's1', nickname: 'Me', isHost: false },
-            { sessionId: 's2', nickname: 'Other', isHost: true },
+            { playerId: 's1', nickname: 'Me', isHost: false },
+            { playerId: 's2', nickname: 'Other', isHost: true },
         ],
         gameState: { gameOver: false },
         gameMode: 'classic',
@@ -110,7 +110,7 @@ jest.mock('../../frontend/store/batch', () => ({
 
 jest.mock('../../frontend/clientAccessor', () => ({
     getClient: () => ({
-        player: { sessionId: 's1', isHost: false },
+        player: { playerId: 's1', sessionId: 'sess-1', isHost: false },
     }),
 }));
 
@@ -140,8 +140,8 @@ beforeEach(() => {
     (state as Record<string, unknown>).resyncInProgress = false;
     (state as Record<string, unknown>).isMultiplayerMode = true;
     (state as Record<string, unknown>).multiplayerPlayers = [
-        { sessionId: 's1', nickname: 'Me', isHost: false },
-        { sessionId: 's2', nickname: 'Other', isHost: true },
+        { playerId: 's1', nickname: 'Me', isHost: false },
+        { playerId: 's2', nickname: 'Other', isHost: true },
     ];
 
     (globalThis as Record<string, unknown>).EigennamenClient = {
@@ -149,7 +149,7 @@ beforeEach(() => {
             if (!mockListeners[event]) mockListeners[event] = [];
             mockListeners[event].push(handler);
         }),
-        player: { sessionId: 's1', nickname: 'Me', isHost: false },
+        player: { playerId: 's1', sessionId: 'sess-1', nickname: 'Me', isHost: false },
         getRoomCode: mockGetRoomCode,
         requestResync: mockRequestResync,
         updateSettings: mockUpdateSettings,
@@ -162,37 +162,37 @@ beforeEach(() => {
 
 describe('hostChanged', () => {
     test('updates isHost when current player becomes host', () => {
-        emit('hostChanged', { newHostSessionId: 's1', newHostNickname: 'Me' });
+        emit('hostChanged', { newHostPlayerId: 's1', newHostNickname: 'Me' });
         expect(state.isHost).toBe(true);
     });
 
     test('shows "you are host" toast when becoming host', () => {
-        emit('hostChanged', { newHostSessionId: 's1', newHostNickname: 'Me' });
+        emit('hostChanged', { newHostPlayerId: 's1', newHostNickname: 'Me' });
         expect(showToast).toHaveBeenCalledWith('multiplayer.youAreHost', 'info');
     });
 
     test('shows new host name toast when another player becomes host', () => {
-        emit('hostChanged', { newHostSessionId: 's3', newHostNickname: 'NewHost' });
+        emit('hostChanged', { newHostPlayerId: 's3', newHostNickname: 'NewHost' });
         expect(showToast).toHaveBeenCalledWith('multiplayer.newHost:NewHost', 'info');
     });
 
     test('updates UI elements on host change', () => {
-        emit('hostChanged', { newHostSessionId: 's1' });
+        emit('hostChanged', { newHostPlayerId: 's1' });
         expect(updateRoomSettingsNavVisibility).toHaveBeenCalled();
         expect(updateRoleBanner).toHaveBeenCalled();
         expect(updateForfeitButton).toHaveBeenCalled();
     });
 
     test('updates player list host flags', () => {
-        emit('hostChanged', { newHostSessionId: 's1' });
-        const players = state.multiplayerPlayers as Array<{ sessionId: string; isHost: boolean }>;
-        expect(players.find((p) => p.sessionId === 's1')?.isHost).toBe(true);
-        expect(players.find((p) => p.sessionId === 's2')?.isHost).toBe(false);
+        emit('hostChanged', { newHostPlayerId: 's1' });
+        const players = state.multiplayerPlayers as Array<{ playerId: string; isHost: boolean }>;
+        expect(players.find((p) => p.playerId === 's1')?.isHost).toBe(true);
+        expect(players.find((p) => p.playerId === 's2')?.isHost).toBe(false);
     });
 
     test('skips processing during resync', () => {
         (state as Record<string, unknown>).resyncInProgress = true;
-        emit('hostChanged', { newHostSessionId: 's1' });
+        emit('hostChanged', { newHostPlayerId: 's1' });
         expect(updateRoomSettingsNavVisibility).not.toHaveBeenCalled();
     });
 });
@@ -266,9 +266,9 @@ describe('kicked', () => {
 
 describe('playerKicked', () => {
     test('removes kicked player from list and updates UI', () => {
-        emit('playerKicked', { sessionId: 's2', nickname: 'Other' });
-        const players = state.multiplayerPlayers as Array<{ sessionId: string }>;
-        expect(players.find((p) => p.sessionId === 's2')).toBeUndefined();
+        emit('playerKicked', { playerId: 's2', nickname: 'Other' });
+        const players = state.multiplayerPlayers as Array<{ playerId: string }>;
+        expect(players.find((p) => p.playerId === 's2')).toBeUndefined();
         expect(updateMpIndicator).toHaveBeenCalled();
         expect(updateControls).toHaveBeenCalled();
         expect(renderBoard).toHaveBeenCalled();
@@ -276,7 +276,7 @@ describe('playerKicked', () => {
 
     test('skips during resync', () => {
         (state as Record<string, unknown>).resyncInProgress = true;
-        emit('playerKicked', { sessionId: 's2', nickname: 'Other' });
+        emit('playerKicked', { playerId: 's2', nickname: 'Other' });
         expect(updateControls).not.toHaveBeenCalled();
     });
 });

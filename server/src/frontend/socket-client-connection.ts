@@ -23,6 +23,8 @@ import type { ServerErrorData } from './multiplayerTypes.js';
 export interface ConnectionHost {
     socket: SocketClientInstance | null;
     sessionId: string | null;
+    /** Per-session auth secret the handshake must present to re-adopt the session (N1) */
+    sessionToken: string | null;
     roomCode: string | null;
     player: import('./socket-client-types.js').Player | null;
     connected: boolean;
@@ -113,6 +115,7 @@ export function doConnect(
 ): Promise<SocketClientInstance> {
     return new Promise((resolve, reject) => {
         host.sessionId = safeGetStorage(sessionStorage, 'eigennamen-session-id');
+        host.sessionToken = safeGetStorage(sessionStorage, 'eigennamen-session-token');
         host.storedNickname = safeGetStorage(localStorage, 'eigennamen-nickname');
         host.autoRejoin = options.autoRejoin !== false;
 
@@ -141,9 +144,19 @@ export function doConnect(
         }
 
         const socket = io(url, {
-            auth: {
-                sessionId: host.sessionId,
-            },
+            // auth as a FUNCTION so socket.io re-reads the CURRENT credentials on
+            // every (re)connection attempt. A frozen object would replay the
+            // values captured at first connect — a brand-new user's null
+            // sessionId/sessionToken — on every auto-reconnect, even after the
+            // server issued real ones via room:created/room:joined.
+            auth: (cb: (data: Record<string, unknown>) => void) =>
+                cb({
+                    sessionId: host.sessionId,
+                    // Required to re-adopt an existing session: peers know our
+                    // playerId but never this secret, so a harvested sessionId
+                    // alone can no longer hijack the seat (N1).
+                    sessionToken: host.sessionToken,
+                }),
             // WebSocket-first with a polling fallback, regardless of page scheme.
             // The production server is websocket-only (serverConfig.ts), so a
             // scheme-based choice (`polling` first for HTTP pages) left a
@@ -302,6 +315,12 @@ export function setupEventListeners(host: ConnectionHost): void {
             },
             set sessionId(v) {
                 host.sessionId = v;
+            },
+            get sessionToken() {
+                return host.sessionToken;
+            },
+            set sessionToken(v) {
+                host.sessionToken = v;
             },
             saveSession: () => host._saveSession(),
         }
