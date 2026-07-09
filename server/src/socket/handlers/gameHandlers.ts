@@ -99,14 +99,20 @@ function gameHandlers(io: Server, socket: GameSocket): void {
             SOCKET_EVENTS.GAME_START,
             gameStartSchema as ZodType<GameStartInput>,
             async (ctx: RoomContext, validated: GameStartInput) => {
-                // Stop any existing timer
-                await getSocketFunctions().stopTurnTimer(ctx.roomCode);
-
                 const gameSetupPromise = (async () => {
-                    // Check if game already exists and is in progress
+                    // Check if game already exists and is in progress. This MUST run
+                    // before stopping the timer: a stale/double game:start (stale UI,
+                    // double submit, reconnect replay) that is rejected here must NOT
+                    // have killed the live turn timer on its way out — the only re-arm
+                    // points are turn changes, so a stopped-then-rejected start would
+                    // leave the current turn unable to auto-expire (N8).
                     if (ctx.game && !ctx.game.gameOver) {
                         throw RoomError.gameInProgress(ctx.roomCode);
                     }
+
+                    // The start is going ahead — now safe to stop any existing timer
+                    // (e.g. a lingering timer from a just-ended game).
+                    await getSocketFunctions().stopTurnTimer(ctx.roomCode);
 
                     // Fetch room first to get gameMode for game creation
                     const room: Room | null = await roomService.getRoom(ctx.roomCode);

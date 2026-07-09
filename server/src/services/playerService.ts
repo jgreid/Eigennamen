@@ -491,6 +491,7 @@ export const setNickname = _setNickname;
 // Reconnection functions (extracted to player/reconnection.ts)
 export {
     generateReconnectionToken,
+    peekRoomReconnectToken,
     validateRoomReconnectToken,
     getExistingReconnectionToken,
     invalidateRoomReconnectToken,

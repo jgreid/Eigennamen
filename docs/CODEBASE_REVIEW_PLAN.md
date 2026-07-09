@@ -240,7 +240,9 @@ own team), or require `validated.team === ctx.player.team` when the host is seat
 
 ## Phase 2 — Data-integrity & correctness (medium)
 
-### N6 — `revealCard.lua` records `guessNumber` after the turn-switch reset, so every turn-ending reveal is stored as guess 0
+### N6 — `revealCard.lua` records `guessNumber` after the turn-switch reset, so every turn-ending reveal is stored as guess 0 — **FIXED**
+
+**Resolution:** `revealCard.lua` captures `local guessNumber = game.guessesUsed` immediately after the increment, before the outcome blocks reset it, and the history insert uses that captured value. The same one-line reorder was applied to `applyEngineReveal` (`bots/engine.ts`) so the parity mirror stays consistent. Real-Redis regression in `luaScripts.test.ts`: clue for 1 (2 guesses), reveal own then opponent card → the turn-ending reveal records `guessNumber: 2`, not 0.
 
 **Severity:** Medium · **Area:** Data-integrity (history/replay)
 
@@ -261,7 +263,9 @@ one opponent card; assert the second history entry has `guessNumber: 2`, not 0.
 
 ---
 
-### N7 — Game history/replay silently drops all mode-identifying and mode-specific data
+### N7 — Game history/replay silently drops all mode-identifying and mode-specific data — **FIXED**
+
+**Resolution:** The persisted `GameHistoryEntry` now carries `gameMode` and an authoritative `endReason`, `initialBoard` carries `duetTypes` (blue-side key) and `cardScores`, and `finalState` carries the duet (`greenFound`/`greenTotal`/`timerTokens`) and match (`matchRound`/`redMatchScore`/`blueMatchScore`) extras. `EndReason` gained `timerTokens`/`unreachable` so a duet cooperative loss is no longer mislabeled `completed`; the reason is threaded authoritatively — `revealCard.lua` stamps `game.endReason` at game end, it round-trips through `gameStateSchema`/`getGame` and `saveCompletedGameHistory`, and `deriveEndReason` prefers it (legacy entries fall back to the old history scan). `getGameHistory` summaries and `ReplayData` expose `gameMode`/`endReason`. Unit tests in `gameHistoryService.test.ts` cover duet loss/win, match round, classic (no extras), and the read-path derivation.
 
 **Severity:** Medium · **Area:** Data-integrity (history/replay)
 
@@ -288,7 +292,9 @@ non-`completed` end reason for the loss, and `duetTypes` present; match round en
 
 ---
 
-### N8 — `game:start` stops the live turn timer before validating "game in progress", so a rejected start leaves a running game with a dead timer
+### N8 — `game:start` stops the live turn timer before validating "game in progress", so a rejected start leaves a running game with a dead timer — **FIXED**
+
+**Resolution:** `gameHandlers.ts`'s `game:start` now runs the in-progress check first and only calls `stopTurnTimer` once the start is going ahead — so a stale/double start that is rejected as `GAME_IN_PROGRESS` no longer kills the active turn's timer. Unit tests assert `stopTurnTimer` is NOT called on a rejected start and IS called (with the room code) on an accepted one.
 
 **Severity:** Medium-Low · **Area:** Correctness / ordering
 
@@ -308,7 +314,9 @@ which validate before stopping the timer.
 
 ---
 
-### N9 — A Lua op that commits but fails result-schema validation leaves clients desynced with no broadcast and no recovery
+### N9 — A Lua op that commits but fails result-schema validation leaves clients desynced with no broadcast and no recovery — **FIXED**
+
+**Resolution:** Two guards, both rejecting BEFORE mutation. (1) `gameStateSchema`'s length refine (`luaGameOps.ts`) now also requires `duetTypes`/`cardScores`/`revealedBy`, when present, to match the board size — so a truncated parallel array is rejected at the `getGame` read gate (which the reveal handler's context resolution uses) before any reveal runs. (2) `revealCard.lua` additionally guards the direct-Lua path: a nil card type (`cardType == nil`) returns `CORRUPTED_DATA` before mutating, mapped to `GameStateError.corrupted` in `gameService.revealCard`. Real-Redis regression: a duet game with a 24-length `duetTypes` is rejected on read, not committed as a nil-type reveal.
 
 **Severity:** Low · **Area:** Robustness / TS↔Lua consistency
 
@@ -331,7 +339,9 @@ instead of only throwing.
 
 ---
 
-### N10 — `room:reconnect` consumes the single-use token before post-consumption validation, burning it on a benign mismatch
+### N10 — `room:reconnect` consumes the single-use token before post-consumption validation, burning it on a benign mismatch — **FIXED**
+
+**Resolution:** Added a non-destructive `peekRoomReconnectToken` (GET + sessionId check, no DEL). The `room:reconnect` handler now peeks first, validates `tokenData.roomCode === code` and room existence, and only then calls the atomic consume (`validateRoomReconnectToken`, which still GET+DELs for single-use). A benign mismatch (stale `code`, just-TTL-expired room) preserves the token so a corrected reconnect still succeeds. Handler tests assert the token is not consumed on a roomCode mismatch; `reconnection.test.ts` covers the peek's non-destructive behavior.
 
 **Severity:** Low · **Area:** Robustness
 
@@ -867,7 +877,9 @@ since same-origin WS is already covered by `'self'`); drop plaintext `ws:` in pr
 
 ---
 
-### N37 — The socket rate-limiter default is fail-open: an event missing from the map gets no limiting at all, including the global-IP cap
+### N37 — The socket rate-limiter default is fail-open: an event missing from the map gets no limiting at all, including the global-IP cap — **FIXED**
+
+**Resolution:** `getLimiter` (`middleware/rateLimit.ts`) is now fail-closed: an event with no `RATE_LIMITS` entry gets a conservative default `RateLimitConfig` (`DEFAULT_RATE_LIMIT`, 5/5s) instead of a pass-through, so it is throttled per-socket/session/IP AND counts against the global-per-IP cap. A one-time warning per unmapped event flags the missing config. Tests assert an unmapped event is throttled (not unlimited) and warns exactly once; the two prior tests that asserted the old pass-through behavior were updated.
 
 **Severity:** Low (latent — all 38 current events are mapped) · **Area:** Rate-limit robustness
 

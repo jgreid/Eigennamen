@@ -134,7 +134,7 @@ Deterministic defects reachable in ordinary play. These are the "a user hits thi
 
 ### A7 — `finalizeMatchRound` has no gameOver/idempotency guard — a racing `game:nextRound` finalizes the wrong round — **FIXED**
 
-**Resolution (shipped):** `finalizeMatchRound`'s transaction callback now returns null unless `game.gameOver === true` AND the round isn't already finalized (roundHistory tail's `roundNumber !== matchRound`), checked inside the transaction so `executeGameTransaction`'s retry re-reads state. This makes finalization idempotent and end-gated, eliminating the phantom 0/0 entry, the double bonus, and the `game:roundEnded` broadcast for a just-started round. The plan's additional reorder (finalize before the `game:over` broadcast) was deferred: it touches several call sites and the client event order, and the idempotency guard already prevents all the described corruption.
+**Resolution (shipped):** `finalizeMatchRound`'s transaction callback now returns null unless `game.gameOver === true` AND the round isn't already finalized (roundHistory tail's `roundNumber !== matchRound`), checked inside the transaction so `executeGameTransaction`'s retry re-reads state. This makes finalization idempotent and end-gated, eliminating the phantom 0/0 entry, the double bonus, and the `game:roundEnded` broadcast for a just-started round. The plan's additional reorder (finalize before the `game:over` broadcast) was deferred here. **§9 reconciliation / CODEBASE_REVIEW_PLAN N2b re-opened and shipped that reorder:** the deferred reorder turned out to be load-bearing — the idempotency guard converts the post-`game:over` race into a *guaranteed silent loss* of finalization plus a reused round number, so `handleMatchRoundFinalization` now runs BEFORE the `GAME_OVER` broadcast in both the reveal and forfeit paths (N2b — FIXED).
 
 
 **Severity:** Medium · **Area:** Game integrity (Match)
@@ -191,7 +191,7 @@ Deterministic defects reachable in ordinary play. These are the "a user hits thi
 
 **Root cause:** Host transfer runs only inside `handleDisconnect`'s host-transfer lock and only if a *connected* candidate exists at that instant (`disconnectHandler.ts:313-341`); when none does, no deferred transfer, retry, or marker is left. Both later removal paths (`atomicCleanupDisconnectedPlayer.lua:33`, key TTL expiry) do no host work. Scenario: both humans blip; host's player key expires after the grace window; player B reconnects — `room.hostSessionId` now references a nonexistent session forever, so nobody can start a game, change settings, kick, add bots, or pause, until the room's own TTL.
 
-**Fix:** Two complementary halves: (1) when the cleanup path removes a player, check `room.hostSessionId === sessionId` and run the same host-transfer selection `leaveRoom` uses (`room/membership.ts:174-225`); (2) lazy repair on `room:reconnect`/`room:resync` — if the room's `hostSessionId` no longer resolves to an existing player, promote the first connected human. The lazy repair also covers the TTL-expiry path, which no sweep can see. Note: until B1 lands the sweep never runs at all, so the lazy repair is the half that matters today.
+**Fix:** Two complementary halves: (1) when the cleanup path removes a player, check `room.hostSessionId === sessionId` and run the connected-human-preferring host-transfer selection — **the disconnect path's `selectHostSuccessor` is the model, NOT `leaveRoom`'s selection**, which CODEBASE_REVIEW_PLAN N3 showed was itself the defect (it could hand host to a bot and brick the room); the shipped `ensureRoomHasHost`/`selectHostSuccessor` excludes bots accordingly; (2) lazy repair on `room:reconnect`/`room:resync` — if the room's `hostSessionId` no longer resolves to an existing player, promote the first connected human. The lazy repair also covers the TTL-expiry path, which no sweep can see. (§9 reconciliation: corrected the backwards cross-reference that pointed at `leaveRoom` as the model.)
 
 **Touches:** `services/player/cleanup.ts`, `socket/handlers/roomHandlers/roomReconnectionHandlers.ts` or `roomSyncHandlers.ts`, `services/room/membership.ts` (extract the selection helper)
 
@@ -446,7 +446,7 @@ Server lifecycle, background maintenance, and the deploy pipeline. B1 and B5 are
 
 **Severity:** Medium · **Area:** Dependencies / deployment
 
-**Resolution (shipped):** both `server/Dockerfile` stages now pin `node:24-alpine3.21` — the active LTS line, already in CI's `[22, 24]` test matrix — so the shipped and tested majors align. Confirmed live in `server/Dockerfile`.
+**Resolution (shipped):** both `server/Dockerfile` stages now pin `node:24-alpine3.21` — the active LTS line, already in CI's `[22, 24]` test matrix — so the shipped and tested majors align. **§9 reconciliation:** this FIXED note briefly went stale — an auto-merged Dependabot bump REGRESSED the Dockerfile back to EOL Node 25 (tracked as CODEBASE_REVIEW_PLAN N26). N26 re-pinned Node 24 AND added a CI guard (`Docker Node Major`) asserting the Dockerfile major stays within the tested matrix, so the regression can't silently recur. Confirmed live in `server/Dockerfile`.
 
 **Root cause:** `server/Dockerfile:3,43` pins `node:25.2-alpine3.21` for both stages. Node 25 is an odd-numbered "Current" line whose scheduled EOL was 2026-06-01 — as of this review (2026-07-05) it receives no upstream security patches, and Dependabot's Dockerfile bumps can only offer other 25.x tags. Meanwhile `ci.yml` sets `NODE_VERSION: 22` and its test matrix is `[22, 24]` — the 4,386-test suite never runs on the major version production actually ships (only the docker job's start-and-curl smoke touches Node 25).
 
@@ -633,7 +633,7 @@ The E2E suite is the plan's protective infrastructure: D1 unblocks trustworthy v
 
 **Severity:** High · **Area:** Testing / CI
 
-**Resolution (shipped):** all 16 E2E specs were brought green against a real browser + server and verified in CI (see the Progress notes below), and a blocking `e2e-smoke` job was added to the `ci-passed` gate so a core-loop regression now produces a red delta. The plan's step (d) — promoting the *full* E2E suite into the blocking gate and dropping `--max-failures` — was deliberately **not** taken: `ci.yml` documents the full `e2e` job as intentionally non-blocking (a flaky full-suite run should not gate merges), with `e2e-smoke` covering the always-on slice. So the item's goal — a green, meaningful suite with a blocking regression signal — is met; the remaining full-suite-gating is a conscious design choice, not an open defect.
+**Resolution (shipped):** all 16 E2E specs were brought green against a real browser + server and verified in CI (see the Progress notes below), and a blocking `e2e-smoke` job was added to the `ci-passed` gate so a core-loop regression now produces a red delta. The plan's step (d) — promoting the *full* E2E suite into the blocking gate and dropping `--max-failures` — was deliberately **not** taken: `ci.yml` documents the full `e2e` job as intentionally non-blocking (a flaky full-suite run should not gate merges), with `e2e-smoke` covering the always-on slice. So the item's goal — a green, meaningful suite with a blocking regression signal — is met; the remaining full-suite-gating is a conscious design choice, not an open defect. **§9 reconciliation:** the follow-through — the blocking smoke slice still covers zero gameplay and its exclusion/comments are stale now that D1's suite is green — is tracked as CODEBASE_REVIEW_PLAN **N28**.
 
 **Root cause, three stacked problems:** (1) `game-flow.spec.js` has 6 of 9 tests failing on unmodified `main` — the tests click role buttons without joining a team, which `setSpymasterCurrent()`/`setClickerCurrent()` (`roles.ts:454-468`) reject with a "join a team first" toast; two failures have additional causes beyond the guard. (2) `game-modes.spec.js`'s `selectGameMode()` force-checks a radio inside a settings panel it never opens (all 8 game-modes failures). (3) With ~15 known failures and `--max-failures=20` (`ci.yml:643`), Playwright aborts mid-run — alphabetically later specs (security, setup-screen, spectator-approval, standalone-game, timer — including the P1-13 deliverables) are routinely never executed at all. The non-blocking job is permanently red: a new regression produces no red *delta* anywhere.
 
@@ -703,7 +703,7 @@ Separately, opening a standalone game URL (`?game=…`) left the setup screen (v
 
 **Severity:** Medium · **Area:** Testing (+1 production defect)
 
-**Resolution (shipped):** the masked production bug is fixed first — `getHistoryStats` now calls `redis.zRangeWithScores(indexKey, 0, 0)`/`(-1, -1)` instead of `zRange(..., { WITHSCORES: true })`. Empirically confirmed against embedded Redis that v5's `zRange` **silently ignores** `WITHSCORES` (returns bare members), so the old call always yielded `null` oldest/newest in production. The hand-written `RedisClient` type dropped the bogus `WITHSCORES` option and gained `zRangeWithScores`, so the compiler now steers callers correctly. The three mock divergences are corrected: `del()` now clears sorted sets, `zAdd` upserts by member (was duplicating), and `zRange` no longer honors `WITHSCORES` (with a new `zRangeWithScores` beside it) — so the mock can no longer certify a `WITHSCORES`-on-`zRange` bug as passing. A real-Redis case (`luaScripts.test.ts`) asserts non-null oldest/newest with finite, ordered scores after two saves — it fails on pre-fix code, proving the bug.
+**Resolution (shipped):** the masked production bug is fixed first — `getHistoryStats` now calls `redis.zRangeWithScores(indexKey, 0, 0)`/`(-1, -1)` instead of `zRange(..., { WITHSCORES: true })`. Empirically confirmed against embedded Redis that v5's `zRange` **silently ignores** `WITHSCORES` (returns bare members), so the old call always yielded `null` oldest/newest in production. The hand-written `RedisClient` type dropped the bogus `WITHSCORES` option and gained `zRangeWithScores`, so the compiler now steers callers correctly. The three mock divergences are corrected: `del()` now clears sorted sets, `zAdd` upserts by member (was duplicating), and `zRange` no longer honors `WITHSCORES` (with a new `zRangeWithScores` beside it) — so the mock can no longer certify a `WITHSCORES`-on-`zRange` bug as passing. A real-Redis case (`luaScripts.test.ts`) asserts non-null oldest/newest with finite, ordered scores after two saves — it fails on pre-fix code, proving the bug. **§9 reconciliation — residual risk:** D4 leaned on the corrected `RedisClient` type to prevent recurrence, but test code sits outside every compiler gate (`typecheck` excludes the suites, ts-jest is transpile-only under `isolatedModules`), so mock↔type drift stays undetectable until a runtime failure — tracked as CODEBASE_REVIEW_PLAN **N27**.
 
 **Root cause:** Three confirmed divergences (`__tests__/helpers/mocks.ts`): the mock's `zRange` honors a `WITHSCORES` option that the real client **silently ignores** (the client's zRange builder handles only BY/REV/LIMIT; `zRangeWithScores` is a separate command) — which masks a live bug: `getHistoryStats` (`services/gameHistory/storage.ts:445-446`) passes `WITHSCORES` to `zRange` and is broken in production (returns no scores), certified green by the mock. Also: mock `del()` never clears sorted sets; mock `zAdd` duplicates members instead of upserting. The hand-written `RedisClient` interface (`types/redis.ts:60`) wrongly declares the `WITHSCORES` option, which is why typecheck doesn't catch it.
 
@@ -814,7 +814,9 @@ Rated against the real deployment (one shared-CPU machine, in-memory Redis, 25-c
 
 ---
 
-### E3 — `botController` ticks on every mutation of every room, including rooms that have never had a bot
+### E3 — `botController` ticks on every mutation of every room, including rooms that have never had a bot — **FIXED**
+
+**Resolution:** `bots/botRoomCache.ts` implements the "unknown → check once, then record" policy (`isKnownBotless`/`isBotfulnessKnown`/`recordBotful`/`clearBotRoomCache`), wired into `botController.ts` so a mutation in a known bot-less room skips the game fetch + roster read. Marked FIXED per CODEBASE_REVIEW_PLAN §9 (was implemented but unmarked).
 
 **Severity:** Low · **Area:** Performance
 
@@ -828,7 +830,9 @@ Rated against the real deployment (one shared-CPU machine, in-memory Redis, 25-c
 
 ---
 
-### E4 — Embeddings-backed clue generation runs up to 16 synchronous full-vocabulary scans on the event loop
+### E4 — Embeddings-backed clue generation runs up to 16 synchronous full-vocabulary scans on the event loop — **PARTIALLY FIXED (narrowed to N20)**
+
+**§9 reconciliation:** the scan-burst half has shipped (chunked `prewarm`). The remaining residue is the synchronous initial model load blocking the event loop for the whole parse on the first bot decision — tracked as CODEBASE_REVIEW_PLAN **N20**. Keep this item open only for that.
 
 **Severity:** Medium (currently latent — embeddings are disabled in production) · **Area:** Performance (bots)
 
@@ -964,7 +968,7 @@ Found in the code merged since the first review (PR #495–#497 era). G1 is a re
 
 ### G1 — Match mode: own trap cards are excluded from the spymaster's win logic, which fires on clues that cannot win — **FIXED (primary defect)**
 
-**Resolution (shipped):** `groupBoard` now tracks the excluded negative-value own cards in `BoardGroups.ownTraps`, and `scoreClue`'s full-board-lead check requires `groups.ownTraps.length === 0` — so covering only the non-trap own set is no longer treated as a board win while an own trap is unrevealed (no illusory `WIN_BONUS`, no desperation exemption, number stays capped). `groupBoard`/`scoreClue` are exported for a direct unit test on `coversAll` (trap present → false; none → true). The plan's second half — letting traps back into targeting so the bot can still close a round when only traps remain or the bonus exceeds trap cost — is a separate strategic change and remains open; mirroring in `analyze.ts` was a no-op (it carries no parallel trap grouping).
+**Resolution (shipped — now complete):** `groupBoard` now tracks the excluded negative-value own cards in `BoardGroups.ownTraps`, and `scoreClue`'s full-board-lead check requires `groups.ownTraps.length === 0` — so covering only the non-trap own set is no longer treated as a board win while an own trap is unrevealed (no illusory `WIN_BONUS`, no desperation exemption, number stays capped). `groupBoard`/`scoreClue` are exported for a direct unit test on `coversAll` (trap present → false; none → true). The plan's second half — letting traps back into targeting so the bot can still close a round when only traps remain or the bonus exceeds trap cost — has ALSO shipped: `admitClosingTraps`/`buildTargeting` (`spymasters.ts:159-202`) admit closing traps into targeting in the endgame (§9 reconciliation corrects the earlier "remains open" note). Mirroring in `analyze.ts` was a no-op (it carries no parallel trap grouping).
 
 
 **Severity:** High (within bot play quality) · **Area:** Bots / match mode
@@ -979,7 +983,9 @@ Found in the code merged since the first review (PR #495–#497 era). G1 is a re
 
 ---
 
-### G2 — With embeddings enabled, the spymaster can never emit a mixed-case house-rule reference clue
+### G2 — With embeddings enabled, the spymaster can never emit a mixed-case house-rule reference clue — **FIXED**
+
+**Resolution:** `SemanticBackend.displayCase(word)` (`bots/semantics/backend.ts`) is implemented and chained through the fallback in `vectorBackend.ts`/`mapBackend.ts` (and provided by `tableBackend.ts`), and the merged vocabulary now merges tableVocab first and preserves the original display-cased form so proper reference keys survive the vocab cap. Marked FIXED per CODEBASE_REVIEW_PLAN §9 (was implemented but unmarked).
 
 **Severity:** Medium (latent in production; live in dev:bots) · **Area:** Bots / semantics
 
@@ -993,7 +999,9 @@ Found in the code merged since the first review (PR #495–#497 era). G1 is a re
 
 ---
 
-### G3 — `analyze.ts`'s board-ceiling yardstick doesn't apply the spymaster's board-safety filter
+### G3 — `analyze.ts`'s board-ceiling yardstick doesn't apply the spymaster's board-safety filter — **FIXED**
+
+**Resolution:** `boardBestLead` (`bots/harness/analyze.ts`) now builds `makeBoardSafetyCheck(boardWords)` and skips candidates failing it, so the ceiling yardstick's candidate universe matches the spymaster's own board-safety filter. Marked FIXED per CODEBASE_REVIEW_PLAN §9 (was implemented but unmarked).
 
 **Severity:** Medium · **Area:** Bots / tuning infrastructure
 
@@ -1007,7 +1015,9 @@ Found in the code merged since the first review (PR #495–#497 era). G1 is a re
 
 ---
 
-### G4 — The self-play leaderboard attributes every assassin loss to both entrants
+### G4 — The self-play leaderboard attributes every assassin loss to both entrants — **FIXED**
+
+**Resolution:** `MatchResult` records `assassinBy: Team` (`bots/harness/playGame.ts`) and `computeLeaderboard` (`bots/harness/scoring.ts`) attributes an assassin loss to the revealing team for classic/match, keeping shared attribution only for cooperative duet. Marked FIXED per CODEBASE_REVIEW_PLAN §9 (was implemented but unmarked).
 
 **Severity:** Low · **Area:** Bots / tuning infrastructure
 

@@ -102,6 +102,13 @@ const strictLimiter = rateLimit({
 // IP multiplier: allows multiple users on same IP (3x per-socket limit)
 const IP_RATE_LIMIT_MULTIPLIER = 3;
 
+// Fail-closed default for any event with no explicit RATE_LIMITS entry (N37).
+// getLimiter used to return a pass-through for an unmapped event, which bypassed
+// even the global-per-IP cap — so the next handler added without a config entry
+// shipped with zero throttling (the P1-5 pattern). A conservative default plus
+// the always-on global cap means an unmapped event is throttled, not wide open.
+const DEFAULT_RATE_LIMIT: RateLimitConfig = { window: 5000, max: 5 };
+
 // Global IP rate limit: caps total events per IP across ALL event types.
 // Prevents bypass of per-event limits by distributing requests across many events.
 const GLOBAL_IP_RATE_LIMIT_MAX = parseInt(process.env.GLOBAL_IP_RATE_LIMIT_MAX || '') || 300;
@@ -146,9 +153,26 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
         return socket.clientIP || socket.handshake?.address || 'unknown';
     };
 
+    // Events we've already warned about, so an unmapped high-traffic event
+    // doesn't flood the logs on every call.
+    const warnedUnmappedEvents = new Set<string>();
+
     const getLimiter = (eventName: string): RateLimiterMiddleware => {
-        const limit = limits[eventName];
-        if (!limit) return (_socket, _data, next) => next();
+        let limit = limits[eventName];
+        if (!limit) {
+            // Fail-closed (N37): apply the conservative default instead of a
+            // pass-through, so an event with no RATE_LIMITS entry is still
+            // throttled (per-socket/session/IP) and, crucially, still counts
+            // against the global-per-IP cap below.
+            if (!warnedUnmappedEvents.has(eventName)) {
+                warnedUnmappedEvents.add(eventName);
+                logger.warn(
+                    `No rate limit configured for socket event "${eventName}" — applying conservative default ` +
+                        `(${DEFAULT_RATE_LIMIT.max}/${DEFAULT_RATE_LIMIT.window}ms). Add an explicit RATE_LIMITS entry.`
+                );
+            }
+            limit = DEFAULT_RATE_LIMIT;
+        }
 
         return (socket, _data, next) => {
             // Load-test escape hatch (D5): pass through when

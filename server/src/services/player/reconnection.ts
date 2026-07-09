@@ -105,6 +105,53 @@ export async function generateReconnectionToken(sessionId: string): Promise<stri
 }
 
 /**
+ * Peek at a reconnection token WITHOUT consuming it.
+ *
+ * Reads the token data and confirms it belongs to this session, but does not
+ * DEL either key. The reconnect handler uses this to check the benign,
+ * recoverable failure conditions (token names a different room, room no longer
+ * exists) BEFORE the destructive consume — so a correct token isn't burned on a
+ * stale `code` or a just-TTL-expired room, which would otherwise degrade an
+ * otherwise-recoverable reconnect into a forced fresh join (N10).
+ *
+ * Single-use is still enforced by {@link validateRoomReconnectToken}'s atomic
+ * GET+DEL at the actual consume step; a peek grants no reconnect on its own.
+ */
+export async function peekRoomReconnectToken(token: string, sessionId: string): Promise<TokenValidationResult> {
+    const redis: RedisClient = getRedis();
+
+    if (!token || typeof token !== 'string') {
+        return { valid: false, reason: 'INVALID_TOKEN_FORMAT' };
+    }
+
+    const raw = await withTimeout(
+        redis.get(`reconnect:token:${token}`),
+        TIMEOUTS.REDIS_OPERATION,
+        `peekReconnectToken-${sessionId}`
+    );
+
+    if (!raw) {
+        return { valid: false, reason: 'TOKEN_EXPIRED_OR_INVALID' };
+    }
+
+    const tokenData = tryParseJSON(
+        raw,
+        reconnectionTokenSchema,
+        `reconnection token peek for ${sessionId}`
+    ) as ReconnectionTokenData | null;
+    if (!tokenData) {
+        return { valid: false, reason: 'TOKEN_CORRUPTED' };
+    }
+
+    if (tokenData.sessionId !== sessionId) {
+        logger.warn('Reconnection token session mismatch (peek)', { sessionId });
+        return { valid: false, reason: 'SESSION_MISMATCH' };
+    }
+
+    return { valid: true, tokenData };
+}
+
+/**
  * Validate and consume a reconnection token atomically.
  * Uses a Lua script to GET + validate + DEL in one operation,
  * preventing two concurrent reconnections from both succeeding.

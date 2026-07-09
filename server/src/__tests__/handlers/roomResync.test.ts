@@ -83,6 +83,12 @@ describe('Room Resync and Recovery Handlers', () => {
         );
         // Per-session auth secret minted into room:reconnected (N1).
         playerService.mintSessionAuthSecret.mockResolvedValue('ab'.repeat(32));
+        // N10: the handler peeks (non-destructively) before consuming. Default to
+        // a valid peek for the room under test; rejection tests override it.
+        playerService.peekRoomReconnectToken.mockResolvedValue({
+            valid: true,
+            tokenData: { roomCode: 'test12', sessionId: 'session-456' },
+        });
 
         // Create mock socket
         mockSocket = {
@@ -503,7 +509,8 @@ describe('Room Resync and Recovery Handlers', () => {
         });
 
         test('rejects reconnection with invalid token', async () => {
-            playerService.validateRoomReconnectToken.mockResolvedValue({
+            // Invalid token is caught at the non-destructive peek (N10).
+            playerService.peekRoomReconnectToken.mockResolvedValue({
                 valid: false,
                 reason: 'Token expired',
             });
@@ -524,8 +531,9 @@ describe('Room Resync and Recovery Handlers', () => {
             );
         });
 
-        test('rejects reconnection when token room code does not match', async () => {
-            playerService.validateRoomReconnectToken.mockResolvedValue({
+        test('rejects reconnection when token room code does not match (without consuming — N10)', async () => {
+            // roomCode check runs against the PEEK result, before the destructive consume.
+            playerService.peekRoomReconnectToken.mockResolvedValue({
                 valid: true,
                 tokenData: { roomCode: 'other1', sessionId: 'session-456' },
             });
@@ -544,6 +552,8 @@ describe('Room Resync and Recovery Handlers', () => {
                     message: 'Token does not match room',
                 })
             );
+            // The single-use token must NOT have been consumed on a benign mismatch.
+            expect(playerService.validateRoomReconnectToken).not.toHaveBeenCalled();
         });
 
         test('rejects reconnection when room no longer exists', async () => {

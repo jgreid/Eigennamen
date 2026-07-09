@@ -201,6 +201,68 @@ describe('Game Handlers', () => {
                 })
             );
         });
+
+        // N8: game:start used to stop the live turn timer BEFORE validating
+        // "game in progress", so a stale/double start that gets rejected killed
+        // the active turn's timer, which then never re-armed.
+        test('does NOT stop the turn timer when a start is rejected as in-progress (N8)', async () => {
+            const stopSpy = jest.fn().mockResolvedValue();
+            require('../../socket/socketFunctionProvider').getSocketFunctions.mockReturnValue({
+                startTurnTimer: jest.fn().mockResolvedValue({}),
+                stopTurnTimer: stopSpy,
+                emitToRoom: jest.fn(),
+                emitToPlayer: jest.fn(),
+                getTimerStatus: jest.fn().mockResolvedValue(null),
+                createTimerExpireCallback: jest.fn(() => jest.fn()),
+                getIO: jest.fn(),
+            });
+
+            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'TEST12', isHost: true });
+            gameService.getGame.mockResolvedValue({ gameOver: false }); // active game
+
+            const handlers = mockSocket.on.mock.calls;
+            const startHandler = handlers.find((h) => h[0] === 'game:start');
+            await startHandler[1]({});
+
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({ code: expect.any(String) })
+            );
+            expect(stopSpy).not.toHaveBeenCalled();
+        });
+
+        test('stops the turn timer once a start is accepted (N8 — normal path intact)', async () => {
+            const stopSpy = jest.fn().mockResolvedValue();
+            require('../../socket/socketFunctionProvider').getSocketFunctions.mockReturnValue({
+                startTurnTimer: jest.fn().mockResolvedValue({}),
+                stopTurnTimer: stopSpy,
+                emitToRoom: jest.fn(),
+                emitToPlayer: jest.fn(),
+                getTimerStatus: jest.fn().mockResolvedValue(null),
+                createTimerExpireCallback: jest.fn(() => jest.fn()),
+                getIO: jest.fn(),
+            });
+
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                isHost: true,
+                team: 'red',
+            });
+            gameService.getGame.mockResolvedValue(null);
+            gameService.createGame.mockResolvedValue({ id: 'game-1', currentTurn: 'red', redTotal: 9, blueTotal: 8 });
+            gameService.getGameStateForPlayer.mockReturnValue({ id: 'game-1' });
+            roomService.getRoom.mockResolvedValue({ settings: { gameMode: 'classic' } });
+            playerService.resetRolesForNewGame.mockResolvedValue([
+                { sessionId: 'session-456', team: 'red', role: 'clicker' },
+            ]);
+
+            const handlers = mockSocket.on.mock.calls;
+            const startHandler = handlers.find((h) => h[0] === 'game:start');
+            await startHandler[1]({});
+
+            expect(stopSpy).toHaveBeenCalledWith('TEST12');
+        });
     });
 
     describe('game:reveal handler', () => {

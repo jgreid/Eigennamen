@@ -57,13 +57,38 @@ describe('Rate Limit Middleware', () => {
         });
 
         describe('getLimiter', () => {
-            it('should return pass-through middleware for unknown events', () => {
-                const middleware = rateLimiter.getLimiter('unknown:event');
+            it('applies a conservative fail-closed default (not a pass-through) for unknown events (N37)', () => {
+                // An event with no RATE_LIMITS entry used to bypass ALL throttling,
+                // including the global-per-IP cap. It must now be limited by a
+                // conservative default (5 per 5s) and warn once.
+                const middleware = rateLimiter.getLimiter('unmapped:event');
+                const mockSocket = { id: 'socket-unmapped', clientIP: '127.0.0.9' };
                 const next = jest.fn();
 
-                middleware({}, {}, next);
+                // First 5 pass, the 6th is blocked by the default limit.
+                for (let i = 0; i < 6; i++) {
+                    middleware(mockSocket, {}, next);
+                }
 
-                expect(next).toHaveBeenCalledWith();
+                expect(next).toHaveBeenCalledWith(expect.any(Error));
+                expect(mockLogger.warn).toHaveBeenCalledWith(
+                    expect.stringContaining('No rate limit configured for socket event "unmapped:event"')
+                );
+            });
+
+            it('warns only once per unmapped event, not on every call (N37)', () => {
+                const middleware = rateLimiter.getLimiter('another:unmapped');
+                const mockSocket = { id: 'socket-warnonce', clientIP: '127.0.0.10' };
+                const next = jest.fn();
+
+                middleware(mockSocket, {}, next);
+                middleware(mockSocket, {}, next);
+                middleware(mockSocket, {}, next);
+
+                const unmappedWarnings = mockLogger.warn.mock.calls.filter(
+                    (c) => typeof c[0] === 'string' && c[0].includes('another:unmapped')
+                );
+                expect(unmappedWarnings).toHaveLength(1);
             });
 
             it('should return rate limiting middleware for known events', () => {

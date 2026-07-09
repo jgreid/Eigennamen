@@ -78,6 +78,17 @@ export async function saveCompletedGameHistory(roomCode: string): Promise<void> 
                 winner: completedGame.winner ?? undefined,
                 gameMode: completedGame.gameMode,
                 gameOver: completedGame.gameOver,
+                // Authoritative end reason + mode extras so history/replay carry
+                // full mode data instead of dropping it (N7).
+                endReason: completedGame.endReason,
+                duetTypes: completedGame.duetTypes,
+                greenFound: completedGame.greenFound,
+                greenTotal: completedGame.greenTotal,
+                timerTokens: completedGame.timerTokens,
+                cardScores: completedGame.cardScores,
+                matchRound: completedGame.matchRound,
+                redMatchScore: completedGame.redMatchScore,
+                blueMatchScore: completedGame.blueMatchScore,
                 createdAt: completedGame.createdAt,
                 clues: completedGame.clues,
                 history: completedGame.history.map(toHistoryEntry),

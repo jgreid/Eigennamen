@@ -132,6 +132,12 @@ describe('Room Handlers', () => {
         playerService.invalidateRoomReconnectToken.mockResolvedValue();
         playerService.generateReconnectionToken.mockResolvedValue('token-123');
         playerService.getExistingReconnectionToken.mockResolvedValue(null);
+        // N10: the handler now PEEKs (non-destructively) to validate roomCode /
+        // room existence before the destructive consume. Both are mocked valid.
+        playerService.peekRoomReconnectToken.mockResolvedValue({
+            valid: true,
+            tokenData: { roomCode: 'test-room', sessionId: 'session-1' },
+        });
         playerService.validateRoomReconnectToken.mockResolvedValue({
             valid: true,
             tokenData: { roomCode: 'test-room', sessionId: 'session-1' },
@@ -621,7 +627,8 @@ describe('Room Handlers', () => {
         });
 
         test('throws error when token is invalid', async () => {
-            playerService.validateRoomReconnectToken.mockResolvedValue({
+            // Invalid token is detected at the non-destructive peek (N10).
+            playerService.peekRoomReconnectToken.mockResolvedValue({
                 valid: false,
                 reason: 'Token expired',
             });
@@ -637,8 +644,9 @@ describe('Room Handlers', () => {
             });
         });
 
-        test('throws error when room code mismatch', async () => {
-            playerService.validateRoomReconnectToken.mockResolvedValue({
+        test('throws error when room code mismatch (without consuming the token — N10)', async () => {
+            // The roomCode check now runs against the PEEK result, before consume.
+            playerService.peekRoomReconnectToken.mockResolvedValue({
                 valid: true,
                 tokenData: { roomCode: 'other-room', sessionId: 'session-1' },
             });
@@ -652,6 +660,8 @@ describe('Room Handlers', () => {
                 code: expect.any(String),
                 message: expect.stringContaining('does not match'),
             });
+            // The single-use token must NOT have been consumed on a benign mismatch.
+            expect(playerService.validateRoomReconnectToken).not.toHaveBeenCalled();
         });
 
         test('throws error when room not found', async () => {

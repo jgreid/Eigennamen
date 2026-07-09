@@ -130,6 +130,12 @@ export function applyEngineReveal(game: GameState, index: number): RevealResult 
     const revealingTeam = game.currentTurn;
     const type = executeCardReveal(game, index);
 
+    // Capture this reveal's ordinal now: executeCardReveal has just incremented
+    // guessesUsed, but determineRevealOutcome below resets it to 0 on a turn
+    // switch. Reading it post-outcome recorded every turn-ending reveal as
+    // guessNumber 0 — the engine mirror of the revealCard.lua bug (N6).
+    const guessNumber = game.guessesUsed ?? 0;
+
     // Match-mode score accumulation (only in Lua/here, not in executeCardReveal).
     if (game.gameMode === 'match' && game.cardScores) {
         const cs = game.cardScores[index] ?? 0;
@@ -148,7 +154,7 @@ export function applyEngineReveal(game: GameState, index: number): RevealResult 
         type,
         team: revealingTeam,
         player: 'bot',
-        guessNumber: game.guessesUsed ?? 0,
+        guessNumber,
         timestamp: 0,
     });
     game.stateVersion = (game.stateVersion ?? 0) + 1;
