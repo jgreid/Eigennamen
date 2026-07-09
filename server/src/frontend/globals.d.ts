@@ -8,7 +8,10 @@
 /* ---------- EigennamenClient (socket-client.js) ---------- */
 
 interface EigennamenPlayer {
-    sessionId: string;
+    /** Opaque public player id — the only peer identity the server sends (N1) */
+    playerId: string;
+    /** Own sessionId — present only on the client's own player object */
+    sessionId?: string;
     nickname: string;
     team: 'red' | 'blue' | null;
     role: 'spymaster' | 'clicker' | 'spectator' | null;
@@ -55,7 +58,7 @@ interface EigennamenClientAPI {
 
     // Bot management (host only)
     addBot(team: string, role: string, strategyId: string, skillPreset: string): void;
-    removeBot(sessionId: string): void;
+    removeBot(playerId: string): void;
 
     // Host queries
     isHost(): boolean;
@@ -65,7 +68,7 @@ interface EigennamenClientAPI {
     setRole(role: string, ack?: (result: AckResult) => void): void;
     setTeamRole(team: string, role: string, ack?: (result: AckResult) => void): void;
     setNickname(nickname: string): void;
-    kickPlayer(sessionId: string): void;
+    kickPlayer(targetPlayerId: string): void;
 
     // Room settings
     updateSettings(settings: Record<string, unknown>): void;

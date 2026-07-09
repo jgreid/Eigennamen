@@ -8,7 +8,8 @@
  * barrels.
  */
 import { selectHostSuccessor } from '../../services/room/membership';
-import { toPublicPlayer, toPublicPlayers } from '../../services/player/queries';
+import { toPublicPlayer, toPublicPlayers, toSelfPlayer } from '../../services/player/queries';
+import { derivePlayerId } from '../../services/player/publicId';
 import type { Player } from '../../types';
 
 function mkPlayer(over: Partial<Player>): Player {
@@ -58,8 +59,8 @@ describe('selectHostSuccessor (N3)', () => {
     });
 });
 
-describe('toPublicPlayer (N2)', () => {
-    it('strips lastIP and userId but keeps client-facing fields', () => {
+describe('toPublicPlayer (N1/N2)', () => {
+    it('strips sessionId, lastIP and userId, adds the derived playerId, and keeps client-facing fields', () => {
         const p = mkPlayer({
             sessionId: 'sess-1',
             nickname: 'Ada',
@@ -72,23 +73,35 @@ describe('toPublicPlayer (N2)', () => {
         const pub = toPublicPlayer(p);
         expect((pub as Record<string, unknown>).lastIP).toBeUndefined();
         expect((pub as Record<string, unknown>).userId).toBeUndefined();
-        expect(pub.sessionId).toBe('sess-1');
+        expect((pub as Record<string, unknown>).sessionId).toBeUndefined();
+        expect(pub.playerId).toBe(derivePlayerId('sess-1'));
         expect(pub.nickname).toBe('Ada');
         expect(pub.team).toBe('red');
         expect(pub.role).toBe('spymaster');
         expect(pub.isHost).toBe(true);
     });
 
-    it('maps a list, stripping PII from every entry', () => {
+    it('maps a list, stripping the session credential and PII from every entry', () => {
         const players = [
             mkPlayer({ sessionId: 'a', lastIP: '1.1.1.1', userId: 'ua' }),
             mkPlayer({ sessionId: 'b', lastIP: '2.2.2.2' }),
         ];
         const pub = toPublicPlayers(players);
         expect(pub).toHaveLength(2);
+        expect(pub.map((e) => e.playerId)).toEqual([derivePlayerId('a'), derivePlayerId('b')]);
         for (const entry of pub) {
             expect((entry as Record<string, unknown>).lastIP).toBeUndefined();
             expect((entry as Record<string, unknown>).userId).toBeUndefined();
+            expect((entry as Record<string, unknown>).sessionId).toBeUndefined();
         }
+    });
+
+    it('toSelfPlayer additionally carries the player own sessionId for direct-to-self payloads', () => {
+        const p = mkPlayer({ sessionId: 'sess-self', lastIP: '9.9.9.9', userId: 'u-9' });
+        const self = toSelfPlayer(p);
+        expect(self.sessionId).toBe('sess-self');
+        expect(self.playerId).toBe(derivePlayerId('sess-self'));
+        expect((self as Record<string, unknown>).lastIP).toBeUndefined();
+        expect((self as Record<string, unknown>).userId).toBeUndefined();
     });
 });

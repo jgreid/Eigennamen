@@ -12,6 +12,7 @@ import { safeEmitToRoom } from '../safeEmit';
 import { notifyGameMutation } from '../gameMutationNotifier';
 import { botAddSchema, botRemoveSchema } from '../../validators/schemas';
 import type { BotAddInput, BotRemoveInput } from '../../validators/schemas';
+import { PlayerError } from '../../errors/GameError';
 import logger from '../../utils/logger';
 
 // Use the Zod-inferred input types (G5) instead of hand-written local copies.
@@ -77,20 +78,29 @@ function botHandlers(io: Server, socket: GameSocket): void {
             SOCKET_EVENTS.BOT_REMOVE,
             botRemoveSchema,
             async (ctx: RoomContext, validated: BotRemoveInput) => {
-                await botService.removeBot(ctx.roomCode, validated.sessionId);
+                // Clients identify the bot only by its opaque playerId (N1);
+                // resolve it back to the bot's session within this room.
+                const bot = await playerService.findPlayerByPublicId(ctx.roomCode, validated.playerId);
+                if (!bot) {
+                    throw PlayerError.notFound(validated.playerId);
+                }
+                await botService.removeBot(ctx.roomCode, bot.sessionId);
 
                 const players: Player[] = await playerService.getPlayersInRoom(ctx.roomCode);
+                // toPublicPlayers here too — this emit previously sent the raw
+                // Player[] and was the one ROOM_PLAYER_LEFT bypassing the N2
+                // PII projection (leaking every peer's lastIP/userId).
                 safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_PLAYER_LEFT, {
-                    sessionId: validated.sessionId,
+                    playerId: validated.playerId,
                     newHost: null,
-                    players,
+                    players: playerService.toPublicPlayers(players),
                 });
 
                 const stats: RoomStats = await playerService.getRoomStats(ctx.roomCode, players);
                 safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats });
 
                 logger.info(
-                    `Bot ${validated.sessionId} removed from room ${ctx.roomCode} by host ${ctx.player.nickname}`
+                    `Bot ${validated.playerId} removed from room ${ctx.roomCode} by host ${ctx.player.nickname}`
                 );
             }
         )

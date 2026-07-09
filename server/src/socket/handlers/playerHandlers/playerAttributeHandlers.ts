@@ -35,7 +35,7 @@ export default function playerAttributeHandlers(io: Server, socket: GameSocket):
                 // Broadcast to room — frontend renders via textContent (XSS-safe),
                 // so no server-side HTML encoding needed
                 safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
-                    sessionId: ctx.sessionId,
+                    playerId: playerService.derivePlayerId(ctx.sessionId),
                     changes: { nickname: player.nickname },
                 });
 

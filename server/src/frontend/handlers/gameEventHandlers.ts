@@ -336,7 +336,7 @@ export function registerGameHandlers(): void {
             console.log('[ReadyCheck] Started by', data.startedBy, 'with', data.players.length, 'players');
         } else if (data.playerReady) {
             if (state.readyCheck && state.readyCheck.players) {
-                const player = state.readyCheck.players.find((p) => p.sessionId === data.playerReady!.sessionId);
+                const player = state.readyCheck.players.find((p) => p.playerId === data.playerReady!.playerId);
                 if (player) {
                     player.ready = true;
                 }

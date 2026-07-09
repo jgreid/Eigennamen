@@ -145,6 +145,7 @@ describe('socket-client (EigennamenClient IIFE)', () => {
         // Reset mutable state between tests.
         client.socket = null;
         client.sessionId = null;
+        client.sessionToken = null;
         client.roomCode = null;
         client.player = null;
         client.connected = false;
@@ -630,6 +631,7 @@ describe('socket-client (EigennamenClient IIFE)', () => {
             const { safeRemoveStorage } = require('../../frontend/socket-client-storage');
 
             client.sessionId = 'test-session';
+            client.sessionToken = 'test-token';
             client.storedNickname = 'Alice';
             client.joinInProgress = true;
             client.createInProgress = true;
@@ -637,9 +639,11 @@ describe('socket-client (EigennamenClient IIFE)', () => {
             client.clearSession();
 
             expect(safeRemoveStorage).toHaveBeenCalledWith(sessionStorage, 'eigennamen-session-id');
+            expect(safeRemoveStorage).toHaveBeenCalledWith(sessionStorage, 'eigennamen-session-token');
             expect(safeRemoveStorage).toHaveBeenCalledWith(sessionStorage, 'eigennamen-room-code');
             expect(safeRemoveStorage).toHaveBeenCalledWith(localStorage, 'eigennamen-nickname');
             expect(client.sessionId).toBeNull();
+            expect(client.sessionToken).toBeNull();
             expect(client.storedNickname).toBeNull();
             expect(client.joinInProgress).toBe(false);
             expect(client.createInProgress).toBe(false);
@@ -698,16 +702,18 @@ describe('socket-client (EigennamenClient IIFE)', () => {
             expect(logger.warn).toHaveBeenCalledWith('Socket action attempted but not connected');
         });
 
-        it('_saveSession persists sessionId, roomCode, and nickname', () => {
+        it('_saveSession persists sessionId, sessionToken, roomCode, and nickname', () => {
             const { safeSetStorage } = require('../../frontend/socket-client-storage');
 
             client.sessionId = 'sess-123';
+            client.sessionToken = 'tok-123';
             client.roomCode = 'ABCD';
             client.player = { nickname: 'Alice' };
 
             client._saveSession();
 
             expect(safeSetStorage).toHaveBeenCalledWith(sessionStorage, 'eigennamen-session-id', 'sess-123');
+            expect(safeSetStorage).toHaveBeenCalledWith(sessionStorage, 'eigennamen-session-token', 'tok-123');
             expect(safeSetStorage).toHaveBeenCalledWith(sessionStorage, 'eigennamen-room-code', 'ABCD');
             expect(safeSetStorage).toHaveBeenCalledWith(localStorage, 'eigennamen-nickname', 'Alice');
             expect(client.storedNickname).toBe('Alice');
@@ -808,9 +814,9 @@ describe('socket-client (EigennamenClient IIFE)', () => {
             client.socket = { emit: emitFn, connected: true };
             client.player = { isHost: true };
 
-            client.kickPlayer('target-session-id');
+            client.kickPlayer('target-player-id');
 
-            expect(emitFn).toHaveBeenCalledWith('player:kick', { targetSessionId: 'target-session-id' });
+            expect(emitFn).toHaveBeenCalledWith('player:kick', { targetPlayerId: 'target-player-id' });
         });
 
         it('kickPlayer logs warning and does not emit when user is not host', () => {
@@ -819,7 +825,7 @@ describe('socket-client (EigennamenClient IIFE)', () => {
             client.socket = { emit: emitFn, connected: true };
             client.player = { isHost: false };
 
-            client.kickPlayer('target-session-id');
+            client.kickPlayer('target-player-id');
 
             expect(emitFn).not.toHaveBeenCalled();
             expect(logger.warn).toHaveBeenCalledWith('Only the host can kick players');

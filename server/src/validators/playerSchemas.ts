@@ -3,6 +3,7 @@ import type { z as ZodType } from 'zod';
 import { z } from 'zod';
 import { removeControlChars } from '../utils/sanitize';
 import { createNicknameSchema } from './schemaHelpers';
+import { PUBLIC_PLAYER_ID_REGEX } from '../services/player/publicId';
 
 const playerTeamSchema = z.object({
     team: z.enum(['red', 'blue']).nullable(),
@@ -21,17 +22,19 @@ const playerNicknameSchema = z.object({
     nickname: createNicknameSchema(),
 });
 
-// Session ID regex - alphanumeric, hyphens, underscores (not strict UUID format)
-const sessionIdRegex = /^[a-zA-Z0-9\-_]+$/;
+// Clients identify peers only by the opaque derived playerId (N1) — fixed-length
+// lowercase hex. Peer sessionIds are never sent to clients, so no payload may
+// carry one.
+const playerIdRegex = PUBLIC_PLAYER_ID_REGEX;
 
 // Player kick schema (for player:kick)
 const playerKickSchema = z.object({
-    targetSessionId: z
+    targetPlayerId: z
         .string()
-        .min(1, 'Target session ID is required')
-        .max(100, 'Session ID too long')
+        .min(1, 'Target player ID is required')
+        .max(100, 'Player ID too long')
         .transform((val: string) => removeControlChars(val).trim())
-        .refine((val: string) => sessionIdRegex.test(val), 'Invalid session ID format'),
+        .refine((val: string) => playerIdRegex.test(val), 'Invalid player ID format'),
 });
 
 // Spectator join request schema
@@ -46,7 +49,7 @@ const spectatorJoinResponseSchema = z.object({
         .min(1, 'Requester ID is required')
         .max(100, 'Requester ID too long')
         .transform((val: string) => removeControlChars(val).trim())
-        .refine((val: string) => sessionIdRegex.test(val), 'Invalid requester ID format'),
+        .refine((val: string) => playerIdRegex.test(val), 'Invalid requester ID format'),
     approved: z.boolean(),
     // Team the requester asked to join, echoed back by the host's client so the
     // server can seat the approved spectator. Optional/ignored on a denial.

@@ -586,6 +586,16 @@ function createMockServices(): AnyRecord {
             getPlayersInRoom: jest.fn(async () => []),
             removePlayer: jest.fn(async () => {}),
             handleDisconnect: jest.fn(async () => null),
+            // N1 identity contract: peers see only the derived playerId; the
+            // sessionId is a bearer credential delivered solely to its owner.
+            derivePlayerId: jest.fn((sessionId: string) =>
+                jest.requireActual('../../services/player/publicId').derivePlayerId(sessionId)
+            ),
+            toPublicPlayer: jest.fn((p: AnyRecord) => p),
+            toPublicPlayers: jest.fn((arr: AnyRecord[]) => arr),
+            toSelfPlayer: jest.fn((p: AnyRecord) => p),
+            findPlayerByPublicId: jest.fn(async () => null),
+            mintSessionAuthSecret: jest.fn(async () => 'ab'.repeat(32)),
         },
         timerService: {
             startTimer: jest.fn(async () => ({ endTime: Date.now() + 60000 })),

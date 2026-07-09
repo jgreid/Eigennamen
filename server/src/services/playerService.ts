@@ -468,6 +468,8 @@ import {
     rotateRolesForNextRound as _rotateRolesForNextRound,
     toPublicPlayer as _toPublicPlayer,
     toPublicPlayers as _toPublicPlayers,
+    toSelfPlayer as _toSelfPlayer,
+    findPlayerByPublicId as _findPlayerByPublicId,
 } from './player/queries';
 export const getTeamMembers = _getTeamMembers;
 export const getPlayersInRoom = _getPlayersInRoom;
@@ -475,7 +477,10 @@ export const resetRolesForNewGame = _resetRolesForNewGame;
 export const rotateRolesForNextRound = _rotateRolesForNextRound;
 export const toPublicPlayer = _toPublicPlayer;
 export const toPublicPlayers = _toPublicPlayers;
-export type { PublicPlayer } from './player/queries';
+export const toSelfPlayer = _toSelfPlayer;
+export const findPlayerByPublicId = _findPlayerByPublicId;
+export type { PublicPlayer, SelfPlayer } from './player/queries';
+export { derivePlayerId, PUBLIC_PLAYER_ID_LENGTH, PUBLIC_PLAYER_ID_REGEX } from './player/publicId';
 
 // Mutation functions (extracted to player/mutations.ts)
 import { setTeam as _setTeam, setRole as _setRole, setNickname as _setNickname } from './player/mutations';
@@ -494,6 +499,10 @@ export {
 } from './player/reconnection';
 
 export type { ReconnectionTokenData, TokenValidationResult } from './player/reconnection';
+
+// Session auth secret (N1 — gates socket adoption of an existing session)
+export { mintSessionAuthSecret, validateSessionAuthSecret } from './player/sessionAuth';
+export type { SessionAuthResult } from './player/sessionAuth';
 
 // Stats functions (extracted to player/stats.ts)
 export { getSpectators, getSpectatorCount, getRoomStats } from './player/stats';

@@ -63,9 +63,14 @@ export default function roomMembershipHandlers(io: Server, socket: GameSocket): 
                     return computeFallbackStats([player]);
                 });
 
+                // Session auth secret: minted here, delivered only to this
+                // socket, required by the handshake to re-adopt this session (N1)
+                const sessionToken = await playerService.mintSessionAuthSecret(socket.sessionId);
+
                 socket.emit(SOCKET_EVENTS.ROOM_CREATED, {
                     room,
-                    player: playerService.toPublicPlayer(player),
+                    player: playerService.toSelfPlayer(player),
+                    sessionToken,
                     stats: roomStats,
                 });
 
@@ -151,11 +156,16 @@ export default function roomMembershipHandlers(io: Server, socket: GameSocket): 
                 'room:join-parallel-ops'
             )) as [void, RoomStats, PlayerGameState | null];
 
+            // Session auth secret: minted here, delivered only to this socket,
+            // required by the handshake to re-adopt this session (N1)
+            const sessionToken = await playerService.mintSessionAuthSecret(socket.sessionId);
+
             socket.emit(SOCKET_EVENTS.ROOM_JOINED, {
                 room,
                 players: playerService.toPublicPlayers(players),
                 game: gameState,
-                you: playerService.toPublicPlayer(player),
+                you: playerService.toSelfPlayer(player),
+                sessionToken,
                 stats: roomStats,
             });
 
@@ -174,7 +184,7 @@ export default function roomMembershipHandlers(io: Server, socket: GameSocket): 
 
             if (isReconnecting) {
                 socket.to(`room:${room.code}`).emit(SOCKET_EVENTS.ROOM_PLAYER_RECONNECTED, {
-                    sessionId: socket.sessionId,
+                    playerId: playerService.derivePlayerId(socket.sessionId),
                     nickname: player.nickname,
                     team: player.team,
                 });
@@ -210,8 +220,8 @@ export default function roomMembershipHandlers(io: Server, socket: GameSocket): 
             const remainingPlayers: Player[] = await playerService.getPlayersInRoom(ctx.roomCode);
 
             safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_PLAYER_LEFT, {
-                sessionId: ctx.sessionId,
-                newHost: result?.newHostId || null,
+                playerId: playerService.derivePlayerId(ctx.sessionId),
+                newHost: result?.newHostId ? playerService.derivePlayerId(result.newHostId) : null,
                 players: playerService.toPublicPlayers(remainingPlayers || []),
             });
 

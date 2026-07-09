@@ -50,6 +50,8 @@ export interface RoomCreatedPayload {
     room: ServerRoomData;
     player: ServerPlayerData;
     players?: ServerPlayerData[];
+    /** Per-session auth secret for the socket handshake (N1) */
+    sessionToken?: string;
 }
 
 /** Payload for room:joined → 'roomJoined' */
@@ -58,6 +60,8 @@ export interface RoomJoinedPayload {
     you: ServerPlayerData;
     players: ServerPlayerData[];
     game?: ServerGameData;
+    /** Per-session auth secret for the socket handshake (N1) */
+    sessionToken?: string;
 }
 
 /** Payload for room:resynced → 'roomResynced' */
@@ -157,7 +161,10 @@ export interface SocketClientInstance {
  * Team/Role unions mirror the canonical types in types/game.ts.
  */
 export interface Player {
-    sessionId: string;
+    /** Opaque public player id — the only peer identity the server sends (N1) */
+    playerId: string;
+    /** Own sessionId — present only on self payloads (never on peers) */
+    sessionId?: string;
     roomCode?: string;
     nickname: string;
     team: 'red' | 'blue' | null;

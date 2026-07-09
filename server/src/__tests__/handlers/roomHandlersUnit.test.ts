@@ -72,6 +72,15 @@ describe('Room Handlers', () => {
         // Public-player projection used at peer-broadcast sites (N2) — pass through.
         playerService.toPublicPlayer.mockImplementation((p) => p);
         playerService.toPublicPlayers.mockImplementation((arr) => arr);
+        // Direct-to-self projection (room:created player / room:joined you /
+        // room:resynced you) — pass through, like the public projections above.
+        playerService.toSelfPlayer.mockImplementation((p) => p);
+        // Real one-way derivation for peer-facing playerId fields (N1).
+        playerService.derivePlayerId.mockImplementation(
+            jest.requireActual('../../services/player/publicId').derivePlayerId
+        );
+        // Per-session auth secret minted into room:created/joined/reconnected (N1).
+        playerService.mintSessionAuthSecret.mockResolvedValue('ab'.repeat(32));
 
         mockSocket = {
             id: 'socket-1',

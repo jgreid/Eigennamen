@@ -266,7 +266,7 @@ async function handleDisconnect(
             // The disconnecting player should proactively request their reconnection token via
             // 'room:getReconnectionToken' event BEFORE they disconnect (e.g., on 'beforeunload').
             safeEmitToRoom(ioInstance, roomCode, SOCKET_EVENTS.PLAYER_DISCONNECTED, {
-                sessionId: socket.sessionId,
+                playerId: playerService.derivePlayerId(socket.sessionId),
                 nickname: player.nickname,
                 team: player.team,
                 reason: reason,
@@ -340,7 +340,7 @@ async function handleDisconnect(
 
                                 if (transferResult.success) {
                                     safeEmitToRoom(ioInstance, roomCode, SOCKET_EVENTS.ROOM_HOST_CHANGED, {
-                                        newHostSessionId: newHost.sessionId,
+                                        newHostPlayerId: playerService.derivePlayerId(newHost.sessionId),
                                         newHostNickname: newHost.nickname,
                                         reason: 'previousHostDisconnected',
                                     });

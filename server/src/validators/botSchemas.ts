@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { removeControlChars } from '../utils/sanitize';
 import { isStrategyId } from '../bots/strategies/registry';
 import { isSkillOrPersona } from '../bots/presets';
+import { PUBLIC_PLAYER_ID_REGEX } from '../services/player/publicId';
 
 // Validates a persisted bot config (bot:{sessionId}:cfg). Lenient on enums so a
 // stored config from an older strategy set still parses (controller falls back).
@@ -27,14 +28,14 @@ const botAddSchema = z.object({
         .optional(),
 });
 
-// bot:remove — host removes a bot by its session id.
+// bot:remove — host removes a bot by its opaque public playerId (N1).
 const botRemoveSchema = z.object({
-    sessionId: z
+    playerId: z
         .string()
-        .min(1, 'sessionId is required')
+        .min(1, 'playerId is required')
         .max(100)
         .transform((val: string) => removeControlChars(val).trim())
-        .refine((val: string) => val.length >= 1, 'sessionId is required'),
+        .refine((val: string) => PUBLIC_PLAYER_ID_REGEX.test(val), 'Invalid player ID format'),
 });
 
 export type BotAddInput = ZodType.infer<typeof botAddSchema>;

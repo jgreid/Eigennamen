@@ -57,6 +57,8 @@ interface ClientState {
     roomCode: string | null;
     player: Player | null;
     sessionId: string | null;
+    /** Per-session auth secret for the socket handshake (N1) */
+    sessionToken: string | null;
     saveSession(): void;
 }
 
@@ -78,6 +80,9 @@ export function registerAllEventListeners(register: RegisterFn, emit: EmitFn, cl
         if (data.player?.sessionId) {
             client.sessionId = data.player.sessionId;
         }
+        if (data.sessionToken) {
+            client.sessionToken = data.sessionToken;
+        }
         client.saveSession();
         emit('roomCreated', data);
     });
@@ -90,6 +95,9 @@ export function registerAllEventListeners(register: RegisterFn, emit: EmitFn, cl
         // new one if our old session was invalidated during auth.
         if (data.you?.sessionId) {
             client.sessionId = data.you.sessionId;
+        }
+        if (data.sessionToken) {
+            client.sessionToken = data.sessionToken;
         }
         client.saveSession();
         emit('roomJoined', data);
@@ -114,7 +122,7 @@ export function registerAllEventListeners(register: RegisterFn, emit: EmitFn, cl
     register('room:hostChanged', (raw: unknown) => {
         const data = raw as HostChangedData;
         // Update local player if we became host
-        if (client.player && data.newHostSessionId === client.player.sessionId) {
+        if (client.player && data.newHostPlayerId === client.player.playerId) {
             client.player.isHost = true;
         }
         emit('hostChanged', data);
@@ -172,6 +180,9 @@ export function registerAllEventListeners(register: RegisterFn, emit: EmitFn, cl
         const data = raw as RoomReconnectedPayload;
         client.roomCode = data.room?.code ?? client.roomCode;
         client.player = data.you ?? client.player;
+        if (data.sessionToken) {
+            client.sessionToken = data.sessionToken;
+        }
         client.saveSession();
         emit('roomReconnected', data);
     });
@@ -179,7 +190,7 @@ export function registerAllEventListeners(register: RegisterFn, emit: EmitFn, cl
     // Player events
     register('player:updated', (raw: unknown) => {
         const data = raw as PlayerUpdatedData;
-        if (data.sessionId === client.player?.sessionId && data.changes) {
+        if (data.playerId === client.player?.playerId && data.changes) {
             client.player = { ...client.player, ...data.changes } as Player;
         }
         emit('playerUpdated', data);

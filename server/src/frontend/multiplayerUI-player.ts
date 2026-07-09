@@ -10,7 +10,7 @@ import { updateBotPanelVisibility } from './botsUI.js';
 import type { ServerPlayerData, ServerRoomData } from './multiplayerTypes.js';
 
 // Session ID pending kick confirmation (used by confirm-kick-modal)
-let pendingKickSessionId: string | null = null;
+let pendingKickPlayerId: string | null = null;
 
 export function updateMpIndicator(room: ServerRoomData | null, players: ServerPlayerData[]): void {
     const indicator = document.getElementById('mp-indicator');
@@ -79,7 +79,7 @@ export async function copyRoomId(): Promise<void> {
  */
 function buildPlayerLi(p: ServerPlayerData, isMe: boolean, amHost: boolean): HTMLLIElement {
     const li = document.createElement('li');
-    li.dataset.sessionId = p.sessionId;
+    li.dataset.playerId = p.playerId;
     li.setAttribute('role', 'listitem');
     li.tabIndex = 0;
     if (p.connected === false) li.classList.add('player-disconnected');
@@ -142,7 +142,7 @@ function buildPlayerLi(p: ServerPlayerData, isMe: boolean, amHost: boolean): HTM
             const removeBtn = document.createElement('button');
             removeBtn.className = 'btn-remove-bot';
             removeBtn.dataset.action = 'remove-bot';
-            removeBtn.dataset.session = p.sessionId;
+            removeBtn.dataset.player = p.playerId;
             removeBtn.title = t('bots.remove');
             removeBtn.setAttribute('aria-label', `${t('bots.remove')} ${p.nickname}`);
             removeBtn.textContent = t('bots.remove');
@@ -150,7 +150,7 @@ function buildPlayerLi(p: ServerPlayerData, isMe: boolean, amHost: boolean): HTM
         } else {
             const kickBtn = document.createElement('button');
             kickBtn.className = 'btn-kick';
-            kickBtn.dataset.session = p.sessionId;
+            kickBtn.dataset.player = p.playerId;
             kickBtn.title = t('multiplayer.kickPlayer');
             kickBtn.setAttribute('aria-label', `${t('multiplayer.kick')} ${p.nickname}`);
             kickBtn.textContent = t('multiplayer.kick');
@@ -173,25 +173,25 @@ function playerFingerprint(p: ServerPlayerData, isMe: boolean, amHost: boolean):
 const playerFingerprints = new Map<string, string>();
 
 export function updatePlayerList(ul: HTMLUListElement, players: ServerPlayerData[]): void {
-    const mySessionId = EigennamenClient.player?.sessionId;
+    const myPlayerId = EigennamenClient.player?.playerId;
     const amHost = EigennamenClient.player?.isHost;
 
     ul.setAttribute('role', 'list');
 
-    // Build map of existing DOM nodes keyed by session ID
+    // Build map of existing DOM nodes keyed by public player ID
     const existingNodes = new Map<string, HTMLLIElement>();
     for (const child of Array.from(ul.children)) {
         const li = child as HTMLLIElement;
-        const sid = li.dataset.sessionId;
-        if (sid) existingNodes.set(sid, li);
+        const pid = li.dataset.playerId;
+        if (pid) existingNodes.set(pid, li);
     }
 
-    // Track which session IDs are in the new player list
-    const newSessionIds = new Set(players.map((p) => p.sessionId));
+    // Track which player IDs are in the new player list
+    const newPlayerIds = new Set(players.map((p) => p.playerId));
 
     // Remove departed players with animation
     for (const [sid, li] of existingNodes) {
-        if (!newSessionIds.has(sid)) {
+        if (!newPlayerIds.has(sid)) {
             li.classList.add('player-leaving');
             li.addEventListener(
                 'animationend',
@@ -213,18 +213,18 @@ export function updatePlayerList(ul: HTMLUListElement, players: ServerPlayerData
     for (let i = players.length - 1; i >= 0; i--) {
         const p = players[i];
         if (!p) continue; // narrow for noUncheckedIndexedAccess; loop bound guarantees presence
-        const isMe = p.sessionId === mySessionId;
+        const isMe = p.playerId === myPlayerId;
         const fp = playerFingerprint(p, isMe, amHost ?? false);
-        const existing = existingNodes.get(p.sessionId);
+        const existing = existingNodes.get(p.playerId);
 
         if (existing) {
-            const oldFp = playerFingerprints.get(p.sessionId);
+            const oldFp = playerFingerprints.get(p.playerId);
             if (oldFp !== fp) {
                 // Properties changed — rebuild in-place
                 const newLi = buildPlayerLi(p, isMe, amHost ?? false);
                 newLi.classList.add('player-changed');
                 ul.replaceChild(newLi, existing);
-                playerFingerprints.set(p.sessionId, fp);
+                playerFingerprints.set(p.playerId, fp);
                 insertBefore = newLi;
             } else {
                 // Ensure correct order
@@ -238,7 +238,7 @@ export function updatePlayerList(ul: HTMLUListElement, players: ServerPlayerData
             const newLi = buildPlayerLi(p, isMe, amHost ?? false);
             newLi.classList.add('player-entering');
             ul.insertBefore(newLi, insertBefore);
-            playerFingerprints.set(p.sessionId, fp);
+            playerFingerprints.set(p.playerId, fp);
             insertBefore = newLi;
         }
     }
@@ -265,9 +265,9 @@ export function initPlayerListUI(): void {
         playersUl.addEventListener('click', (e: Event) => {
             const kickBtn = (e.target as HTMLElement).closest('.btn-kick') as HTMLElement | null;
             if (kickBtn) {
-                const sessionId = kickBtn.dataset.session;
-                if (sessionId) {
-                    pendingKickSessionId = sessionId;
+                const playerId = kickBtn.dataset.player;
+                if (playerId) {
+                    pendingKickPlayerId = playerId;
                     openModal('confirm-kick-modal');
                 }
             }
@@ -280,15 +280,15 @@ export function initPlayerListUI(): void {
  */
 export function closeKickConfirm(): void {
     closeModal('confirm-kick-modal');
-    pendingKickSessionId = null;
+    pendingKickPlayerId = null;
 }
 
 /**
  * Execute the pending kick action
  */
 export function confirmKickPlayer(): void {
-    if (pendingKickSessionId && state.isMultiplayerMode && isClientConnected()) {
-        EigennamenClient.kickPlayer(pendingKickSessionId);
+    if (pendingKickPlayerId && state.isMultiplayerMode && isClientConnected()) {
+        EigennamenClient.kickPlayer(pendingKickPlayerId);
     }
     closeKickConfirm();
 }

@@ -161,7 +161,8 @@ const mockEigennamenClient = {
         handlers[event] = handler;
     }),
     player: {
-        sessionId: 'me-123',
+        playerId: 'me-123',
+        sessionId: 'sess-me-123',
         nickname: 'TestPlayer',
         isHost: false,
         team: 'red',
@@ -492,8 +493,8 @@ describe('Frontend Handler Registration', () => {
         });
 
         test('playerJoined updates player list from full list', () => {
-            const players = [{ sessionId: 'p1', nickname: 'P1' }];
-            handlers['playerJoined']({ players, player: { sessionId: 'p1', nickname: 'P1' } });
+            const players = [{ playerId: 'p1', nickname: 'P1' }];
+            handlers['playerJoined']({ players, player: { playerId: 'p1', nickname: 'P1' } });
 
             expect(state.multiplayerPlayers).toBe(players);
             expect(updateMpIndicator).toHaveBeenCalled();
@@ -502,49 +503,49 @@ describe('Frontend Handler Registration', () => {
         });
 
         test('playerJoined adds new player when full list not provided', () => {
-            state.multiplayerPlayers = [{ sessionId: 'p1', nickname: 'P1' } as any];
-            handlers['playerJoined']({ player: { sessionId: 'p2', nickname: 'P2' } });
+            state.multiplayerPlayers = [{ playerId: 'p1', nickname: 'P1' } as any];
+            handlers['playerJoined']({ player: { playerId: 'p2', nickname: 'P2' } });
 
             expect(state.multiplayerPlayers).toHaveLength(2);
         });
 
         test('playerJoined deduplicates existing players', () => {
-            state.multiplayerPlayers = [{ sessionId: 'p1', nickname: 'P1' } as any];
-            handlers['playerJoined']({ player: { sessionId: 'p1', nickname: 'P1' } });
+            state.multiplayerPlayers = [{ playerId: 'p1', nickname: 'P1' } as any];
+            handlers['playerJoined']({ player: { playerId: 'p1', nickname: 'P1' } });
 
             expect(state.multiplayerPlayers).toHaveLength(1);
         });
 
-        test('playerLeft removes player by sessionId', () => {
+        test('playerLeft removes player by playerId', () => {
             state.multiplayerPlayers = [
-                { sessionId: 'p1', nickname: 'P1' } as any,
-                { sessionId: 'p2', nickname: 'P2' } as any,
+                { playerId: 'p1', nickname: 'P1' } as any,
+                { playerId: 'p2', nickname: 'P2' } as any,
             ];
-            handlers['playerLeft']({ sessionId: 'p1', nickname: 'P1' });
+            handlers['playerLeft']({ playerId: 'p1', nickname: 'P1' });
 
             expect(state.multiplayerPlayers).toHaveLength(1);
-            expect(state.multiplayerPlayers[0].sessionId).toBe('p2');
+            expect(state.multiplayerPlayers[0].playerId).toBe('p2');
             expect(showToast).toHaveBeenCalledWith('multiplayer.playerLeft name=P1', 'info');
         });
 
         test('playerLeft uses full player list when provided', () => {
-            const newList = [{ sessionId: 'p2', nickname: 'P2' }];
+            const newList = [{ playerId: 'p2', nickname: 'P2' }];
             handlers['playerLeft']({ players: newList, nickname: 'P1' });
 
             expect(state.multiplayerPlayers).toBe(newList);
         });
 
         test('playerUpdated updates player in list', () => {
-            state.multiplayerPlayers = [{ sessionId: 'p1', nickname: 'P1', team: 'red', role: 'clicker' } as any];
-            handlers['playerUpdated']({ sessionId: 'p1', changes: { team: 'blue' } });
+            state.multiplayerPlayers = [{ playerId: 'p1', nickname: 'P1', team: 'red', role: 'clicker' } as any];
+            handlers['playerUpdated']({ playerId: 'p1', changes: { team: 'blue' } });
 
             expect(state.multiplayerPlayers[0].team).toBe('blue');
             expect(updateMpIndicator).toHaveBeenCalled();
         });
 
         test('playerUpdated announces role change to screen reader', () => {
-            state.multiplayerPlayers = [{ sessionId: 'p1', nickname: 'Alice', team: 'red', role: 'clicker' } as any];
-            handlers['playerUpdated']({ sessionId: 'p1', changes: { role: 'spymaster' } });
+            state.multiplayerPlayers = [{ playerId: 'p1', nickname: 'Alice', team: 'red', role: 'clicker' } as any];
+            handlers['playerUpdated']({ playerId: 'p1', changes: { role: 'spymaster' } });
 
             expect(announceToScreenReader).toHaveBeenCalledWith(expect.stringContaining('Alice'));
             expect(announceToScreenReader).toHaveBeenCalledWith(expect.stringContaining('spymaster'));
@@ -553,17 +554,18 @@ describe('Frontend Handler Registration', () => {
         test('playerUpdated syncs local state when update is for current player (idle phase)', () => {
             // Set up current player
             mockEigennamenClient.player = {
-                sessionId: 'me-123',
+                playerId: 'me-123',
+                sessionId: 'sess-me-123',
                 nickname: 'Me',
                 team: 'red',
                 role: 'clicker',
                 isHost: false,
                 connected: true,
             } as any;
-            state.multiplayerPlayers = [{ sessionId: 'me-123', nickname: 'Me', team: 'red', role: 'clicker' } as any];
+            state.multiplayerPlayers = [{ playerId: 'me-123', nickname: 'Me', team: 'red', role: 'clicker' } as any];
             state.roleChange = { phase: 'idle' };
 
-            handlers['playerUpdated']({ sessionId: 'me-123', changes: { team: 'blue' } });
+            handlers['playerUpdated']({ playerId: 'me-123', changes: { team: 'blue' } });
 
             expect(syncLocalPlayerState).toHaveBeenCalled();
             expect(updateControls).toHaveBeenCalled();
@@ -573,23 +575,22 @@ describe('Frontend Handler Registration', () => {
 
         test('playerUpdated clears role change on atomic team+role confirmation', () => {
             mockEigennamenClient.player = {
-                sessionId: 'me-123',
+                playerId: 'me-123',
+                sessionId: 'sess-me-123',
                 nickname: 'Me',
                 team: 'blue',
                 role: 'spymaster',
                 isHost: false,
                 connected: true,
             } as any;
-            state.multiplayerPlayers = [
-                { sessionId: 'me-123', nickname: 'Me', team: 'blue', role: 'spymaster' } as any,
-            ];
+            state.multiplayerPlayers = [{ playerId: 'me-123', nickname: 'Me', team: 'blue', role: 'spymaster' } as any];
             state.roleChange = {
                 phase: 'changing_role',
                 target: 'spymaster',
                 operationId: 'op-1',
             } as any;
 
-            handlers['playerUpdated']({ sessionId: 'me-123', changes: { team: 'blue', role: 'spymaster' } });
+            handlers['playerUpdated']({ playerId: 'me-123', changes: { team: 'blue', role: 'spymaster' } });
 
             // Should clear role change since both team and role are confirmed
             const { clearRoleChange } = require('../../frontend/roles');
@@ -598,21 +599,22 @@ describe('Frontend Handler Registration', () => {
 
         test('playerUpdated clears role change on confirming update', () => {
             mockEigennamenClient.player = {
-                sessionId: 'me-123',
+                playerId: 'me-123',
+                sessionId: 'sess-me-123',
                 nickname: 'Me',
                 team: 'red',
                 role: 'clicker',
                 isHost: false,
                 connected: true,
             } as any;
-            state.multiplayerPlayers = [{ sessionId: 'me-123', nickname: 'Me', team: 'red', role: 'spymaster' } as any];
+            state.multiplayerPlayers = [{ playerId: 'me-123', nickname: 'Me', team: 'red', role: 'spymaster' } as any];
             state.roleChange = {
                 phase: 'changing_role',
                 target: 'spymaster',
                 operationId: 'op-2',
             } as any;
 
-            handlers['playerUpdated']({ sessionId: 'me-123', changes: { role: 'spymaster' } });
+            handlers['playerUpdated']({ playerId: 'me-123', changes: { role: 'spymaster' } });
 
             // clearRoleChange should have been called (via the imported mock)
             const { clearRoleChange } = require('../../frontend/roles');
@@ -621,7 +623,8 @@ describe('Frontend Handler Registration', () => {
 
         test('playerUpdated constructs player from changes when not in list (Bug #8)', () => {
             mockEigennamenClient.player = {
-                sessionId: 'me-123',
+                playerId: 'me-123',
+                sessionId: 'sess-me-123',
                 nickname: 'Me',
                 team: null,
                 role: null,
@@ -631,7 +634,7 @@ describe('Frontend Handler Registration', () => {
             state.multiplayerPlayers = []; // player not in list
             state.roleChange = { phase: 'idle' };
 
-            handlers['playerUpdated']({ sessionId: 'me-123', changes: { team: 'blue', role: 'clicker' } });
+            handlers['playerUpdated']({ playerId: 'me-123', changes: { team: 'blue', role: 'clicker' } });
 
             // Player should have been added to the list
             expect(state.multiplayerPlayers.length).toBeGreaterThan(0);
@@ -639,23 +642,23 @@ describe('Frontend Handler Registration', () => {
         });
 
         test('playerUpdated announces team change to screen reader', () => {
-            state.multiplayerPlayers = [{ sessionId: 'p2', nickname: 'Bob', team: null } as any];
-            handlers['playerUpdated']({ sessionId: 'p2', changes: { team: 'red' } });
+            state.multiplayerPlayers = [{ playerId: 'p2', nickname: 'Bob', team: null } as any];
+            handlers['playerUpdated']({ playerId: 'p2', changes: { team: 'red' } });
 
             expect(announceToScreenReader).toHaveBeenCalledWith(expect.stringContaining('Bob'));
             expect(announceToScreenReader).toHaveBeenCalledWith(expect.stringContaining('Red'));
         });
 
         test('playerUpdated announces team removal (spectator) to screen reader', () => {
-            state.multiplayerPlayers = [{ sessionId: 'p2', nickname: 'Bob', team: 'red' } as any];
-            handlers['playerUpdated']({ sessionId: 'p2', changes: { team: null } });
+            state.multiplayerPlayers = [{ playerId: 'p2', nickname: 'Bob', team: 'red' } as any];
+            handlers['playerUpdated']({ playerId: 'p2', changes: { team: null } });
 
             expect(announceToScreenReader).toHaveBeenCalledWith(expect.stringContaining('spectators'));
         });
 
         test('playerDisconnected marks player as disconnected', () => {
-            state.multiplayerPlayers = [{ sessionId: 'p1', nickname: 'Alice', connected: true } as any];
-            handlers['playerDisconnected']({ sessionId: 'p1', nickname: 'Alice' });
+            state.multiplayerPlayers = [{ playerId: 'p1', nickname: 'Alice', connected: true } as any];
+            handlers['playerDisconnected']({ playerId: 'p1', nickname: 'Alice' });
 
             expect(state.multiplayerPlayers[0].connected).toBe(false);
             expect(showToast).toHaveBeenCalledWith('multiplayer.playerDisconnected name=Alice', 'warning');
@@ -663,8 +666,8 @@ describe('Frontend Handler Registration', () => {
         });
 
         test('playerReconnected marks player as connected', () => {
-            state.multiplayerPlayers = [{ sessionId: 'p1', nickname: 'Alice', connected: false } as any];
-            handlers['playerReconnected']({ sessionId: 'p1', nickname: 'Alice' });
+            state.multiplayerPlayers = [{ playerId: 'p1', nickname: 'Alice', connected: false } as any];
+            handlers['playerReconnected']({ playerId: 'p1', nickname: 'Alice' });
 
             expect(state.multiplayerPlayers[0].connected).toBe(true);
             expect(showToast).toHaveBeenCalledWith('multiplayer.playerReconnected name=Alice', 'success');
@@ -692,16 +695,16 @@ describe('Frontend Handler Registration', () => {
         });
 
         test('hostChanged updates host status when becoming host', () => {
-            mockEigennamenClient.player!.sessionId = 'me-123';
-            handlers['hostChanged']({ newHostSessionId: 'me-123', newHostNickname: 'TestPlayer' });
+            mockEigennamenClient.player!.playerId = 'me-123';
+            handlers['hostChanged']({ newHostPlayerId: 'me-123', newHostNickname: 'TestPlayer' });
 
             expect(state.isHost).toBe(true);
             expect(showToast).toHaveBeenCalledWith(expect.stringContaining('multiplayer.youAreHost'), 'info');
         });
 
         test('hostChanged shows notification when someone else becomes host', () => {
-            mockEigennamenClient.player!.sessionId = 'me-123';
-            handlers['hostChanged']({ newHostSessionId: 'other-456', newHostNickname: 'OtherPlayer' });
+            mockEigennamenClient.player!.playerId = 'me-123';
+            handlers['hostChanged']({ newHostPlayerId: 'other-456', newHostNickname: 'OtherPlayer' });
 
             expect(state.isHost).toBe(false);
             expect(showToast).toHaveBeenCalledWith(expect.stringContaining('multiplayer.newHost'), 'info');
@@ -714,11 +717,11 @@ describe('Frontend Handler Registration', () => {
 
         test('roomResynced syncs all state', () => {
             const gameData = { words: ['A'], types: ['red'] };
-            const players = [{ sessionId: 'p1' }];
+            const players = [{ playerId: 'p1' }];
             handlers['roomResynced']({
                 game: gameData,
                 players,
-                you: { sessionId: 'me', nickname: 'Me', team: 'red' },
+                you: { playerId: 'me', sessionId: 'sess-me', nickname: 'Me', team: 'red' },
                 room: { code: 'ROOM' },
             });
 
@@ -738,7 +741,7 @@ describe('Frontend Handler Registration', () => {
             handlers['roomResynced']({
                 game: { words: ['A'] },
                 players: [],
-                you: { sessionId: 'me', nickname: 'Me' },
+                you: { playerId: 'me', sessionId: 'sess-me', nickname: 'Me' },
                 room: { code: 'ROOM' },
             });
 
@@ -841,10 +844,10 @@ describe('Frontend Handler Registration', () => {
 
         test('playerKicked removes player from list', () => {
             state.multiplayerPlayers = [
-                { sessionId: 'p1', nickname: 'Alice' } as any,
-                { sessionId: 'p2', nickname: 'Bob' } as any,
+                { playerId: 'p1', nickname: 'Alice' } as any,
+                { playerId: 'p2', nickname: 'Bob' } as any,
             ];
-            handlers['playerKicked']({ sessionId: 'p1', nickname: 'Alice' });
+            handlers['playerKicked']({ playerId: 'p1', nickname: 'Alice' });
 
             expect(state.multiplayerPlayers).toHaveLength(1);
             expect(showToast).toHaveBeenCalledWith('multiplayer.playerKicked name=Alice', 'info');

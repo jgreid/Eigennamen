@@ -46,8 +46,8 @@ export interface Player {
  * Player information for client display (public view)
  */
 export interface PlayerInfo {
-    /** Session ID */
-    sessionId: string;
+    /** Opaque public player id (derived; peer sessionIds are never sent to clients — N1) */
+    playerId: string;
     /** Display name */
     nickname: string;
     /** Team assignment */

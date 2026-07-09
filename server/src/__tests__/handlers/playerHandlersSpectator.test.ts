@@ -30,6 +30,10 @@ jest.mock('../../utils/distributedLock', () => ({
 
 const playerService = require('../../services/playerService');
 const gameService = require('../../services/gameService');
+const { derivePlayerId } = require('../../services/player/publicId');
+
+// Opaque public id clients use to reference the requester (N1).
+const REQUESTER_PLAYER_ID = derivePlayerId('requester-1');
 
 describe('Player Handlers - Spectator & Missing Paths', () => {
     let mockSocket: any;
@@ -38,6 +42,12 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+
+        // Real one-way derivation through the auto-mocked barrel — peer payloads
+        // carry playerId, never sessionId (N1).
+        playerService.derivePlayerId.mockImplementation(
+            jest.requireActual('../../services/player/publicId').derivePlayerId
+        );
 
         handlers = {};
         mockSocket = {
@@ -88,7 +98,7 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
             // Host is addressed via its player: room, not the bare sessionId.
             expect(mockIo.to).toHaveBeenCalledWith('player:host-1');
             expect(mockIo.emit).toHaveBeenCalledWith('spectator:joinRequest', {
-                requesterId: 'session-1',
+                requesterId: derivePlayerId('session-1'),
                 requesterNickname: 'Player1',
                 team: 'red',
                 timestamp: expect.any(Number),
@@ -178,30 +188,22 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
         });
 
         it('should approve and seat a spectator as a team clicker (F6)', async () => {
-            // Target is a spectator
-            playerService.getPlayer
-                .mockResolvedValueOnce({
-                    sessionId: 'session-1',
-                    roomCode: 'TEST12',
-                    isHost: true,
-                    nickname: 'Host',
-                    team: 'red',
-                    role: 'spymaster',
-                })
-                .mockResolvedValueOnce({
-                    sessionId: 'requester-1',
-                    roomCode: 'TEST12',
-                    nickname: 'Spectator',
-                    team: null,
-                    role: 'spectator',
-                });
+            // Target is a spectator — resolved from its opaque playerId (N1).
+            playerService.findPlayerByPublicId.mockResolvedValue({
+                sessionId: 'requester-1',
+                roomCode: 'TEST12',
+                nickname: 'Spectator',
+                team: null,
+                role: 'spectator',
+            });
 
             await handlers['spectator:approveJoin']({
-                requesterId: 'requester-1',
+                requesterId: REQUESTER_PLAYER_ID,
                 approved: true,
                 team: 'red',
             });
 
+            expect(playerService.findPlayerByPublicId).toHaveBeenCalledWith('TEST12', REQUESTER_PLAYER_ID);
             // Server actually seats the requester: onto the team, then as a clicker.
             expect(playerService.setTeam).toHaveBeenCalledWith('requester-1', 'red');
             expect(playerService.setRole).toHaveBeenCalledWith('requester-1', 'clicker');
@@ -209,7 +211,7 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
             expect(mockIo.emit).toHaveBeenCalledWith(
                 'player:updated',
                 expect.objectContaining({
-                    sessionId: 'requester-1',
+                    playerId: REQUESTER_PLAYER_ID,
                     changes: expect.objectContaining({ team: 'red', role: 'clicker' }),
                 })
             );
@@ -222,24 +224,15 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
         });
 
         it('should reject an approval that carries no team', async () => {
-            playerService.getPlayer
-                .mockResolvedValueOnce({
-                    sessionId: 'session-1',
-                    roomCode: 'TEST12',
-                    isHost: true,
-                    nickname: 'Host',
-                    team: 'red',
-                    role: 'spymaster',
-                })
-                .mockResolvedValueOnce({
-                    sessionId: 'requester-1',
-                    roomCode: 'TEST12',
-                    nickname: 'Spectator',
-                    team: null,
-                    role: 'spectator',
-                });
+            playerService.findPlayerByPublicId.mockResolvedValue({
+                sessionId: 'requester-1',
+                roomCode: 'TEST12',
+                nickname: 'Spectator',
+                team: null,
+                role: 'spectator',
+            });
 
-            await handlers['spectator:approveJoin']({ requesterId: 'requester-1', approved: true });
+            await handlers['spectator:approveJoin']({ requesterId: REQUESTER_PLAYER_ID, approved: true });
 
             expect(playerService.setTeam).not.toHaveBeenCalled();
             expect(mockSocket.emit).toHaveBeenCalledWith(
@@ -249,26 +242,21 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
         });
 
         it('should revert the team move when the clicker seat is already taken', async () => {
-            playerService.getPlayer
-                .mockResolvedValueOnce({
-                    sessionId: 'session-1',
-                    roomCode: 'TEST12',
-                    isHost: true,
-                    nickname: 'Host',
-                    team: 'red',
-                    role: 'spymaster',
-                })
-                .mockResolvedValueOnce({
-                    sessionId: 'requester-1',
-                    roomCode: 'TEST12',
-                    nickname: 'Spectator',
-                    team: null,
-                    role: 'spectator',
-                });
+            playerService.findPlayerByPublicId.mockResolvedValue({
+                sessionId: 'requester-1',
+                roomCode: 'TEST12',
+                nickname: 'Spectator',
+                team: null,
+                role: 'spectator',
+            });
             const { ValidationError } = require('../../errors/GameError');
             playerService.setRole.mockRejectedValueOnce(new ValidationError('red team already has a clicker'));
 
-            await handlers['spectator:approveJoin']({ requesterId: 'requester-1', approved: true, team: 'red' });
+            await handlers['spectator:approveJoin']({
+                requesterId: REQUESTER_PLAYER_ID,
+                approved: true,
+                team: 'red',
+            });
 
             // Seated onto the team, failed on the clicker seat, reverted to no team.
             expect(playerService.setTeam).toHaveBeenNthCalledWith(1, 'requester-1', 'red');
@@ -282,25 +270,16 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
         });
 
         it('should deny a spectator join request', async () => {
-            playerService.getPlayer
-                .mockResolvedValueOnce({
-                    sessionId: 'session-1',
-                    roomCode: 'TEST12',
-                    isHost: true,
-                    nickname: 'Host',
-                    team: 'red',
-                    role: 'spymaster',
-                })
-                .mockResolvedValueOnce({
-                    sessionId: 'requester-1',
-                    roomCode: 'TEST12',
-                    nickname: 'Spectator',
-                    team: null,
-                    role: 'spectator',
-                });
+            playerService.findPlayerByPublicId.mockResolvedValue({
+                sessionId: 'requester-1',
+                roomCode: 'TEST12',
+                nickname: 'Spectator',
+                team: null,
+                role: 'spectator',
+            });
 
             await handlers['spectator:approveJoin']({
-                requesterId: 'requester-1',
+                requesterId: REQUESTER_PLAYER_ID,
                 approved: false,
             });
 
@@ -314,19 +293,10 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
         });
 
         it('should error when requester not found', async () => {
-            playerService.getPlayer
-                .mockResolvedValueOnce({
-                    sessionId: 'session-1',
-                    roomCode: 'TEST12',
-                    isHost: true,
-                    nickname: 'Host',
-                    team: 'red',
-                    role: 'spymaster',
-                })
-                .mockResolvedValueOnce(null);
+            playerService.findPlayerByPublicId.mockResolvedValue(null);
 
             await handlers['spectator:approveJoin']({
-                requesterId: 'unknown',
+                requesterId: derivePlayerId('unknown'),
                 approved: true,
             });
 
@@ -339,25 +309,12 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
         });
 
         it('should error when requester is in different room', async () => {
-            playerService.getPlayer
-                .mockResolvedValueOnce({
-                    sessionId: 'session-1',
-                    roomCode: 'TEST12',
-                    isHost: true,
-                    nickname: 'Host',
-                    team: 'red',
-                    role: 'spymaster',
-                })
-                .mockResolvedValueOnce({
-                    sessionId: 'requester-1',
-                    roomCode: 'OTHER',
-                    nickname: 'Spectator',
-                    team: null,
-                    role: 'spectator',
-                });
+            // findPlayerByPublicId is room-scoped: a requester seated in another
+            // room never resolves within this room's roster.
+            playerService.findPlayerByPublicId.mockResolvedValue(null);
 
             await handlers['spectator:approveJoin']({
-                requesterId: 'requester-1',
+                requesterId: REQUESTER_PLAYER_ID,
                 approved: true,
             });
 
@@ -370,25 +327,16 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
         });
 
         it('should reject if requester is not a spectator', async () => {
-            playerService.getPlayer
-                .mockResolvedValueOnce({
-                    sessionId: 'session-1',
-                    roomCode: 'TEST12',
-                    isHost: true,
-                    nickname: 'Host',
-                    team: 'red',
-                    role: 'spymaster',
-                })
-                .mockResolvedValueOnce({
-                    sessionId: 'requester-1',
-                    roomCode: 'TEST12',
-                    nickname: 'NotSpectator',
-                    team: 'blue',
-                    role: 'clicker',
-                });
+            playerService.findPlayerByPublicId.mockResolvedValue({
+                sessionId: 'requester-1',
+                roomCode: 'TEST12',
+                nickname: 'NotSpectator',
+                team: 'blue',
+                role: 'clicker',
+            });
 
             await handlers['spectator:approveJoin']({
-                requesterId: 'requester-1',
+                requesterId: REQUESTER_PLAYER_ID,
                 approved: true,
             });
 
@@ -401,25 +349,16 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
         });
 
         it('should reject approving a teamless observer as a clicker (board-knowledge laundering)', async () => {
-            playerService.getPlayer
-                .mockResolvedValueOnce({
-                    sessionId: 'session-1',
-                    roomCode: 'TEST12',
-                    isHost: true,
-                    nickname: 'Host',
-                    team: 'red',
-                    role: 'spymaster',
-                })
-                .mockResolvedValueOnce({
-                    sessionId: 'requester-1',
-                    roomCode: 'TEST12',
-                    nickname: 'Peeker',
-                    team: null,
-                    role: 'observer',
-                });
+            playerService.findPlayerByPublicId.mockResolvedValue({
+                sessionId: 'requester-1',
+                roomCode: 'TEST12',
+                nickname: 'Peeker',
+                team: null,
+                role: 'observer',
+            });
 
             await handlers['spectator:approveJoin']({
-                requesterId: 'requester-1',
+                requesterId: REQUESTER_PLAYER_ID,
                 approved: true,
                 team: 'red',
             });
@@ -435,26 +374,17 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
         });
 
         it('should not throw when requester has no connected socket on approve', async () => {
-            playerService.getPlayer
-                .mockResolvedValueOnce({
-                    sessionId: 'session-1',
-                    roomCode: 'TEST12',
-                    isHost: true,
-                    nickname: 'Host',
-                    team: 'red',
-                    role: 'spymaster',
-                })
-                .mockResolvedValueOnce({
-                    sessionId: 'requester-1',
-                    roomCode: 'TEST12',
-                    nickname: 'Spectator',
-                    team: null,
-                    role: 'spectator',
-                });
+            playerService.findPlayerByPublicId.mockResolvedValue({
+                sessionId: 'requester-1',
+                roomCode: 'TEST12',
+                nickname: 'Spectator',
+                team: null,
+                role: 'spectator',
+            });
 
             // Should not throw — emit to an empty player: room is a no-op.
             await handlers['spectator:approveJoin']({
-                requesterId: 'requester-1',
+                requesterId: REQUESTER_PLAYER_ID,
                 approved: true,
                 team: 'red',
             });
@@ -463,25 +393,16 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
         });
 
         it('should not throw when requester has no connected socket on deny', async () => {
-            playerService.getPlayer
-                .mockResolvedValueOnce({
-                    sessionId: 'session-1',
-                    roomCode: 'TEST12',
-                    isHost: true,
-                    nickname: 'Host',
-                    team: 'red',
-                    role: 'spymaster',
-                })
-                .mockResolvedValueOnce({
-                    sessionId: 'requester-1',
-                    roomCode: 'TEST12',
-                    nickname: 'Spectator',
-                    team: null,
-                    role: 'spectator',
-                });
+            playerService.findPlayerByPublicId.mockResolvedValue({
+                sessionId: 'requester-1',
+                roomCode: 'TEST12',
+                nickname: 'Spectator',
+                team: null,
+                role: 'spectator',
+            });
 
             await handlers['spectator:approveJoin']({
-                requesterId: 'requester-1',
+                requesterId: REQUESTER_PLAYER_ID,
                 approved: false,
             });
 

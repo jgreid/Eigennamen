@@ -55,21 +55,21 @@ export function setPlayers(players: ServerPlayerData[]): void {
  * Add a player to the list (if not already present).
  */
 export function addPlayer(player: ServerPlayerData): void {
-    if (!state.multiplayerPlayers.some((p) => p.sessionId === player.sessionId)) {
+    if (!state.multiplayerPlayers.some((p) => p.playerId === player.playerId)) {
         state.multiplayerPlayers = [...state.multiplayerPlayers, player];
     }
 }
 
 /**
- * Remove a player by session ID.
+ * Remove a player by public player ID.
  */
-export function removePlayer(sessionId: string): void {
-    state.multiplayerPlayers = state.multiplayerPlayers.filter((p) => p.sessionId !== sessionId);
+export function removePlayer(playerId: string): void {
+    state.multiplayerPlayers = state.multiplayerPlayers.filter((p) => p.playerId !== playerId);
 }
 
 /**
- * Update a specific player in the list (by sessionId).
+ * Update a specific player in the list (by public player ID).
  */
 export function updatePlayer(updated: ServerPlayerData): void {
-    state.multiplayerPlayers = state.multiplayerPlayers.map((p) => (p.sessionId === updated.sessionId ? updated : p));
+    state.multiplayerPlayers = state.multiplayerPlayers.map((p) => (p.playerId === updated.playerId ? updated : p));
 }

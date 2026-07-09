@@ -26,6 +26,14 @@ jest.mock('../../services/playerService', () => ({
     validateSocketAuthToken: jest.fn(),
 }));
 
+// N1: resolveSessionId now checks a per-session auth secret before adopting an
+// existing player's session. Default to 'missing' (no secret stored → legacy
+// grace path) so the pre-existing adoption tests keep their original intent.
+jest.mock('../../services/player/sessionAuth', () => ({
+    validateSessionAuthSecret: jest.fn(async () => 'missing'),
+    mintSessionAuthSecret: jest.fn(async () => 'ab'.repeat(32)),
+}));
+
 jest.mock('../../config/redis', () => ({
     getRedis: jest.fn(),
 }));

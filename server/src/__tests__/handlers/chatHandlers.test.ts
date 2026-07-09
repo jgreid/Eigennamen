@@ -31,6 +31,7 @@ jest.mock('../../utils/logger', () => ({
 const playerService = require('../../services/playerService');
 const gameService = require('../../services/gameService');
 const { ERROR_CODES } = require('../../config/constants');
+const { derivePlayerId } = require('../../services/player/publicId');
 
 describe('Chat Handlers', () => {
     let mockSocket;
@@ -100,7 +101,7 @@ describe('Chat Handlers', () => {
                     text: 'Hello everyone!',
                     teamOnly: false,
                     from: expect.objectContaining({
-                        sessionId: 'session-456',
+                        playerId: derivePlayerId('session-456'),
                         nickname: 'TestPlayer',
                         team: 'red',
                     }),
@@ -613,7 +614,7 @@ describe('Chat Handlers', () => {
             expect(emittedMessage).toEqual(
                 expect.objectContaining({
                     from: expect.objectContaining({
-                        sessionId: expect.any(String),
+                        playerId: derivePlayerId('session-456'),
                         nickname: expect.any(String),
                         team: expect.any(String),
                     }),

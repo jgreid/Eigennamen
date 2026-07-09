@@ -40,9 +40,9 @@ export function addBotFromForm(): void {
 }
 
 /** Remove a bot by session id (host only). */
-export function removeBot(sessionId: string): void {
-    if (!sessionId || !isClientConnected()) return;
-    EigennamenClient.removeBot(sessionId);
+export function removeBot(playerId: string): void {
+    if (!playerId || !isClientConnected()) return;
+    EigennamenClient.removeBot(playerId);
 }
 
 /** Show the bot panel only to the room host. */

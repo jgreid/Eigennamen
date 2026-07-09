@@ -46,6 +46,7 @@ import type { JoinCreateResult } from './multiplayerTypes.js';
     const EigennamenClient = {
         socket: null as SocketClientInstance | null,
         sessionId: null as string | null,
+        sessionToken: null as string | null,
         roomCode: null as string | null,
         player: null as Player | null,
         connected: false,
@@ -142,12 +143,12 @@ import type { JoinCreateResult } from './multiplayerTypes.js';
             this._getSocket()?.emit('room:settings', settings);
         },
 
-        kickPlayer(targetSessionId: string): void {
+        kickPlayer(targetPlayerId: string): void {
             if (!this.player?.isHost) {
                 logger.warn('Only the host can kick players');
                 return;
             }
-            this._getSocket()?.emit('player:kick', { targetSessionId });
+            this._getSocket()?.emit('player:kick', { targetPlayerId });
         },
 
         requestResync(): Promise<ClientEventMap['roomResynced']> {
@@ -250,8 +251,8 @@ import type { JoinCreateResult } from './multiplayerTypes.js';
             this._getSocket()?.emit('bot:add', { team, role, strategyId, skillPreset });
         },
 
-        removeBot(sessionId: string): void {
-            this._getSocket()?.emit('bot:remove', { sessionId });
+        removeBot(playerId: string): void {
+            this._getSocket()?.emit('bot:remove', { playerId });
         },
 
         // =====================
@@ -286,6 +287,9 @@ import type { JoinCreateResult } from './multiplayerTypes.js';
         _saveSession(): void {
             if (this.sessionId) {
                 safeSetStorage(sessionStorage, 'eigennamen-session-id', this.sessionId);
+            }
+            if (this.sessionToken) {
+                safeSetStorage(sessionStorage, 'eigennamen-session-token', this.sessionToken);
             }
             if (this.roomCode) {
                 safeSetStorage(sessionStorage, 'eigennamen-room-code', this.roomCode);
@@ -368,9 +372,11 @@ import type { JoinCreateResult } from './multiplayerTypes.js';
 
         clearSession(): void {
             safeRemoveStorage(sessionStorage, 'eigennamen-session-id');
+            safeRemoveStorage(sessionStorage, 'eigennamen-session-token');
             safeRemoveStorage(sessionStorage, 'eigennamen-room-code');
             safeRemoveStorage(localStorage, 'eigennamen-nickname');
             this.sessionId = null;
+            this.sessionToken = null;
             this.storedNickname = null;
             this.joinInProgress = false;
             this.createInProgress = false;

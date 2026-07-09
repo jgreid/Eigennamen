@@ -363,7 +363,7 @@ function setupEventListeners(): void {
                 addBotFromForm();
                 break;
             case 'remove-bot':
-                removeBot(target.dataset.session ?? '');
+                removeBot(target.dataset.player ?? '');
                 break;
 
             // Setup screen actions
