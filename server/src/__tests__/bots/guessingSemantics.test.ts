@@ -199,6 +199,68 @@ describe('map + vector backends: hasSignal follows the chain', () => {
     });
 });
 
+describe('tier composition: curated signal is never shadowed by cosine', () => {
+    // Orthogonal vectors for pairs the curated layers KNOW, plus a lexical
+    // lookalike pair the curated layers don't — pinning that the max is gated
+    // on real provenance, not on the bigram floor.
+    const write = (dir: string): string => {
+        const vecPath = join(dir, 'v.vec');
+        writeFileSync(
+            vecPath,
+            [
+                '6 3',
+                'animal 1 0 0',
+                'bear 0 1 0',
+                'sundial 1 0 0',
+                'india 0 1 0',
+                'tentacle 1 0 0',
+                'octopus 0 1 0',
+                '',
+            ].join('\n')
+        );
+        return vecPath;
+    };
+
+    it('a curated table edge wins over a weak cosine for in-vocabulary words', () => {
+        const dir = mkdtempSync(join(tmpdir(), 'eig-comp-'));
+        try {
+            const vb = makeVectorBackend({ path: write(dir), fallback: tableBackend }) as SemanticBackend;
+            // Cosine is 0 (orthogonal), but the table KNOWS ANIMAL→BEAR.
+            expect(vb.relatedness('ANIMAL', 'BEAR')).toBe(1);
+        } finally {
+            rmSync(dir, { recursive: true, force: true });
+        }
+    });
+
+    it('a curated map edge under vectors wins the same way', () => {
+        const dir = mkdtempSync(join(tmpdir(), 'eig-comp-'));
+        try {
+            const map: SemanticMap = {
+                version: 2,
+                words: ['OCTOPUS'],
+                concepts: { TENTACLE: ['OCTOPUS'] },
+            };
+            const fallback = makeCustomMapBackend([map], tableBackend);
+            const vb = makeVectorBackend({ path: write(dir), fallback }) as SemanticBackend;
+            expect(vb.relatedness('TENTACLE', 'OCTOPUS')).toBe(1);
+        } finally {
+            rmSync(dir, { recursive: true, force: true });
+        }
+    });
+
+    it('the lexical bigram floor never overrides a genuine cosine', () => {
+        const dir = mkdtempSync(join(tmpdir(), 'eig-comp-'));
+        try {
+            const vb = makeVectorBackend({ path: write(dir), fallback: tableBackend }) as SemanticBackend;
+            // SUNDIAL/INDIA: raw bigram overlap is ~0.6, but the table has NO
+            // signal for the pair — the (orthogonal) cosine must stand.
+            expect(vb.relatedness('SUNDIAL', 'INDIA')).toBe(0);
+        } finally {
+            rmSync(dir, { recursive: true, force: true });
+        }
+    });
+});
+
 describe('embeddings auto-detection', () => {
     it('finds the most specific asset at the well-known locations', () => {
         const dir = mkdtempSync(join(tmpdir(), 'eig-auto-'));

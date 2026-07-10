@@ -486,7 +486,18 @@ function buildVectorBackend(loaded: LoadedVectors, opts: Required<VectorBackendO
             if (referenceSignal(a) === 'proper' || referenceSignal(b) === 'proper') {
                 return Math.max(cosine ?? 0, fallback.relatedness(a, b));
             }
-            if (cosine !== null) return cosine;
+            // Tiers COMPOSE, they don't shadow: when the curated chain beneath
+            // (semantic maps / baked table) has REAL signal for the pair, the
+            // stronger reading wins. Without this, enabling vectors silently
+            // suppressed every curated edge between in-vocabulary words — a
+            // curated TENTACLE→OCTOPUS 1.0 collapsed to a compressed cosine
+            // (~0.3 under Numberbatch) — on both the guessing side and the
+            // spymaster's danger margins. Gated on hasSignal so the lexical
+            // bigram floor can never override a genuine cosine.
+            if (cosine !== null) {
+                if (fallback.hasSignal?.(a, b)) return Math.max(cosine, fallback.relatedness(a, b));
+                return cosine;
+            }
             // One or both OOV: defer to the fallback chain (table → lexical).
             return fallback.relatedness(a, b);
         },
