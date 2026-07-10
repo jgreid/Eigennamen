@@ -52,6 +52,16 @@ export function buildClickerView(game: GameState, seat: Player, team: 'red' | 'b
     const clue = game.currentClue
         ? { word: game.currentClue.word, number: game.currentClue.number, team: game.currentClue.team }
         : null;
+    // Own-remaining count for the endgame guess discipline (ledger 2.11). PUBLIC
+    // information — the scoreboard shows it to everyone — computed here from the
+    // unmasked game because the masked types[] can't be counted. Duet mirrors the
+    // spymaster-view branch: blue's own greens live only in duetTypes.
+    const mode = gameModeOf(game);
+    const ownTypes = mode === 'duet' && team === 'blue' ? (game.duetTypes ?? game.types) : game.types;
+    let ownRemaining = 0;
+    for (let i = 0; i < ownTypes.length; i++) {
+        if (ownTypes[i] === team && !game.revealed[i]) ownRemaining++;
+    }
     return {
         role: 'clicker',
         team,
@@ -63,6 +73,7 @@ export function buildClickerView(game: GameState, seat: Player, team: 'red' | 'b
         currentClue: clue,
         guessesUsed: game.guessesUsed ?? 0,
         guessesAllowed: game.guessesAllowed ?? 0,
+        ownRemaining,
     };
 }
 

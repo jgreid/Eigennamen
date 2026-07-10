@@ -169,6 +169,11 @@ export interface BotClickerView {
     readonly currentClue: BotClue | null;
     readonly guessesUsed: number;
     readonly guessesAllowed: number; // 0 = unlimited
+    /** Own-team cards still unrevealed — PUBLIC information (every player sees
+     *  it on the scoreboard), not key knowledge. Drives the endgame guess
+     *  discipline (ledger 2.11 / lesson 11). Optional: absent (older fixtures,
+     *  synthetic views) means "unknown", and no endgame tightening applies. */
+    readonly ownRemaining?: number;
 }
 
 /** One variant per legal move; maps 1:1 to a game action. */

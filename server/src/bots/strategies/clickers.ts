@@ -144,6 +144,27 @@ const BONUS_FIELD_GAP = 0.2;
 const DEBT_FIT_BAR = 0.5;
 const DEBT_BOOST = 0.08;
 
+// Endgame guess discipline (ledger 2.11 / lesson 11 — the guesser-side mirror
+// of the spymaster's ENDGAME_BERTH_RAMP). The endgame is structurally the
+// high-risk phase: spymasters sequence best-first and lower standards late,
+// guessers know it and lower their acceptance in turn, and each side's
+// relaxation licenses the other's — both documented live-play assassin hits
+// were endgame events. So while a HUMAN's stretch prior loosens late, the
+// bot's tightens: with few own cards left, a guess beyond the first that is
+// WEAK (below the stretch ceiling — the advisor's late-stretch band) and
+// BLURRED into the field (below the separation bar, i.e. indistinguishable
+// from the unknown pool that now contains the assassin at its highest
+// density) is banked, and the optional number+1 bonus must clear a raised
+// floor. A bold persona narrows the ceiling tax (aggression), but the check
+// itself is persona-independent. ENDGAME_OWN_MAX mirrors the advisor's and
+// the harness's endgame slice, so the discipline and its metric (dangerEG)
+// describe the same phase.
+const ENDGAME_OWN_MAX = 3;
+const ENDGAME_STRETCH_CEILING = 0.35;
+const ENDGAME_STRETCH_AGGRESSION_RELIEF = 0.1;
+const ENDGAME_STRETCH_SEPARATION = 0.08;
+const ENDGAME_BONUS_BUMP = 0.15;
+
 // A guesser only ever reaches for cards that PLAUSIBLY match the clue. Even a
 // noisy/weak one won't pick a card fitting far worse than the best candidate —
 // that is exactly how a blind random guess lands on the clue-unrelated assassin.
@@ -270,6 +291,9 @@ export function makeGreedyClicker(
                 }
             }
             const aggression = skill.aggression ?? 0;
+            // Endgame slice (ledger 2.11): few own cards left, per the PUBLIC
+            // scoreboard count. Absent (synthetic views) means no tightening.
+            const endgame = view.ownRemaining !== undefined && view.ownRemaining <= ENDGAME_OWN_MAX;
 
             const target = view.currentClue.number > 0 ? view.currentClue.number : choices.length;
             if (view.guessesUsed >= target) {
@@ -278,9 +302,13 @@ export function makeGreedyClicker(
                 // landed. Spend the extra one only when the top leftover clears the
                 // bonus floor AND the rest of the field by a wide margin — and only
                 // for a persona with real aggression (plain presets never stretch).
-                // Deliberate stretch = deterministic argmax, no temperature.
+                // Deliberate stretch = deterministic argmax, no temperature. In the
+                // endgame the floor rises further (2.11): the optional extra guess
+                // is the purest stretch there is, in the phase where a miss is
+                // most likely to be lethal rather than merely wasteful.
                 const engineAllows = view.guessesAllowed === 0 || view.guessesUsed < view.guessesAllowed;
-                const bonusFloor = BONUS_FLOOR_BASE + BONUS_FLOOR_TIMIDITY * (1 - aggression);
+                const bonusFloor =
+                    BONUS_FLOOR_BASE + BONUS_FLOOR_TIMIDITY * (1 - aggression) + (endgame ? ENDGAME_BONUS_BUMP : 0);
                 if (
                     engineAllows &&
                     aggression > 0 &&
@@ -318,6 +346,21 @@ export function makeGreedyClicker(
             const confidenceFloor = skill.riskAversion * 0.2;
             if (view.guessesUsed >= 1 && best.score < confidenceFloor) {
                 return { kind: 'endTurn' };
+            }
+
+            // Endgame stretch discipline (ledger 2.11 / lesson 11, constants
+            // above): late in the game, a guess beyond the first that is both
+            // WEAK and BLURRED into the field is the assassin-candidate state —
+            // the unknown pool is at its smallest and most dangerous — so the
+            // turn is banked instead. A strong clear read late is still taken;
+            // this only refuses the coin-flip stretch. Applies on the LLM-advice
+            // scale identically (a weak model read late is still a stretch).
+            if (endgame && view.guessesUsed >= 1) {
+                const ceiling = ENDGAME_STRETCH_CEILING - ENDGAME_STRETCH_AGGRESSION_RELIEF * aggression;
+                const separation = best.score - Math.max(second, 0);
+                if (best.score < ceiling && separation < ENDGAME_STRETCH_SEPARATION) {
+                    return { kind: 'endTurn' };
+                }
             }
 
             // Relative cliff ("core + stretch"): even above the absolute floor,

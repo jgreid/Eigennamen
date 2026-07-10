@@ -354,3 +354,68 @@ describe('clicker plausibility guard (no suicidal picks)', () => {
         }
     });
 });
+
+describe('2.11 endgame stretch discipline (lesson 11 — the guesser-side berth ramp)', () => {
+    // Synthetic backend: one moderately-warm card blurred into a lukewarm field
+    // (the endgame no-information state), plus a strong-clear configuration.
+    const weakBlurred: SemanticBackend = {
+        id: 'weak-blurred',
+        relatedness: (a, b) => (b === 'ALPHA' ? 0.3 : b === 'BRAVO' ? 0.26 : 0.1),
+    };
+    const strongClear: SemanticBackend = {
+        id: 'strong-clear',
+        relatedness: (a, b) => (b === 'ALPHA' ? 0.8 : 0.15),
+    };
+    const midClue = (ownRemaining: number): BotClickerView => ({
+        ...clickerView(['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA'], 'HUNCH', 3, 1),
+        ownRemaining,
+    });
+
+    it('banks a weak, blurred stretch in the endgame that it would take early-game', () => {
+        const s = skill();
+        expect(makeGreedyClicker(s, weakBlurred).chooseGuess(midClue(6), ctx(s))).toEqual({
+            kind: 'reveal',
+            index: 0,
+        });
+        expect(makeGreedyClicker(s, weakBlurred).chooseGuess(midClue(2), ctx(s))).toEqual({ kind: 'endTurn' });
+    });
+
+    it('still takes a strong, clear read in the endgame', () => {
+        const s = skill();
+        expect(makeGreedyClicker(s, strongClear).chooseGuess(midClue(2), ctx(s))).toEqual({
+            kind: 'reveal',
+            index: 0,
+        });
+    });
+
+    it('never banks the forced first guess, and synthetic views without ownRemaining are untouched', () => {
+        const s = skill();
+        const firstGuess: BotClickerView = {
+            ...clickerView(['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA'], 'HUNCH', 3, 0),
+            ownRemaining: 1,
+        };
+        expect(makeGreedyClicker(s, weakBlurred).chooseGuess(firstGuess, ctx(s)).kind).toBe('reveal');
+        // No ownRemaining -> no endgame tightening (pre-2.11 behaviour).
+        const legacy = clickerView(['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA'], 'HUNCH', 3, 1);
+        expect(makeGreedyClicker(s, weakBlurred).chooseGuess(legacy, ctx(s)).kind).toBe('reveal');
+    });
+
+    it('raises the number+1 bonus floor in the endgame', () => {
+        // Top leftover at 0.65 clears the bold persona's normal floor (0.6) and
+        // the field gap, but not the endgame floor (0.75).
+        const bonusBackend: SemanticBackend = {
+            id: 'bonus',
+            relatedness: (a, b) => (b === 'ALPHA' ? 0.65 : 0.1),
+        };
+        const s = skill({ aggression: 1 });
+        const spent = (ownRemaining: number): BotClickerView => ({
+            ...clickerView(['ALPHA', 'BRAVO', 'CHARLIE'], 'HUNCH', 1, 1),
+            ownRemaining,
+        });
+        expect(makeGreedyClicker(s, bonusBackend).chooseGuess(spent(6), ctx(s))).toEqual({
+            kind: 'reveal',
+            index: 0,
+        });
+        expect(makeGreedyClicker(s, bonusBackend).chooseGuess(spent(2), ctx(s))).toEqual({ kind: 'endTurn' });
+    });
+});
