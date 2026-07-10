@@ -190,12 +190,24 @@ export function registerGameHandlers(): void {
     // Advisor bot → ranked guess suggestions for the current clue (advisory only;
     // the human clicker still reveals). Server sends to the whole room.
     EigennamenClient.on('botSuggestion', (data: BotSuggestionData) => {
-        if (state.resyncInProgress) return;
         if (!data || !Array.isArray(data.suggestions)) return;
         // Only surface suggestions to the advised team and watchers (observers /
         // spectators). The opposing team shouldn't see the other side's hints.
         const relevant = state.isObserver || !state.playerTeam || state.playerTeam === data.team;
         if (!relevant) return;
+        if (state.resyncInProgress) {
+            // Do NOT drop the event like the other gated handlers: suggestions
+            // are absent from the resync snapshot and the advisor de-dupes per
+            // game state, so a drop is permanent — the human clicker this
+            // advises is the only actor left to change the state, and the
+            // badge would never appear. Hold it; the resync completion flushes
+            // it (flushPendingBotSuggestion).
+            state.pendingBotSuggestion = {
+                suggestions: data.suggestions,
+                advisor: data.advisor?.nickname ?? null,
+            };
+            return;
+        }
         state.botSuggestions = data.suggestions;
         state.botSuggestionAdvisor = data.advisor?.nickname ?? null;
         renderBotSuggestions();

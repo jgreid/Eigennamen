@@ -98,6 +98,7 @@ const _rawState: AppState = {
     roleChange: { phase: 'idle' },
     botSuggestions: [],
     botSuggestionAdvisor: null,
+    pendingBotSuggestion: null,
 
     gameState: {
         words: [],
