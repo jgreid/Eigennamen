@@ -38,6 +38,7 @@
     "loadtest:memory": "node loadtest/memory-leak-test.js",
     "bots:train": "ts-node --transpile-only src/bots/harness/runMatches.ts",
     "bots:analyze": "ts-node --transpile-only src/bots/harness/analyze.ts",
+    "bots:eval": "ts-node --transpile-only src/bots/harness/evalAssociations.ts",
     "bots:parity": "ts-node --transpile-only src/bots/harness/parity.ts",
     "bots:embeddings": "node ../scripts/dev-bots.mjs --no-run",
     "bots:associations": "node ../scripts/generate-associations.mjs",
