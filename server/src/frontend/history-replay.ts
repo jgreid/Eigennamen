@@ -199,11 +199,18 @@ export function renderReplayEventLog(): void {
         switch (event.type) {
             case 'clue':
                 actionText = t('history.gaveClue');
-                detailText = `"${event.data?.word || ''}" for ${event.data?.number ?? ''}`;
+                // Detail fragments were hardcoded English shipped to de/es/fr (N18).
+                detailText = t('history.clueDetail', {
+                    word: String(event.data?.word || ''),
+                    number: String(event.data?.number ?? ''),
+                });
                 break;
             case 'reveal':
                 actionText = t('history.revealed');
-                detailText = `${event.data?.word || ''} (${event.data?.type || ''})`;
+                detailText = t('history.revealDetail', {
+                    word: String(event.data?.word || ''),
+                    type: String(event.data?.type || ''),
+                });
                 break;
             case 'endTurn':
                 actionText = t('history.endedTurn');

@@ -2,7 +2,7 @@ import type { Server } from 'socket.io';
 import type { Player, GameState, Room, RevealResult, EndTurnResult, ForfeitResult } from '../../types';
 import type { GameSocket, RoomContext, GameContext } from './types';
 
-import { z, type ZodType } from 'zod';
+import { type ZodType } from 'zod';
 import * as gameService from '../../services/gameService';
 import * as playerService from '../../services/playerService';
 import * as roomService from '../../services/roomService';
@@ -654,18 +654,12 @@ function gameHandlers(io: Server, socket: GameSocket): void {
         )
     );
 
-    /**
-     * Typing indicator — broadcast to room that a player is typing
-     */
-    socket.on(
-        SOCKET_EVENTS.GAME_TYPING,
-        createGameHandler(socket, SOCKET_EVENTS.GAME_TYPING, z.object({}).strict(), async (ctx: GameContext) => {
-            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_TYPING, {
-                playerId: playerService.derivePlayerId(ctx.player.sessionId),
-                nickname: ctx.player.nickname,
-            });
-        })
-    );
+    // NOTE: the `game:typing` indicator was deleted (N19). It was dead wiring —
+    // the server accepted and rebroadcast it, but the frontend never emitted it
+    // and registered no listener, and it escaped the Phase-F finish-or-delete
+    // pass. Removed here along with its SOCKET_EVENTS constant, rate-limit entry,
+    // and doc row. See docs/FEATURE_ROADMAP.md. Re-add both ends together if a
+    // typing indicator is ever built.
 
     /**
      * Pause the game (host only, requires active game)

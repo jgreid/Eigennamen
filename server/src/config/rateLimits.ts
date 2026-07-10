@@ -35,7 +35,7 @@ export const RATE_LIMITS: Record<string, RateLimitConfig> = {
     'game:nextRound': { window: 5000, max: 2 }, // 2 per 5 seconds (host only, match mode)
     'game:readyCheck': { window: 10000, max: 2 }, // 2 per 10 seconds (host only)
     'game:ready': { window: 5000, max: 5 }, // 5 per 5 seconds
-    'game:typing': { window: 1000, max: 1 },
+    // 'game:typing' removed (N19) — dead wiring, no client emitter/listener.
     'game:getHistory': { window: 5000, max: 5 }, // 5 per 5 seconds
     'game:getReplay': { window: 5000, max: 5 }, // 5 per 5 seconds
     // Bot events (host only)

@@ -29,7 +29,6 @@ import {
 import { batch } from './store/batch.js';
 import { isPlayerTurn } from './store/selectors.js';
 import { getClient, isClientConnected } from './clientAccessor.js';
-import { removeKeyboardShortcuts } from './accessibility.js';
 import type { ServerPlayerData, ServerGameData, ReconnectionData, DOMListenerEntry } from './multiplayerTypes.js';
 
 // List of multiplayer event names for cleanup
@@ -74,6 +73,20 @@ export const multiplayerEventNames: string[] = [
     // removes it on leave — otherwise the listener accumulates and duplicates
     // across every leave/join cycle.
     'botSuggestion',
+    // Pause/resume (F1) and paused/resumed timer events, plus the spectator
+    // join-request flow (F6), are (re)registered on every setupMultiplayerListeners()
+    // but were omitted here — so each fired N× after a kick/failed-rejoin → rejoin
+    // cycle (doubled pause toasts/announcements, a re-queued double-approvable
+    // spectator join). Listed now, but cleanup also sweeps the client's actual
+    // registered keys below so this list can no longer silently drift (N12).
+    'gamePaused',
+    'gameResumed',
+    'timerPaused',
+    'timerResumed',
+    'timerTimeAdded',
+    'spectatorJoinRequest',
+    'spectatorJoinApproved',
+    'spectatorJoinDenied',
 ];
 
 // Track DOM listeners for cleanup to prevent memory leaks
@@ -94,10 +107,18 @@ export function cleanupDOMListeners(): void {
 }
 
 export function cleanupMultiplayerListeners(): void {
-    // Remove all multiplayer event listeners from EigennamenClient
+    // Remove all multiplayer event listeners from EigennamenClient.
     const client = getClient();
     if (client) {
-        multiplayerEventNames.forEach((eventName) => {
+        // Drift-proof (N12): sweep the union of the documented list AND the
+        // client's actually-registered event keys. A handler registered without
+        // being added to multiplayerEventNames would otherwise accumulate and
+        // fire N× across every leave/join cycle (the exact bug the seven
+        // pause/timer/spectator events had). The client bus is multiplayer-only,
+        // so removing every registered key is safe.
+        const registered = client.listeners ? Object.keys(client.listeners) : [];
+        const names = new Set<string>([...multiplayerEventNames, ...registered]);
+        names.forEach((eventName) => {
             client.off(eventName);
         });
     }
@@ -165,8 +186,12 @@ export function leaveMultiplayerMode(): void {
     // Stop periodic sweep of stale revealing cards
     stopRevealSweep();
 
-    // Remove keyboard shortcuts to prevent stale listeners accumulating
-    removeKeyboardShortcuts();
+    // NOTE: keyboard shortcuts are intentionally NOT removed here (N13). The
+    // shortcut handler is global app UI (N/E/S/M/H/?), attached once at app init
+    // and idempotent — not room-scoped. Removing it on leave meant every
+    // `rejoinFailed`/`kicked` (which fires for ALL connected players on every
+    // memory-mode deploy, per IMPROVEMENT_PLAN B5) left the shortcuts dead until
+    // a full page reload, hitting keyboard-only and screen-reader users hardest.
 
     // Stop timer display
     handleTimerStopped();

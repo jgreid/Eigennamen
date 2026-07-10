@@ -48,6 +48,17 @@ jest.mock('../../frontend/state', () => ({
         isRevealingCard: false,
         spectatorCount: 0,
         roomStats: null,
+        // reconnect/resync now clear a stale local countdown (N14), which reads
+        // and mutates timerState — provide it so handleTimerStopped doesn't throw.
+        timerState: {
+            active: false,
+            endTime: null,
+            remainingSeconds: null,
+            serverRemainingSeconds: null,
+            countdownStartTime: null,
+            intervalId: null,
+        },
+        cachedElements: {},
     },
 }));
 

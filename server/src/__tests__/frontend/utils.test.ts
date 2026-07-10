@@ -7,6 +7,24 @@
  * Test environment: jsdom (provides window, document, localStorage, btoa, atob).
  */
 
+// formatGameTimestamp now routes its relative-time labels through t() (N18).
+// Mock i18n to reproduce the English strings the assertions expect.
+jest.mock('../../frontend/i18n', () => ({
+    t: (key: string, params: Record<string, string> = {}) => {
+        const map: Record<string, string> = {
+            'time.unknown': 'Unknown',
+            'time.justNow': 'Just now',
+            'time.minuteAgo': `${params.count} minute ago`,
+            'time.minutesAgo': `${params.count} minutes ago`,
+            'time.hourAgo': `${params.count} hour ago`,
+            'time.hoursAgo': `${params.count} hours ago`,
+            'time.dayAgo': `${params.count} day ago`,
+            'time.daysAgo': `${params.count} days ago`,
+        };
+        return map[key] ?? key;
+    },
+}));
+
 import {
     seededRandom,
     hashString,

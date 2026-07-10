@@ -648,6 +648,37 @@ describe('multiplayerSync', () => {
             expect(() => cleanupMultiplayerListeners()).not.toThrow();
             expect(state.multiplayerListenersSetup).toBe(false);
         });
+
+        // N12: cleanup is drift-proof — it also sweeps the client's actually
+        // registered listener keys, so a handler registered without being added
+        // to multiplayerEventNames can't accumulate across leave/join cycles.
+        it('sweeps registered listener keys not in the documented list (N12)', () => {
+            const offFn = jest.fn();
+            const { getClient } = require('../../frontend/clientAccessor');
+            (getClient as jest.Mock).mockReturnValue({
+                off: offFn,
+                listeners: { someUndocumentedEvent: [() => {}], gamePaused: [() => {}] },
+            });
+
+            cleanupMultiplayerListeners();
+
+            expect(offFn).toHaveBeenCalledWith('someUndocumentedEvent');
+            expect(offFn).toHaveBeenCalledWith('gamePaused');
+        });
+
+        it('includes the previously-missing pause/timer/spectator events (N12)', () => {
+            for (const name of [
+                'gamePaused',
+                'gameResumed',
+                'timerPaused',
+                'timerResumed',
+                'spectatorJoinRequest',
+                'spectatorJoinApproved',
+                'spectatorJoinDenied',
+            ]) {
+                expect(multiplayerEventNames).toContain(name);
+            }
+        });
     });
 
     // ─── leaveMultiplayerMode ─────────────────────────────────────
@@ -676,6 +707,22 @@ describe('multiplayerSync', () => {
             leaveMultiplayerMode();
 
             expect(leaveRoom).toHaveBeenCalled();
+        });
+
+        // N13: leaving must NOT disable the global keyboard shortcuts. They are
+        // app-level UI (attached once, idempotently, at init), not room-scoped —
+        // removing them on every rejoinFailed/kicked (which fires for all players
+        // on every memory-mode deploy) left them dead until a full page reload.
+        it('does not remove keyboard shortcuts on leave (N13)', () => {
+            const { removeKeyboardShortcuts } = require('../../frontend/accessibility');
+            (removeKeyboardShortcuts as jest.Mock).mockClear();
+            const { isClientConnected, getClient } = require('../../frontend/clientAccessor');
+            (isClientConnected as jest.Mock).mockReturnValue(false);
+            (getClient as jest.Mock).mockReturnValue(null);
+
+            leaveMultiplayerMode();
+
+            expect(removeKeyboardShortcuts).not.toHaveBeenCalled();
         });
 
         it('resets replay state', () => {

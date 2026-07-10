@@ -72,17 +72,20 @@ export function registerPlayerHandlers(): void {
                 const changedPlayer = state.multiplayerPlayers.find(
                     (p: ServerPlayerData) => p.playerId === data.playerId
                 );
-                const name = changedPlayer?.nickname || 'A player';
+                const name = changedPlayer?.nickname || t('a11y.aPlayer');
                 if (data.changes.role) {
-                    announceToScreenReader(`${name} is now ${data.changes.role}.`);
+                    // SR announcement was hardcoded English — spoken on every game
+                    // start via per-player player:updated, so de/es/fr users heard
+                    // English. Route through t(); translate the role too. (N18)
+                    announceToScreenReader(t('a11y.playerNowRole', { name, role: t(`roles.${data.changes.role}`) }));
                 }
                 if (data.changes.team !== undefined) {
                     const teamName = data.changes.team
                         ? data.changes.team === 'red'
                             ? state.teamNames?.red || 'Red'
                             : state.teamNames?.blue || 'Blue'
-                        : 'spectators';
-                    announceToScreenReader(`${name} joined ${teamName}.`);
+                        : t('a11y.spectatorsLabel');
+                    announceToScreenReader(t('a11y.playerJoinedTeam', { name, team: teamName }));
                 }
             }
 

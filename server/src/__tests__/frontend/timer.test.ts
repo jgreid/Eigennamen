@@ -245,6 +245,24 @@ describe('handleTimerStatus', () => {
 
         expect(state.timerState.serverRemainingSeconds).toBe(20);
     });
+
+    // N14: a client (re)joining a PAUSED game must display the frozen time but
+    // NOT run a live countdown that ticks to a stuck 0:00 behind the pause overlay.
+    test('does NOT start a countdown when the timer is paused (N14)', () => {
+        handleTimerStatus({ active: true, remainingSeconds: 120, endTime: Date.now() + 120000, isPaused: true });
+
+        expect(state.timerState.active).toBe(true);
+        expect(state.timerState.remainingSeconds).toBe(120);
+        // Frozen: no interval running.
+        expect(state.timerState.intervalId).toBeNull();
+    });
+
+    test('starts a countdown when the timer is live (not paused) (N14)', () => {
+        handleTimerStatus({ active: true, remainingSeconds: 120, endTime: Date.now() + 120000, isPaused: false });
+
+        expect(state.timerState.active).toBe(true);
+        expect(state.timerState.intervalId).not.toBeNull();
+    });
 });
 
 describe('stopTimerCountdown', () => {

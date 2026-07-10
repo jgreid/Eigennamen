@@ -6,7 +6,12 @@
  */
 
 jest.mock('../../frontend/i18n', () => ({
-    t: (key: string) => key,
+    t: (key: string) => {
+        // SR type prefixes are now i18n-routed (N18).
+        if (key === 'a11y.errorPrefix') return 'Error: ';
+        if (key === 'a11y.warningPrefix') return 'Warning: ';
+        return key;
+    },
     initI18n: async () => {},
     setLanguage: async () => {},
     getLanguage: () => 'en',
@@ -193,6 +198,18 @@ describe('C2: toast container is not a second live region (index.html)', () => {
         const tag = html.match(/<div[^>]*id="sr-announcements"[^>]*>/)?.[0];
         expect(tag).toBeDefined();
         expect(tag).toContain('aria-live');
+    });
+
+    // N17: the pause overlay must not be a SECOND live region — the gamePaused
+    // handler already announces via announceToScreenReader, so a role="alert"/
+    // aria-live overlay would double every pause/resume announcement (and ×N
+    // under N12's duplicate handlers). Passive status regions (turn indicator,
+    // etc.) are fine; the pause overlay is handler-announced, so it must not be one.
+    it('the pause overlay is not a live region (N17)', () => {
+        const tag = html.match(/<div[^>]*id="pause-overlay"[^>]*>/)?.[0];
+        expect(tag).toBeDefined();
+        expect(tag).not.toContain('role="alert"');
+        expect(tag).not.toContain('aria-live');
     });
 });
 

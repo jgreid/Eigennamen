@@ -22,7 +22,7 @@ import { resetGameState } from './stateMutations.js';
 import { renderBoard } from './board.js';
 import { updateScoreboard, updateTurnIndicator, buildStartGameOptions } from './game.js';
 import { setupMultiplayerListeners } from './multiplayerListeners.js';
-import { isClientConnected } from './clientAccessor.js';
+import { getClient, isClientConnected } from './clientAccessor.js';
 import { startRevealSweep } from './game/reveal.js';
 import type { JoinCreateResult, ServerPlayerData } from './multiplayerTypes.js';
 
@@ -338,6 +338,46 @@ async function handleCreateGame(): Promise<void> {
     }
 }
 
+/**
+ * Fallback delay after which the host's first game auto-starts even if the
+ * settingsUpdated confirmation never arrived, so a dropped event can't leave a
+ * freshly-created room permanently gameless.
+ */
+const SETTINGS_CONFIRM_TIMEOUT_MS = 2000;
+
+/**
+ * Auto-start the host's first game only AFTER the room:settings write is
+ * confirmed by a `settingsUpdated` broadcast (N16).
+ *
+ * `game:start` reads `gameMode`/`turnTimer` from Redis at execution time and
+ * carries neither in its payload, and Socket.io doesn't serialize the two async
+ * handlers — so starting synchronously after a fire-and-forget `updateSettings`
+ * can let `game:start`'s read land before the settings write commits, launching
+ * the first game in the wrong mode / without the timer. Gating on the
+ * confirmation removes the race; a timeout fallback starts anyway if the event
+ * is dropped.
+ */
+function autoStartWhenSettingsConfirmed(): void {
+    const client = getClient();
+    if (!client) return;
+
+    let started = false;
+    const start = (): void => {
+        if (started) return;
+        started = true;
+        clearTimeout(fallbackId);
+        client.off('settingsUpdated', onSettings as never);
+        // Guard against a leave/disconnect that happened while we waited.
+        if (state.isMultiplayerMode && isClientConnected()) {
+            client.startGame(buildStartGameOptions());
+        }
+    };
+    const onSettings = (): void => start();
+
+    client.on('settingsUpdated', onSettings as never);
+    const fallbackId = setTimeout(start, SETTINGS_CONFIRM_TIMEOUT_MS);
+}
+
 export function onMultiplayerJoined(
     result: JoinCreateResult,
     isHostParam: boolean = false,
@@ -402,9 +442,11 @@ export function onMultiplayerJoined(
 
         // Auto-start a game when the host creates a room so the board is
         // immediately playable. Players who join later receive the game
-        // state via the room:joined response.
+        // state via the room:joined response. The start is DEFERRED until the
+        // host's room:settings write is confirmed (settingsUpdated) — see
+        // autoStartWhenSettingsConfirmed (N16).
         if (isHostParam && isClientConnected()) {
-            EigennamenClient.startGame(buildStartGameOptions());
+            autoStartWhenSettingsConfirmed();
         }
     }
 
@@ -494,6 +536,7 @@ export function checkURLForRoomJoin(): void {
         setMpMode('join');
         openModal('multiplayer-modal');
 
-        setMpStatus(`Room ID: ${roomCode} - Enter your nickname to join`, 'info');
+        // Was hardcoded English shipped to de/es/fr users (N18).
+        setMpStatus(t('multiplayer.roomIdEnterNickname', { roomId: roomCode }), 'info');
     }
 }

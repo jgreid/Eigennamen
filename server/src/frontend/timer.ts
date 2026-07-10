@@ -146,6 +146,7 @@ export function handleTimerStatus(data: {
     remaining?: number;
     endTime?: number;
     duration?: number;
+    isPaused?: boolean;
 }): void {
     if (data && (data.active || (data.remainingSeconds ?? 0) > 0)) {
         state.timerState.active = true;
@@ -155,7 +156,15 @@ export function handleTimerStatus(data: {
         state.timerState.serverRemainingSeconds = data.remainingSeconds ?? data.remaining ?? null;
         state.timerState.remainingSeconds = state.timerState.serverRemainingSeconds;
         updateTimerDisplay();
-        startTimerCountdown();
+        // A client (re)joining or resyncing into a PAUSED game must not run a live
+        // countdown — it would tick down to a stuck "critical" 0:00 behind the
+        // pause overlay. Freeze at the current value (mirror handleTimerPaused);
+        // a following timer:resumed / timer:started re-arms the countdown. (N14)
+        if (data.isPaused) {
+            stopTimerCountdown();
+        } else {
+            startTimerCountdown();
+        }
     } else {
         handleTimerStopped();
     }

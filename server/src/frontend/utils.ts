@@ -1,3 +1,5 @@
+import { t } from './i18n.js';
+
 /**
  * Copy text to clipboard using the modern Clipboard API with a
  * fallback for older browsers or restricted contexts (e.g. HTTP).
@@ -126,7 +128,9 @@ export function decodeWordsFromURL(encoded: string): string[] | null {
 // Format game timestamp with timezone indication
 // Uses relative time for recent games, absolute time with timezone for older games
 export function formatGameTimestamp(timestamp: string | number): string {
-    if (!timestamp) return 'Unknown';
+    // Relative-time labels were hardcoded English shipped to de/es/fr users (N18);
+    // route through t(), keeping singular/plural via distinct keys.
+    if (!timestamp) return t('time.unknown');
 
     const date = new Date(timestamp);
     const now = new Date();
@@ -136,10 +140,10 @@ export function formatGameTimestamp(timestamp: string | number): string {
     const diffDays = Math.floor(diffMs / 86400000);
 
     // Use relative time for recent games (more intuitive)
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
-    if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
-    if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+    if (diffMins < 1) return t('time.justNow');
+    if (diffMins < 60) return t(diffMins === 1 ? 'time.minuteAgo' : 'time.minutesAgo', { count: String(diffMins) });
+    if (diffHours < 24) return t(diffHours === 1 ? 'time.hourAgo' : 'time.hoursAgo', { count: String(diffHours) });
+    if (diffDays < 7) return t(diffDays === 1 ? 'time.dayAgo' : 'time.daysAgo', { count: String(diffDays) });
 
     // For older games, show date with timezone abbreviation
     // This makes it clear what timezone the time is displayed in
