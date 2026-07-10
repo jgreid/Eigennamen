@@ -125,12 +125,13 @@ fly secrets set CORS_ORIGIN=https://your-eigennamen-app.fly.dev
 fly deploy
 ```
 
-To ship the embedding-backed ("Smart") bots, bake the vectors at build time and point
-the server at them:
+To ship the embedding-backed ("Smart") bots, bake the vectors at build time — the
+server auto-detects the baked file at `/app/embeddings/vectors.vec`, so no env var
+is needed (`numberbatch` is the recommended model; see
+[BOT_EMBEDDINGS.md](BOT_EMBEDDINGS.md) for model choice and memory sizing):
 
 ```bash
-fly deploy --build-arg BOT_EMBEDDINGS_MODEL=glove
-fly secrets set BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec
+fly deploy --build-arg BOT_EMBEDDINGS_MODEL=numberbatch
 ```
 
 ### Configuration (fly.toml)
