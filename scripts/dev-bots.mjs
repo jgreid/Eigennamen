@@ -180,8 +180,23 @@ function downloadOnce(url, dest, startByte, redirects = 0) {
       const status = res.statusCode ?? 0;
       if ([301, 302, 303, 307, 308].includes(status) && res.headers.location) {
         res.resume();
-        const next = new URL(res.headers.location, url).toString();
-        return resolve(downloadOnce(next, dest, startByte, redirects + 1));
+        const next = new URL(res.headers.location, url);
+        // Never follow a redirect that downgrades to plaintext http: — the model
+        // hosts all serve https, so a redirect to http: is either a misconfig or a
+        // MITM trying to feed us tampered vectors over an unencrypted channel.
+        if (next.protocol !== "https:") {
+          return reject(
+            Object.assign(
+              new Error(
+                `refusing insecure redirect to ${next.protocol}//${next.host}`,
+              ),
+              { fatal: true },
+            ),
+          );
+        }
+        return resolve(
+          downloadOnce(next.toString(), dest, startByte, redirects + 1),
+        );
       }
       if (status === 416) {
         // Range not satisfiable — the file is already complete.

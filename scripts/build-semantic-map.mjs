@@ -27,7 +27,7 @@
  * The word-list format matches the in-app custom list: one word per line,
  * blank lines and `#` comments ignored.
  */
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { dirname, join, basename, resolve } from "node:path";
