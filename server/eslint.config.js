@@ -155,6 +155,28 @@ module.exports = [
             '@typescript-eslint/no-non-null-assertion': 'off',
         },
     },
+    {
+        // Root build/config JS (esbuild.config.js, playwright.config.js,
+        // jest.config.ts.js, eslint.config.js) — previously outside every lint gate
+        // (N33). CommonJS + Node globals; console is expected in build tooling. The
+        // load tests (mixed ESM/CJS) and the repo-root .mjs scripts are covered by
+        // Prettier + a `node --check` syntax floor in CI instead of ESLint, to avoid
+        // a per-file module-type config for never-linted tooling.
+        files: ['*.js'],
+        languageOptions: {
+            ecmaVersion: 'latest',
+            sourceType: 'commonjs',
+            globals: {
+                ...globals.node,
+            },
+        },
+        rules: {
+            ...baseRules,
+            'no-console': 'off',
+            'no-await-in-loop': 'off',
+            'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+        },
+    },
     // Prettier: disables ESLint rules that conflict with Prettier formatting.
     // Must be last to override any formatting rules from earlier configs.
     prettierConfig,

@@ -174,7 +174,13 @@ app.use(
                 scriptSrc: ["'self'"], // All scripts loaded from external files
                 styleSrc: ["'self'"],
                 imgSrc: ["'self'", 'data:', 'blob:'],
-                connectSrc: ["'self'", 'wss:', 'ws:'], // WebSocket connections
+                // WebSocket connections. The client only ever connects to its OWN
+                // origin (Socket.io uses window.location), and same-origin wss:// is
+                // already covered by 'self' — so the bare `wss:`/`ws:` schemes (which
+                // allowed a socket to ANY host, an exfiltration channel for injected
+                // script) are dropped in production. Dev keeps them for cross-port
+                // localhost flexibility; plaintext `ws:` never ships to production. (N36)
+                connectSrc: isProduction() ? ["'self'"] : ["'self'", 'wss:', 'ws:'],
                 fontSrc: ["'self'"],
                 objectSrc: ["'none'"],
                 mediaSrc: ["'self'"],

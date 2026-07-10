@@ -74,6 +74,11 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
+      - name: Syntax-check build/loadtest scripts (node --check)
+        # N33: the repo-root .mjs scripts (one runs in the Dockerfile embeddings
+        # build) and loadtest JS were outside every gate; this is a cheap syntax floor.
+        run: npm run lint:scripts
+
       - name: Check Prettier formatting
         run: npm run format:check
 
@@ -177,11 +182,15 @@ jobs:
           TOTAL_GZIP=$(find public/js -name '*.js' -not -name '*.map' -exec cat {} + | gzip -c | wc -c | tr -d ' ')
           echo "| **Total JS** | **${TOTAL_RAW} B** | **${TOTAL_GZIP} B** |" >> $GITHUB_STEP_SUMMARY
 
-          # Fail if total gzipped JS exceeds 200KB (safety net)
+          # Fail if total gzipped JS exceeds 200KB. This is a real gate, not just a
+          # warning (N31): the comment said "Fail" but the step only emitted a
+          # ::warning:: with no exit, so a 10x bundle regression would merge green.
+          # Current total is ~79KB, so 200KB leaves ~2.5x headroom for legitimate growth.
           MAX_GZIP_KB=200
           TOTAL_GZIP_KB=$((TOTAL_GZIP / 1024))
           if [ "$TOTAL_GZIP_KB" -gt "$MAX_GZIP_KB" ]; then
-            echo "::warning::Total gzipped JS (${TOTAL_GZIP_KB}KB) exceeds ${MAX_GZIP_KB}KB threshold"
+            echo "::error::Total gzipped JS (${TOTAL_GZIP_KB}KB) exceeds ${MAX_GZIP_KB}KB threshold"
+            exit 1
           fi
 
   # ── Unit & integration tests ───────────────────────────────────────────
@@ -446,19 +455,17 @@ jobs:
           sarif_file: 'trivy-results.sarif'
 
   # ── E2E smoke tests (blocking) ──────────────────────────────────────────
-  # A small, single-browser-context slice of home.spec.js (page load + core
-  # UI presence) that gates merges. Verified independently against a clean
-  # checkout of main before being wired up here: home.spec.js's "Home Page"
-  # and "Accessibility" tests pass reliably except "has share link input"
-  # (excluded via --grep-invert — fails the same way on unmodified main, a
-  # pre-existing issue out of scope here). game-flow.spec.js was considered
-  # but excluded: 6 of its 9 tests fail on unmodified main too (a pre-existing
-  # "must join a team first" UI bug), so it isn't a safe blocking candidate
-  # yet — that's exactly the kind of instability the full `e2e` job below
-  # stays non-blocking for. This job never opens a second browser context or
-  # hits the multiplayer socket path, so it doesn't run into the documented
-  # per-IP-socket-limit / click-timing flakiness either. Concrete, always-on
-  # end-to-end check called for in docs/HARDENING_PLAN.md P1-9.
+  # A single-browser-context slice that gates merges: home.spec.js (page load +
+  # core UI presence) plus standalone-game.spec.js (offline board generation,
+  # URL-state round-trip, spymaster view, game-over, settings). Both are
+  # deterministic, offline specs — no second browser context, no multiplayer
+  # socket path — so they avoid the per-IP-socket-limit / click-timing flakiness
+  # the full `e2e` job below stays non-blocking for. standalone-game.spec.js has
+  # been green in that non-blocking `e2e` job since D1 fixed it, which is why it's
+  # safe to promote here (N28). The old command hard-coded
+  # `--grep-invert "has share link input"`, but that test no longer exists, so the
+  # invert excluded nothing and the surrounding comment was stale. Concrete,
+  # always-on end-to-end check called for in docs/HARDENING_PLAN.md P1-9.
   e2e-smoke:
     name: E2E Smoke (blocking)
     needs: install
@@ -524,7 +531,7 @@ jobs:
           exit 1
 
       - name: Run E2E smoke specs
-        run: npx playwright test e2e/home.spec.js --project=chromium --grep-invert "has share link input"
+        run: npx playwright test e2e/home.spec.js e2e/standalone-game.spec.js --project=chromium
         env:
           BASE_URL: http://localhost:3000
           CI: true

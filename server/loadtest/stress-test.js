@@ -27,7 +27,7 @@ function parseArgs() {
         rooms: 10,
         duration: 60,
         rampUp: 10,
-        url: 'http://localhost:3000'
+        url: 'http://localhost:3000',
     };
 
     for (const arg of process.argv.slice(2)) {
@@ -93,9 +93,9 @@ class MetricsCollector {
         if (this.errors.length > 0) {
             console.log(`\nErrors: ${this.errors.length}`);
             // Show unique error messages
-            const uniqueErrors = [...new Set(this.errors.map(e => e.message))];
-            uniqueErrors.forEach(msg => {
-                const count = this.errors.filter(e => e.message === msg).length;
+            const uniqueErrors = [...new Set(this.errors.map((e) => e.message))];
+            uniqueErrors.forEach((msg) => {
+                const count = this.errors.filter((e) => e.message === msg).length;
                 console.log(`  ${msg} (x${count})`);
             });
         }
@@ -111,7 +111,7 @@ function createClient(config, roomCode, nickname, metrics) {
         const socket = io(config.url, {
             transports: ['websocket'],
             reconnection: false,
-            timeout: 10000
+            timeout: 10000,
         });
 
         const timeout = setTimeout(() => {
@@ -234,7 +234,7 @@ function createClient(config, roomCode, nickname, metrics) {
                 },
                 disconnect() {
                     socket.disconnect();
-                }
+                },
             });
         });
 
@@ -248,7 +248,7 @@ function createClient(config, roomCode, nickname, metrics) {
 }
 
 // Sleep utility
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Main test runner
 async function run() {
@@ -301,7 +301,7 @@ async function run() {
 
     // Phase 2: Sustain load
     console.log(`Phase 2: Sustaining load for ${config.duration}s...`);
-    const endTime = Date.now() + (config.duration * 1000);
+    const endTime = Date.now() + config.duration * 1000;
     let actionCount = 0;
 
     while (Date.now() < endTime) {

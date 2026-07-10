@@ -758,7 +758,9 @@ fails after.
 
 ---
 
-### N28 — The blocking E2E smoke gate covers zero gameplay, and its exclusion + comments are stale now that D1 shipped a green suite
+### N28 — The blocking E2E smoke gate covers zero gameplay, and its exclusion + comments are stale now that D1 shipped a green suite — **FIXED**
+
+**Resolution:** The smoke command now runs `home.spec.js` **and** `standalone-game.spec.js` (offline board generation, URL-state round-trip, spymaster view, game-over, settings — deterministic single-context specs that avoid socket/timing flakiness), and dropped the dead `--grep-invert "has share link input"` (that test no longer exists, so the invert excluded nothing). The stale 14-line comment block was rewritten. standalone-game.spec.js's stability rests on its green history in the non-blocking `e2e` job (D1); Playwright can't be re-run in the dev sandbox (only full Chromium is installed, not the headless-shell variant the config requests).
 
 **Severity:** Medium · **Area:** CI gate integrity
 
@@ -774,7 +776,9 @@ regression in reveal/end-turn/clue/url-state auto-deploys past `ci-passed`.
 
 ---
 
-### N29 — `chaos.test.ts` (25 tests) imports zero production code — it tests the mock
+### N29 — `chaos.test.ts` (25 tests) imports zero production code — it tests the mock — **FIXED**
+
+**Resolution:** Renamed `integration/chaos.test.ts` → `mockHarness.test.ts` (at the `__tests__` root, since `/helpers/` is in `testPathIgnorePatterns` and would silently disable it) and retitled it "Mock harness (helpers/mocks)" with a header stating it validates the shared test doubles, not production resilience — it's kept because `mocks.ts` backs most of the suite and a silently-broken mock would weaken every test relying on it. The vacuous `expect(true).toBe(true)` placeholder in `socketAuth.test.ts` (an unexported `validateSessionAge`) was deleted; session-age behaviour is covered by the `validateSession` integration cases.
 
 **Severity:** Medium-Low · **Area:** Test-signal
 
@@ -792,7 +796,9 @@ genuine mock-behaviour assertions into a clearly named `helpers/mocks.test.ts`, 
 
 ---
 
-### N30 — CI's PR "Coverage summary" step can never run — the reporter that produces its input isn't configured
+### N30 — CI's PR "Coverage summary" step can never run — the reporter that produces its input isn't configured — **FIXED**
+
+**Resolution:** Added `'json-summary'` to `coverageReporters` in `jest.config.ts.js`, so `coverage/coverage-summary.json` — the input the CI "Coverage summary" step reads (guarded by `-f`) — is now produced and the per-PR coverage table renders.
 
 **Severity:** Low · **Area:** CI signal
 
@@ -806,7 +812,9 @@ genuine mock-behaviour assertions into a clearly named `helpers/mocks.test.ts`, 
 
 ---
 
-### N31 — The bundle-size "safety net" says *fail* but only warns
+### N31 — The bundle-size "safety net" says *fail* but only warns — **FIXED**
+
+**Resolution:** The CI step now emits `::error::` and `exit 1` past the 200KB gzipped threshold instead of a no-op `::warning::`, so a bundle regression fails the build. Current total is ~79KB (measured), leaving ~2.5× headroom for legitimate growth.
 
 **Severity:** Low · **Area:** CI gate
 
@@ -820,7 +828,9 @@ genuine mock-behaviour assertions into a clearly named `helpers/mocks.test.ts`, 
 
 ---
 
-### N32 — `.env.example` omits several real, load-bearing env knobs
+### N32 — `.env.example` omits several real, load-bearing env knobs — **FIXED**
+
+**Resolution:** Added commented entries with defaults (following the file's convention) for `MAX_CONNECTIONS_PER_IP`, `RECONNECT_TOKEN_TTL_SECONDS`, `GLOBAL_IP_RATE_LIMIT_MAX`/`_WINDOW_MS`, `LOADTEST_RELAX_RATE_LIMITS`, and `BOT_SEMANTIC_MAPS_DIR`.
 
 **Severity:** Low · **Area:** DX / ops docs
 
@@ -835,7 +845,9 @@ absent from `server/.env.example`, even as comments.
 
 ---
 
-### N33 — Lint/format gates skip `loadtest/`, `scripts/*.mjs`, and the repo's own config JS
+### N33 — Lint/format gates skip `loadtest/`, `scripts/*.mjs`, and the repo's own config JS — **FIXED**
+
+**Resolution:** Prettier `format`/`format:check` globs now cover `loadtest/**/*.js`, root `*.js`, and `../scripts/**/*.mjs` (all reformatted clean). ESLint gained a flat-config block for root build/config `*.js` (esbuild/playwright/jest/eslint configs) and `lint` now includes them (`--ext .ts,.js src/ *.js`). A new `lint:scripts` script + CI step runs `node --check` over the repo-root `.mjs` scripts (one runs in the Dockerfile embeddings build) and `loadtest/*.js` — a cheap syntax floor that directly closes the "build-critical `.mjs` reaches main with no signal" gap. ESLint was deliberately NOT extended to the loadtest files (mixed ESM/CJS) or e2e specs (browser globals in `page.evaluate`) — those would need per-file module/globals config for never-linted tooling; `node --check` + Prettier cover them instead.
 
 **Severity:** Low · **Area:** CI scope / DX
 
@@ -854,7 +866,9 @@ extend the prettier globs; add a cheap `node --check` CI floor for the `.mjs` sc
 
 ## Phase 6 — Middleware defense-in-depth & config
 
-### N34 — The WebSocket Origin check matches hostname only (ignores scheme + port), weaker than and inconsistent with the HTTP CSRF exact-origin match
+### N34 — The WebSocket Origin check matches hostname only (ignores scheme + port), weaker than and inconsistent with the HTTP CSRF exact-origin match — **FIXED**
+
+**Resolution:** `validateOrigin` now reuses the HTTP CSRF layer's `isOriginAllowed` predicate (exported from `middleware/csrf.ts`), which compares the FULL origin (scheme + host + port) with exact string match plus `*.domain` wildcard support — so the two CSRF surfaces share ONE matcher. A handshake whose Origin differs only in scheme (`http://` vs `https://`) or port (`:8443`) is now rejected, matching what the HTTP path already enforced; malformed origins are still rejected. Regression tests cover the scheme-mismatch, port-mismatch, and malformed cases.
 
 **Severity:** Low-Medium · **Area:** CORS/CSP consistency
 
@@ -873,7 +887,9 @@ the two CSRF layers share one predicate.
 
 ---
 
-### N35 — `/health/metrics` uses a bespoke plaintext password compare with a length short-circuit, diverging from the scrypt admin auth
+### N35 — `/health/metrics` uses a bespoke plaintext password compare with a length short-circuit, diverging from the scrypt admin auth — **FIXED**
+
+**Resolution:** Extracted a shared, dependency-free `verifyAdminPassword` (scrypt KDF + `timingSafeEqual`, constant-time, no length short-circuit) into `utils/adminPassword.ts`, and routed BOTH `adminRoutes.basicAuth` and `healthRoutes.requireMetricsAuth` through it — one KDF, no circular dependency. The metrics guard's old plaintext length-branch compare (which leaked the admin-password length via timing and used no KDF) is gone, and it now splits Basic credentials on the first colon only (RFC 7617). Regression tests: wrong password → 401, missing auth → 401, colon-in-password → 200.
 
 **Severity:** Low · **Area:** Auth consistency
 
@@ -890,7 +906,9 @@ helper), scrypt-hashing both sides and dropping the length branch.
 
 ---
 
-### N36 — CSP `connect-src` permits `ws:`/`wss:` to any host
+### N36 — CSP `connect-src` permits `ws:`/`wss:` to any host — **FIXED**
+
+**Resolution:** `connect-src` is now `['self']` in production (dropping the bare `wss:`/`ws:` schemes that allowed a socket to ANY host). The client only ever connects to its own origin (Socket.io uses `window.location`), and same-origin `wss://` is already covered by `'self'`, so nothing legitimate is lost while the cross-origin exfiltration channel for injected script is closed. Development keeps `wss:`/`ws:` for cross-port localhost flexibility; plaintext `ws:` never ships to production.
 
 **Severity:** Low · **Area:** CSP config
 
