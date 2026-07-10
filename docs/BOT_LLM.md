@@ -1,0 +1,71 @@
+# LLM-Backed Bots (opt-in)
+
+The strongest bot tier available: with a model configured, bots consult Claude
+before each decision — the LLM **proposes**, and the existing deterministic
+machinery **verifies**. This raises the ceiling that embeddings and tables
+cannot reach (compositional, board-aware judgment), while every safety
+guarantee stays enforced by code, not by the model.
+
+## Enabling
+
+```bash
+# .env / deployment environment
+ANTHROPIC_API_KEY=sk-ant-...        # standard Anthropic SDK credential chain
+BOT_LLM_MODEL=claude-sonnet-5       # naming a model turns the layer on
+# BOT_LLM_TIMEOUT_MS=8000           # per-call budget (default 8000, min 1000)
+```
+
+Unset `BOT_LLM_MODEL` (or remove the key) to turn it off. Nothing else changes:
+strategies receive no advice and behave exactly as before, so tests and the
+self-play harness stay deterministic.
+
+## How it works
+
+The live controller (`bots/botController.ts`) computes advice **asynchronously
+before** each bot decision and passes it to the pure, synchronous strategy as
+data (`BotContext.llm` — see `bots/llm/llmAdvice.ts`):
+
+- **Spymaster**: the LLM proposes up to 6 clue candidates (word, number,
+  intended targets). Proposals enter the standard candidate pool at the same
+  choke point as generated candidates and face the SAME legality check,
+  board-safety filter, assassin berth, and guesser-safety margins — a proposal
+  the gates can't certify is simply never emitted. (Corollary: the layer works
+  best with embeddings enabled, since the verifier scores proposals with the
+  semantic backend; a brilliant clue the backend can't see the connection for
+  scores poorly and loses.)
+- **Clicker / advisor**: the LLM scores how strongly the current clue points at
+  each unrevealed card (0–1). That read replaces backend retrieval as the
+  primary ranking; the discipline layer (confidence floors, plausible-set
+  noise, bonus-guess gates, persona knobs) still shapes the actual guess, so
+  the difficulty ladder keeps meaning.
+
+Every failure mode — no key, timeout, refusal, malformed output — degrades to
+`null` and the bot decides exactly as it does without the layer. LLM advice can
+slow a decision by up to the timeout; it can never stall or break one.
+
+## Cost and latency
+
+One API call per bot decision (a clue or a guess ranking), with bounded output
+(`max_tokens` ≈ 1.5k). Game pace naturally limits volume: a busy room makes a
+few calls per minute. Bots already pause "to think", so a couple of seconds of
+latency reads naturally; the timeout caps the worst case.
+
+## Security notes
+
+Board words and human clues are player-controlled text and are embedded in the
+prompts (marked as game data to ignore instructions in). The blast radius is
+bounded by construction: a spymaster proposal only ever ADDS a candidate that
+must pass the deterministic gates, and guess scores only reorder a fixed set of
+board indices — the LLM cannot name a card to reveal, exceed the board, or
+bypass the assassin machinery. Advice for clickers/advisors derives from the
+MASKED view only (no key information leaves the server for those calls; the
+spymaster call necessarily includes the key, as the spymaster legitimately
+sees it).
+
+## Measuring it
+
+- `npm run bots:eval -- --norms <file>` — the human-association eval
+  (docs/BOT_CLUE_LESSONS.md 2.7) grades the non-LLM semantic backends.
+- Live play with `BOT_LLM_MODEL` set is the LLM layer's own proof; watch the
+  server log for `Bot LLM advice call failed` warnings (one per failure kind)
+  if bots seem to be ignoring it.

@@ -107,7 +107,7 @@ stretch: take the bonus when it is *tighter than the core*, not merely plausible
 
 ### Semantics — [`semantics/`](../server/src/bots/semantics) (highest leverage)
 
-**2.7 Human-association-calibrated backend. 🟡 (partial: rank-based `commonness()` frequency prior in the vector backend, disabled for alphabetical Numberbatch files; the offline human-association eval remains open)**
+**2.7 Human-association-calibrated backend. 🟡 (partial: rank-based `commonness()` frequency prior in the vector backend, disabled for alphabetical Numberbatch files; the offline human-association eval is SHIPPED — `npm run bots:eval -- --norms <file>` (harness/evalAssociations.ts) grades every backend tier against a SWOW/USF-format dataset by rank agreement + board-shaped retrieval; open: acting on its verdict — backend blending/selection from the measured scores)**
 Failures (A) and (B) are ultimately *"backend relatedness ≠ human salience."*
 The default `lexicalBackend` (character-bigram overlap) is semantically blind.
 Plan: (a) ensure the embedding backend prefers **ConceptNet Numberbatch** (see

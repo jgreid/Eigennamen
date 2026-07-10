@@ -18,7 +18,7 @@
 import type { Server } from 'socket.io';
 import type { GameMode } from '../shared/gameRules';
 import type { GameState, Player, Team } from '../types';
-import type { BotClickerView, ClueMemoryEntry } from './strategies/types';
+import type { BotClickerView, BotLLMAdvice, ClueMemoryEntry } from './strategies/types';
 
 import logger from '../utils/logger';
 import { onGameMutation } from '../socket/gameMutationNotifier';
@@ -33,7 +33,8 @@ import { getSemanticBackend } from './semantics/selectBackend';
 import { suggestGuesses } from './strategies/advisor';
 import { resolveSkill } from './presets';
 import { makeRng } from './rng';
-import { playOneAction, prewarmSpymasterClues } from './playOneAction';
+import { buildClickerView, buildSpymasterView, playOneAction, prewarmSpymasterClues } from './playOneAction';
+import { isLLMAdviceEnabled, llmAdviceConfig, proposeClues, rankGuesses } from './llm/llmAdvice';
 import { applyClue, applyReveal, applyEndTurn } from '../socket/handlers/gameActions';
 import type { GameActor } from '../socket/handlers/gameActions';
 import { isKnownBotless, isBotfulnessKnown, recordBotful, clearBotRoomCache } from './botRoomCache';
@@ -386,7 +387,16 @@ async function emitAdvisorSuggestions(
     for (let i = 0; i < ownTypes.length; i++) {
         if (ownTypes[i] === team && !game.revealed[i]) ownRemaining++;
     }
-    const suggestions = suggestGuesses(view, getSemanticBackend(), 3, skill, makeRng(seed), { ownRemaining });
+    // Opt-in LLM advice for the advisor's ranking too (see the action loop) —
+    // failure/timeout leaves it undefined and the advisor ranks as before.
+    let guessScores: ReadonlyMap<string, number> | undefined;
+    if (isLLMAdviceEnabled()) {
+        guessScores = (await rankGuesses(view, llmAdviceConfig())) ?? undefined;
+    }
+    const suggestions = suggestGuesses(view, getSemanticBackend(), 3, skill, makeRng(seed), {
+        ownRemaining,
+        guessScores,
+    });
     if (suggestions.length === 0) return;
 
     // Scoped to this team's own members only (not safeEmitToRoom) — these are
@@ -550,6 +560,23 @@ export async function tickRoom(roomCode: string): Promise<void> {
                     if (clickerCfg) guesserTemperature = resolveSkill(clickerCfg.skillPreset, seed).temperature;
                 }
             }
+            // Opt-in LLM advice (BOT_LLM_MODEL): computed asynchronously HERE,
+            // consumed as pure data by the synchronous strategy. Any failure or
+            // timeout yields undefined and the bot decides exactly as without it
+            // — this await can slow a decision, never stall or break one. The
+            // game-identity CAS below (N21) already guards the awaits in this
+            // block, so a game replaced mid-call drops the stale action.
+            let llm: BotLLMAdvice | undefined;
+            if (isLLMAdviceEnabled()) {
+                if (role === 'spymaster') {
+                    const proposals = await proposeClues(buildSpymasterView(game, team), llmAdviceConfig());
+                    if (proposals) llm = { clueProposals: proposals };
+                } else {
+                    const scores = await rankGuesses(buildClickerView(game, seat, team), llmAdviceConfig());
+                    if (scores) llm = { guessScores: scores };
+                }
+            }
+
             const ctx = {
                 gameMode: (game.gameMode as GameMode) ?? 'classic',
                 skill,
@@ -559,6 +586,7 @@ export async function tickRoom(roomCode: string): Promise<void> {
                 // shared room state.
                 memory: { clues: [...memoryTracker.clues[team]] },
                 guesserTemperature,
+                llm,
             };
 
             // E4: for a spymaster decision, warm the embeddings nearest() cache
