@@ -12,8 +12,9 @@ more human-like clue-giving and guessing.
 Relatedness resolves through a fallback chain, strongest first:
 
 1. **Vector embeddings** (`vectorBackend.ts`) — cosine similarity of pre-trained
-   word vectors. Enabled only when `BOT_EMBEDDINGS_PATH` is set and the file
-   loads. Out-of-vocabulary words drop to ↓. Only this tier implements
+   word vectors. Enabled when `BOT_EMBEDDINGS_PATH` is set, or when a previously
+   downloaded/baked vectors file is **auto-detected** at a well-known location
+   (see below) and the file loads. Out-of-vocabulary words drop to ↓. Only this tier implements
    `nearest(words, k)`, which lets the spymaster **generate** board-specific
    candidate clues from the whole model vocabulary (words near its own cards)
    instead of merely scoring a fixed list — the main reason embeddings produce
@@ -33,12 +34,29 @@ The choice is made once, lazily, in `selectBackend.ts` (`getSemanticBackend()`),
 so importing the strategy registry never touches the filesystem and tests with
 no env var keep getting the deterministic table backend.
 
+**Auto-detection.** When `BOT_EMBEDDINGS_PATH` is unset, the server looks for a
+vectors file the project's own tooling has already produced, most specific
+first: `src/bots/data/board-vectors.vec` (the distilled board artifact),
+`embeddings/vectors.vec` (the Docker bake), then the raw GloVe / fastText
+downloads under `src/bots/data/`. So after a one-time `npm run bots:embeddings`
+(or a `dev:bots` run, or a baked image), **every** later `npm run dev` /
+`npm start` uses the vectors — previously a fetched model was silently ignored
+unless each start remembered the env var, and bots fell back to guessing human
+clues by spelling. Set `BOT_EMBEDDINGS_PATH=off` to force the table backend.
+The raw alphabetical Numberbatch file is deliberately never auto-picked (a
+first-N load would keep only the early alphabet); distil it with `--board`.
+
 **Which backend am I using?** The first time a bot needs semantics, the server
-logs it once: `Bot embeddings loaded: …` when vectors are active, or
+logs it once: `Bot embeddings loaded: …` when vectors are active (with a
+`Bot semantics: auto-detected word embeddings at …` line when the path was
+detected rather than configured), or
 `Bot semantics: using the offline association table …` otherwise. If your bots
 feel weak — especially on a **custom word list**, which the baked table can't
 cover and which therefore falls all the way to lexical — that log is the signal
-to enable embeddings (below).
+to enable embeddings (below). Without any semantic coverage for a clue, bots no
+longer chase spelling lookalikes: lexical-floor scores are damped in guess
+ranking (`guessRetrieval`), the clicker banks the turn after one uninformed
+guess, and the advisor flags its suggestions as spelling-only.
 
 ## Quick local playtest (one command)
 
@@ -84,7 +102,8 @@ download is large (GloVe ~830 MB zip); after that the git-ignored
    scripts/fetch-bot-embeddings.sh glove --trim 100000   # keep top-N (most common)
    ```
 
-2. Point the server at it (path is relative to `server/`):
+2. Point the server at it (path is relative to `server/`) — optional for the
+   standard filenames, which auto-detection finds on its own:
 
    ```bash
    export BOT_EMBEDDINGS_PATH=src/bots/data/glove.6B.100d.vec
@@ -210,21 +229,22 @@ unchanged and downloads nothing):
 # Docker (build context = repo root) — recommended: knowledge-graph model,
 # distilled to compact board-restricted vectors (the default when a model is baked):
 docker build --build-arg BOT_EMBEDDINGS_MODEL=numberbatch -f server/Dockerfile -t eigennamen .
-# then run with the path set:
-docker run -e BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec ... eigennamen
+docker run ... eigennamen   # baked vectors are auto-detected at /app/embeddings/vectors.vec
 ```
 
 ```bash
-# docker compose — one command sets both the build-arg and the runtime path:
-BOT_EMBEDDINGS_MODEL=numberbatch BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec \
-  docker compose up -d --build
+# docker compose — the build-arg alone is enough (runtime path auto-detected):
+BOT_EMBEDDINGS_MODEL=numberbatch docker compose up -d --build
 ```
 
 ```bash
-# Fly.io
+# Fly.io — baked vectors are auto-detected; no secret needed
 fly deploy --build-arg BOT_EMBEDDINGS_MODEL=numberbatch
-fly secrets set BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec
 ```
+
+Setting `BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec` explicitly still works
+(and overrides detection); `BOT_EMBEDDINGS_PATH=off` disables embeddings even
+when a baked file exists.
 
 The bake fetches `BOT_EMBEDDINGS_MODEL` (`numberbatch` | `glove` | `fasttext`) and,
 **by default (`BOT_EMBEDDINGS_BOARD=1`)**, distils it to compact **board-restricted
@@ -249,9 +269,9 @@ succeeds, just without the prior (a warning), so a flaky network never blocks a 
 Set `BOT_EMBEDDINGS_BOARD=0` to bake the legacy coarse trim instead (fetch
 `BOT_EMBEDDINGS_MODEL`, keep the first `BOT_EMBEDDINGS_TRIM` vectors, default 100000 —
 frequency-ordered models only). The build needs network access to the model host and
-writes `/app/embeddings/vectors.vec`. If `BOT_EMBEDDINGS_PATH` points at a missing
-file the server logs a warning and falls back to the baked table, so a misconfigured
-deploy still runs.
+writes `/app/embeddings/vectors.vec`, which the server auto-detects at startup. If
+`BOT_EMBEDDINGS_PATH` points at a missing file the server logs a warning and falls
+back to the baked table, so a misconfigured deploy still runs.
 
 > **Attribution.** ConceptNet Numberbatch is licensed **CC BY-SA 4.0**
 > (https://github.com/commonsense/conceptnet-numberbatch); a deploy that bakes it
@@ -266,7 +286,7 @@ deploy still runs.
 
 | Env var                    | Default   | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | -------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `BOT_EMBEDDINGS_PATH`      | _(unset)_ | Path to the vectors file. Unset ⇒ baked table.                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `BOT_EMBEDDINGS_PATH`      | _(unset)_ | Path to the vectors file. Unset ⇒ auto-detect at the well-known locations (`src/bots/data/board-vectors.vec`, `embeddings/vectors.vec`, the raw GloVe/fastText downloads), else baked table. `off` ⇒ table, no detection.                                                                                                                                                                                                                                                 |
 | `BOT_EMBEDDINGS_MAX_WORDS` | `50000`   | Cap on vectors loaded into memory. The loader reads in bounded chunks and stops at the cap — a multi-GB file is never slurped whole. For **frequency-ordered** files (GloVe/fastText) the cap keeps the most common words; for **alphabetical** files (Numberbatch) it keeps the early alphabet AND the loader disables its commonness prior — so build a `board-vectors.vec` with `npm run bots:embeddings:board` (optionally `--freq`) instead of relying on a raw cap. |
 | `BOT_EMBEDDINGS_VOCAB_CAP` | `2000`    | Cap on the spymaster's clue candidate list (embedding vocab ∪ table vocab). Larger ⇒ richer clues, slower per-turn scan.                                                                                                                                                                                                                                                                                                                                                  |
 

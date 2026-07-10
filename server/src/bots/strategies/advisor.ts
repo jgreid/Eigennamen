@@ -13,7 +13,7 @@
  */
 import type { BotClickerView, SkillParams, SeededRng } from './types';
 import type { SemanticBackend } from '../semantics/backend';
-import { clueRetrieval, defaultSemanticBackend } from '../semantics/backend';
+import { guessRetrieval, defaultSemanticBackend } from '../semantics/backend';
 import { referenceSignal } from '../semantics/properAssociations';
 import { frameContextFromView, resolveClueFrame, FRAME_DOUBT_FLOOR } from './clueFrame';
 
@@ -51,6 +51,8 @@ const WARNING_FRAME_DOUBT =
     'The direct reading of the clue fits nothing here — these follow its other sense. Verify the frame before clicking.';
 const WARNING_UNRESOLVED_REFERENCE =
     'Unfamiliar reference — consider type-level readings (a novel, a film, a brand) and stop early rather than stretch.';
+const WARNING_UNKNOWN_CLUE =
+    'This clue word is outside the bot vocabulary — these picks follow spelling similarity only. Trust your own reading.';
 const WARNING_LATE_STRETCH = 'Late-game stretch beyond the strong core — run the assassin check before touching this.';
 
 interface Scored {
@@ -115,12 +117,17 @@ export function suggestGuesses(
     const scored: Scored[] = [];
     for (let i = 0; i < view.revealed.length; i++) {
         if (view.revealed[i]) continue;
-        // clueRetrieval, not bare relatedness: the advisor advises a HUMAN
-        // clicker, and a human's compound completion competes directly with
-        // associative fit (same model as the greedy clicker).
-        scored.push({ index: i, score: clueRetrieval(backend, frame.word, view.words[i] as string) });
+        // guessRetrieval (same model as the greedy clicker): compound completion
+        // competes with associative fit, and a score with no semantic provenance
+        // is damped so a spelling coincidence never tops the suggestions.
+        scored.push({ index: i, score: guessRetrieval(backend, frame.word, view.words[i] as string) });
     }
     scored.sort((a, b) => b.score - a.score);
+    // Provenance of the advice as a whole: with a hasSignal-capable backend,
+    // does the clue relate semantically to ANY live card? If not, every
+    // suggestion below is spelling similarity and the human should be told so.
+    const pairSignal = backend.hasSignal?.bind(backend);
+    const informed = !pairSignal || unrevealedWords.some((w) => pairSignal(frame.word, w));
 
     // Never suggest more than the clue's remaining intended guesses.
     const remaining = clue.number > 0 ? Math.max(1, clue.number - view.guessesUsed) : scored.length;
@@ -149,6 +156,7 @@ export function suggestGuesses(
     const warningFor = (score: number): string | undefined => {
         if (frame.switched) return WARNING_FRAME_DOUBT;
         if (unresolvedReference) return WARNING_UNRESOLVED_REFERENCE;
+        if (!informed) return WARNING_UNKNOWN_CLUE;
         if (endgame && score < STRETCH_SCORE_CEILING) return WARNING_LATE_STRETCH;
         return undefined;
     };

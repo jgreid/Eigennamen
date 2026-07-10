@@ -17,7 +17,7 @@
  */
 import type { BotAction, BotClickerView, BotContext, ClickerStrategy, SkillParams, SeededRng } from './types';
 import type { SemanticBackend } from '../semantics/backend';
-import { clueRetrieval, defaultSemanticBackend } from '../semantics/backend';
+import { guessRetrieval, defaultSemanticBackend } from '../semantics/backend';
 import { frameContextFromView, resolveClueFrame } from './clueFrame';
 import { normalizeClueWord } from '../../shared/gameRules';
 
@@ -164,7 +164,9 @@ function debtBoost(ctx: BotContext, backend: SemanticBackend, currentClue: strin
     for (const c of clues) {
         if (c.bounced || c.taken >= c.number) continue;
         if (normalizeClueWord(c.word) === current) continue;
-        const fit = clueRetrieval(backend, c.word, word);
+        // guessRetrieval, not raw retrieval: a spelling coincidence with an old
+        // clue must not manufacture phantom debt (the damp keeps it under the bar).
+        const fit = guessRetrieval(backend, c.word, word);
         if (fit >= DEBT_FIT_BAR && fit > best) best = fit;
     }
     return DEBT_BOOST * best;
@@ -191,7 +193,9 @@ function lastTakenScoreEstimate(view: BotClickerView, clueWord: string, backend:
     const ownRevealed: number[] = [];
     for (let i = 0; i < view.revealed.length; i++) {
         if (view.revealed[i] && view.types[i] === view.team) {
-            ownRevealed.push(clueRetrieval(backend, clueWord, view.words[i] as string));
+            // Same scale as the live ranking (guessRetrieval) so the cliff
+            // comparison never mixes damped and undamped scores.
+            ownRevealed.push(guessRetrieval(backend, clueWord, view.words[i] as string));
         }
     }
     if (ownRevealed.length < view.guessesUsed) return null;
@@ -232,13 +236,21 @@ export function makeGreedyClicker(
             // human guesser in misfire-class-D boards. The clue-debt boost
             // (Phase 4.3) breaks ties toward cards an earlier clue still owes.
             const clueWord = frame.word;
+            // guessRetrieval, not raw retrieval: a score with no semantic
+            // provenance (the lexical bigram floor) is damped so a spelling
+            // coincidence never outranks a genuine read (SUNDIAL→INDIA class).
             const scored = choices.map((index) => {
                 const word = view.words[index] as string;
                 return {
                     index,
-                    score: clueRetrieval(backend, clueWord, word) + debtBoost(ctx, backend, clueWord, word),
+                    score: guessRetrieval(backend, clueWord, word) + debtBoost(ctx, backend, clueWord, word),
                 };
             });
+            // Provenance of the whole decision: does the clue relate SEMANTICALLY
+            // to any live candidate, or is this ranking pure spelling noise?
+            // (Backends without hasSignal report no provenance — treat as informed.)
+            const pairSignal = backend.hasSignal?.bind(backend);
+            const informed = !pairSignal || choices.some((i) => pairSignal(clueWord, view.words[i] as string));
             let best = scored[0] as { index: number; score: number };
             let second = -Infinity;
             for (let i = 1; i < scored.length; i++) {
@@ -270,6 +282,17 @@ export function makeGreedyClicker(
                 ) {
                     return { kind: 'reveal', index: best.index };
                 }
+                return { kind: 'endTurn' };
+            }
+
+            // An UNINFORMED decision — the clue means nothing to the backend, so
+            // the ranking above is spelling noise — gets exactly one least-bad
+            // guess, then banks. Every further reveal would be a coin flip the
+            // clue never promised (~1/3 own on a fresh board, with the assassin
+            // in the pool), which is how a bot chained SUNDIAL→INDIA into a
+            // three-card junk streak. A human who can't place a clue word taps
+            // their best hunch once and stops; so does the bot.
+            if (!informed && view.guessesUsed >= 1) {
                 return { kind: 'endTurn' };
             }
 

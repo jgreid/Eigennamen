@@ -164,6 +164,26 @@ export const tableBackend: SemanticBackend = {
         // No signal (legacy ALL-CAPS): the best of both readings.
         return Math.max(commonRelatedness(a, b), properReading(a, b));
     },
+    hasSignal(a: string, b: string): boolean {
+        // Provenance for relatedness(): true exactly when the score above comes
+        // from a table path (identity, concept edge/co-membership, or a proper
+        // reading) rather than the lexical bigram floor. Same case-signal
+        // routing as relatedness so the two can never disagree.
+        if (normalizeClueWord(a) === normalizeClueWord(b)) return true;
+        const aSig = referenceSignal(a);
+        const bSig = referenceSignal(b);
+        if (aSig === 'common' || bSig === 'common') return scoreCommonAssociation(INDEX, a, b) !== null;
+        if (aSig === 'proper' || bSig === 'proper') {
+            const reference = aSig === 'proper' ? a : b;
+            const other = aSig === 'proper' ? b : a;
+            const refKey = normalizeClueWord(reference);
+            if (PROPER_INDEX.table.has(refKey)) {
+                return knownReferenceReading(refKey, normalizeClueWord(other)) > 0;
+            }
+            return scoreCommonAssociation(INDEX, a, b) !== null;
+        }
+        return scoreCommonAssociation(INDEX, a, b) !== null || properReading(a, b) > 0;
+    },
     vocabulary(): string[] {
         // Common concept keys plus display-cased proper references — emitting a
         // reference verbatim ("Cinderella") is itself the case signal.

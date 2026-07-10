@@ -106,6 +106,53 @@ export function directEdgeMeta(index: AssociationIndex, a: string, b: string): E
 }
 
 /**
+ * Candidate base forms of a (normalized, uppercase) English inflection:
+ * plural -S/-ES/-IES and participle -ING/-ED, with doubled-consonant collapse
+ * and silent-E restore. Human clues arrive inflected ("ANIMALS 3",
+ * "SWIMMING 2") while the table's keys are base forms; without folding those
+ * clues miss the concepts the table already knows and drop to bigram noise.
+ * Purely generative — a candidate only matters if the index actually knows it
+ * (see resolveKnownForm), so non-English or coincidental endings are no-ops.
+ */
+function inflectionBases(word: string): string[] {
+    const out: string[] = [];
+    const push = (s: string): void => {
+        if (s.length >= 3 && s !== word && !out.includes(s)) out.push(s);
+    };
+    if (word.endsWith('IES')) push(`${word.slice(0, -3)}Y`); // BERRIES → BERRY
+    if (/[^S]ES$/.test(word)) push(word.slice(0, -2)); // BOXES → BOX
+    if (/[^SU]S$/.test(word)) push(word.slice(0, -1)); // ANIMALS → ANIMAL (not GLASS/BUS)
+    for (const suffix of ['ING', 'ED'] as const) {
+        if (!word.endsWith(suffix)) continue;
+        const stem = word.slice(0, -suffix.length);
+        push(stem); // COOKING → COOK
+        push(`${stem}E`); // RIDING → RIDE
+        if (stem.length >= 2 && stem[stem.length - 1] === stem[stem.length - 2]) {
+            push(stem.slice(0, -1)); // SWIMMING → SWIM
+        }
+    }
+    return out;
+}
+
+/** True when the index knows the word as a clue key or a group member. */
+function indexKnows(index: AssociationIndex, key: string): boolean {
+    return index.table.has(key) || index.membership.has(key);
+}
+
+/**
+ * Resolve a normalized word to the form this index KNOWS: the word itself when
+ * present, else its first known inflection base, else the word unchanged. The
+ * exact form always wins, so folding can never shadow a real entry.
+ */
+export function resolveKnownForm(index: AssociationIndex, key: string): string {
+    if (indexKnows(index, key)) return key;
+    for (const base of inflectionBases(key)) {
+        if (indexKnows(index, base)) return base;
+    }
+    return key;
+}
+
+/**
  * Partial score for a given number of shared concept groups. Saturating and
  * always < 1 so a co-membership never outranks a full-weight direct edge:
  * 1 shared → 0.50, 2 → 0.67, 3 → 0.75, 4 → 0.80, … (1 - 1/(n+1)).
@@ -128,10 +175,13 @@ function sharedConceptScore(shared: number): number {
  *    chain for a custom-map overlay).
  */
 export function scoreCommonAssociation(index: AssociationIndex, a: string, b: string): number | null {
-    const direct = directEdgeMeta(index, a, b)?.weight ?? 0;
+    // Fold inflections to the forms the index knows ("ANIMALS" reads as
+    // "ANIMAL") — exact entries always win, so this only ever ADDS signal for
+    // pairs that would otherwise fall through to the lexical floor.
+    const A = resolveKnownForm(index, normalizeClueWord(a));
+    const B = resolveKnownForm(index, normalizeClueWord(b));
+    const direct = directEdgeMeta(index, A, B)?.weight ?? 0;
 
-    const A = normalizeClueWord(a);
-    const B = normalizeClueWord(b);
     let coMembership = 0;
     const ca = index.membership.get(A);
     const cb = index.membership.get(B);
