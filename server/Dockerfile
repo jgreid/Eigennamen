@@ -101,6 +101,12 @@ COPY --chown=eigennamen:nodejs --from=builder /app/public ./public
 # BOT_EMBEDDINGS_PATH overrides, =off disables.
 COPY --chown=eigennamen:nodejs --from=builder /app/embeddings ./embeddings
 
+# Ship the committed bot semantic maps (the default-list map lives here) so the
+# runtime's default BOT_SEMANTIC_MAPS_DIR (./src/bots/data/semantic-maps under
+# the app cwd) resolves in production too — without this, maps could never load
+# in a deployed container. Inert while the directory holds only .gitkeep.
+COPY --chown=eigennamen:nodejs --from=builder /app/src/bots/data/semantic-maps ./src/bots/data/semantic-maps
+
 # Switch to non-root user
 USER eigennamen
 
