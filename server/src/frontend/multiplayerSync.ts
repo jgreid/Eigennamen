@@ -176,6 +176,7 @@ export function resetMultiplayerState(): void {
     // Clear advisor suggestions so stale badges don't render onto the next room's board.
     state.botSuggestions = [];
     state.botSuggestionAdvisor = null;
+    state.pendingBotSuggestion = null;
     document.querySelectorAll('.card.revealing').forEach((c) => c.classList.remove('revealing'));
 }
 

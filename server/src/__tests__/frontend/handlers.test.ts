@@ -66,6 +66,7 @@ jest.mock('../../frontend/board', () => ({
     renderBoard: jest.fn(),
     renderBotSuggestions: jest.fn(),
     clearBotSuggestions: jest.fn(),
+    flushPendingBotSuggestion: jest.fn(),
 }));
 
 jest.mock('../../frontend/game', () => ({

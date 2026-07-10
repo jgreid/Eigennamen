@@ -2,7 +2,7 @@ import { state } from '../state.js';
 import { showToast } from '../ui.js';
 import { t } from '../i18n.js';
 import { updateRoleBanner, updateControls, revertAndClearRoleChange } from '../roles.js';
-import { renderBoard } from '../board.js';
+import { renderBoard, flushPendingBotSuggestion } from '../board.js';
 import { updateScoreboard, updateTurnIndicator } from '../game.js';
 import { logger } from '../logger.js';
 import {
@@ -157,6 +157,9 @@ export function registerRoomHandlers(): void {
             updateRoleBanner();
         } finally {
             state.resyncInProgress = false;
+            // Deliver any advisor suggestion that arrived mid-resync (it is not
+            // part of the snapshot and the advisor will not re-emit it).
+            flushPendingBotSuggestion();
         }
     });
 
@@ -240,6 +243,7 @@ export function registerRoomHandlers(): void {
             }
         } finally {
             state.resyncInProgress = false;
+            flushPendingBotSuggestion();
         }
     }
 

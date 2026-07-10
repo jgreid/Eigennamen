@@ -34,6 +34,13 @@ The choice is made once, lazily, in `selectBackend.ts` (`getSemanticBackend()`),
 so importing the strategy registry never touches the filesystem and tests with
 no env var keep getting the deterministic table backend.
 
+**Tiers compose, they don't shadow.** For a pair where the curated layers
+beneath the vectors (semantic maps / baked table) have REAL signal
+(`hasSignal`), relatedness is the max of the cosine and the curated reading —
+a curated `TENTACLE→OCTOPUS` 1.0 is never collapsed to a compressed cosine
+just because both words have vectors. The max is gated on provenance, so the
+lexical bigram floor can never override a genuine cosine.
+
 **Auto-detection.** When `BOT_EMBEDDINGS_PATH` is unset, the server looks for a
 vectors file the project's own tooling has already produced, most specific
 first: `src/bots/data/board-vectors.vec` (the distilled board artifact),

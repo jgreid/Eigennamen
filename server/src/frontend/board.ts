@@ -370,7 +370,33 @@ export function renderBotSuggestions(): void {
 export function clearBotSuggestions(): void {
     state.botSuggestions = [];
     state.botSuggestionAdvisor = null;
+    // A held mid-resync suggestion is for the clue being cleared — drop it too.
+    state.pendingBotSuggestion = null;
     renderBotSuggestions();
+}
+
+/**
+ * Deliver a suggestion event that arrived during a resync (see the
+ * botSuggestion handler in gameEventHandlers.ts). Suggestions are not part of
+ * the resync snapshot and the advisor de-dupes per game state, so a dropped
+ * event would be lost permanently — with the human clicker it advises being
+ * the only actor left to change the state, the badge would never appear
+ * (deterministically reproduced by e2e/bot-lifecycle.spec.js on a cold
+ * server). Applied only while its clue is still live; a clue change clears
+ * the pending entry via clearBotSuggestions().
+ */
+export function flushPendingBotSuggestion(): void {
+    const pending = state.pendingBotSuggestion;
+    if (!pending) return;
+    state.pendingBotSuggestion = null;
+    if (!state.gameState.currentClue) return; // clue ended during the resync
+    state.botSuggestions = pending.suggestions;
+    state.botSuggestionAdvisor = pending.advisor;
+    renderBotSuggestions();
+    if (pending.suggestions.length > 0) {
+        const who = pending.advisor || 'Advisor';
+        announceToScreenReader(t('bots.advisorSuggests', { advisor: who, count: String(pending.suggestions.length) }));
+    }
 }
 
 // Incremental update - only update changed cards (much faster)

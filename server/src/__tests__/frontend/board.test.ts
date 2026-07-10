@@ -41,6 +41,8 @@ import {
     updateBoardIncremental,
     updateSingleCard,
     navigateCards,
+    clearBotSuggestions,
+    flushPendingBotSuggestion,
 } from '../../frontend/board';
 import { state, BOARD_SIZE } from '../../frontend/state';
 import { getCardFontClass } from '../../frontend/utils';
@@ -991,5 +993,58 @@ describe('navigateCards(currentIndex, key)', () => {
         for (let i = 0; i < 25; i++) {
             expect((boardEl.children[i] as HTMLElement).focus).not.toHaveBeenCalled();
         }
+    });
+});
+
+// ==================== Pending advisor suggestions (resync race) ====================
+
+describe('flushPendingBotSuggestion', () => {
+    let boardEl: HTMLElement;
+
+    beforeEach(() => {
+        document.body.innerHTML = '<div id="board"></div>';
+        boardEl = document.getElementById('board') as HTMLElement;
+        for (let i = 0; i < 3; i++) {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.setAttribute('data-index', String(i));
+            boardEl.appendChild(card);
+        }
+        state.cachedElements.board = boardEl;
+        state.botSuggestions = [];
+        state.botSuggestionAdvisor = null;
+        state.pendingBotSuggestion = null;
+        state.gameState.currentClue = { word: 'ARMY', number: 1 } as typeof state.gameState.currentClue;
+    });
+
+    it('applies a held suggestion once the clue is confirmed live', () => {
+        state.pendingBotSuggestion = {
+            suggestions: [{ index: 1, confidence: 0.8, reason: 'fits' }],
+            advisor: 'Greedy Bot',
+        };
+        flushPendingBotSuggestion();
+        expect(state.pendingBotSuggestion).toBeNull();
+        expect(state.botSuggestions).toHaveLength(1);
+        expect(boardEl.querySelector('.card[data-index="1"] .suggestion-badge')).not.toBeNull();
+    });
+
+    it('drops the held suggestion when its clue ended during the resync', () => {
+        state.gameState.currentClue = null;
+        state.pendingBotSuggestion = {
+            suggestions: [{ index: 1, confidence: 0.8, reason: 'fits' }],
+            advisor: 'Greedy Bot',
+        };
+        flushPendingBotSuggestion();
+        expect(state.pendingBotSuggestion).toBeNull();
+        expect(state.botSuggestions).toHaveLength(0);
+        expect(boardEl.querySelector('.suggestion-badge')).toBeNull();
+    });
+
+    it('is a no-op with nothing pending, and clearBotSuggestions drops pending', () => {
+        flushPendingBotSuggestion();
+        expect(state.botSuggestions).toHaveLength(0);
+        state.pendingBotSuggestion = { suggestions: [], advisor: null };
+        clearBotSuggestions();
+        expect(state.pendingBotSuggestion).toBeNull();
     });
 });

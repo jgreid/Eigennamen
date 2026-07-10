@@ -180,6 +180,15 @@ export interface AppState {
     botSuggestions: { index: number; confidence: number; reason: string; warning?: string }[];
     /** Nickname of the advisor bot behind the current suggestions, if any. */
     botSuggestionAdvisor: string | null;
+    /** A suggestion event that arrived DURING a resync, held for delivery when
+     *  the resync completes. Suggestions are not part of the resync snapshot
+     *  and the advisor de-dupes per game state, so dropping the event loses it
+     *  permanently — with a human clicker waiting on the advice, nothing else
+     *  would ever re-trigger it. */
+    pendingBotSuggestion: {
+        suggestions: { index: number; confidence: number; reason: string; warning?: string }[];
+        advisor: string | null;
+    } | null;
 
     // Game state
     gameState: GameState;
