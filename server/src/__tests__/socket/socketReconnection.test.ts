@@ -503,16 +503,19 @@ describe('Socket Rate Limiter Unit Tests', () => {
         });
     });
 
-    test('returns passthrough for unknown events', (done) => {
-        const mockSocket = { id: 'test-socket-3' };
+    test('applies a fail-closed default to unknown events (N37)', (done) => {
+        const mockSocket = { id: 'test-socket-3', clientIP: '198.51.100.3' };
         const limiter = rateLimiter.getLimiter('unknown:event');
 
-        // Should always pass for unknown events
-        for (let i = 0; i < 100; i++) {
+        // Unmapped events are no longer an unlimited pass-through — they get a
+        // conservative default limit (5 per 5s), so a burst is eventually blocked.
+        const errors = [];
+        for (let i = 0; i < 20; i++) {
             limiter(mockSocket, {}, (err) => {
-                expect(err).toBeUndefined();
+                if (err) errors.push(err);
             });
         }
+        expect(errors.length).toBeGreaterThan(0);
         done();
     });
 

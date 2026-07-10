@@ -376,6 +376,7 @@ export async function revealCard(
                 INVALID_INDEX: new ValidationError('Invalid card index'),
                 GAME_PAUSED: GameStateError.gamePaused(),
                 NO_CLUE_GIVEN: GameStateError.noClueGiven(),
+                CORRUPTED_DATA: GameStateError.corrupted(roomCode),
             };
 
             const result = await executeLuaScript<RevealResult>(

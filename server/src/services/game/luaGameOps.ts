@@ -49,6 +49,10 @@ const gameStateSchema = z
         stateVersion: z.number().optional(),
         createdAt: z.number().optional(),
         gameMode: z.string().optional(),
+        // Authoritative end reason stamped by revealCard.lua at game end (N7).
+        // Must be declared here or the schema would strip it on read, losing the
+        // duet-loss distinction before game history can persist it.
+        endReason: z.string().optional(),
         wordListId: z.string().nullable().optional(),
         wordListName: z.string().nullable().optional(),
         // Full word pool the board was drawn from (match mode reuses it for
@@ -73,11 +77,29 @@ const gameStateSchema = z
     })
     .refine(
         (data) => {
-            // Only validate length consistency when all three arrays are present
+            // Only validate length consistency when all three core arrays are present
             if (!data.words || !data.types || !data.revealed) return true;
-            return data.words.length === data.types.length && data.types.length === data.revealed.length;
+            if (data.words.length !== data.types.length || data.types.length !== data.revealed.length) {
+                return false;
+            }
+            // Mode-specific parallel arrays, when present, must also match the board
+            // size. A truncated duetTypes/cardScores/revealedBy otherwise reaches
+            // revealCard.lua as a nil card-type lookup: the reveal + guessesUsed
+            // increment still COMMIT, but the result omits `type` and fails
+            // revealResultSchema — the op throws after mutating, leaving clients one
+            // reveal behind with no broadcast and no recovery (N9). Rejecting the
+            // mismatch here refuses the read before any mutation runs. (wordPool is
+            // deliberately excluded — it is not a per-card parallel array.)
+            const n = data.types.length;
+            if (data.duetTypes && data.duetTypes.length !== n) return false;
+            if (data.cardScores && data.cardScores.length !== n) return false;
+            if (data.revealedBy && data.revealedBy.length !== n) return false;
+            return true;
         },
-        { message: 'Game state arrays (words, types, revealed) must have the same length' }
+        {
+            message:
+                'Game state parallel arrays (words, types, revealed, duetTypes, cardScores, revealedBy) must have consistent length',
+        }
     );
 
 const luaResultObjectSchema = z.record(z.string(), z.unknown());

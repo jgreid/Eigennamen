@@ -429,6 +429,8 @@ None of these matter until the app actually runs more than one instance behind a
 
 **Root cause:** `botController.ts`'s `inFlight`/`pending` per-room guard and `connectionTracker.ts`'s `connectionsPerIP`/`authFailuresPerIP` counters are all plain in-process `Map`s/`Set`s. Across instances, two humans in the same room landing on different instances can have each instance's bot controller independently believe it's not in-flight for that room (wasted computation, possible divergent action), and an attacker split across instances gets the per-IP connection cap and auth-failure lockout multiplied by instance count.
 
+**§9 inventory extension (CODEBASE_REVIEW_PLAN):** two more per-instance maps have been added since this item was written — `botRoomCache` (E3's botful-room cache) and the advisor's `suggestionKeys` de-dup set — and belong in this inventory. Mitigating factor: the bot decision seeds are deterministic per decision, so dual-instance controllers would mostly compute *identical* actions whose duplicate game-ops the Lua guards already reject; the divergence risk is smaller than the raw "unsynced Map" framing suggests. Still close before scaling out.
+
 **Fix:** Move the bot controller's `inFlight` guard onto the existing `distributedLock.ts` pattern (`lock:bot-tick:{roomCode}`) — leave `clueMemory` as-is, since it's already documented as a best-effort tie-breaker, not authoritative state. Move `connectionTracker.ts`'s two security-relevant counters to Redis `INCR`+`EXPIRE`, mirroring `scripts/atomicRateLimit.lua`'s existing pattern.
 
 **Touches:** `bots/botController.ts`, `socket/connectionTracker.ts`

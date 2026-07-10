@@ -205,6 +205,12 @@ export interface GameState {
     createdAt: number;
     /** Game mode (classic, duet, match) */
     gameMode?: GameMode;
+    /**
+     * Authoritative end reason, stamped by the reveal that ended the game (N7).
+     * Lets game history distinguish a duet cooperative loss (timerTokens /
+     * unreachable) from a completion. Absent until the game ends.
+     */
+    endReason?: 'assassin' | 'completed' | 'timerTokens' | 'unreachable';
     // Duet mode fields (optional, only present in duet games)
     /** Side B's key card types (blue team's perspective) */
     duetTypes?: CardType[];

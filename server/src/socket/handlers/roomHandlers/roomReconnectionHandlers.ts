@@ -115,27 +115,45 @@ export default function roomReconnectionHandlers(io: Server, socket: GameSocket)
                 const { code, reconnectionToken } = validated;
 
                 const reconnectPromise = (async () => {
-                    const validation: TokenValidation = await playerService.validateRoomReconnectToken(
+                    // Peek FIRST, without consuming: the single-use token must not
+                    // be burned on a benign, recoverable mismatch (a stale `code`
+                    // from a recreated room, or a room whose key just TTL-expired),
+                    // which would otherwise force an avoidable fresh join and lose
+                    // seat/role continuity (N10). Single-use is still guaranteed —
+                    // the destructive consume happens below, once we know the token
+                    // targets this existing room.
+                    const peek: TokenValidation = await playerService.peekRoomReconnectToken(
                         reconnectionToken,
                         socket.sessionId
                     );
 
-                    if (!validation.valid) {
-                        throw new PlayerError(
-                            ERROR_CODES.NOT_AUTHORIZED,
-                            `Invalid reconnection token: ${validation.reason}`
-                        );
+                    if (!peek.valid) {
+                        throw new PlayerError(ERROR_CODES.NOT_AUTHORIZED, `Invalid reconnection token: ${peek.reason}`);
                     }
 
-                    const { tokenData } = validation;
-
-                    if (tokenData?.roomCode !== code) {
+                    if (peek.tokenData?.roomCode !== code) {
+                        // Token preserved — a later reconnect with the right code succeeds.
                         throw new PlayerError(ERROR_CODES.INVALID_INPUT, 'Token does not match room');
                     }
 
                     const room: Room | null = await roomService.getRoom(code);
                     if (!room) {
+                        // Token preserved — room may reappear (or the client corrects `code`).
                         throw RoomError.notFound(code);
+                    }
+
+                    // Room exists and the token targets it: NOW consume atomically.
+                    // The Lua GET+DEL still guarantees single-use, so two concurrent
+                    // reconnects can't both win here.
+                    const validation: TokenValidation = await playerService.validateRoomReconnectToken(
+                        reconnectionToken,
+                        socket.sessionId
+                    );
+                    if (!validation.valid) {
+                        throw new PlayerError(
+                            ERROR_CODES.NOT_AUTHORIZED,
+                            `Invalid reconnection token: ${validation.reason}`
+                        );
                     }
 
                     // Serialized against a concurrent disconnect's connected:false

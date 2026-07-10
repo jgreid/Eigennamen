@@ -28,6 +28,11 @@ export async function getReplayEvents(roomCode: string, gameId: string): Promise
             id: game.id,
             roomCode: game.roomCode,
             timestamp: game.timestamp,
+            // Carry mode + end reason so the renderer can colour duet boards
+            // (initialBoard.duetTypes), show match card scores, and label a duet
+            // loss correctly (N7).
+            gameMode: game.gameMode,
+            endReason: game.endReason,
             initialBoard: game.initialBoard,
             events,
             finalState: game.finalState,

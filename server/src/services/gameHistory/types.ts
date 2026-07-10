@@ -8,6 +8,14 @@ export interface InitialBoardState {
     types: CardType[];
     seed: string;
     firstTeam: Team;
+    /**
+     * Duet mode: the BLUE side's perspective key. Without it a duet replay
+     * colours every blue-turn reveal from the red-side `types`, which is wrong
+     * for a card that is an agent on one side and a bystander on the other (N7).
+     */
+    duetTypes?: CardType[];
+    /** Match mode: per-card point values, so match replays can show card scores (N7). */
+    cardScores?: number[];
 }
 
 /**
@@ -21,6 +29,14 @@ export interface FinalGameState {
     // null for a duet cooperative loss (no winning team).
     winner: Team | null;
     gameOver: boolean;
+    // Duet mode extras (N7)
+    greenFound?: number;
+    greenTotal?: number;
+    timerTokens?: number;
+    // Match mode extras (N7)
+    matchRound?: number;
+    redMatchScore?: number;
+    blueMatchScore?: number;
 }
 
 /**
@@ -80,6 +96,22 @@ export interface GameDataInput {
     gameOver?: boolean;
     // Needed so validation can accept a null winner for a duet cooperative loss.
     gameMode?: GameMode;
+    /**
+     * Authoritative end reason captured when the game ended (from the reveal
+     * that ended it). Lets a duet token/unreachable loss be recorded as a loss
+     * rather than being indistinguishable from a completion (N7).
+     */
+    endReason?: EndReason;
+    // Duet mode extras (N7)
+    duetTypes?: CardType[];
+    greenFound?: number;
+    greenTotal?: number;
+    timerTokens?: number;
+    // Match mode extras (N7)
+    cardScores?: number[];
+    matchRound?: number;
+    redMatchScore?: number;
+    blueMatchScore?: number;
     createdAt?: number;
     clues?: GameClue[];
     history?: HistoryEntry[];
@@ -98,6 +130,10 @@ export interface GameHistoryEntry {
     timestamp: number;
     startedAt: number;
     endedAt: number;
+    /** Which game mode this game was played in (N7). Legacy entries may lack it. */
+    gameMode?: GameMode;
+    /** Authoritative end reason captured at game end (N7). Legacy entries may lack it. */
+    endReason?: EndReason;
     initialBoard: InitialBoardState;
     finalState: FinalGameState;
     clues: GameClue[];
@@ -109,9 +145,11 @@ export interface GameHistoryEntry {
 }
 
 /**
- * How the game ended
+ * How the game ended.
+ * `timerTokens`/`unreachable` are duet cooperative losses — distinct from a
+ * `completed` win so replays/summaries don't mislabel a loss as a completion (N7).
  */
-export type EndReason = 'completed' | 'assassin' | 'forfeit';
+export type EndReason = 'completed' | 'assassin' | 'forfeit' | 'timerTokens' | 'unreachable';
 
 /**
  * Game history summary (for list views)
@@ -121,6 +159,8 @@ export interface GameHistorySummary {
     timestamp: number;
     startedAt: number;
     endedAt: number;
+    /** Game mode, so a duet cooperative win (winner:'red') isn't shown as a red-team win (N7). */
+    gameMode?: GameMode;
     winner?: Team;
     redScore?: number;
     blueScore?: number;
@@ -149,6 +189,9 @@ export interface ReplayData {
     id: string;
     roomCode: string;
     timestamp: number;
+    /** Game mode, so the replay renderer can colour duet boards / show match scores (N7). */
+    gameMode?: GameMode;
+    endReason?: EndReason;
     initialBoard: InitialBoardState;
     events: ReplayEvent[];
     finalState: FinalGameState;

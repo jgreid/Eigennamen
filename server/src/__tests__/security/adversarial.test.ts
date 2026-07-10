@@ -436,14 +436,18 @@ describe('Adversarial Security Tests', () => {
             process.env.GLOBAL_IP_RATE_LIMIT_MAX = origGlobal;
         });
 
-        test('returns passthrough for unconfigured events', () => {
+        test('throttles unconfigured events with a fail-closed default (N37)', () => {
             const limiter = createSocketRateLimiter({});
             const middleware = limiter.getLimiter('unknown:event');
-            let called = false;
-            middleware({ id: 's1', clientIP: '1.2.3.4' }, {}, () => {
-                called = true;
-            });
-            expect(called).toBe(true);
+            const socket = { id: 's1', clientIP: '1.2.3.4' };
+            const results = [];
+            // An event with no configured limit is no longer an unlimited
+            // pass-through: the conservative default (5 per 5s) eventually blocks.
+            for (let i = 0; i < 10; i++) {
+                middleware(socket, {}, (err) => results.push(err));
+            }
+            expect(results.slice(0, 5).every((e) => e === undefined)).toBe(true);
+            expect(results.some((e) => e instanceof Error)).toBe(true);
         });
     });
 

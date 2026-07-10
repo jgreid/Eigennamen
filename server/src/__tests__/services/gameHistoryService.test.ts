@@ -303,6 +303,92 @@ describe('Game History Service', () => {
             expect(result).not.toBeNull();
             expect(result.finalState.winner).toBeNull();
         });
+
+        // N7: game history/replay used to drop all mode-identifying and
+        // mode-specific data — gameMode, endReason, duet perspective key, match
+        // card scores — so a duet loss looked like a completion and duet replays
+        // coloured blue-turn reveals wrong.
+        describe('mode data persistence (N7)', () => {
+            const duetTypes = mockGameData.types.map((t, i) => (i % 5 === 0 ? 'blue' : t));
+            const cardScores = mockGameData.types.map((_, i) => (i % 3 === 0 ? 2 : 0));
+
+            test('records a duet token-exhaustion loss with mode data and a non-completed end reason', async () => {
+                const result = await gameHistoryService.saveGameResult('ROOMD1', {
+                    ...mockGameData,
+                    gameMode: 'duet',
+                    winner: null,
+                    gameOver: true,
+                    endReason: 'timerTokens',
+                    duetTypes,
+                    greenFound: 12,
+                    greenTotal: 15,
+                    timerTokens: 0,
+                });
+
+                expect(result.gameMode).toBe('duet');
+                expect(result.endReason).toBe('timerTokens');
+                expect(result.initialBoard.duetTypes).toEqual(duetTypes);
+                expect(result.finalState.greenFound).toBe(12);
+                expect(result.finalState.greenTotal).toBe(15);
+                expect(result.finalState.timerTokens).toBe(0);
+                // A loss is distinguishable from a completion.
+                expect(result.finalState.winner).toBeNull();
+            });
+
+            test('records a duet cooperative WIN as distinguishable from a red classic win', async () => {
+                // Duet wins set winner='red'; only the persisted gameMode tells a
+                // consumer this is a co-op win, not a red-team win.
+                const result = await gameHistoryService.saveGameResult('ROOMD2', {
+                    ...mockGameData,
+                    gameMode: 'duet',
+                    winner: 'red',
+                    gameOver: true,
+                    endReason: 'completed',
+                    duetTypes,
+                    greenFound: 15,
+                    greenTotal: 15,
+                });
+
+                expect(result.gameMode).toBe('duet');
+                expect(result.finalState.winner).toBe('red');
+                expect(result.endReason).toBe('completed');
+            });
+
+            test('records a match round with card scores and match state', async () => {
+                const result = await gameHistoryService.saveGameResult('ROOMM1', {
+                    ...mockGameData,
+                    gameMode: 'match',
+                    winner: 'blue',
+                    gameOver: true,
+                    endReason: 'completed',
+                    cardScores,
+                    matchRound: 2,
+                    redMatchScore: 7,
+                    blueMatchScore: 11,
+                });
+
+                expect(result.gameMode).toBe('match');
+                expect(result.initialBoard.cardScores).toEqual(cardScores);
+                expect(result.finalState.matchRound).toBe(2);
+                expect(result.finalState.redMatchScore).toBe(7);
+                expect(result.finalState.blueMatchScore).toBe(11);
+            });
+
+            test('a classic game carries no mode extras', async () => {
+                const result = await gameHistoryService.saveGameResult('ROOMC1', {
+                    ...mockGameData,
+                    gameMode: 'classic',
+                    winner: 'red',
+                    gameOver: true,
+                    endReason: 'completed',
+                });
+
+                expect(result.initialBoard.duetTypes).toBeUndefined();
+                expect(result.initialBoard.cardScores).toBeUndefined();
+                expect(result.finalState.greenFound).toBeUndefined();
+                expect(result.finalState.matchRound).toBeUndefined();
+            });
+        });
     });
 
     describe('getGameHistory', () => {
@@ -378,6 +464,49 @@ describe('Game History Service', () => {
 
             // Should return 2 valid entries, skipping the corrupted one
             expect(history).toHaveLength(2);
+        });
+
+        // N7: the summary's endReason must reflect a stored duet-loss reason and
+        // carry gameMode, rather than defaulting every non-assassin end to
+        // 'completed'.
+        test('summary prefers the stored end reason and exposes gameMode', async () => {
+            storage['zset:gameHistoryIndex:ROOMDUET'] = [{ score: 5000, value: 'duet-loss' }];
+            storage['gameHistory:ROOMDUET:duet-loss'] = JSON.stringify({
+                id: 'duet-loss',
+                roomCode: 'ROOMDUET',
+                timestamp: 5000,
+                startedAt: 4000,
+                endedAt: 5000,
+                gameMode: 'duet',
+                endReason: 'timerTokens',
+                finalState: { winner: null, redScore: 12, blueScore: 12 },
+                clues: [],
+                history: [],
+                teamNames: { red: 'Red', blue: 'Blue' },
+            });
+
+            const history = await gameHistoryService.getGameHistory('ROOMDUET', 10);
+            expect(history).toHaveLength(1);
+            expect(history[0].gameMode).toBe('duet');
+            expect(history[0].endReason).toBe('timerTokens');
+        });
+
+        test('legacy entries without a stored end reason fall back to completed', async () => {
+            storage['zset:gameHistoryIndex:ROOMLEGACY'] = [{ score: 5000, value: 'legacy' }];
+            storage['gameHistory:ROOMLEGACY:legacy'] = JSON.stringify({
+                id: 'legacy',
+                roomCode: 'ROOMLEGACY',
+                timestamp: 5000,
+                startedAt: 4000,
+                endedAt: 5000,
+                finalState: { winner: 'red', redScore: 9, blueScore: 7 },
+                clues: [],
+                history: [],
+                teamNames: { red: 'Red', blue: 'Blue' },
+            });
+
+            const history = await gameHistoryService.getGameHistory('ROOMLEGACY', 10);
+            expect(history[0].endReason).toBe('completed');
         });
     });
 

@@ -181,6 +181,52 @@ describe('Real-Redis Lua script integration', () => {
             expect(afterGame?.guessesAllowed).toBe(0);
         });
 
+        it('records the true guess ordinal on a turn-ending reveal, not 0 (N6 regression)', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            const game = await gameService.createGame(code, { gameMode: 'classic', seed: `${code}-seed` });
+            const team = game.currentTurn;
+
+            // Clue for 1 → 2 guesses allowed. Reveal one OWN card (correct, turn
+            // continues at guess 1) then an OPPONENT card (wrong → turn ends on
+            // guess 2). The turn switch resets guessesUsed to 0, so a history
+            // entry built AFTER the reset recorded guessNumber 0 (N6).
+            await gameService.submitClue(code, team, 'ZZZGUESSNUMZZZ', 1, 'Spymaster');
+            const ownIndex = game.types.findIndex((t) => t === team);
+            const oppIndex = game.types.findIndex((t) => t !== team && t !== 'assassin' && t !== 'neutral');
+            expect(ownIndex).toBeGreaterThanOrEqual(0);
+            expect(oppIndex).toBeGreaterThanOrEqual(0);
+
+            await gameService.revealCard(code, ownIndex, 'Clicker', team);
+            const second = await gameService.revealCard(code, oppIndex, 'Clicker', team);
+            expect(second.turnEnded).toBe(true);
+
+            const after = await gameService.getGame(code);
+            const reveals = (after?.history ?? []).filter((h) => h.action === 'reveal');
+            expect(reveals).toHaveLength(2);
+            expect(reveals[0]).toMatchObject({ index: ownIndex, guessNumber: 1 });
+            // The turn-ending reveal must carry its real ordinal (2), not 0.
+            expect(reveals[1]).toMatchObject({ index: oppIndex, guessNumber: 2 });
+        });
+
+        it('rejects a corrupted (truncated duetTypes) game on read, before any reveal mutates it (N9 regression)', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            await gameService.createGame(code, { gameMode: 'duet', seed: `${code}-duet` });
+
+            // Corrupt the persisted state: drop one entry from duetTypes so it is
+            // shorter than the board. The extended gameStateSchema length refine
+            // must reject the read (getGame throws + deletes), so the reveal
+            // handler never runs the Lua and never commits a nil-type reveal.
+            const redis = getRedis();
+            const raw = (await redis.get(`room:${code}:game`)) as string;
+            const parsed = JSON.parse(raw) as { duetTypes: string[] };
+            parsed.duetTypes = parsed.duetTypes.slice(0, 24);
+            await redis.set(`room:${code}:game`, JSON.stringify(parsed));
+
+            await expect(gameService.getGame(code)).rejects.toThrow(/corrupt/i);
+        });
+
         it('ends the game with the correct winner when the assassin is revealed', async () => {
             const code = freshRoomCode();
             await roomService.createRoom(code, 'host-1', { nickname: 'Host' });

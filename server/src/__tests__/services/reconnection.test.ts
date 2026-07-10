@@ -43,7 +43,11 @@ jest.mock('../../services/playerService', () => ({
 
 const logger = require('../../utils/logger');
 const { getPlayer } = require('../../services/playerService');
-const { cleanupOrphanedReconnectionTokens, validateSocketAuthToken } = require('../../services/player/reconnection');
+const {
+    cleanupOrphanedReconnectionTokens,
+    validateSocketAuthToken,
+    peekRoomReconnectToken,
+} = require('../../services/player/reconnection');
 
 describe('Reconnection Service', () => {
     beforeEach(() => {
@@ -51,6 +55,50 @@ describe('Reconnection Service', () => {
         mockRedis.get.mockResolvedValue(null);
         mockRedis.del.mockResolvedValue(1);
         mockRedis.scanIterator = jest.fn();
+    });
+
+    // N10: room:reconnect used to atomically GET+DEL the single-use token before
+    // checking the benign, recoverable conditions (wrong room code, room gone),
+    // burning a correct token on a stale mismatch. peekRoomReconnectToken reads
+    // it WITHOUT consuming so those checks can run first.
+    describe('peekRoomReconnectToken (N10)', () => {
+        it('returns token data WITHOUT deleting either key', async () => {
+            mockRedis.get.mockResolvedValue(JSON.stringify({ sessionId: 's1', roomCode: 'ROOM1' }));
+
+            const result = await peekRoomReconnectToken('a'.repeat(64), 's1');
+
+            expect(result.valid).toBe(true);
+            expect(result.tokenData).toMatchObject({ sessionId: 's1', roomCode: 'ROOM1' });
+            // Peek must be non-destructive: no DEL, no consume-Lua.
+            expect(mockRedis.del).not.toHaveBeenCalled();
+            expect(mockRedis.eval).not.toHaveBeenCalled();
+        });
+
+        it('rejects a session mismatch without consuming the token', async () => {
+            mockRedis.get.mockResolvedValue(JSON.stringify({ sessionId: 'other', roomCode: 'ROOM1' }));
+
+            const result = await peekRoomReconnectToken('a'.repeat(64), 's1');
+
+            expect(result.valid).toBe(false);
+            expect(result.reason).toBe('SESSION_MISMATCH');
+            expect(mockRedis.del).not.toHaveBeenCalled();
+        });
+
+        it('reports an expired/missing token', async () => {
+            mockRedis.get.mockResolvedValue(null);
+
+            const result = await peekRoomReconnectToken('a'.repeat(64), 's1');
+
+            expect(result.valid).toBe(false);
+            expect(result.reason).toBe('TOKEN_EXPIRED_OR_INVALID');
+        });
+
+        it('rejects an empty token', async () => {
+            const result = await peekRoomReconnectToken('', 's1');
+            expect(result.valid).toBe(false);
+            expect(result.reason).toBe('INVALID_TOKEN_FORMAT');
+            expect(mockRedis.get).not.toHaveBeenCalled();
+        });
     });
 
     describe('cleanupOrphanedReconnectionTokens', () => {

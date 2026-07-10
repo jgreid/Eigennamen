@@ -40,13 +40,28 @@ const GAME_HISTORY_INDEX_PREFIX = 'gameHistoryIndex:';
 export const MAX_HISTORY_PER_ROOM = 100; // Maximum games to keep per room
 
 /**
- * Derive how the game ended from the stored history entries.
- * Checks for forfeit and assassin actions; defaults to 'completed'.
+ * Derive how the game ended.
+ *
+ * Forfeit is detected from history (the forfeit path never sets a game-level
+ * end reason). Otherwise the authoritative `endReason` captured when the game
+ * ended is preferred — this is what lets a duet token-exhaustion / unreachable
+ * loss be recorded as a loss instead of being mislabeled a completion (N7).
+ * Legacy entries (saved before N7) carry no stored `endReason`, so we fall back
+ * to the old history-scan derivation.
  */
 function deriveEndReason(game: GameHistoryEntry): EndReason {
     const history = game.history || [];
     for (const entry of history) {
         if (entry.action === 'forfeit') return 'forfeit';
+    }
+
+    const stored = game.endReason;
+    if (stored === 'assassin' || stored === 'timerTokens' || stored === 'unreachable' || stored === 'completed') {
+        return stored;
+    }
+
+    // Legacy fallback (no stored endReason)
+    for (const entry of history) {
         if (entry.action === 'reveal' && entry.type === 'assassin') return 'assassin';
     }
     return 'completed';
@@ -104,6 +119,9 @@ export async function saveGameResult(roomCode: string, gameData: GameDataInput):
     const historyId = gameData.id || randomUUID();
     const timestamp = Date.now();
 
+    const isDuet = gameData.gameMode === 'duet';
+    const isMatch = gameData.gameMode === 'match';
+
     // Build the history entry with replay data
     const historyEntry: GameHistoryEntry = {
         id: historyId,
@@ -112,12 +130,22 @@ export async function saveGameResult(roomCode: string, gameData: GameDataInput):
         startedAt: gameData.createdAt || timestamp,
         endedAt: timestamp,
 
+        // Mode-identifying metadata (N7): without it a duet cooperative win
+        // (winner:'red') is indistinguishable from a red classic win, and a
+        // duet loss's end reason can't be recovered.
+        gameMode: gameData.gameMode,
+        endReason: gameData.endReason,
+
         // Initial board state for replay
         initialBoard: {
             words: gameData.words,
             types: gameData.types,
             seed: gameData.seed,
             firstTeam: getFirstTeam(gameData),
+            // Duet replays need the blue-side key to colour blue-turn reveals;
+            // match replays carry per-card values (N7). Undefined for classic.
+            ...(isDuet && gameData.duetTypes ? { duetTypes: gameData.duetTypes } : {}),
+            ...(isMatch && gameData.cardScores ? { cardScores: gameData.cardScores } : {}),
         },
 
         // Final scores and winner
@@ -129,6 +157,21 @@ export async function saveGameResult(roomCode: string, gameData: GameDataInput):
             // Preserve null for a duet loss instead of mislabeling it a red win.
             winner: gameData.winner ?? null,
             gameOver: gameData.gameOver || false,
+            // Mode-specific final state (N7)
+            ...(isDuet
+                ? {
+                      greenFound: gameData.greenFound,
+                      greenTotal: gameData.greenTotal,
+                      timerTokens: gameData.timerTokens,
+                  }
+                : {}),
+            ...(isMatch
+                ? {
+                      matchRound: gameData.matchRound,
+                      redMatchScore: gameData.redMatchScore,
+                      blueMatchScore: gameData.blueMatchScore,
+                  }
+                : {}),
         },
 
         // All clues given during the game
@@ -243,6 +286,7 @@ export async function getGameHistory(roomCode: string, limit: number = 10): Prom
                 timestamp: game.timestamp,
                 startedAt: game.startedAt,
                 endedAt: game.endedAt,
+                gameMode: game.gameMode,
                 winner: game.finalState?.winner ?? undefined,
                 redScore: game.finalState?.redScore,
                 blueScore: game.finalState?.blueScore,

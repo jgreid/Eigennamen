@@ -78,6 +78,16 @@ else
     cardType = game.types[luaIndex]
 end
 
+-- Defense in depth (N9): a truncated types/duetTypes array yields a nil card
+-- type. Reject BEFORE mutating — otherwise the reveal + guessesUsed increment
+-- still commit, but the result omits `type` and fails revealResultSchema, so the
+-- op throws AFTER mutating and clients are left one reveal behind with no
+-- broadcast. The TS-side gameStateSchema length refine catches this on read too;
+-- this guards the direct-Lua path a non-getGame caller could take.
+if cardType == nil or cardType == cjson.null then
+    return cjson.encode({error = 'CORRUPTED_DATA'})
+end
+
 -- Execute reveal
 game.revealed[luaIndex] = true
 
@@ -105,6 +115,11 @@ else
     end
 end
 game.guessesUsed = (game.guessesUsed or 0) + 1
+
+-- Capture this reveal's ordinal NOW, before the outcome blocks below reset
+-- game.guessesUsed to 0 on any turn switch. Using the post-reset value in the
+-- history insert recorded every turn-ending reveal as guessNumber 0 (N6).
+local guessNumber = game.guessesUsed
 
 -- Match mode: accumulate card score into match score immediately
 if isMatch and game.cardScores then
@@ -288,7 +303,7 @@ table.insert(game.history, {
     type = cardType,
     team = previousTurn,
     player = playerNickname,
-    guessNumber = game.guessesUsed,
+    guessNumber = guessNumber,
     timestamp = timestamp
 })
 -- Cap history
@@ -298,6 +313,13 @@ if #game.history > maxHistoryEntries then
         table.insert(newHistory, game.history[i])
     end
     game.history = newHistory
+end
+
+-- Persist the authoritative end reason when the game ends, so game history can
+-- distinguish a duet cooperative loss (timerTokens/unreachable) from a
+-- completion instead of defaulting every non-assassin end to 'completed' (N7).
+if game.gameOver and endReason ~= nil and endReason ~= cjson.null then
+    game.endReason = endReason
 end
 
 -- Increment version
