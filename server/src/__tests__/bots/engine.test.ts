@@ -123,6 +123,62 @@ describe('engine rule scenarios', () => {
     });
 });
 
+describe('applyEngineClue clamps like submitClue.lua (N23)', () => {
+    // These pin the engine's clamp to submitClue.lua's constants (CLUE_NUMBER_MAX=9,
+    // nil/negative→0, truncate) — the Lua clamp itself is covered directly by
+    // __tests__/integration/luaScripts.test.ts. The parity harness can't drive
+    // >9 because gameService.submitClue's Zod shape check rejects it before Lua.
+    it('clamps a number above CLUE_NUMBER_MAX to 9 in the clue, history, and guess budget', () => {
+        const g = createEngineGame({ seed: 'clamp-hi', gameMode: 'classic' });
+        const res = applyEngineClue(g, g.currentTurn, 'SIGNALX', 12);
+        expect(res.number).toBe(9);
+        expect(res.guessesAllowed).toBe(10); // 9 + 1
+        expect(g.currentClue?.number).toBe(9);
+        expect(g.guessesAllowed).toBe(10);
+        const last = g.history?.[g.history.length - 1] as { action: string; number: number };
+        expect(last).toMatchObject({ action: 'clue', number: 9 });
+    });
+
+    it('clamps a negative number to 0 (unlimited guesses)', () => {
+        const g = createEngineGame({ seed: 'clamp-neg', gameMode: 'classic' });
+        const res = applyEngineClue(g, g.currentTurn, 'SIGNALX', -5);
+        expect(res.number).toBe(0);
+        expect(res.guessesAllowed).toBe(0); // 0 = unlimited
+        expect(g.currentClue?.number).toBe(0);
+    });
+
+    it('truncates a fractional number toward zero', () => {
+        const g = createEngineGame({ seed: 'clamp-frac', gameMode: 'classic' });
+        const res = applyEngineClue(g, g.currentTurn, 'SIGNALX', 3.7);
+        expect(res.number).toBe(3);
+        expect(res.guessesAllowed).toBe(4);
+        expect(g.currentClue?.number).toBe(3);
+    });
+
+    it('accepts an exactly-at-cap number unchanged', () => {
+        const g = createEngineGame({ seed: 'clamp-at', gameMode: 'classic' });
+        const res = applyEngineClue(g, g.currentTurn, 'SIGNALX', 9);
+        expect(res.number).toBe(9);
+        expect(res.guessesAllowed).toBe(10);
+    });
+});
+
+describe('engine caps history like the Lua ops (N23)', () => {
+    it('trims game.history to MAX_HISTORY_ENTRIES (200), keeping the most recent', () => {
+        // Drive many clue/endTurn cycles so history would exceed the cap without
+        // trimming. Each cycle pushes a clue + an endTurn entry (2 per loop).
+        const g = createEngineGame({ seed: 'hist-cap', gameMode: 'classic' });
+        for (let i = 0; i < 300; i++) {
+            applyEngineClue(g, g.currentTurn, 'SIGNALX', 0);
+            applyEngineEndTurn(g);
+        }
+        expect(g.history?.length).toBe(200);
+        // The tail (most recent) is retained: the very last entry is an endTurn.
+        const last = g.history?.[g.history.length - 1] as { action: string };
+        expect(last.action).toBe('endTurn');
+    });
+});
+
 describe('engine rule invariants (many seeds, all modes)', () => {
     const modes: GameMode[] = ['classic', 'duet', 'match'];
     for (const mode of modes) {

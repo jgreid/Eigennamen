@@ -14,8 +14,8 @@
  */
 import type { GameState, Team, RevealResult, ClueResult, EndTurnResult, GameMode } from '../types';
 
-import { BOARD_SIZE, DUET_BOARD_CONFIG } from '../config/constants';
-import { DEFAULT_WORDS } from '../shared/gameRules';
+import { BOARD_SIZE, DUET_BOARD_CONFIG, GAME_HISTORY } from '../config/constants';
+import { DEFAULT_WORDS, CLUE_NUMBER_MAX } from '../shared/gameRules';
 import { hashString, generateBoardLayout, selectBoardWords, generateCardScores } from '../services/game/boardGenerator';
 import {
     validateCardIndex,
@@ -95,6 +95,32 @@ function guessesForClue(n: number): number {
     return n >= 1 ? n + 1 : 0;
 }
 
+/**
+ * Clamp a clue number to [0, CLUE_NUMBER_MAX] the exact way submitClue.lua does
+ * (nil/negative → 0, above the cap → the cap). gameService.submitClue already
+ * rejects out-of-range numbers before Lua runs, so this is the same last-resort
+ * defense-in-depth for a direct engine caller (or a future strategy emitting a
+ * float or 10+). Kept in lockstep so the parity harness stays green. (N23)
+ */
+function clampClueNumber(n: number): number {
+    if (!Number.isFinite(n) || n < 0) return 0;
+    const truncated = Math.trunc(n);
+    return truncated > CLUE_NUMBER_MAX ? CLUE_NUMBER_MAX : truncated;
+}
+
+/**
+ * Cap game.history to MAX_HISTORY_ENTRIES, keeping the most recent entries —
+ * mirrors the identical trim tail every Lua game op (submitClue/revealCard/
+ * endTurn) applies. Without it the engine's history grows unbounded and drifts
+ * from production once a long game crosses the cap. (N23)
+ */
+function capHistory(game: GameState): void {
+    const max = GAME_HISTORY.MAX_ENTRIES;
+    if (game.history && game.history.length > max) {
+        game.history = game.history.slice(-max);
+    }
+}
+
 /** Apply a spymaster clue (mirrors submitClue.lua). Mutates `game`. */
 export function applyEngineClue(
     game: GameState,
@@ -103,8 +129,12 @@ export function applyEngineClue(
     clueNumber: number,
     spymaster = 'bot'
 ): ClueResult {
-    const guessesAllowed = guessesForClue(Math.trunc(clueNumber));
-    const clue = { team, word, number: clueNumber, spymaster, timestamp: 0 };
+    // Clamp exactly as submitClue.lua does, and store the CLAMPED number in
+    // currentClue / clues / history so the engine and Lua agree on what was
+    // recorded (not just on the guess budget). (N23)
+    const number = clampClueNumber(clueNumber);
+    const guessesAllowed = guessesForClue(number);
+    const clue = { team, word, number, spymaster, timestamp: 0 };
     game.currentClue = clue;
     game.guessesUsed = 0;
     game.guessesAllowed = guessesAllowed;
@@ -113,13 +143,14 @@ export function applyEngineClue(
         action: 'clue',
         team,
         word,
-        number: clueNumber,
+        number,
         guessesAllowed,
         spymaster,
         timestamp: 0,
     });
+    capHistory(game);
     game.stateVersion = (game.stateVersion ?? 0) + 1;
-    return { word, number: clueNumber, team, guessesAllowed };
+    return { word, number, team, guessesAllowed };
 }
 
 /** Reveal a card (mirrors revealCard.lua). Mutates `game`. */
@@ -157,6 +188,7 @@ export function applyEngineReveal(game: GameState, index: number): RevealResult 
         guessNumber,
         timestamp: 0,
     });
+    capHistory(game);
     game.stateVersion = (game.stateVersion ?? 0) + 1;
 
     return buildRevealResult(game, index, type, outcome);
@@ -173,6 +205,7 @@ export function applyEngineEndTurn(game: GameState): EndTurnResult {
         player: 'bot',
         timestamp: 0,
     });
+    capHistory(game);
     game.stateVersion = (game.stateVersion ?? 0) + 1;
     return { currentTurn: game.currentTurn, previousTurn };
 }

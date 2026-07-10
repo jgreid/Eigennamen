@@ -28,6 +28,7 @@ jest.mock('../../socket/socketFunctionProvider', () => ({
 const botService = require('../../services/botService');
 const playerService = require('../../services/playerService');
 const gameService = require('../../services/gameService');
+const { notifyGameMutation } = require('../../socket/gameMutationNotifier');
 const { clearGameStateCache } = require('../../socket/playerContext');
 const { derivePlayerId } = require('../../services/player/publicId');
 
@@ -160,5 +161,73 @@ describe('Bot Handlers', () => {
         await handlerFor('bot:remove')({ playerId: derivePlayerId('not-here') });
 
         expect(botService.removeBot).not.toHaveBeenCalled();
+    });
+
+    describe('removing the acting bot mid-turn warns the room (N25)', () => {
+        const redSpymasterBot = {
+            sessionId: 'bot-1',
+            roomCode: 'ROOM12',
+            nickname: 'SpyBot',
+            team: 'red',
+            role: 'spymaster',
+            isBot: true,
+            connected: true,
+        };
+
+        it('emits SEAT_VACATED + nudges the controller when the removed bot held the current turn seat', async () => {
+            botService.removeBot.mockResolvedValue(undefined);
+            playerService.findPlayerByPublicId.mockResolvedValue(redSpymasterBot);
+            // Live game, red's clue phase (no clue yet → the pending seat is the
+            // spymaster) — exactly the seat the removed bot occupied.
+            gameService.getGame.mockResolvedValue({
+                id: 'game-1',
+                gameOver: false,
+                paused: false,
+                currentTurn: 'red',
+                currentClue: null,
+            });
+
+            await handlerFor('bot:remove')({ playerId: derivePlayerId('bot-1') });
+
+            expect(mockIo.emit).toHaveBeenCalledWith(
+                'room:warning',
+                expect.objectContaining({ code: 'SEAT_VACATED', team: 'red' })
+            );
+            // The controller is nudged so a remaining/re-added bot re-evaluates.
+            expect(notifyGameMutation).toHaveBeenCalledWith('ROOM12');
+        });
+
+        it('does NOT warn when the removed bot did not hold the pending seat, but still nudges', async () => {
+            botService.removeBot.mockResolvedValue(undefined);
+            // An advisor bot — never the acting seat — is removed mid-game.
+            playerService.findPlayerByPublicId.mockResolvedValue({
+                ...redSpymasterBot,
+                sessionId: 'adv-1',
+                role: 'advisor',
+            });
+            gameService.getGame.mockResolvedValue({
+                id: 'game-1',
+                gameOver: false,
+                paused: false,
+                currentTurn: 'red',
+                currentClue: null,
+            });
+
+            await handlerFor('bot:remove')({ playerId: derivePlayerId('adv-1') });
+
+            expect(mockIo.emit).not.toHaveBeenCalledWith('room:warning', expect.anything());
+            expect(notifyGameMutation).toHaveBeenCalledWith('ROOM12');
+        });
+
+        it('does nothing extra when there is no live game', async () => {
+            botService.removeBot.mockResolvedValue(undefined);
+            playerService.findPlayerByPublicId.mockResolvedValue(redSpymasterBot);
+            gameService.getGame.mockResolvedValue(null);
+
+            await handlerFor('bot:remove')({ playerId: derivePlayerId('bot-1') });
+
+            expect(mockIo.emit).not.toHaveBeenCalledWith('room:warning', expect.anything());
+            expect(notifyGameMutation).not.toHaveBeenCalled();
+        });
     });
 });

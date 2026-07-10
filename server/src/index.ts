@@ -13,6 +13,7 @@ import { validateEnv, getEnvInt } from './config/env';
 import * as timerService from './services/timerService';
 import { startMemoryMonitoring, stopMemoryMonitoring } from './middleware/timing';
 import { pruneStaleMetrics } from './utils/metrics';
+import { warmSemanticBackend } from './bots/semantics/selectBackend';
 import logger from './utils/logger';
 
 const PORT: number = getEnvInt('PORT', 3000) ?? 3000;
@@ -35,6 +36,19 @@ async function startServer(): Promise<void> {
         // Attach dependencies to app for health checks
         app.set('io', io);
         app.set('redis', getRedis);
+
+        // Warm the bot semantic backend off the event loop (N20). When
+        // BOT_EMBEDDINGS_PATH is set this parses a large vectors file; doing it
+        // now — chunked and yielding — means the first bot to act after a restart
+        // uses the ready vectors instead of triggering a multi-hundred-ms
+        // synchronous parse that would stall every room, socket, and health probe.
+        // Fire-and-forget: until it resolves, bots transparently use the table
+        // fallback, so startup is never delayed by it.
+        void warmSemanticBackend().catch((err: unknown) => {
+            logger.warn('Bot semantic backend warm failed (bots will use the fallback backend)', {
+                error: err instanceof Error ? err.message : String(err),
+            });
+        });
 
         // Log Fly.io instance info if available
         if (process.env.FLY_ALLOC_ID) {

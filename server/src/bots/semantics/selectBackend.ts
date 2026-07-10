@@ -21,11 +21,17 @@
 import { join } from 'path';
 import type { SemanticBackend } from './backend';
 import { tableBackend } from './tableBackend';
-import { makeVectorBackend } from './vectorBackend';
+import { makeVectorBackend, makeVectorBackendAsync } from './vectorBackend';
 import { loadSemanticMaps, makeCustomMapBackend } from './mapBackend';
 import logger from '../../utils/logger';
 
+/** The fully-resolved backend (with vectors if configured), once available. */
 let cached: SemanticBackend | undefined;
+/** The cheap table/map fallback, built once and served while vectors warm. */
+let baseCached: SemanticBackend | undefined;
+/** In-flight async vector warm (N20). While non-null, getSemanticBackend()
+ *  serves the base instead of triggering a blocking synchronous parse. */
+let warming: Promise<void> | null = null;
 
 function readNumberEnv(name: string): number | undefined {
     const raw = process.env[name];
@@ -34,9 +40,10 @@ function readNumberEnv(name: string): number | undefined {
     return Number.isFinite(n) && n > 0 ? n : undefined;
 }
 
-/** The semantic backend for bot strategies (see the chain above). */
-export function getSemanticBackend(): SemanticBackend {
-    if (cached) return cached;
+/** Build (once) the cheap table/map base — the fallback used while vectors warm
+ *  and the terminal backend when no embeddings path is configured. */
+function buildBase(): SemanticBackend {
+    if (baseCached) return baseCached;
 
     // Custom semantic maps overlay the baked table when present.
     const mapsDir = process.env.BOT_SEMANTIC_MAPS_DIR ?? join(process.cwd(), 'src', 'bots', 'data', 'semantic-maps');
@@ -52,7 +59,43 @@ export function getSemanticBackend(): SemanticBackend {
         logger.info(`Bot semantics: loaded ${maps.length} custom semantic map(s): ${maps.map(summarize).join(', ')}`);
     }
 
+    baseCached = base;
+    return base;
+}
+
+/** One-time operator note that bots are running on the table (no embeddings). */
+function logTableFallback(base: SemanticBackend): void {
+    if (base === tableBackend) {
+        logger.info(
+            'Bot semantics: using the offline association table (lexical fallback for ' +
+                'uncovered words). For stronger, meaning-based clues set BOT_EMBEDDINGS_PATH ' +
+                'to a word-vectors file, or run `npm run dev:bots`. For custom word lists, ' +
+                'build a semantic map with `npm run bots:map`. See docs/BOT_EMBEDDINGS.md ' +
+                'and docs/BOT_SEMANTIC_MAPS.md.'
+        );
+    }
+}
+
+/**
+ * The semantic backend for bot strategies (see the chain above).
+ *
+ * If a non-blocking warm (`warmSemanticBackend`) is loading the vectors, this
+ * serves the cheap base until the warm finishes — it never triggers the
+ * multi-GB synchronous vector parse on a live tick (N20). When no warm was
+ * requested (tests, or a caller reaching for the backend directly), it resolves
+ * synchronously as before so behaviour is unchanged.
+ */
+export function getSemanticBackend(): SemanticBackend {
+    if (cached) return cached;
+
     const path = process.env.BOT_EMBEDDINGS_PATH;
+    if (path && warming) {
+        // Vectors are warming off the event loop; serve the base for now. Not
+        // memoised into `cached` — the warm sets that when it completes.
+        return buildBase();
+    }
+
+    const base = buildBase();
     if (path) {
         const vb = makeVectorBackend({
             path,
@@ -69,21 +112,61 @@ export function getSemanticBackend(): SemanticBackend {
     }
 
     cached = base;
-    if (base === tableBackend) {
-        // One-time operator visibility: weak/strong bots depend entirely on this,
-        // and the difference is otherwise invisible. Logged once (memoised).
-        logger.info(
-            'Bot semantics: using the offline association table (lexical fallback for ' +
-                'uncovered words). For stronger, meaning-based clues set BOT_EMBEDDINGS_PATH ' +
-                'to a word-vectors file, or run `npm run dev:bots`. For custom word lists, ' +
-                'build a semantic map with `npm run bots:map`. See docs/BOT_EMBEDDINGS.md ' +
-                'and docs/BOT_SEMANTIC_MAPS.md.'
-        );
-    }
+    logTableFallback(base);
     return cached;
+}
+
+/**
+ * Warm the semantic backend at bootstrap WITHOUT blocking the event loop (N20).
+ *
+ * When `BOT_EMBEDDINGS_PATH` is set, the vector file is parsed via the async,
+ * chunked loader that yields between reads; until it finishes, getSemanticBackend()
+ * hands out the cheap table/map base, so a bot that acts during the load gets a
+ * (weaker) working backend instead of stalling every room while the parse blocks.
+ * Idempotent and safe to await; a no-op once resolved. Call once, before/at
+ * `listen`, so the vectors are ready by the time rooms reconnect after a restart.
+ */
+export async function warmSemanticBackend(): Promise<void> {
+    if (cached) return;
+
+    const path = process.env.BOT_EMBEDDINGS_PATH;
+    if (!path) {
+        // Nothing heavy to warm — resolve the cheap backend eagerly so even the
+        // table/map construction is paid at bootstrap, not on the first tick.
+        getSemanticBackend();
+        return;
+    }
+
+    if (!warming) {
+        warming = (async () => {
+            const base = buildBase();
+            try {
+                const vb = await makeVectorBackendAsync({
+                    path,
+                    fallback: base,
+                    maxWords: readNumberEnv('BOT_EMBEDDINGS_MAX_WORDS'),
+                    vocabCap: readNumberEnv('BOT_EMBEDDINGS_VOCAB_CAP'),
+                });
+                cached = vb ?? base;
+                if (!vb) logTableFallback(base);
+                else logger.info('Bot semantics: word-embedding vectors warmed and active');
+            } catch (err) {
+                logger.warn('Bot semantics: async embeddings warm failed, using fallback backend', {
+                    error: err instanceof Error ? err.message : String(err),
+                });
+                cached = base;
+                logTableFallback(base);
+            } finally {
+                warming = null;
+            }
+        })();
+    }
+    await warming;
 }
 
 /** Test-only: drop the memoised backend so a new env configuration takes effect. */
 export function resetSemanticBackendCache(): void {
     cached = undefined;
+    baseCached = undefined;
+    warming = null;
 }

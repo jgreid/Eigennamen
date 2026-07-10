@@ -17,20 +17,33 @@ jest.mock('../../services/playerService', () => ({
     getTeamMembers: jest.fn(),
     updatePlayer: jest.fn(),
     getPlayersInRoom: jest.fn(),
+    getPlayer: jest.fn(),
     // Real one-way derivation — advisor payloads carry playerId, never sessionId (N1).
     derivePlayerId: jest.requireActual('../../services/player/publicId').derivePlayerId,
 }));
 jest.mock('../../services/botService', () => ({ getBotConfig: jest.fn() }));
 jest.mock('../../socket/safeEmit', () => ({ safeEmitToRoom: jest.fn(), safeEmitToPlayers: jest.fn() }));
 jest.mock('../../utils/logger', () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() }));
+// Mock the advisor scorer so tests can force an empty/non-empty suggestion set
+// deterministically (N24 needs the empty-result path). Default: non-empty.
+jest.mock('../../bots/strategies/advisor', () => ({
+    suggestGuesses: jest.fn(() => [{ index: 0, confidence: 0.9, reason: 'fits' }]),
+}));
 
 const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
 const botService = require('../../services/botService');
 const gameActions = require('../../socket/handlers/gameActions');
 const { safeEmitToRoom, safeEmitToPlayers } = require('../../socket/safeEmit');
+const { suggestGuesses } = require('../../bots/strategies/advisor');
 const logger = require('../../utils/logger');
-const { initBotController, stopBotController, tickRoom, reconcileClueMemory } = require('../../bots/botController');
+const {
+    initBotController,
+    stopBotController,
+    tickRoom,
+    reconcileClueMemory,
+    botMayStillAct,
+} = require('../../bots/botController');
 
 const mockIo = {};
 
@@ -142,6 +155,7 @@ describe('botController.tickRoom', () => {
         ];
         gameService.getGame.mockResolvedValue(advisorGame);
         playerService.getTeamMembers.mockResolvedValue(redTeamMembers);
+        suggestGuesses.mockReturnValue([{ index: 0, confidence: 0.9, reason: 'fits ANIMAL' }]);
 
         await tickRoom('ROOM01');
 
@@ -240,6 +254,92 @@ describe('botController.tickRoom', () => {
         await tickRoom('ROOM01');
         expect(gameService.getGame).not.toHaveBeenCalled();
     });
+
+    it('does not re-score an advisor room with nothing to say on repeated identical mutations (N24)', async () => {
+        // A live clue with a HUMAN clicker + an advisor BOT, but the advisor has
+        // no suggestion for this state (empty result). The de-dupe key must be
+        // stored BEFORE the empty-result return, so a second tick on the SAME
+        // state doesn't repeat getBotConfig (a Redis read) or the full scoring.
+        const advisorGame = {
+            ...gameNoClue,
+            currentClue: { team: 'red', word: 'ANIMAL', number: 2 },
+            guessesUsed: 0,
+            stateVersion: 5,
+        };
+        const redTeamMembers = [
+            { sessionId: 'human-1', nickname: 'Human', team: 'red', role: 'clicker', isBot: false, connected: true },
+            { sessionId: 'adv-1', nickname: 'AdviceBot', team: 'red', role: 'advisor', isBot: true, connected: true },
+        ];
+        gameService.getGame.mockResolvedValue(advisorGame);
+        playerService.getTeamMembers.mockResolvedValue(redTeamMembers);
+        playerService.getPlayersInRoom.mockResolvedValue(redTeamMembers);
+        botService.getBotConfig.mockResolvedValue({ strategyId: '', skillPreset: 'intermediate', seed: 7 });
+        suggestGuesses.mockReturnValue([]); // advisor has nothing to say
+
+        await tickRoom('ROOM01');
+        await tickRoom('ROOM01'); // identical state
+
+        // Scoring + the advisor config read happened exactly once across both ticks.
+        expect(suggestGuesses).toHaveBeenCalledTimes(1);
+        expect(botService.getBotConfig).toHaveBeenCalledTimes(1);
+        // No suggestion emitted (nothing to say), on either tick.
+        expect(safeEmitToPlayers).not.toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            'game:botSuggestion',
+            expect.anything()
+        );
+    });
+});
+
+describe('botMayStillAct (N21 game-boundary guard)', () => {
+    const seat = {
+        sessionId: 'bot-1',
+        nickname: 'SpyBot',
+        team: 'red',
+        role: 'spymaster',
+        isBot: true,
+        connected: true,
+    };
+    const liveGame = { id: 'game-1', gameOver: false, paused: false, currentTurn: 'red', currentClue: null };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('returns true when the bot still holds the seat and it is the same live game', async () => {
+        playerService.getPlayer.mockResolvedValue(seat);
+        gameService.getGame.mockResolvedValue(liveGame);
+        expect(await botMayStillAct('ROOM01', seat, 'spymaster', 'red', 'game-1')).toBe(true);
+    });
+
+    it('returns false when a DIFFERENT game started during the pause (id mismatch)', async () => {
+        // A forfeit + next-round replaced the game: startNextRound mints a fresh id.
+        playerService.getPlayer.mockResolvedValue(seat);
+        gameService.getGame.mockResolvedValue({ ...liveGame, id: 'game-2', currentTurn: 'red' });
+        expect(await botMayStillAct('ROOM01', seat, 'spymaster', 'red', 'game-1')).toBe(false);
+    });
+
+    it('returns false when the bot no longer holds the seat (removed/kicked)', async () => {
+        playerService.getPlayer.mockResolvedValue(null);
+        gameService.getGame.mockResolvedValue(liveGame);
+        expect(await botMayStillAct('ROOM01', seat, 'spymaster', 'red', 'game-1')).toBe(false);
+    });
+
+    it('returns false when the seat was reseated to a human', async () => {
+        playerService.getPlayer.mockResolvedValue({ ...seat, isBot: false });
+        gameService.getGame.mockResolvedValue(liveGame);
+        expect(await botMayStillAct('ROOM01', seat, 'spymaster', 'red', 'game-1')).toBe(false);
+    });
+
+    it('returns false when the game is over or paused', async () => {
+        playerService.getPlayer.mockResolvedValue(seat);
+        gameService.getGame.mockResolvedValue({ ...liveGame, gameOver: true });
+        expect(await botMayStillAct('ROOM01', seat, 'spymaster', 'red', 'game-1')).toBe(false);
+
+        gameService.getGame.mockResolvedValue({ ...liveGame, paused: true });
+        expect(await botMayStillAct('ROOM01', seat, 'spymaster', 'red', 'game-1')).toBe(false);
+    });
 });
 
 describe('botController.tickRoom self-healing (re-arm)', () => {
@@ -307,6 +407,41 @@ describe('botController.tickRoom self-healing (re-arm)', () => {
             'ROOM01',
             'room:warning',
             expect.objectContaining({ code: 'BOT_STALLED', team: 'red' })
+        );
+    });
+
+    it('does NOT force-end the turn (or warn) when a human took the stuck seat before give-up (N22)', async () => {
+        // Reproduce the give-up edge: the bot fails its whole re-arm budget, but
+        // during the ~7s streak the host removed the stuck bot and a HUMAN took
+        // the seat. Force-ending then would end the human's healthy turn with a
+        // room-visible BOT_STALLED warning. The seat re-verify must no-op instead.
+        gameService.getGame.mockResolvedValue(gameNoClue); // always the spymaster's turn
+        gameActions.applyClue.mockRejectedValue(new Error('persistent failure'));
+
+        const humanSpymaster = { ...spymasterBot, isBot: false, nickname: 'RealSpy' };
+        // Each of the 7 tick attempts resolves the seat once (sees the bot); the
+        // final give-up call (the 8th getTeamMembers) sees a human in the seat.
+        let seatReads = 0;
+        playerService.getTeamMembers.mockImplementation(async () => {
+            seatReads++;
+            return seatReads <= 7 ? [spymasterBot] : [humanSpymaster];
+        });
+
+        await tickRoom('ROOM01');
+        for (let i = 0; i < 8; i++) {
+            await jest.advanceTimersByTimeAsync(2200);
+        }
+
+        // The bot exhausted its budget (7 attempts), then hit give-up…
+        expect(gameActions.applyClue).toHaveBeenCalledTimes(7);
+        // …but since a human now holds the seat, the turn is NOT force-ended and
+        // no BOT_STALLED warning is broadcast.
+        expect(gameActions.applyEndTurn).not.toHaveBeenCalled();
+        expect(safeEmitToRoom).not.toHaveBeenCalledWith(
+            mockIo,
+            'ROOM01',
+            'room:warning',
+            expect.objectContaining({ code: 'BOT_STALLED' })
         );
     });
 
