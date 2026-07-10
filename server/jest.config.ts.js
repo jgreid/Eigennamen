@@ -12,9 +12,12 @@ const sharedConfig = {
     preset: 'ts-jest',
     rootDir: '.',
     transform: {
-        '^.+\\.tsx?$': ['ts-jest', {
-            tsconfig: 'tsconfig.json'
-        }]
+        '^.+\\.tsx?$': [
+            'ts-jest',
+            {
+                tsconfig: 'tsconfig.json',
+            },
+        ],
     },
     moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
     clearMocks: true,
@@ -29,7 +32,11 @@ module.exports = {
     detectOpenHandles: true,
     testTimeout: 15000,
     coverageDirectory: 'coverage',
-    coverageReporters: ['text', 'lcov', 'html'],
+    // 'json-summary' writes coverage/coverage-summary.json — the input the CI PR
+    // "Coverage summary" step reads (guarded by -f, so it silently no-ops without
+    // it). Without this reporter the advertised per-PR coverage table never
+    // renders. (N30)
+    coverageReporters: ['text', 'lcov', 'html', 'json-summary'],
 
     projects: [
         // ── Backend tests (Node environment) ──
@@ -38,18 +45,9 @@ module.exports = {
             displayName: 'backend',
             testEnvironment: 'node',
             moduleDirectories: ['node_modules', 'src'],
-            testMatch: [
-                '**/__tests__/**/*.test.ts'
-            ],
-            testPathIgnorePatterns: [
-                '/node_modules/',
-                '/dist/',
-                '/helpers/',
-                '/__tests__/frontend/'
-            ],
-            transformIgnorePatterns: [
-                '/node_modules/(?!(@socket.io|socket.io-client)/)'
-            ],
+            testMatch: ['**/__tests__/**/*.test.ts'],
+            testPathIgnorePatterns: ['/node_modules/', '/dist/', '/helpers/', '/__tests__/frontend/'],
+            transformIgnorePatterns: ['/node_modules/(?!(@socket.io|socket.io-client)/)'],
             moduleNameMapper: {
                 '^@/(.*)$': '<rootDir>/src/$1',
                 '^@config/(.*)$': '<rootDir>/src/config/$1',
@@ -61,14 +59,14 @@ module.exports = {
                 '^@socket/(.*)$': '<rootDir>/src/socket/$1',
                 '^@validators/(.*)$': '<rootDir>/src/validators/$1',
                 '^@types/(.*)$': '<rootDir>/src/types/$1',
-                '^@shared/(.*)$': '<rootDir>/src/shared/$1'
+                '^@shared/(.*)$': '<rootDir>/src/shared/$1',
             },
             collectCoverageFrom: [
                 'src/**/*.ts',
                 '!src/index.ts',
                 '!src/__tests__/**',
                 '!src/types/**',
-                '!src/frontend/**'
+                '!src/frontend/**',
             ],
             // Note: Global thresholds are lower because redis.ts and socket/index.ts are
             // infrastructure modules that require integration tests (real Redis, real
@@ -79,8 +77,8 @@ module.exports = {
                     branches: 75,
                     functions: 85,
                     lines: 80,
-                    statements: 80
-                }
+                    statements: 80,
+                },
             },
         },
 
@@ -89,28 +87,20 @@ module.exports = {
             ...sharedConfig,
             displayName: 'frontend',
             testEnvironment: 'jsdom',
-            testMatch: [
-                '**/__tests__/frontend/**/*.test.ts'
-            ],
-            testPathIgnorePatterns: [
-                '/node_modules/',
-                '/dist/'
-            ],
+            testMatch: ['**/__tests__/frontend/**/*.test.ts'],
+            testPathIgnorePatterns: ['/node_modules/', '/dist/'],
             // Map .js imports in frontend source to .ts files so ts-jest can resolve them
             moduleNameMapper: {
-                '^(\\.\\.?\\/.*)\\.js$': '$1'
+                '^(\\.\\.?\\/.*)\\.js$': '$1',
             },
-            collectCoverageFrom: [
-                'src/frontend/**/*.ts',
-                '!src/frontend/types/**'
-            ],
+            collectCoverageFrom: ['src/frontend/**/*.ts', '!src/frontend/types/**'],
             coverageThreshold: {
                 global: {
                     branches: 70,
                     functions: 70,
                     lines: 70,
-                    statements: 70
-                }
+                    statements: 70,
+                },
             },
         },
     ],

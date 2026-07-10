@@ -364,6 +364,36 @@ describe('Health Routes', () => {
             delete process.env.ADMIN_PASSWORD;
         });
 
+        // --- N35: metrics auth now uses the shared scrypt verifier ---
+        it('rejects a wrong password in production (scrypt verify)', async () => {
+            process.env.NODE_ENV = 'production';
+            process.env.ADMIN_PASSWORD = 'test-admin-pass';
+            app = createTestApp();
+
+            const authHeader = 'Basic ' + Buffer.from('admin:wrong-password').toString('base64');
+            await request(app).get('/health/metrics').set('Authorization', authHeader).expect(401);
+            delete process.env.ADMIN_PASSWORD;
+        });
+
+        it('requires auth in production when a password is configured', async () => {
+            process.env.NODE_ENV = 'production';
+            process.env.ADMIN_PASSWORD = 'test-admin-pass';
+            app = createTestApp();
+
+            await request(app).get('/health/metrics').expect(401);
+            delete process.env.ADMIN_PASSWORD;
+        });
+
+        it('accepts a password containing a colon (RFC 7617 first-colon split)', async () => {
+            process.env.NODE_ENV = 'production';
+            process.env.ADMIN_PASSWORD = 'pa:ss:word';
+            app = createTestApp();
+
+            const authHeader = 'Basic ' + Buffer.from('admin:pa:ss:word').toString('base64');
+            await request(app).get('/health/metrics').set('Authorization', authHeader).expect(200);
+            delete process.env.ADMIN_PASSWORD;
+        });
+
         // --- Production vs dev: Redis memory details ---
         it('should include Redis memory details in non-production', async () => {
             process.env.NODE_ENV = 'development';

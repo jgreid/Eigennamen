@@ -11,6 +11,7 @@ import logger from '../../utils/logger';
 import { audit } from '../../services/auditService';
 import { getClientIP } from './clientIP';
 import { isProduction, parseCorsOrigins } from '../../config/env';
+import { isOriginAllowed } from '../csrf';
 
 /**
  * Origin validation result
@@ -61,36 +62,23 @@ function validateOrigin(socket: Socket): OriginValidationResult {
         return { valid: true };
     }
 
-    // Use the shared parsed origins (already trimmed); lowercase for comparison
-    const allowedOrigins = corsOrigins === true ? ['*'] : corsOrigins.map((o: string) => o.toLowerCase());
-
-    // Parse origin hostname for robust comparison (handles ports, protocols)
-    let originHostname: string;
+    // Reject a malformed origin outright — it can't be matched safely.
     try {
-        originHostname = new URL(origin).hostname.toLowerCase();
+        new URL(origin);
     } catch {
         return { valid: false, reason: 'Malformed origin URL' };
     }
 
-    const isAllowed = allowedOrigins.some((allowed: string) => {
-        if (allowed === '*') return true;
-        // Parse allowed origin to extract hostname
-        let allowedHostname: string;
-        try {
-            // Handle wildcard subdomains (e.g., *.example.com)
-            if (allowed.startsWith('*.')) {
-                const domain = allowed.slice(2);
-                return originHostname === domain || originHostname.endsWith('.' + domain);
-            }
-            // Parse as URL if it contains ://, otherwise treat as hostname
-            allowedHostname = allowed.includes('://') ? new URL(allowed).hostname.toLowerCase() : allowed;
-        } catch {
-            allowedHostname = allowed;
-        }
-        return allowedHostname === originHostname;
-    });
-
-    if (!isAllowed) {
+    // Reuse the HTTP CSRF layer's exact-origin predicate (`isOriginAllowed`) so
+    // the two CSRF surfaces share ONE matcher: it compares the FULL origin
+    // (scheme + host + port), not just the hostname the old WS check used. A
+    // handshake whose Origin is http://app.example.com or https://app.example.com:8443
+    // no longer passes when only https://app.example.com is allowed — matching
+    // what the HTTP path already enforces. `true` (wildcard CORS) maps to the
+    // predicate's null = allow-all. (N34)
+    const allowed = corsOrigins === true ? null : corsOrigins;
+    const allowedOrigins = corsOrigins === true ? ['*'] : corsOrigins; // for logs/audit only
+    if (!isOriginAllowed(origin, allowed)) {
         logger.warn('WebSocket CSRF protection: origin not allowed', {
             origin,
             allowedOrigins,

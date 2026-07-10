@@ -41,10 +41,10 @@ export const options = {
             executor: 'ramping-vus',
             startVUs: 0,
             stages: [
-                { duration: '30s', target: 50 },   // Ramp up
-                { duration: '1m', target: 100 },    // Sustain
-                { duration: '30s', target: 200 },   // Peak
-                { duration: '30s', target: 0 },     // Ramp down
+                { duration: '30s', target: 50 }, // Ramp up
+                { duration: '1m', target: 100 }, // Sustain
+                { duration: '30s', target: 200 }, // Peak
+                { duration: '30s', target: 0 }, // Ramp down
             ],
             exec: 'roomCheckFlow',
         },

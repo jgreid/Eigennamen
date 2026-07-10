@@ -3,18 +3,11 @@ import type { AdminRequest } from '../types/admin';
 
 import express from 'express';
 import path from 'path';
-import crypto, { scrypt } from 'crypto';
-import { promisify } from 'util';
-
-const scryptAsync = promisify(scrypt) as (
-    password: crypto.BinaryLike,
-    salt: crypto.BinaryLike,
-    keylen: number
-) => Promise<Buffer>;
 import rateLimit from 'express-rate-limit';
 import logger from '../utils/logger';
 import { API_RATE_LIMITS } from '../config/constants';
 import { audit } from '../services/auditService';
+import { verifyAdminPassword } from '../utils/adminPassword';
 
 import statsRouter from './admin/statsRoutes';
 import roomRouter from './admin/roomRoutes';
@@ -22,33 +15,11 @@ import auditRouter from './admin/auditRoutes';
 
 const router: ExpressRouter = express.Router();
 
-// Derive salt from JWT_SECRET if available, otherwise use a static fallback.
-// This ensures identical passwords across deployments produce different hashes.
-function getAdminScryptSalt(): string {
-    return process.env.JWT_SECRET
-        ? `eigennamen-admin-${crypto.createHash('sha256').update(process.env.JWT_SECRET).digest('hex').slice(0, 16)}`
-        : 'eigennamen-admin-auth';
-}
-
-// Lazy-initialized admin hash — computed asynchronously on first auth request
-// instead of at module load time.  Caches a Promise so concurrent requests
-// share the same derivation rather than each spawning their own.
-let cachedAdminHashPromise: Promise<Buffer> | null = null;
-let cachedAdminPassword: string | undefined;
-
-function getAdminHashAsync(adminPassword: string): Promise<Buffer> {
-    // Recompute if password changed (edge case: env var updated at runtime)
-    if (!cachedAdminHashPromise || cachedAdminPassword !== adminPassword) {
-        cachedAdminPassword = adminPassword;
-        cachedAdminHashPromise = scryptAsync(adminPassword, getAdminScryptSalt(), 32);
-    }
-    return cachedAdminHashPromise;
-}
-
 /**
  * Basic Authentication Middleware
  * Requires ADMIN_PASSWORD environment variable to be set
- * Uses async scrypt to avoid blocking the event loop during password hashing
+ * Uses the shared scrypt verifier (utils/adminPassword) to avoid blocking the
+ * event loop during password hashing — the SAME path the metrics guard uses (N35).
  */
 async function basicAuth(req: AdminRequest, res: Response, next: NextFunction): Promise<Response | void> {
     const adminPassword = process.env.ADMIN_PASSWORD;
@@ -91,12 +62,8 @@ async function basicAuth(req: AdminRequest, res: Response, next: NextFunction): 
         const username = colonIndex >= 0 ? credentials.substring(0, colonIndex) : credentials;
         const password = colonIndex >= 0 ? credentials.substring(colonIndex + 1) : '';
 
-        // Use async scrypt KDF to avoid blocking the event loop
-        const [passwordHash, adminHash] = await Promise.all([
-            scryptAsync(password, getAdminScryptSalt(), 32),
-            getAdminHashAsync(adminPassword),
-        ]);
-        if (crypto.timingSafeEqual(passwordHash, adminHash)) {
+        // Shared async scrypt verifier (constant-time; never blocks the loop).
+        if (await verifyAdminPassword(password)) {
             req.adminUsername = username || 'admin';
             // Audit successful login
             Promise.resolve(audit.adminLogin(req.ip ?? '', true)).catch((err: Error) =>

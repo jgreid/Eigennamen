@@ -1,6 +1,5 @@
 import type { Request, Response, NextFunction, Router as ExpressRouter } from 'express';
 
-import crypto from 'crypto';
 import express from 'express';
 import { isRedisHealthy, isUsingMemoryMode, getRedisMemoryInfo } from '../config/redis';
 import type { RedisMemoryInfo } from '../config/redis';
@@ -11,6 +10,7 @@ import { getPrometheusMetrics, updateSystemMetrics, getAllMetrics } from '../uti
 import { withTimeout } from '../utils/timeout';
 import { getActiveTimerCount } from '../services/timerService';
 import { isProduction } from '../config/env';
+import { verifyAdminPassword } from '../utils/adminPassword';
 
 const router: ExpressRouter = express.Router();
 
@@ -161,27 +161,26 @@ router.get('/live', (_req: Request, res: Response) => {
 
 // In production, require basic auth for metrics endpoints to prevent reconnaissance.
 // /health, /health/ready, /health/live remain unauthenticated for load balancers.
-const requireMetricsAuth = (req: Request, res: Response, next: NextFunction): void => {
+// Uses the SHARED scrypt verifier (utils/adminPassword) — the same KDF the admin
+// router uses — instead of the old bespoke plaintext length-short-circuit compare
+// (which leaked the admin-password length via timing and used no KDF). (N35)
+const requireMetricsAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     if (!isProduction()) return next();
     const authHeader = req.headers.authorization;
     if (!authHeader) {
         res.status(401).set('WWW-Authenticate', 'Basic realm="Metrics"').json({ error: 'Authentication required' });
         return;
     }
-    // Delegate to the admin basicAuth — import is avoided to prevent circular deps.
-    // Instead, check ADMIN_PASSWORD directly (same mechanism as adminRoutes.ts).
-    const adminPassword = process.env.ADMIN_PASSWORD;
-    if (!adminPassword) {
+    if (!process.env.ADMIN_PASSWORD) {
         res.status(503).json({ error: 'Metrics auth not configured' });
         return;
     }
     const encoded = authHeader.replace('Basic ', '');
     const decoded = Buffer.from(encoded, 'base64').toString('utf8');
-    const [, password] = decoded.split(':');
-    // Use timing-safe comparison to prevent timing attacks
-    const passwordBuf = Buffer.from(password || '', 'utf8');
-    const adminBuf = Buffer.from(adminPassword, 'utf8');
-    if (passwordBuf.length === adminBuf.length && crypto.timingSafeEqual(passwordBuf, adminBuf)) {
+    // Split on the FIRST colon only — RFC 7617 allows colons in passwords.
+    const colonIndex = decoded.indexOf(':');
+    const password = colonIndex >= 0 ? decoded.slice(colonIndex + 1) : '';
+    if (await verifyAdminPassword(password)) {
         next();
     } else {
         res.status(401).set('WWW-Authenticate', 'Basic realm="Metrics"').json({ error: 'Invalid credentials' });

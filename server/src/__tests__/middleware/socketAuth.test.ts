@@ -178,16 +178,9 @@ describe('Socket Authentication Middleware', () => {
     });
 
     describe('validateSessionAge', () => {
-        test('returns valid when session has no creation timestamp', () => {
-            const player = { sessionId: 'test-session' };
-            const _result = require('../../middleware/socketAuth').__get__
-                ? require('../../middleware/socketAuth').validateSessionAge?.(player)
-                : { valid: true }; // Skip if not exported
-
-            // Test via validateSession integration instead
-            expect(true).toBe(true);
-        });
-
+        // N29: removed a vacuous `expect(true).toBe(true)` placeholder here —
+        // `validateSessionAge` isn't exported, so it asserted nothing. Session-age
+        // behaviour is covered by the `validateSession` integration cases below.
         test('session age validation via validateSession - valid session', async () => {
             const validPlayer = {
                 sessionId: 'valid-session',
@@ -769,6 +762,53 @@ describe('Socket Authentication Middleware', () => {
             const result = validateOrigin(socket);
             expect(result.valid).toBe(false);
             expect(result.reason).toContain('not allowed');
+        });
+
+        // N34: the WS check now compares the FULL origin (scheme+host+port) via the
+        // shared isOriginAllowed predicate, matching the HTTP CSRF layer — the old
+        // hostname-only match let a mismatched scheme or port through.
+        test('rejects a mismatched scheme (http when only https is allowed)', () => {
+            process.env.NODE_ENV = 'production';
+            process.env.CORS_ORIGIN = 'https://app.example.com';
+            const socket = {
+                id: 's1',
+                handshake: {
+                    headers: { origin: 'http://app.example.com' },
+                    address: '127.0.0.1',
+                    auth: { sessionId: 'test-session' },
+                },
+            };
+            const result = validateOrigin(socket);
+            expect(result.valid).toBe(false);
+            expect(result.reason).toContain('not allowed');
+        });
+
+        test('rejects a mismatched port', () => {
+            process.env.NODE_ENV = 'production';
+            process.env.CORS_ORIGIN = 'https://app.example.com';
+            const socket = {
+                id: 's1',
+                handshake: {
+                    headers: { origin: 'https://app.example.com:8443' },
+                    address: '127.0.0.1',
+                    auth: { sessionId: 'test-session' },
+                },
+            };
+            const result = validateOrigin(socket);
+            expect(result.valid).toBe(false);
+            expect(result.reason).toContain('not allowed');
+        });
+
+        test('rejects a malformed origin URL', () => {
+            process.env.NODE_ENV = 'production';
+            process.env.CORS_ORIGIN = 'https://app.example.com';
+            const socket = {
+                id: 's1',
+                handshake: { headers: { origin: 'not-a-url' }, address: '127.0.0.1' },
+            };
+            const result = validateOrigin(socket);
+            expect(result.valid).toBe(false);
+            expect(result.reason).toBe('Malformed origin URL');
         });
     });
 

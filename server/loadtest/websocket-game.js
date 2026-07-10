@@ -41,11 +41,11 @@ export const options = {
             executor: 'ramping-vus',
             startVUs: 0,
             stages: [
-                { duration: '30s', target: 50 },    // Warm up
-                { duration: '1m', target: 200 },     // Moderate load
-                { duration: '30s', target: 500 },    // High load
-                { duration: '1m', target: 500 },     // Sustain peak
-                { duration: '30s', target: 0 },      // Ramp down
+                { duration: '30s', target: 50 }, // Warm up
+                { duration: '1m', target: 200 }, // Moderate load
+                { duration: '30s', target: 500 }, // High load
+                { duration: '1m', target: 500 }, // Sustain peak
+                { duration: '30s', target: 0 }, // Ramp down
             ],
             exec: 'gameFlowScenario',
         },
@@ -137,7 +137,7 @@ export function gameFlowScenario() {
                 actionStart = Date.now();
                 emitEvent(socket, 'room:create', {
                     nickname: nickname,
-                    roomId: roomCode
+                    roomId: roomCode,
                 });
                 roomsCreated.add(1);
             } else if (msg.startsWith('42')) {
@@ -180,7 +180,7 @@ export function gameFlowScenario() {
                         actionStart = Date.now();
                         emitEvent(socket, 'chat:message', {
                             text: 'Load test message',
-                            teamOnly: false
+                            teamOnly: false,
                         });
                         chatMessagesSent.add(1);
                         break;
@@ -231,7 +231,7 @@ export function chatScenario() {
             } else if (msg.startsWith('40')) {
                 emitEvent(socket, 'room:create', {
                     nickname: nickname,
-                    roomId: roomCode
+                    roomId: roomCode,
                 });
             } else if (msg.startsWith('42')) {
                 const parsed = parseMessage(msg);
@@ -253,7 +253,7 @@ export function chatScenario() {
                 const actionStart = Date.now();
                 emitEvent(socket, 'chat:message', {
                     text: `Chat burst ${i + 1}/10`,
-                    teamOnly: i % 3 === 0 // Mix of team-only and all
+                    teamOnly: i % 3 === 0, // Mix of team-only and all
                 });
                 chatMessagesSent.add(1);
                 chatLatency.add(Date.now() - actionStart);

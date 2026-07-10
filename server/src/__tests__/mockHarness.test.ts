@@ -1,14 +1,20 @@
 /**
- * Chaos/Resilience Tests
+ * Mock-harness tests (formerly the mislabeled `integration/chaos.test.ts`).
  *
- * Simulates infrastructure failures (Redis errors, partial failures,
- * concurrent operations) and verifies that the codebase degrades gracefully.
- * Validates the design from ADR 004 (graceful degradation).
+ * These exercise ONLY the shared test doubles in `helpers/mocks` (createMockRedis,
+ * generateRoomCode) — they import zero production code, so they can never catch a
+ * product regression (N29). They are kept because the mock harness is load-bearing:
+ * `mocks.ts` backs most of the suite, and a silently-broken mock (e.g. an `eval`
+ * stub that stops honouring rejections) would weaken every test that relies on it.
+ * Renamed + retitled so the suite no longer masquerades as production-resilience
+ * coverage; genuine graceful-degradation behaviour is covered by the real-module
+ * integration suites (embedded-Redis harness). NOTE: it lives at the __tests__ root
+ * (not under helpers/, which testPathIgnorePatterns excludes) so it still runs.
  */
 
-const { createMockRedis, generateRoomCode } = require('../helpers/mocks');
+const { createMockRedis, generateRoomCode } = require('./helpers/mocks');
 
-describe('Chaos/Resilience Tests', () => {
+describe('Mock harness (helpers/mocks)', () => {
     let mockRedis;
 
     beforeEach(() => {

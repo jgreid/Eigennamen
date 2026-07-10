@@ -169,4 +169,4 @@ function isOriginAllowed(origin: string, allowedOrigins: string[] | null): boole
     });
 }
 
-export { csrfProtection };
+export { csrfProtection, isOriginAllowed };
