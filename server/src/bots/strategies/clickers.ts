@@ -236,21 +236,28 @@ export function makeGreedyClicker(
             // human guesser in misfire-class-D boards. The clue-debt boost
             // (Phase 4.3) breaks ties toward cards an earlier clue still owes.
             const clueWord = frame.word;
+            // LLM advice (when the controller attached it): the model's own read
+            // of the clue against each live card replaces backend retrieval as
+            // the primary score — it already embodies sense/frame understanding.
+            // Words the reply omitted fall back to the backend score.
+            const llmScores = ctx.llm?.guessScores;
             // guessRetrieval, not raw retrieval: a score with no semantic
             // provenance (the lexical bigram floor) is damped so a spelling
             // coincidence never outranks a genuine read (SUNDIAL→INDIA class).
             const scored = choices.map((index) => {
                 const word = view.words[index] as string;
-                return {
-                    index,
-                    score: guessRetrieval(backend, clueWord, word) + debtBoost(ctx, backend, clueWord, word),
-                };
+                const base = llmScores?.get(normalizeClueWord(word)) ?? guessRetrieval(backend, clueWord, word);
+                return { index, score: base + debtBoost(ctx, backend, clueWord, word) };
             });
             // Provenance of the whole decision: does the clue relate SEMANTICALLY
             // to any live candidate, or is this ranking pure spelling noise?
-            // (Backends without hasSignal report no provenance — treat as informed.)
+            // LLM advice is real semantic knowledge of the clue; otherwise
+            // (backends without hasSignal report no provenance) treat as informed.
             const pairSignal = backend.hasSignal?.bind(backend);
-            const informed = !pairSignal || choices.some((i) => pairSignal(clueWord, view.words[i] as string));
+            const informed =
+                llmScores !== undefined ||
+                !pairSignal ||
+                choices.some((i) => pairSignal(clueWord, view.words[i] as string));
             let best = scored[0] as { index: number; score: number };
             let second = -Infinity;
             for (let i = 1; i < scored.length; i++) {
@@ -317,8 +324,11 @@ export function makeGreedyClicker(
             // stop when the next card is steep-below the last take, weak in
             // absolute terms, AND blurred into its alternatives (see the
             // three-condition rationale at the CLIFF_* constants above).
+            // Skipped under LLM advice: the cliff's lastTaken estimate is on the
+            // backend's score scale, which would be compared against LLM-scale
+            // scores; the confidence floor above already disciplines that path.
             const blurred = best.score - Math.max(second, 0) < CLIFF_SEPARATION;
-            if (view.guessesUsed >= 1 && best.score < CLIFF_ABS_CEILING && blurred) {
+            if (!llmScores && view.guessesUsed >= 1 && best.score < CLIFF_ABS_CEILING && blurred) {
                 const lastTaken = lastTakenScoreEstimate(view, clueWord, backend);
                 const delta = Math.min(0.9, CLIFF_BASE_DELTA + CLIFF_AGGRESSION_SLACK * aggression);
                 if (lastTaken !== null && best.score < lastTaken * (1 - delta)) {

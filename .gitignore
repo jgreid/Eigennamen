@@ -13,9 +13,17 @@ server/coverage/
 server/playwright-report/
 server/test-results/
 
-# Bot self-play corpora + downloaded semantic assets (see docs/INTELLIGENT_BOTS_SPEC.md)
+# Bot self-play corpora + downloaded semantic assets (see docs/INTELLIGENT_BOTS_SPEC.md).
+# Everything under data/ stays untracked EXCEPT the shipped default-list semantic
+# map: `data/*` (not `data/`) so the semantic-maps dir can be re-included, then
+# only the default map + .gitkeep are tracked — user-built maps for custom lists
+# stay local, and downloaded embedding models are never committed.
 server/src/bots/results/
-server/src/bots/data/
+server/src/bots/data/*
+!server/src/bots/data/semantic-maps/
+server/src/bots/data/semantic-maps/*
+!server/src/bots/data/semantic-maps/.gitkeep
+!server/src/bots/data/semantic-maps/default-en.json
 
 # Environment
 .env

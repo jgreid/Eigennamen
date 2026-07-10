@@ -125,14 +125,13 @@ fly secrets set CORS_ORIGIN=https://your-eigennamen-app.fly.dev
 fly deploy
 ```
 
-To ship the embedding-backed ("Smart") bots, bake the vectors at build time — the
-server auto-detects the baked file at `/app/embeddings/vectors.vec`, so no env var
-is needed (`numberbatch` is the recommended model; see
-[BOT_EMBEDDINGS.md](BOT_EMBEDDINGS.md) for model choice and memory sizing):
-
-```bash
-fly deploy --build-arg BOT_EMBEDDINGS_MODEL=numberbatch
-```
+The embedding-backed ("Smart") bots are **enabled by default** in the repo's
+`fly.toml`: `[build.args] BOT_EMBEDDINGS_MODEL = "numberbatch"` bakes the vectors
+at image build time, the server auto-detects the baked file at
+`/app/embeddings/vectors.vec` (no env var needed), and the `[[vm]]` block is
+sized to 1 GB for it. See [BOT_EMBEDDINGS.md](BOT_EMBEDDINGS.md) for model
+choice and details; comment the build-arg out (and optionally drop the VM to
+512 MB) to deploy without the bake.
 
 ### Configuration (fly.toml)
 

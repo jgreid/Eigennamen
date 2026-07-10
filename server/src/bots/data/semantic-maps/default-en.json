@@ -1,0 +1,10310 @@
+{
+  "version": 2,
+  "language": "en",
+  "wordlist": "default-words.txt",
+  "model": "claude-opus-4-8",
+  "listName": "Default (English)",
+  "words": [
+    "AFRICA",
+    "AGENT",
+    "AIR",
+    "ALIEN",
+    "ALPS",
+    "AMAZON",
+    "AMBULANCE",
+    "AMERICA",
+    "ANGEL",
+    "ANTARCTICA",
+    "APPLE",
+    "ARM",
+    "ATLANTIS",
+    "AUSTRALIA",
+    "AZTEC",
+    "BACK",
+    "BALL",
+    "BAND",
+    "BANK",
+    "BAR",
+    "BARK",
+    "BAT",
+    "BATTERY",
+    "BEACH",
+    "BEAR",
+    "BEAT",
+    "BED",
+    "BEIJING",
+    "BELL",
+    "BELT",
+    "BERLIN",
+    "BERMUDA",
+    "BERRY",
+    "BILL",
+    "BLOCK",
+    "BOARD",
+    "BOLT",
+    "BOMB",
+    "BOND",
+    "BOOM",
+    "BOOT",
+    "BOTTLE",
+    "BOW",
+    "BOX",
+    "BRIDGE",
+    "BRUSH",
+    "BUCK",
+    "BUFFALO",
+    "BUG",
+    "BUGLE",
+    "BUTTON",
+    "CALF",
+    "CANADA",
+    "CAP",
+    "CAPITAL",
+    "CAR",
+    "CARD",
+    "CARROT",
+    "CASINO",
+    "CAST",
+    "CAT",
+    "CELL",
+    "CENTAUR",
+    "CENTER",
+    "CHAIR",
+    "CHANGE",
+    "CHARGE",
+    "CHECK",
+    "CHEST",
+    "CHICK",
+    "CHINA",
+    "CHOCOLATE",
+    "CHURCH",
+    "CIRCLE",
+    "CLIFF",
+    "CLOAK",
+    "CLUB",
+    "CODE",
+    "COLD",
+    "COMIC",
+    "COMPOUND",
+    "CONCERT",
+    "CONDUCTOR",
+    "CONTRACT",
+    "COOK",
+    "COPPER",
+    "COTTON",
+    "COURT",
+    "COVER",
+    "CRANE",
+    "CRASH",
+    "CRICKET",
+    "CROSS",
+    "CROWN",
+    "CYCLE",
+    "CZECH",
+    "DANCE",
+    "DATE",
+    "DAY",
+    "DEATH",
+    "DECK",
+    "DEGREE",
+    "DIAMOND",
+    "DICE",
+    "DINOSAUR",
+    "DISEASE",
+    "DOCTOR",
+    "DOG",
+    "DRAFT",
+    "DRAGON",
+    "DRESS",
+    "DRILL",
+    "DROP",
+    "DUCK",
+    "DWARF",
+    "EAGLE",
+    "EGYPT",
+    "EMBASSY",
+    "ENGINE",
+    "ENGLAND",
+    "EUROPE",
+    "EYE",
+    "FACE",
+    "FAIR",
+    "FALL",
+    "FAN",
+    "FENCE",
+    "FIELD",
+    "FIGHTER",
+    "FIGURE",
+    "FILE",
+    "FILM",
+    "FIRE",
+    "FISH",
+    "FLUTE",
+    "FLY",
+    "FOOT",
+    "FORCE",
+    "FOREST",
+    "FORK",
+    "FRANCE",
+    "GAME",
+    "GAS",
+    "GENIUS",
+    "GERMANY",
+    "GHOST",
+    "GIANT",
+    "GLASS",
+    "GLOVE",
+    "GOLD",
+    "GRACE",
+    "GRASS",
+    "GREECE",
+    "GREEN",
+    "GROUND",
+    "HAM",
+    "HAND",
+    "HAWK",
+    "HEAD",
+    "HEART",
+    "HELICOPTER",
+    "HIMALAYAS",
+    "HOLE",
+    "HOLLYWOOD",
+    "HONEY",
+    "HOOD",
+    "HOOK",
+    "HORN",
+    "HORSE",
+    "HOSPITAL",
+    "HOTEL",
+    "ICE",
+    "ICE CREAM",
+    "INDIA",
+    "IRON",
+    "IVORY",
+    "JACK",
+    "JAM",
+    "JET",
+    "JUPITER",
+    "KANGAROO",
+    "KETCHUP",
+    "KEY",
+    "KID",
+    "KING",
+    "KIWI",
+    "KNIFE",
+    "KNIGHT",
+    "LAB",
+    "LAP",
+    "LASER",
+    "LAWYER",
+    "LEAD",
+    "LEMON",
+    "LEPRECHAUN",
+    "LIFE",
+    "LIGHT",
+    "LIMOUSINE",
+    "LINE",
+    "LINK",
+    "LION",
+    "LITTER",
+    "LOCH NESS",
+    "LOCK",
+    "LOG",
+    "LONDON",
+    "LUCK",
+    "MAIL",
+    "MAMMOTH",
+    "MAPLE",
+    "MARBLE",
+    "MARCH",
+    "MASS",
+    "MATCH",
+    "MERCURY",
+    "MEXICO",
+    "MICROSCOPE",
+    "MILLIONAIRE",
+    "MINE",
+    "MINT",
+    "MISSILE",
+    "MODEL",
+    "MOLE",
+    "MOON",
+    "MOSCOW",
+    "MOUNT",
+    "MOUSE",
+    "MOUTH",
+    "MUG",
+    "NAIL",
+    "NEEDLE",
+    "NET",
+    "NEW YORK",
+    "NIGHT",
+    "NINJA",
+    "NOTE",
+    "NOVEL",
+    "NURSE",
+    "NUT",
+    "OCTOPUS",
+    "OIL",
+    "OLIVE",
+    "OLYMPUS",
+    "OPERA",
+    "ORANGE",
+    "ORGAN",
+    "PALM",
+    "PAN",
+    "PANDA",
+    "PAPER",
+    "PARACHUTE",
+    "PARK",
+    "PART",
+    "PASS",
+    "PASTE",
+    "PENGUIN",
+    "PHOENIX",
+    "PIANO",
+    "PIE",
+    "PILOT",
+    "PIN",
+    "PIPE",
+    "PIRATE",
+    "PISTOL",
+    "PIT",
+    "PITCH",
+    "PLANE",
+    "PLASTIC",
+    "PLATE",
+    "PLATYPUS",
+    "PLAY",
+    "PLOT",
+    "POINT",
+    "POISON",
+    "POLE",
+    "POLICE",
+    "POOL",
+    "PORT",
+    "POST",
+    "POUND",
+    "PRESS",
+    "PRINCESS",
+    "PUMPKIN",
+    "PUPIL",
+    "PYRAMID",
+    "QUEEN",
+    "RABBIT",
+    "RACKET",
+    "RAY",
+    "REVOLUTION",
+    "RING",
+    "ROBIN",
+    "ROBOT",
+    "ROCK",
+    "ROME",
+    "ROOT",
+    "ROSE",
+    "ROULETTE",
+    "ROUND",
+    "ROW",
+    "RULER",
+    "SATELLITE",
+    "SATURN",
+    "SCALE",
+    "SCHOOL",
+    "SCIENTIST",
+    "SCORPION",
+    "SCREEN",
+    "SCUBA DIVER",
+    "SEAL",
+    "SERVER",
+    "SHADOW",
+    "SHAKESPEARE",
+    "SHARK",
+    "SHIP",
+    "SHOE",
+    "SHOP",
+    "SHOT",
+    "SHOULDER",
+    "SILK",
+    "SINK",
+    "SKYSCRAPER",
+    "SLIP",
+    "SLUG",
+    "SMUGGLER",
+    "SNOW",
+    "SNOWMAN",
+    "SOCK",
+    "SOLDIER",
+    "SOUL",
+    "SOUND",
+    "SPACE",
+    "SPELL",
+    "SPIDER",
+    "SPIKE",
+    "SPINE",
+    "SPOT",
+    "SPRING",
+    "SPY",
+    "SQUARE",
+    "STADIUM",
+    "STAFF",
+    "STAR",
+    "STATE",
+    "STICK",
+    "STOCK",
+    "STRAW",
+    "STREAM",
+    "STRIKE",
+    "STRING",
+    "SUB",
+    "SUIT",
+    "SUPERHERO",
+    "SWING",
+    "SWITCH",
+    "TABLE",
+    "TABLET",
+    "TAG",
+    "TAIL",
+    "TAP",
+    "TEACHER",
+    "TELESCOPE",
+    "TEMPLE",
+    "THIEF",
+    "THUMB",
+    "TICK",
+    "TIE",
+    "TIME",
+    "TOKYO",
+    "TOOTH",
+    "TORCH",
+    "TOWER",
+    "TRACK",
+    "TRAIN",
+    "TRIANGLE",
+    "TRIP",
+    "TRUNK",
+    "TUBE",
+    "TURKEY",
+    "UNDERTAKER",
+    "UNICORN",
+    "VACUUM",
+    "VAN",
+    "VET",
+    "VOLCANO",
+    "WALL",
+    "WAR",
+    "WASHER",
+    "WASHINGTON",
+    "WATCH",
+    "WATER",
+    "WAVE",
+    "WEB",
+    "WELL",
+    "WHALE",
+    "WHIP",
+    "WIND",
+    "WITCH",
+    "WORM",
+    "YARD"
+  ],
+  "concepts": {
+    "AIRCRAFT": [
+      {
+        "word": "HELICOPTER",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "JET",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "PARACHUTE",
+        "weight": 0.5,
+        "kind": "content"
+      }
+    ],
+    "AIRPLANE": [
+      {
+        "word": "AIR",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "FIGHTER",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "FORCE",
+        "weight": 0.6,
+        "kind": "compound",
+        "collocation": 0.7
+      },
+      {
+        "word": "JET",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "JUPITER",
+        "weight": 0.1,
+        "kind": "content"
+      },
+      {
+        "word": "PILOT",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "PLANE",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "WAVE",
+        "weight": 0.2,
+        "kind": "content"
+      }
+    ],
+    "ANDROID": [
+      {
+        "word": "ROBOT",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "ANGLE": [
+      {
+        "word": "CIRCLE",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "DEGREE",
+        "weight": 0.8,
+        "kind": "attribute"
+      }
+    ],
+    "ANIMAL": [
+      {
+        "word": "BAT",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "BEAR",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "BUFFALO",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "CALF",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "CHICK",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "DRAGON",
+        "weight": 0.4,
+        "kind": "member"
+      },
+      {
+        "word": "EAGLE",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "FISH",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "HORSE",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "KIWI",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "LION",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "MAMMOTH",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "MOLE",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "MOUSE",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "PANDA",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "PLATYPUS",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "RABBIT",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "SEAL",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "SHARK",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "SLUG",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "SPIDER",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "SPINE",
+        "weight": 0.4,
+        "kind": "part"
+      },
+      {
+        "word": "TAIL",
+        "weight": 0.7,
+        "kind": "part"
+      },
+      {
+        "word": "UNICORN",
+        "weight": 0.4,
+        "kind": "member"
+      },
+      {
+        "word": "WHALE",
+        "weight": 0.7,
+        "kind": "member"
+      }
+    ],
+    "ARACHNID": [
+      {
+        "word": "SCORPION",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "SPIDER",
+        "weight": 0.9,
+        "kind": "member"
+      }
+    ],
+    "ARMOR": [
+      {
+        "word": "KNIGHT",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "MAIL",
+        "weight": 0.7,
+        "kind": "compound"
+      },
+      {
+        "word": "NAIL",
+        "weight": 0.05,
+        "kind": "content"
+      },
+      {
+        "word": "PLATE",
+        "weight": 0.6,
+        "kind": "part",
+        "collocation": 0.6
+      }
+    ],
+    "ARMY": [
+      {
+        "word": "BAND",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "BUGLE",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "DRILL",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "SOLDIER",
+        "weight": 0.95,
+        "kind": "member"
+      },
+      {
+        "word": "SPY",
+        "weight": 0.4,
+        "kind": "member"
+      },
+      {
+        "word": "STAFF",
+        "weight": 0.4,
+        "kind": "member"
+      },
+      {
+        "word": "WAR",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "ARROW": [
+      {
+        "word": "BOW",
+        "weight": 0.9,
+        "kind": "compound"
+      },
+      {
+        "word": "POINT",
+        "weight": 0.5,
+        "kind": "attribute"
+      }
+    ],
+    "ATTORNEY": [
+      {
+        "word": "LAWYER",
+        "weight": 0.9,
+        "kind": "member"
+      }
+    ],
+    "AUDIO": [
+      {
+        "word": "SOUND",
+        "weight": 0.85,
+        "kind": "attribute"
+      }
+    ],
+    "AUTUMN": [
+      {
+        "word": "FALL",
+        "weight": 0.85,
+        "kind": "content"
+      },
+      {
+        "word": "PUMPKIN",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "AVENGERS": [
+      {
+        "word": "HORSE",
+        "weight": 0.2,
+        "kind": "content"
+      }
+    ],
+    "AVIATION": [
+      {
+        "word": "AIR",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "PILOT",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "BABY": [
+      {
+        "word": "BOTTLE",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "BUCK",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "CALF",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "CHANGE",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "CHICK",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "NURSE",
+        "weight": 0.6,
+        "kind": "function"
+      },
+      {
+        "word": "RING",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "WHALE",
+        "weight": 0.2,
+        "kind": "content"
+      }
+    ],
+    "BACKBONE": [
+      {
+        "word": "SPINE",
+        "weight": 0.95,
+        "kind": "member"
+      }
+    ],
+    "BACKYARD": [
+      {
+        "word": "GRASS",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "YARD",
+        "weight": 0.85,
+        "kind": "content"
+      }
+    ],
+    "BAG": [
+      {
+        "word": "BOX",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "PLASTIC",
+        "weight": 0.75,
+        "kind": "content"
+      }
+    ],
+    "BAKE": [
+      {
+        "word": "PIE",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "BAMBOO": [
+      {
+        "word": "PANDA",
+        "weight": 0.85,
+        "kind": "content"
+      }
+    ],
+    "BARRIER": [
+      {
+        "word": "BRIDGE",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "NET",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "WALL",
+        "weight": 0.7,
+        "kind": "member"
+      }
+    ],
+    "BASEBALL": [
+      {
+        "word": "BALL",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "BAT",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "DIAMOND",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "GLOVE",
+        "weight": 0.85,
+        "kind": "content"
+      },
+      {
+        "word": "HORSE",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "MATCH",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "PARK",
+        "weight": 0.7,
+        "kind": "compound",
+        "collocation": 0.7
+      },
+      {
+        "word": "PITCH",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "PLATE",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "SHOT",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "SLUG",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "SPIKE",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "STRIKE",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "SWING",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "BASKETBALL": [
+      {
+        "word": "BALL",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "NET",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "BATTLE": [
+      {
+        "word": "WAR",
+        "weight": 0.85,
+        "kind": "content"
+      }
+    ],
+    "BEAM": [
+      {
+        "word": "LASER",
+        "weight": 0.85,
+        "kind": "attribute"
+      },
+      {
+        "word": "POINT",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "TELESCOPE",
+        "weight": 0.3,
+        "kind": "part"
+      }
+    ],
+    "BEDROOM": [
+      {
+        "word": "BED",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "BEE": [
+      {
+        "word": "HONEY",
+        "weight": 1,
+        "kind": "content"
+      },
+      {
+        "word": "QUEEN",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "STICK",
+        "weight": 0.3,
+        "kind": "attribute"
+      }
+    ],
+    "BEER": [
+      {
+        "word": "DRAFT",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "DROP",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "TAP",
+        "weight": 0.75,
+        "kind": "function"
+      }
+    ],
+    "BILLIARDS": [
+      {
+        "word": "BAR",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "POOL",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "TABLE",
+        "weight": 0.7,
+        "kind": "part"
+      }
+    ],
+    "BIRD": [
+      {
+        "word": "ANGEL",
+        "weight": 0.4,
+        "kind": "attribute"
+      },
+      {
+        "word": "BILL",
+        "weight": 0.3,
+        "kind": "part"
+      },
+      {
+        "word": "BOW",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "CHICK",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "CRANE",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "CRICKET",
+        "weight": 0.2,
+        "kind": "member"
+      },
+      {
+        "word": "DUCK",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "EAGLE",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "HAWK",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "HORN",
+        "weight": 0.3,
+        "kind": "part"
+      },
+      {
+        "word": "KIWI",
+        "weight": 0.75,
+        "kind": "member"
+      },
+      {
+        "word": "PENGUIN",
+        "weight": 1,
+        "kind": "member"
+      },
+      {
+        "word": "ROBIN",
+        "weight": 1,
+        "kind": "member"
+      },
+      {
+        "word": "TAIL",
+        "weight": 0.5,
+        "kind": "part"
+      }
+    ],
+    "BIRTHDAY": [
+      {
+        "word": "LIFE",
+        "weight": 0.3,
+        "kind": "content"
+      }
+    ],
+    "BLACK": [
+      {
+        "word": "CHOCOLATE",
+        "weight": 0.3,
+        "kind": "attribute"
+      },
+      {
+        "word": "JET",
+        "weight": 0.6,
+        "kind": "attribute"
+      },
+      {
+        "word": "PANDA",
+        "weight": 0.4,
+        "kind": "attribute"
+      }
+    ],
+    "BLADE": [
+      {
+        "word": "HELICOPTER",
+        "weight": 0.6,
+        "kind": "part"
+      },
+      {
+        "word": "IRON",
+        "weight": 0.3,
+        "kind": "attribute"
+      },
+      {
+        "word": "KNIFE",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "STICK",
+        "weight": 0.2,
+        "kind": "content"
+      }
+    ],
+    "BLANKET": [
+      {
+        "word": "BED",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "COVER",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "BLOG": [
+      {
+        "word": "POST",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "BLUE": [
+      {
+        "word": "WHALE",
+        "weight": 0.7,
+        "kind": "attribute"
+      }
+    ],
+    "BOARDGAME": [
+      {
+        "word": "LIFE",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "OPERA",
+        "weight": 0.2,
+        "kind": "content"
+      }
+    ],
+    "BOAT": [
+      {
+        "word": "DECK",
+        "weight": 0.4,
+        "kind": "part"
+      },
+      {
+        "word": "PORT",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "ROW",
+        "weight": 0.8,
+        "kind": "function"
+      },
+      {
+        "word": "SHIP",
+        "weight": 0.85,
+        "kind": "member"
+      }
+    ],
+    "BODY": [
+      {
+        "word": "ARM",
+        "weight": 0.85,
+        "kind": "part"
+      },
+      {
+        "word": "BACK",
+        "weight": 0.8,
+        "kind": "part"
+      },
+      {
+        "word": "CELL",
+        "weight": 0.4,
+        "kind": "part"
+      },
+      {
+        "word": "CHEST",
+        "weight": 0.8,
+        "kind": "part"
+      },
+      {
+        "word": "FOOT",
+        "weight": 0.8,
+        "kind": "part"
+      },
+      {
+        "word": "HAND",
+        "weight": 0.8,
+        "kind": "part"
+      },
+      {
+        "word": "HEAD",
+        "weight": 0.85,
+        "kind": "part"
+      },
+      {
+        "word": "HEART",
+        "weight": 0.8,
+        "kind": "part"
+      },
+      {
+        "word": "HORN",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "LAP",
+        "weight": 0.5,
+        "kind": "part"
+      },
+      {
+        "word": "MOLE",
+        "weight": 0.5,
+        "kind": "part"
+      },
+      {
+        "word": "NAIL",
+        "weight": 0.6,
+        "kind": "part"
+      },
+      {
+        "word": "ORGAN",
+        "weight": 0.85,
+        "kind": "part"
+      },
+      {
+        "word": "PUPIL",
+        "weight": 0.6,
+        "kind": "part"
+      },
+      {
+        "word": "SHADOW",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "SHOULDER",
+        "weight": 0.8,
+        "kind": "part"
+      },
+      {
+        "word": "SOUL",
+        "weight": 0.4,
+        "kind": "part"
+      },
+      {
+        "word": "SPINE",
+        "weight": 0.85,
+        "kind": "part"
+      },
+      {
+        "word": "TAIL",
+        "weight": 0.4,
+        "kind": "part"
+      },
+      {
+        "word": "THUMB",
+        "weight": 0.8,
+        "kind": "part"
+      }
+    ],
+    "BODYPART": [
+      {
+        "word": "CALF",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "FACE",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "TOOTH",
+        "weight": 0.7,
+        "kind": "member"
+      }
+    ],
+    "BOOK": [
+      {
+        "word": "COOK",
+        "weight": 0.4,
+        "kind": "compound",
+        "collocation": 0.6
+      },
+      {
+        "word": "COVER",
+        "weight": 0.8,
+        "kind": "part"
+      },
+      {
+        "word": "NOVEL",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "PAPER",
+        "weight": 0.6,
+        "kind": "attribute"
+      },
+      {
+        "word": "PRESS",
+        "weight": 0.4,
+        "kind": "function"
+      },
+      {
+        "word": "SPINE",
+        "weight": 0.8,
+        "kind": "part"
+      }
+    ],
+    "BOUNCE": [
+      {
+        "word": "BALL",
+        "weight": 0.7,
+        "kind": "function"
+      },
+      {
+        "word": "SPRING",
+        "weight": 0.7,
+        "kind": "function"
+      },
+      {
+        "word": "SWING",
+        "weight": 0.4,
+        "kind": "attribute"
+      }
+    ],
+    "BOUNDARY": [
+      {
+        "word": "BAR",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "FENCE",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "WALL",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "BOWLING": [
+      {
+        "word": "STRIKE",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "BOXER": [
+      {
+        "word": "BLOCK",
+        "weight": 0.4,
+        "kind": "function"
+      },
+      {
+        "word": "FIGHTER",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "WHIP",
+        "weight": 0.2,
+        "kind": "content"
+      }
+    ],
+    "BOXING": [
+      {
+        "word": "ARM",
+        "weight": 0.2,
+        "kind": "part"
+      },
+      {
+        "word": "BEAT",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "BELT",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "BOX",
+        "weight": 0.85,
+        "kind": "content"
+      },
+      {
+        "word": "CHEST",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "GLOVE",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "HOOK",
+        "weight": 0.75,
+        "kind": "content"
+      },
+      {
+        "word": "RING",
+        "weight": 0.85,
+        "kind": "content"
+      },
+      {
+        "word": "ROUND",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "SHOT",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "SWING",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "BREAKFAST": [
+      {
+        "word": "HONEY",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "JAM",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "OIL",
+        "weight": 0.3,
+        "kind": "content"
+      }
+    ],
+    "BREATHE": [
+      {
+        "word": "AIR",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "BREEZE": [
+      {
+        "word": "COLD",
+        "weight": 0.4,
+        "kind": "attribute"
+      },
+      {
+        "word": "WIND",
+        "weight": 0.9,
+        "kind": "member"
+      }
+    ],
+    "BRICK": [
+      {
+        "word": "WALL",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "BRIGHT": [
+      {
+        "word": "LIGHT",
+        "weight": 0.85,
+        "kind": "attribute"
+      }
+    ],
+    "BROADWAY": [
+      {
+        "word": "LINE",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "SHOT",
+        "weight": 0.2,
+        "kind": "content"
+      }
+    ],
+    "BROKEN": [
+      {
+        "word": "CAST",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "BUILDING": [
+      {
+        "word": "HOSPITAL",
+        "weight": 0.75,
+        "kind": "member"
+      },
+      {
+        "word": "SCHOOL",
+        "weight": 0.75,
+        "kind": "member"
+      },
+      {
+        "word": "SKYSCRAPER",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "STADIUM",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "TOWER",
+        "weight": 0.8,
+        "kind": "member"
+      }
+    ],
+    "BULL": [
+      {
+        "word": "HORN",
+        "weight": 0.7,
+        "kind": "part"
+      }
+    ],
+    "BULLET": [
+      {
+        "word": "FIRE",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "SHOT",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "SLUG",
+        "weight": 0.7,
+        "kind": "member"
+      }
+    ],
+    "BUNNY": [
+      {
+        "word": "RABBIT",
+        "weight": 0.95,
+        "kind": "member"
+      }
+    ],
+    "BUSINESSMAN": [
+      {
+        "word": "STAFF",
+        "weight": 0.4,
+        "kind": "member"
+      },
+      {
+        "word": "SUIT",
+        "weight": 0.7,
+        "kind": "attribute"
+      }
+    ],
+    "CALENDAR": [
+      {
+        "word": "CHANGE",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "CYCLE",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "DATE",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "DAY",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "CAMERA": [
+      {
+        "word": "FILM",
+        "weight": 0.85,
+        "kind": "content"
+      },
+      {
+        "word": "SHOT",
+        "weight": 0.6,
+        "kind": "function"
+      },
+      {
+        "word": "SPOT",
+        "weight": 0.3,
+        "kind": "content"
+      }
+    ],
+    "CAMPING": [
+      {
+        "word": "BARK",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "BOTTLE",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "FIRE",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "CANDY": [
+      {
+        "word": "BAR",
+        "weight": 0.05,
+        "kind": "content"
+      },
+      {
+        "word": "CHOCOLATE",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "MINT",
+        "weight": 0.8,
+        "kind": "member"
+      }
+    ],
+    "CAPE": [
+      {
+        "word": "CLOAK",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "SUPERHERO",
+        "weight": 0.8,
+        "kind": "attribute"
+      }
+    ],
+    "CARDS": [
+      {
+        "word": "BRIDGE",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "CLUB",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "DECK",
+        "weight": 0.9,
+        "kind": "part"
+      },
+      {
+        "word": "DIAMOND",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "DICE",
+        "weight": 0.4,
+        "kind": "member"
+      },
+      {
+        "word": "JACK",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "QUEEN",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "SUIT",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "CARNIVAL": [
+      {
+        "word": "FAIR",
+        "weight": 0.85,
+        "kind": "content"
+      }
+    ],
+    "CARPENTER": [
+      {
+        "word": "NAIL",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "PLANE",
+        "weight": 0.6,
+        "kind": "function"
+      },
+      {
+        "word": "RULER",
+        "weight": 0.5,
+        "kind": "function"
+      },
+      {
+        "word": "SCALE",
+        "weight": 0.4,
+        "kind": "function"
+      },
+      {
+        "word": "WASHER",
+        "weight": 0.3,
+        "kind": "content"
+      }
+    ],
+    "CARTOON": [
+      {
+        "word": "COMIC",
+        "weight": 0.8,
+        "kind": "member"
+      }
+    ],
+    "CATBOX": [
+      {
+        "word": "LITTER",
+        "weight": 0.7,
+        "kind": "compound"
+      }
+    ],
+    "CEMETERY": [
+      {
+        "word": "DEATH",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "GROUND",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "CHAIN": [
+      {
+        "word": "FENCE",
+        "weight": 0.6,
+        "kind": "compound",
+        "collocation": 0.7
+      },
+      {
+        "word": "LINK",
+        "weight": 0.85,
+        "kind": "content"
+      }
+    ],
+    "CHARM": [
+      {
+        "word": "GRACE",
+        "weight": 0.5,
+        "kind": "attribute"
+      },
+      {
+        "word": "LUCK",
+        "weight": 0.7,
+        "kind": "attribute"
+      }
+    ],
+    "CHECKMARK": [
+      {
+        "word": "BOX",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "TICK",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "CHEF": [
+      {
+        "word": "COOK",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "CHEMISTRY": [
+      {
+        "word": "COMPOUND",
+        "weight": 0.8,
+        "kind": "member"
+      }
+    ],
+    "CHESS": [
+      {
+        "word": "BLOCK",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "BOARD",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "BRIDGE",
+        "weight": 0.3,
+        "kind": "member"
+      },
+      {
+        "word": "CHECK",
+        "weight": 0.75,
+        "kind": "content"
+      },
+      {
+        "word": "CROWN",
+        "weight": 0.45,
+        "kind": "content"
+      },
+      {
+        "word": "DECK",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "FORCE",
+        "weight": 0.3,
+        "kind": "function"
+      },
+      {
+        "word": "GAME",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "HORSE",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "JACK",
+        "weight": 0.3,
+        "kind": "member"
+      },
+      {
+        "word": "KING",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "KNIGHT",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "PART",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "QUEEN",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "SQUARE",
+        "weight": 0.6,
+        "kind": "part"
+      },
+      {
+        "word": "TOWER",
+        "weight": 0.4,
+        "kind": "member"
+      }
+    ],
+    "CHILD": [
+      {
+        "word": "KID",
+        "weight": 0.95,
+        "kind": "member"
+      }
+    ],
+    "CHINESE": [
+      {
+        "word": "DRAGON",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "CINEMA": [
+      {
+        "word": "CAST",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "SCREEN",
+        "weight": 0.85,
+        "kind": "part"
+      },
+      {
+        "word": "STAR",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "CIPHER": [
+      {
+        "word": "CODE",
+        "weight": 0.9,
+        "kind": "member"
+      }
+    ],
+    "CITRUS": [
+      {
+        "word": "LEMON",
+        "weight": 0.95,
+        "kind": "member"
+      }
+    ],
+    "CITY": [
+      {
+        "word": "BEIJING",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "BERLIN",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "CAPITAL",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "LONDON",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "MOSCOW",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "NEW YORK",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "ROME",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "STADIUM",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "TOKYO",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "WASHINGTON",
+        "weight": 0.5,
+        "kind": "member"
+      }
+    ],
+    "CLASS": [
+      {
+        "word": "CAPITAL",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "SCHOOL",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "CLASSROOM": [
+      {
+        "word": "CHAIR",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "SCHOOL",
+        "weight": 1,
+        "kind": "content"
+      },
+      {
+        "word": "STAFF",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "TABLET",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "TEACHER",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "CLEAN": [
+      {
+        "word": "VACUUM",
+        "weight": 0.9,
+        "kind": "function"
+      },
+      {
+        "word": "WHIP",
+        "weight": 0.2,
+        "kind": "content"
+      }
+    ],
+    "CLIMB": [
+      {
+        "word": "WALL",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "CLIMBING": [
+      {
+        "word": "CLIFF",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "HIMALAYAS",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "ROCK",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "CLOCK": [
+      {
+        "word": "BELL",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "FACE",
+        "weight": 0.7,
+        "kind": "part"
+      },
+      {
+        "word": "HAND",
+        "weight": 0.8,
+        "kind": "part"
+      },
+      {
+        "word": "RING",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "TICK",
+        "weight": 0.85,
+        "kind": "content"
+      },
+      {
+        "word": "TIME",
+        "weight": 0.85,
+        "kind": "function"
+      },
+      {
+        "word": "WATCH",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "WIND",
+        "weight": 0.7,
+        "kind": "function"
+      }
+    ],
+    "CLOTHES": [
+      {
+        "word": "BOW",
+        "weight": 0.4,
+        "kind": "member"
+      },
+      {
+        "word": "DRESS",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "GLOVE",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "NAIL",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "SHOE",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "SHOULDER",
+        "weight": 0.3,
+        "kind": "part"
+      },
+      {
+        "word": "SOCK",
+        "weight": 0.85,
+        "kind": "member"
+      }
+    ],
+    "CLOTHING": [
+      {
+        "word": "BELT",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "BOOT",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "BUTTON",
+        "weight": 0.5,
+        "kind": "part"
+      },
+      {
+        "word": "CAP",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "CLOAK",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "COTTON",
+        "weight": 0.55,
+        "kind": "content"
+      },
+      {
+        "word": "COVER",
+        "weight": 0.35,
+        "kind": "function"
+      },
+      {
+        "word": "DRESS",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "IRON",
+        "weight": 0.4,
+        "kind": "function"
+      },
+      {
+        "word": "TIE",
+        "weight": 0.7,
+        "kind": "member"
+      }
+    ],
+    "COCKPIT": [
+      {
+        "word": "PILOT",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "COFFEE": [
+      {
+        "word": "MUG",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "SHOT",
+        "weight": 0.5,
+        "kind": "content"
+      }
+    ],
+    "COIL": [
+      {
+        "word": "SPRING",
+        "weight": 0.8,
+        "kind": "attribute"
+      },
+      {
+        "word": "STRING",
+        "weight": 0.4,
+        "kind": "attribute"
+      }
+    ],
+    "COIN": [
+      {
+        "word": "CHANGE",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "COPPER",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "CROWN",
+        "weight": 0.4,
+        "kind": "member"
+      }
+    ],
+    "COLLISION": [
+      {
+        "word": "CRASH",
+        "weight": 0.9,
+        "kind": "member"
+      }
+    ],
+    "COLOR": [
+      {
+        "word": "CARROT",
+        "weight": 0.5,
+        "kind": "attribute"
+      },
+      {
+        "word": "CHOCOLATE",
+        "weight": 0.4,
+        "kind": "member"
+      },
+      {
+        "word": "COPPER",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "GREEN",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "IVORY",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "OLIVE",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "ORANGE",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "SHADOW",
+        "weight": 0.3,
+        "kind": "content"
+      }
+    ],
+    "COMEDY": [
+      {
+        "word": "CLUB",
+        "weight": 0.45,
+        "kind": "content",
+        "collocation": 0.5
+      },
+      {
+        "word": "COMIC",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "COMPUTER": [
+      {
+        "word": "BUG",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "CELL",
+        "weight": 0.3,
+        "kind": "part"
+      },
+      {
+        "word": "CODE",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "CRASH",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "KEY",
+        "weight": 0.6,
+        "kind": "part"
+      },
+      {
+        "word": "MOUSE",
+        "weight": 0.85,
+        "kind": "part"
+      },
+      {
+        "word": "ROBOT",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "SCREEN",
+        "weight": 0.75,
+        "kind": "part"
+      },
+      {
+        "word": "SERVER",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "SWITCH",
+        "weight": 0.4,
+        "kind": "member"
+      },
+      {
+        "word": "TABLET",
+        "weight": 0.7,
+        "kind": "member"
+      }
+    ],
+    "CONDIMENT": [
+      {
+        "word": "KETCHUP",
+        "weight": 0.95,
+        "kind": "member"
+      }
+    ],
+    "CONE": [
+      {
+        "word": "CAP",
+        "weight": 0.3,
+        "kind": "attribute"
+      },
+      {
+        "word": "ICE CREAM",
+        "weight": 0.9,
+        "kind": "compound",
+        "collocation": 0.8
+      }
+    ],
+    "CONSTELLATION": [
+      {
+        "word": "SCORPION",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "SPACE",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "STAR",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "CONSTRUCTION": [
+      {
+        "word": "BRIDGE",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "CRANE",
+        "weight": 0.8,
+        "kind": "content",
+        "collocation": 0.4
+      },
+      {
+        "word": "DRILL",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "ENGINE",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "PLATE",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "WALL",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "CONTINENT": [
+      {
+        "word": "AFRICA",
+        "weight": 1,
+        "kind": "member"
+      },
+      {
+        "word": "AMAZON",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "AMERICA",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "ANTARCTICA",
+        "weight": 0.95,
+        "kind": "member"
+      },
+      {
+        "word": "EUROPE",
+        "weight": 0.9,
+        "kind": "member"
+      }
+    ],
+    "CONTRABAND": [
+      {
+        "word": "SMUGGLER",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "SPY",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "THIEF",
+        "weight": 0.4,
+        "kind": "member"
+      }
+    ],
+    "COOKING": [
+      {
+        "word": "OIL",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "PAN",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "COOLING": [
+      {
+        "word": "ENGINE",
+        "weight": 0.4,
+        "kind": "part"
+      },
+      {
+        "word": "FAN",
+        "weight": 0.8,
+        "kind": "function"
+      }
+    ],
+    "COP": [
+      {
+        "word": "POLICE",
+        "weight": 0.9,
+        "kind": "member"
+      }
+    ],
+    "COSTUME": [
+      {
+        "word": "SPY",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "SUIT",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "SUPERHERO",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "COUCH": [
+      {
+        "word": "LAP",
+        "weight": 0.3,
+        "kind": "content"
+      }
+    ],
+    "COUNTRY": [
+      {
+        "word": "AMERICA",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "AUSTRALIA",
+        "weight": 1,
+        "kind": "member"
+      },
+      {
+        "word": "CANADA",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "CHINA",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "CZECH",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "EGYPT",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "ENGLAND",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "FRANCE",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "GERMANY",
+        "weight": 1,
+        "kind": "member"
+      },
+      {
+        "word": "GREECE",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "INDIA",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "MEXICO",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "STATE",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "TURKEY",
+        "weight": 0.7,
+        "kind": "member"
+      }
+    ],
+    "CROSSING": [
+      {
+        "word": "BRIDGE",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "CROSS",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "LINE",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "CROWD": [
+      {
+        "word": "CONCERT",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "MATCH",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "STADIUM",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "CURRENCY": [
+      {
+        "word": "BANK",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "BUCK",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "POUND",
+        "weight": 0.8,
+        "kind": "member"
+      }
+    ],
+    "CURRY": [
+      {
+        "word": "INDIA",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "CUTLERY": [
+      {
+        "word": "FORK",
+        "weight": 1,
+        "kind": "member"
+      },
+      {
+        "word": "KNIFE",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "WHIP",
+        "weight": 0.4,
+        "kind": "member"
+      }
+    ],
+    "DALMATIAN": [
+      {
+        "word": "DOG",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "SPOT",
+        "weight": 0.6,
+        "kind": "attribute"
+      }
+    ],
+    "DARKNESS": [
+      {
+        "word": "SHADOW",
+        "weight": 0.8,
+        "kind": "attribute"
+      },
+      {
+        "word": "SPY",
+        "weight": 0.4,
+        "kind": "attribute"
+      }
+    ],
+    "DEAL": [
+      {
+        "word": "CARD",
+        "weight": 0.5,
+        "kind": "function"
+      },
+      {
+        "word": "CONTRACT",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "DECIMAL": [
+      {
+        "word": "POINT",
+        "weight": 0.7,
+        "kind": "compound",
+        "collocation": 0.85
+      }
+    ],
+    "DECORATE": [
+      {
+        "word": "CHOCOLATE",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "IRON",
+        "weight": 0.2,
+        "kind": "content"
+      }
+    ],
+    "DEER": [
+      {
+        "word": "BUCK",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "BUFFALO",
+        "weight": 0.3,
+        "kind": "member"
+      },
+      {
+        "word": "CALF",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "FIELD",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "HORN",
+        "weight": 0.6,
+        "kind": "part"
+      },
+      {
+        "word": "TAIL",
+        "weight": 0.4,
+        "kind": "part"
+      }
+    ],
+    "DELIVERY": [
+      {
+        "word": "MAIL",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "POST",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "VAN",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "DENTAL": [
+      {
+        "word": "TOOTH",
+        "weight": 1,
+        "kind": "content"
+      }
+    ],
+    "DENTIST": [
+      {
+        "word": "CROWN",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "DRILL",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "DESSERT": [
+      {
+        "word": "ICE CREAM",
+        "weight": 1,
+        "kind": "member"
+      },
+      {
+        "word": "PIE",
+        "weight": 1,
+        "kind": "member"
+      }
+    ],
+    "DIARY": [
+      {
+        "word": "LOG",
+        "weight": 0.6,
+        "kind": "member"
+      }
+    ],
+    "DINNER": [
+      {
+        "word": "CHOCOLATE",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "HAM",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "MUG",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "PLATE",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "TABLE",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "DIPLOMAT": [
+      {
+        "word": "CAPITAL",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "EMBASSY",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "DISGUISE": [
+      {
+        "word": "CLOAK",
+        "weight": 0.8,
+        "kind": "function"
+      },
+      {
+        "word": "COVER",
+        "weight": 0.6,
+        "kind": "function"
+      },
+      {
+        "word": "HOOD",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "SPY",
+        "weight": 0.5,
+        "kind": "function"
+      }
+    ],
+    "DISH": [
+      {
+        "word": "PLATE",
+        "weight": 0.8,
+        "kind": "member"
+      }
+    ],
+    "DISHES": [
+      {
+        "word": "CHINA",
+        "weight": 0.7,
+        "kind": "member"
+      }
+    ],
+    "DISPLAY": [
+      {
+        "word": "SCREEN",
+        "weight": 0.9,
+        "kind": "function"
+      },
+      {
+        "word": "TABLET",
+        "weight": 0.7,
+        "kind": "attribute"
+      },
+      {
+        "word": "TAG",
+        "weight": 0.4,
+        "kind": "function"
+      }
+    ],
+    "DIVING": [
+      {
+        "word": "SCUBA DIVER",
+        "weight": 1,
+        "kind": "member"
+      },
+      {
+        "word": "SEAL",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "SHARK",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "SUB",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "WHALE",
+        "weight": 0.3,
+        "kind": "content"
+      }
+    ],
+    "DOCUMENT": [
+      {
+        "word": "FILE",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "PAPER",
+        "weight": 0.6,
+        "kind": "member"
+      }
+    ],
+    "DOLLAR": [
+      {
+        "word": "BUCK",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "CAPITAL",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "POUND",
+        "weight": 0.5,
+        "kind": "content"
+      }
+    ],
+    "DRAIN": [
+      {
+        "word": "SINK",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "STREAM",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "TAP",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "DRINK": [
+      {
+        "word": "BAR",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "BOTTLE",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "GLASS",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "ICE",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "KIWI",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "MUG",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "SHOT",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "STRAW",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "TAP",
+        "weight": 0.5,
+        "kind": "function"
+      },
+      {
+        "word": "WATER",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "WELL",
+        "weight": 0.3,
+        "kind": "content"
+      }
+    ],
+    "DRIVE": [
+      {
+        "word": "CAR",
+        "weight": 0.9,
+        "kind": "function"
+      },
+      {
+        "word": "VAN",
+        "weight": 0.6,
+        "kind": "function"
+      }
+    ],
+    "DRIVING": [
+      {
+        "word": "CAR",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "GAS",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "LAP",
+        "weight": 0.5,
+        "kind": "content"
+      }
+    ],
+    "EASTER": [
+      {
+        "word": "CHICK",
+        "weight": 0.65,
+        "kind": "content",
+        "collocation": 0.4
+      },
+      {
+        "word": "CHOCOLATE",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "CROSS",
+        "weight": 0.45,
+        "kind": "content"
+      }
+    ],
+    "EDGE": [
+      {
+        "word": "CLIFF",
+        "weight": 0.7,
+        "kind": "attribute"
+      },
+      {
+        "word": "DROP",
+        "weight": 0.5,
+        "kind": "content"
+      }
+    ],
+    "ELECTION": [
+      {
+        "word": "BILL",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "CAPITAL",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "CHANGE",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "ELECTRIC": [
+      {
+        "word": "CELL",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "CHARGE",
+        "weight": 0.8,
+        "kind": "attribute"
+      },
+      {
+        "word": "CONDUCTOR",
+        "weight": 0.8,
+        "kind": "function"
+      }
+    ],
+    "ELECTRICITY": [
+      {
+        "word": "BATTERY",
+        "weight": 0.85,
+        "kind": "content"
+      },
+      {
+        "word": "CONDUCTOR",
+        "weight": 0.85,
+        "kind": "function"
+      },
+      {
+        "word": "LINE",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "POLE",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "SWITCH",
+        "weight": 0.8,
+        "kind": "function"
+      }
+    ],
+    "ELEMENT": [
+      {
+        "word": "FIRE",
+        "weight": 0.4,
+        "kind": "member"
+      },
+      {
+        "word": "GAS",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "MERCURY",
+        "weight": 0.7,
+        "kind": "member"
+      }
+    ],
+    "ELEPHANT": [
+      {
+        "word": "HORN",
+        "weight": 0.4,
+        "kind": "part"
+      },
+      {
+        "word": "IVORY",
+        "weight": 0.85,
+        "kind": "part"
+      },
+      {
+        "word": "TAIL",
+        "weight": 0.4,
+        "kind": "part"
+      },
+      {
+        "word": "TRUNK",
+        "weight": 0.85,
+        "kind": "part"
+      }
+    ],
+    "EMAIL": [
+      {
+        "word": "LINK",
+        "weight": 0.55,
+        "kind": "content"
+      },
+      {
+        "word": "MAIL",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "EMERGENCY": [
+      {
+        "word": "AMBULANCE",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "DRILL",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "FIRE",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "SHOT",
+        "weight": 0.3,
+        "kind": "content"
+      }
+    ],
+    "EMPLOYEE": [
+      {
+        "word": "AGENT",
+        "weight": 0.4,
+        "kind": "member"
+      },
+      {
+        "word": "STAFF",
+        "weight": 0.8,
+        "kind": "member"
+      }
+    ],
+    "EMPLOYEES": [
+      {
+        "word": "AGENT",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "NURSE",
+        "weight": 0.4,
+        "kind": "member"
+      },
+      {
+        "word": "STAFF",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "ERUPTION": [
+      {
+        "word": "VOLCANO",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "ESPIONAGE": [
+      {
+        "word": "AGENT",
+        "weight": 0.85,
+        "kind": "content"
+      },
+      {
+        "word": "CLOAK",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "CODE",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "COVER",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "NINJA",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "SPY",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "EVEREST": [
+      {
+        "word": "HIMALAYAS",
+        "weight": 0.85,
+        "kind": "content"
+      },
+      {
+        "word": "SNOW",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "EXERCISE": [
+      {
+        "word": "CALF",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "TRAIN",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "EXPERIMENT": [
+      {
+        "word": "LAB",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "EXPLOSION": [
+      {
+        "word": "BOMB",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "BOOM",
+        "weight": 0.95,
+        "kind": "content"
+      },
+      {
+        "word": "FIRE",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "MINE",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "SHOT",
+        "weight": 0.3,
+        "kind": "content"
+      }
+    ],
+    "EXTINCT": [
+      {
+        "word": "DINOSAUR",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "MAMMOTH",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "FABRIC": [
+      {
+        "word": "SILK",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "STRING",
+        "weight": 0.4,
+        "kind": "member"
+      },
+      {
+        "word": "SUIT",
+        "weight": 0.5,
+        "kind": "content"
+      }
+    ],
+    "FANTASY": [
+      {
+        "word": "CENTAUR",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "DRAGON",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "DWARF",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "EAGLE",
+        "weight": 0.4,
+        "kind": "member"
+      },
+      {
+        "word": "KNIGHT",
+        "weight": 0.4,
+        "kind": "member"
+      },
+      {
+        "word": "LEPRECHAUN",
+        "weight": 0.7,
+        "kind": "member"
+      }
+    ],
+    "FARM": [
+      {
+        "word": "BUFFALO",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "CAT",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "CHICK",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "DOG",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "DUCK",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "FIELD",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "HORSE",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "STRAW",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "FASHION": [
+      {
+        "word": "MODEL",
+        "weight": 0.85,
+        "kind": "member"
+      }
+    ],
+    "FAUCET": [
+      {
+        "word": "SINK",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "TAP",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "WATER",
+        "weight": 0.7,
+        "kind": "function"
+      }
+    ],
+    "FINGER": [
+      {
+        "word": "NAIL",
+        "weight": 0.05,
+        "kind": "part"
+      },
+      {
+        "word": "THUMB",
+        "weight": 0.85,
+        "kind": "member"
+      }
+    ],
+    "FISHING": [
+      {
+        "word": "BOOT",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "BOW",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "CAST",
+        "weight": 0.7,
+        "kind": "function"
+      },
+      {
+        "word": "HOOK",
+        "weight": 0.85,
+        "kind": "content"
+      },
+      {
+        "word": "LINE",
+        "weight": 0.75,
+        "kind": "content"
+      },
+      {
+        "word": "NET",
+        "weight": 0.75,
+        "kind": "content"
+      }
+    ],
+    "FLAGPOLE": [
+      {
+        "word": "POLE",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "FLAME": [
+      {
+        "word": "MATCH",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "TORCH",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "FLOWER": [
+      {
+        "word": "ROSE",
+        "weight": 0.95,
+        "kind": "member"
+      },
+      {
+        "word": "SPRING",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "FLYING": [
+      {
+        "word": "HELICOPTER",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "JET",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "PARACHUTE",
+        "weight": 0.7,
+        "kind": "function"
+      },
+      {
+        "word": "SUPERHERO",
+        "weight": 0.5,
+        "kind": "attribute"
+      }
+    ],
+    "FOOTWEAR": [
+      {
+        "word": "BOOT",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "SHOE",
+        "weight": 1,
+        "kind": "member"
+      },
+      {
+        "word": "SLIP",
+        "weight": 0.4,
+        "kind": "member"
+      },
+      {
+        "word": "SOCK",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "SPIKE",
+        "weight": 0.5,
+        "kind": "part"
+      }
+    ],
+    "FORTUNE": [
+      {
+        "word": "LUCK",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "ROULETTE",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "FROSTY": [
+      {
+        "word": "SNOW",
+        "weight": 0.7,
+        "kind": "attribute"
+      },
+      {
+        "word": "SNOWMAN",
+        "weight": 0.8,
+        "kind": "attribute"
+      }
+    ],
+    "FROZEN": [
+      {
+        "word": "COLD",
+        "weight": 0.85,
+        "kind": "attribute"
+      },
+      {
+        "word": "ICE",
+        "weight": 0.9,
+        "kind": "attribute"
+      },
+      {
+        "word": "ICE CREAM",
+        "weight": 0.6,
+        "kind": "attribute"
+      },
+      {
+        "word": "LEMON",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "PENGUIN",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "SNOWMAN",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "FRUIT": [
+      {
+        "word": "APPLE",
+        "weight": 1,
+        "kind": "member"
+      },
+      {
+        "word": "BERRY",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "DATE",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "JAM",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "KIWI",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "LEMON",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "NUT",
+        "weight": 0.3,
+        "kind": "member"
+      },
+      {
+        "word": "OLIVE",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "ORANGE",
+        "weight": 0.95,
+        "kind": "member"
+      },
+      {
+        "word": "PIT",
+        "weight": 0.6,
+        "kind": "part"
+      },
+      {
+        "word": "PUMPKIN",
+        "weight": 0.4,
+        "kind": "member"
+      }
+    ],
+    "FRYING": [
+      {
+        "word": "FLY",
+        "weight": 0.4,
+        "kind": "attribute"
+      },
+      {
+        "word": "OIL",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "PAN",
+        "weight": 0.9,
+        "kind": "compound",
+        "collocation": 0.9
+      }
+    ],
+    "FUEL": [
+      {
+        "word": "CHARGE",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "FIRE",
+        "weight": 0.4,
+        "kind": "function"
+      },
+      {
+        "word": "GAS",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "OIL",
+        "weight": 0.85,
+        "kind": "member"
+      }
+    ],
+    "FUNERAL": [
+      {
+        "word": "UNDERTAKER",
+        "weight": 0.95,
+        "kind": "function"
+      }
+    ],
+    "FUNNY": [
+      {
+        "word": "COMIC",
+        "weight": 0.85,
+        "kind": "attribute"
+      }
+    ],
+    "FURNITURE": [
+      {
+        "word": "BOARD",
+        "weight": 0.3,
+        "kind": "member"
+      },
+      {
+        "word": "CHAIR",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "CHEST",
+        "weight": 0.65,
+        "kind": "member"
+      },
+      {
+        "word": "TABLE",
+        "weight": 0.85,
+        "kind": "member"
+      }
+    ],
+    "GAMBLING": [
+      {
+        "word": "CASINO",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "DIAMOND",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "MILLIONAIRE",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "GARDEN": [
+      {
+        "word": "FENCE",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "FOREST",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "PLOT",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "PUMPKIN",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "ROOT",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "WELL",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "WORM",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "GEOMETRY": [
+      {
+        "word": "CENTER",
+        "weight": 0.75,
+        "kind": "part"
+      },
+      {
+        "word": "CIRCLE",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "CROSS",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "DEGREE",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "FIGURE",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "PYRAMID",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "SCALE",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "SQUARE",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "TRIANGLE",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "GLUE": [
+      {
+        "word": "PASTE",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "STICK",
+        "weight": 0.7,
+        "kind": "function"
+      }
+    ],
+    "GOAT": [
+      {
+        "word": "KID",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "GOD": [
+      {
+        "word": "GREECE",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "OLYMPUS",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "SATURN",
+        "weight": 0.5,
+        "kind": "content"
+      }
+    ],
+    "GOLF": [
+      {
+        "word": "CLUB",
+        "weight": 0.85,
+        "kind": "content"
+      },
+      {
+        "word": "COURT",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "GREEN",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "HOLE",
+        "weight": 0.85,
+        "kind": "content"
+      },
+      {
+        "word": "ROUND",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "SHOT",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "SPIKE",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "SWING",
+        "weight": 0.75,
+        "kind": "content"
+      }
+    ],
+    "GOVERNMENT": [
+      {
+        "word": "AGENT",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "SPY",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "STATE",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "GRAPH": [
+      {
+        "word": "PLOT",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "POINT",
+        "weight": 0.2,
+        "kind": "content"
+      }
+    ],
+    "GRIZZLY": [
+      {
+        "word": "BEAR",
+        "weight": 0.9,
+        "kind": "member"
+      }
+    ],
+    "GUITAR": [
+      {
+        "word": "SPINE",
+        "weight": 0.4,
+        "kind": "part"
+      },
+      {
+        "word": "STRING",
+        "weight": 0.8,
+        "kind": "part"
+      }
+    ],
+    "GUN": [
+      {
+        "word": "BARK",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "FIRE",
+        "weight": 0.7,
+        "kind": "function"
+      },
+      {
+        "word": "NAIL",
+        "weight": 0.5,
+        "kind": "compound",
+        "collocation": 0.5
+      },
+      {
+        "word": "PISTOL",
+        "weight": 0.95,
+        "kind": "member"
+      },
+      {
+        "word": "SHOT",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "STRIKE",
+        "weight": 0.3,
+        "kind": "content"
+      }
+    ],
+    "GYM": [
+      {
+        "word": "POOL",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "TRAIN",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "HAIR": [
+      {
+        "word": "BAND",
+        "weight": 0.6,
+        "kind": "compound",
+        "collocation": 0.7
+      },
+      {
+        "word": "BRUSH",
+        "weight": 0.7,
+        "kind": "function"
+      },
+      {
+        "word": "CHICK",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "DRESS",
+        "weight": 0.4,
+        "kind": "compound",
+        "collocation": 0.5
+      },
+      {
+        "word": "IRON",
+        "weight": 0.4,
+        "kind": "compound",
+        "collocation": 0.6
+      },
+      {
+        "word": "LOCK",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "SPIKE",
+        "weight": 0.5,
+        "kind": "attribute"
+      },
+      {
+        "word": "SPRING",
+        "weight": 0.4,
+        "kind": "attribute"
+      },
+      {
+        "word": "TAIL",
+        "weight": 0.5,
+        "kind": "compound",
+        "collocation": 0.7
+      }
+    ],
+    "HALFHORSE": [
+      {
+        "word": "CENTAUR",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "HALLOWEEN": [
+      {
+        "word": "CAST",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "NIGHT",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "PUMPKIN",
+        "weight": 0.95,
+        "kind": "content"
+      },
+      {
+        "word": "SHADOW",
+        "weight": 0.4,
+        "kind": "attribute"
+      },
+      {
+        "word": "SPELL",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "SPIDER",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "WITCH",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "HAMLET": [
+      {
+        "word": "SHAKESPEARE",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "HAMMER": [
+      {
+        "word": "NAIL",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "HANDSHAKE": [
+      {
+        "word": "CONTRACT",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "FIGURE",
+        "weight": 0.2,
+        "kind": "content"
+      }
+    ],
+    "HARBOR": [
+      {
+        "word": "PORT",
+        "weight": 0.85,
+        "kind": "content"
+      },
+      {
+        "word": "SEAL",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "SHIP",
+        "weight": 0.75,
+        "kind": "content"
+      }
+    ],
+    "HAT": [
+      {
+        "word": "CAP",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "TEMPLE",
+        "weight": 0.3,
+        "kind": "part"
+      }
+    ],
+    "HAY": [
+      {
+        "word": "HORSE",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "STRAW",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "HEALTH": [
+      {
+        "word": "CELL",
+        "weight": 0.45,
+        "kind": "content"
+      },
+      {
+        "word": "DEATH",
+        "weight": 0.45,
+        "kind": "content"
+      },
+      {
+        "word": "DISEASE",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "DOCTOR",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "HEAVEN": [
+      {
+        "word": "ANGEL",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "GRACE",
+        "weight": 0.5,
+        "kind": "content"
+      }
+    ],
+    "HELLO": [
+      {
+        "word": "WAVE",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "HERO": [
+      {
+        "word": "SEAL",
+        "weight": 0.2,
+        "kind": "content"
+      }
+    ],
+    "HOCKEY": [
+      {
+        "word": "ICE",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "NET",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "STICK",
+        "weight": 0.05,
+        "kind": "content"
+      }
+    ],
+    "HUGE": [
+      {
+        "word": "GIANT",
+        "weight": 0.9,
+        "kind": "attribute"
+      },
+      {
+        "word": "MAMMOTH",
+        "weight": 0.8,
+        "kind": "attribute"
+      },
+      {
+        "word": "MASS",
+        "weight": 0.3,
+        "kind": "attribute"
+      }
+    ],
+    "INJECTION": [
+      {
+        "word": "AMBULANCE",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "NEEDLE",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "SHOT",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "SPIKE",
+        "weight": 0.4,
+        "kind": "attribute"
+      }
+    ],
+    "INSECT": [
+      {
+        "word": "BOMB",
+        "weight": 0.05,
+        "kind": "content"
+      },
+      {
+        "word": "BUG",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "BUGLE",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "CRICKET",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "FLY",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "SLUG",
+        "weight": 0.3,
+        "kind": "member"
+      },
+      {
+        "word": "SPIDER",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "SPIKE",
+        "weight": 0.3,
+        "kind": "member"
+      },
+      {
+        "word": "TICK",
+        "weight": 0.85,
+        "kind": "member"
+      }
+    ],
+    "INSTRUMENT": [
+      {
+        "word": "BOW",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "BUGLE",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "DRILL",
+        "weight": 0.3,
+        "kind": "member"
+      },
+      {
+        "word": "FLUTE",
+        "weight": 1,
+        "kind": "member"
+      },
+      {
+        "word": "HORN",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "PIANO",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "RING",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "TRIANGLE",
+        "weight": 0.75,
+        "kind": "member"
+      }
+    ],
+    "INTERNET": [
+      {
+        "word": "AMAZON",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "NET",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "WEB",
+        "weight": 0.85,
+        "kind": "content"
+      }
+    ],
+    "IRELAND": [
+      {
+        "word": "CHOCOLATE",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "GREEN",
+        "weight": 0.6,
+        "kind": "attribute"
+      },
+      {
+        "word": "LEPRECHAUN",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "IVY": [
+      {
+        "word": "POISON",
+        "weight": 0.8,
+        "kind": "compound"
+      }
+    ],
+    "JAPAN": [
+      {
+        "word": "TOKYO",
+        "weight": 0.95,
+        "kind": "content"
+      }
+    ],
+    "JAWS": [
+      {
+        "word": "SHARK",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "JEWELRY": [
+      {
+        "word": "DIAMOND",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "RING",
+        "weight": 0.8,
+        "kind": "member"
+      }
+    ],
+    "JOURNEY": [
+      {
+        "word": "PASS",
+        "weight": 0.5,
+        "kind": "function"
+      },
+      {
+        "word": "TRAIN",
+        "weight": 0.5,
+        "kind": "function"
+      },
+      {
+        "word": "TRIP",
+        "weight": 0.9,
+        "kind": "member"
+      }
+    ],
+    "JUDGE": [
+      {
+        "word": "COURT",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "LAWYER",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "JUSTICE": [
+      {
+        "word": "CHARGE",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "FAIR",
+        "weight": 0.6,
+        "kind": "attribute"
+      },
+      {
+        "word": "STATE",
+        "weight": 0.3,
+        "kind": "content"
+      }
+    ],
+    "KEYBOARD": [
+      {
+        "word": "KEY",
+        "weight": 0.7,
+        "kind": "part"
+      },
+      {
+        "word": "MOUSE",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "ORGAN",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "SCREEN",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "KISS": [
+      {
+        "word": "MOUTH",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "KITCHEN": [
+      {
+        "word": "CHINA",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "COOK",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "IRON",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "KETCHUP",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "NUT",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "OLIVE",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "PAN",
+        "weight": 0.85,
+        "kind": "content"
+      },
+      {
+        "word": "SINK",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "TABLE",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "TAP",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "WATER",
+        "weight": 0.3,
+        "kind": "content"
+      }
+    ],
+    "KITTENS": [
+      {
+        "word": "LITTER",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "KNOT": [
+      {
+        "word": "ROOT",
+        "weight": 0.3,
+        "kind": "attribute"
+      },
+      {
+        "word": "TIE",
+        "weight": 0.9,
+        "kind": "function"
+      }
+    ],
+    "LABEL": [
+      {
+        "word": "STICK",
+        "weight": 0.4,
+        "kind": "function"
+      },
+      {
+        "word": "TAG",
+        "weight": 0.9,
+        "kind": "member"
+      }
+    ],
+    "LABORATORY": [
+      {
+        "word": "CELL",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "LASER",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "MICROSCOPE",
+        "weight": 0.85,
+        "kind": "content"
+      },
+      {
+        "word": "SCALE",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "SCIENTIST",
+        "weight": 0.95,
+        "kind": "content"
+      }
+    ],
+    "LAMP": [
+      {
+        "word": "LIGHT",
+        "weight": 0.9,
+        "kind": "function"
+      }
+    ],
+    "LAUNDRY": [
+      {
+        "word": "WASHER",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "LAW": [
+      {
+        "word": "BILL",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "CHARGE",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "CHECK",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "CONTRACT",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "COURT",
+        "weight": 0.85,
+        "kind": "content"
+      },
+      {
+        "word": "CROSS",
+        "weight": 0.5,
+        "kind": "content"
+      }
+    ],
+    "LAWN": [
+      {
+        "word": "GRASS",
+        "weight": 0.85,
+        "kind": "content"
+      },
+      {
+        "word": "YARD",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "LEGAL": [
+      {
+        "word": "BOND",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "CHARGE",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "CONTRACT",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "COURT",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "LAWYER",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "STATE",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "LETTER": [
+      {
+        "word": "MAIL",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "POST",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "LICENSE": [
+      {
+        "word": "PLATE",
+        "weight": 0.7,
+        "kind": "compound",
+        "collocation": 0.85
+      }
+    ],
+    "LIGHTNING": [
+      {
+        "word": "BEAT",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "BOLT",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "LOVE": [
+      {
+        "word": "DATE",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "HEART",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "LUGGAGE": [
+      {
+        "word": "TRUNK",
+        "weight": 0.75,
+        "kind": "member"
+      }
+    ],
+    "LUXURY": [
+      {
+        "word": "JET",
+        "weight": 0.6,
+        "kind": "attribute"
+      },
+      {
+        "word": "LIMOUSINE",
+        "weight": 0.75,
+        "kind": "attribute"
+      }
+    ],
+    "MACHINE": [
+      {
+        "word": "DRILL",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "ENGINE",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "ROBOT",
+        "weight": 0.75,
+        "kind": "member"
+      },
+      {
+        "word": "SWITCH",
+        "weight": 0.4,
+        "kind": "part"
+      }
+    ],
+    "MAGIC": [
+      {
+        "word": "CARD",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "CLOAK",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "NIGHT",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "SPELL",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "MARKET": [
+      {
+        "word": "SHOP",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "STOCK",
+        "weight": 0.9,
+        "kind": "content",
+        "collocation": 0.9
+      }
+    ],
+    "MARSUPIAL": [
+      {
+        "word": "KANGAROO",
+        "weight": 0.9,
+        "kind": "member"
+      }
+    ],
+    "MARVEL": [
+      {
+        "word": "IRON",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "SPIDER",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "SUPERHERO",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "MASK": [
+      {
+        "word": "OCTOPUS",
+        "weight": 0.2,
+        "kind": "content"
+      }
+    ],
+    "MATH": [
+      {
+        "word": "FORCE",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "PLOT",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "ROOT",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "MATTRESS": [
+      {
+        "word": "SPRING",
+        "weight": 0.6,
+        "kind": "part"
+      }
+    ],
+    "MEASURE": [
+      {
+        "word": "POINT",
+        "weight": 0.4,
+        "kind": "function"
+      },
+      {
+        "word": "RULER",
+        "weight": 0.9,
+        "kind": "function"
+      },
+      {
+        "word": "SCALE",
+        "weight": 0.9,
+        "kind": "function"
+      },
+      {
+        "word": "TABLET",
+        "weight": 0.3,
+        "kind": "function"
+      },
+      {
+        "word": "TAP",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "YARD",
+        "weight": 0.8,
+        "kind": "member"
+      }
+    ],
+    "MEASUREMENT": [
+      {
+        "word": "DEGREE",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "FOOT",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "SCALE",
+        "weight": 0.7,
+        "kind": "function"
+      },
+      {
+        "word": "YARD",
+        "weight": 0.7,
+        "kind": "member"
+      }
+    ],
+    "MEDICAL": [
+      {
+        "word": "CELL",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "DEATH",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "HOSPITAL",
+        "weight": 0.9,
+        "kind": "attribute"
+      },
+      {
+        "word": "NURSE",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "ORGAN",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "MEDIEVAL": [
+      {
+        "word": "CROSS",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "HORSE",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "KNIGHT",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "METAL": [
+      {
+        "word": "BELL",
+        "weight": 0.4,
+        "kind": "attribute"
+      },
+      {
+        "word": "BOLT",
+        "weight": 0.5,
+        "kind": "attribute"
+      },
+      {
+        "word": "COPPER",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "IRON",
+        "weight": 0.95,
+        "kind": "member"
+      },
+      {
+        "word": "LEAD",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "MARBLE",
+        "weight": 0.3,
+        "kind": "member"
+      },
+      {
+        "word": "MERCURY",
+        "weight": 0.7,
+        "kind": "member"
+      }
+    ],
+    "MICROPHONE": [
+      {
+        "word": "BOOM",
+        "weight": 0.6,
+        "kind": "compound",
+        "collocation": 0.7
+      },
+      {
+        "word": "SOUND",
+        "weight": 0.6,
+        "kind": "function"
+      }
+    ],
+    "MIDDLE": [
+      {
+        "word": "CENTER",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "MILITARY": [
+      {
+        "word": "BOMB",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "BUGLE",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "CHARGE",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "CODE",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "COMPOUND",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "DRAFT",
+        "weight": 0.7,
+        "kind": "content",
+        "collocation": 0.5
+      },
+      {
+        "word": "DRILL",
+        "weight": 0.7,
+        "kind": "content",
+        "collocation": 0.6
+      },
+      {
+        "word": "KNIGHT",
+        "weight": 0.3,
+        "kind": "member"
+      },
+      {
+        "word": "MARCH",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "MINE",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "MISSILE",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "SHOT",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "SOLDIER",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "STAFF",
+        "weight": 0.3,
+        "kind": "member"
+      },
+      {
+        "word": "SUB",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "VET",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "WAR",
+        "weight": 0.85,
+        "kind": "content"
+      }
+    ],
+    "MILK": [
+      {
+        "word": "CHOCOLATE",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "GLASS",
+        "weight": 0.5,
+        "kind": "content"
+      }
+    ],
+    "MONARCH": [
+      {
+        "word": "CROWN",
+        "weight": 0.9,
+        "kind": "attribute"
+      },
+      {
+        "word": "KING",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "QUEEN",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "RULER",
+        "weight": 0.9,
+        "kind": "member"
+      }
+    ],
+    "MONEY": [
+      {
+        "word": "BANK",
+        "weight": 0.85,
+        "kind": "function"
+      },
+      {
+        "word": "BAR",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "BILL",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "BOND",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "BUCK",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "CAPITAL",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "CHANGE",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "MILLIONAIRE",
+        "weight": 0.5,
+        "kind": "attribute"
+      },
+      {
+        "word": "MINT",
+        "weight": 0.6,
+        "kind": "function"
+      },
+      {
+        "word": "MUG",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "POUND",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "STOCK",
+        "weight": 0.5,
+        "kind": "content"
+      }
+    ],
+    "MONSTER": [
+      {
+        "word": "KANGAROO",
+        "weight": 0.2,
+        "kind": "member"
+      },
+      {
+        "word": "LOCH NESS",
+        "weight": 0.9,
+        "kind": "attribute"
+      },
+      {
+        "word": "SHARK",
+        "weight": 0.4,
+        "kind": "member"
+      }
+    ],
+    "MONTH": [
+      {
+        "word": "MARCH",
+        "weight": 1,
+        "kind": "member"
+      }
+    ],
+    "MOTOR": [
+      {
+        "word": "ENGINE",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "VAN",
+        "weight": 0.4,
+        "kind": "part"
+      }
+    ],
+    "MOUNTAIN": [
+      {
+        "word": "ALPS",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "CLIFF",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "FALL",
+        "weight": 0.35,
+        "kind": "content"
+      },
+      {
+        "word": "GIANT",
+        "weight": 0.4,
+        "kind": "attribute"
+      },
+      {
+        "word": "HIMALAYAS",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "MOUNT",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "OLYMPUS",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "ROCK",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "SNOW",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "SNOWMAN",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "VOLCANO",
+        "weight": 0.6,
+        "kind": "attribute"
+      }
+    ],
+    "MOVIE": [
+      {
+        "word": "CAST",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "FILM",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "HOLLYWOOD",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "SCREEN",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "SHOT",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "SOUND",
+        "weight": 0.4,
+        "kind": "part"
+      },
+      {
+        "word": "STAR",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "MUSIC": [
+      {
+        "word": "BAND",
+        "weight": 0.75,
+        "kind": "content"
+      },
+      {
+        "word": "BEAT",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "BELL",
+        "weight": 0.4,
+        "kind": "member"
+      },
+      {
+        "word": "BUGLE",
+        "weight": 0.4,
+        "kind": "member"
+      },
+      {
+        "word": "CLUB",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "CONCERT",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "CONDUCTOR",
+        "weight": 0.75,
+        "kind": "content"
+      },
+      {
+        "word": "DANCE",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "FLUTE",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "HORN",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "JAM",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "MATCH",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "NOTE",
+        "weight": 0.85,
+        "kind": "content"
+      },
+      {
+        "word": "OPERA",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "ORGAN",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "PIANO",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "PIN",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "PITCH",
+        "weight": 0.6,
+        "kind": "attribute"
+      },
+      {
+        "word": "PLAY",
+        "weight": 0.5,
+        "kind": "function"
+      },
+      {
+        "word": "ROCK",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "SOUL",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "SOUND",
+        "weight": 0.7,
+        "kind": "attribute"
+      },
+      {
+        "word": "STAFF",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "STAR",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "STRING",
+        "weight": 0.7,
+        "kind": "part"
+      }
+    ],
+    "MYTH": [
+      {
+        "word": "CENTAUR",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "DRAGON",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "DWARF",
+        "weight": 0.7,
+        "kind": "member"
+      }
+    ],
+    "MYTHICAL": [
+      {
+        "word": "ALIEN",
+        "weight": 0.4,
+        "kind": "member"
+      },
+      {
+        "word": "GHOST",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "LEPRECHAUN",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "LOCH NESS",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "PIRATE",
+        "weight": 0.4,
+        "kind": "member"
+      },
+      {
+        "word": "SNOWMAN",
+        "weight": 0.4,
+        "kind": "member"
+      },
+      {
+        "word": "UNICORN",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "WITCH",
+        "weight": 0.7,
+        "kind": "member"
+      }
+    ],
+    "MYTHOLOGY": [
+      {
+        "word": "ATLANTIS",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "CENTAUR",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "GREECE",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "OLYMPUS",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "SATURN",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "NAILS": [
+      {
+        "word": "FILE",
+        "weight": 0.6,
+        "kind": "function"
+      }
+    ],
+    "NASA": [
+      {
+        "word": "MERCURY",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "SPACE",
+        "weight": 0.85,
+        "kind": "function"
+      }
+    ],
+    "NATIONALITY": [
+      {
+        "word": "CZECH",
+        "weight": 0.85,
+        "kind": "member"
+      }
+    ],
+    "NATO": [
+      {
+        "word": "CANADA",
+        "weight": 0.3,
+        "kind": "member"
+      },
+      {
+        "word": "INDIA",
+        "weight": 0.8,
+        "kind": "member"
+      }
+    ],
+    "NAVY": [
+      {
+        "word": "SEAL",
+        "weight": 0.8,
+        "kind": "member",
+        "collocation": 0.8
+      },
+      {
+        "word": "SHIP",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "SOLDIER",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "SUB",
+        "weight": 0.7,
+        "kind": "member"
+      }
+    ],
+    "NEW": [
+      {
+        "word": "NOVEL",
+        "weight": 0.7,
+        "kind": "attribute"
+      }
+    ],
+    "NEWSPAPER": [
+      {
+        "word": "COMIC",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "PAPER",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "POST",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "PRESS",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "NEWZEALAND": [
+      {
+        "word": "KIWI",
+        "weight": 0.85,
+        "kind": "content"
+      }
+    ],
+    "NIGHTCLUB": [
+      {
+        "word": "CLUB",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "LIMOUSINE",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "NIGHTLIFE": [
+      {
+        "word": "CLUB",
+        "weight": 0.75,
+        "kind": "content"
+      },
+      {
+        "word": "CONCERT",
+        "weight": 0.55,
+        "kind": "content"
+      },
+      {
+        "word": "DANCE",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "NINTENDO": [
+      {
+        "word": "SWITCH",
+        "weight": 0.85,
+        "kind": "content"
+      }
+    ],
+    "NOCTURNAL": [
+      {
+        "word": "BAT",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "MOON",
+        "weight": 0.5,
+        "kind": "attribute"
+      }
+    ],
+    "NOISE": [
+      {
+        "word": "BEAT",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "BOOM",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "SOUND",
+        "weight": 0.9,
+        "kind": "member"
+      }
+    ],
+    "NORTH": [
+      {
+        "word": "COLD",
+        "weight": 0.4,
+        "kind": "attribute"
+      },
+      {
+        "word": "POLE",
+        "weight": 0.9,
+        "kind": "compound",
+        "collocation": 0.8
+      },
+      {
+        "word": "STAR",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "OCEAN": [
+      {
+        "word": "BEACH",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "BERMUDA",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "FISH",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "ICE",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "PENGUIN",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "PIRATE",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "POOL",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "RAY",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "SCUBA DIVER",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "SEAL",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "SHARK",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "SHIP",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "SUB",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "WATER",
+        "weight": 0.9,
+        "kind": "attribute"
+      },
+      {
+        "word": "WAVE",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "WHALE",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "WIND",
+        "weight": 0.3,
+        "kind": "content"
+      }
+    ],
+    "OFFICER": [
+      {
+        "word": "POLICE",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "OLYMPICS": [
+      {
+        "word": "MATCH",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "POOL",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "TORCH",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "ORBIT": [
+      {
+        "word": "SATELLITE",
+        "weight": 0.9,
+        "kind": "function"
+      },
+      {
+        "word": "SATURN",
+        "weight": 0.7,
+        "kind": "attribute"
+      },
+      {
+        "word": "SPACE",
+        "weight": 0.6,
+        "kind": "attribute"
+      }
+    ],
+    "ORCHESTRA": [
+      {
+        "word": "CONCERT",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "CONDUCTOR",
+        "weight": 0.9,
+        "kind": "part"
+      },
+      {
+        "word": "HORN",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "ORGAN",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "PIANO",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "STRING",
+        "weight": 0.8,
+        "kind": "member"
+      }
+    ],
+    "OUTER": [
+      {
+        "word": "SPACE",
+        "weight": 0.85,
+        "kind": "compound",
+        "collocation": 0.9
+      }
+    ],
+    "OUTERSPACE": [
+      {
+        "word": "ALIEN",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "MERCURY",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "MOON",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "SPACE",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "PAINT": [
+      {
+        "word": "BRUSH",
+        "weight": 0.8,
+        "kind": "function"
+      },
+      {
+        "word": "CIRCLE",
+        "weight": 0.2,
+        "kind": "content"
+      }
+    ],
+    "PAINTING": [
+      {
+        "word": "FIGURE",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "OIL",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "PARADE": [
+      {
+        "word": "MARCH",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "PARKING": [
+      {
+        "word": "CAR",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "PARK",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "PASSWORD": [
+      {
+        "word": "CODE",
+        "weight": 0.85,
+        "kind": "member"
+      }
+    ],
+    "PENCIL": [
+      {
+        "word": "LEAD",
+        "weight": 0.8,
+        "kind": "part"
+      },
+      {
+        "word": "PAPER",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "PET": [
+      {
+        "word": "CAT",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "DOG",
+        "weight": 0.95,
+        "kind": "member"
+      },
+      {
+        "word": "DUCK",
+        "weight": 0.4,
+        "kind": "member"
+      }
+    ],
+    "PETER": [
+      {
+        "word": "PAN",
+        "weight": 0.85,
+        "kind": "content"
+      },
+      {
+        "word": "PIRATE",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "PETROLEUM": [
+      {
+        "word": "GAS",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "OIL",
+        "weight": 0.9,
+        "kind": "member"
+      }
+    ],
+    "PHARAOH": [
+      {
+        "word": "EGYPT",
+        "weight": 0.85,
+        "kind": "content"
+      }
+    ],
+    "PHONE": [
+      {
+        "word": "APPLE",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "CELL",
+        "weight": 0.9,
+        "kind": "compound",
+        "collocation": 0.9
+      },
+      {
+        "word": "LINE",
+        "weight": 0.4,
+        "kind": "function"
+      },
+      {
+        "word": "SCREEN",
+        "weight": 0.7,
+        "kind": "part"
+      },
+      {
+        "word": "TABLET",
+        "weight": 0.6,
+        "kind": "member"
+      }
+    ],
+    "PHYSICS": [
+      {
+        "word": "FORCE",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "MASS",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "RAY",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "VACUUM",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "PIECE": [
+      {
+        "word": "PART",
+        "weight": 0.8,
+        "kind": "member"
+      }
+    ],
+    "PIG": [
+      {
+        "word": "BOW",
+        "weight": 0.05,
+        "kind": "content"
+      },
+      {
+        "word": "HAM",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "PILL": [
+      {
+        "word": "TABLET",
+        "weight": 0.8,
+        "kind": "member"
+      }
+    ],
+    "PLANET": [
+      {
+        "word": "DWARF",
+        "weight": 0.5,
+        "kind": "attribute",
+        "collocation": 0.6
+      },
+      {
+        "word": "JUPITER",
+        "weight": 1,
+        "kind": "member"
+      },
+      {
+        "word": "MERCURY",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "MOON",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "SATELLITE",
+        "weight": 0.5,
+        "kind": "attribute"
+      },
+      {
+        "word": "SATURN",
+        "weight": 1,
+        "kind": "member"
+      },
+      {
+        "word": "SPACE",
+        "weight": 0.6,
+        "kind": "attribute"
+      },
+      {
+        "word": "STAR",
+        "weight": 0.5,
+        "kind": "member"
+      }
+    ],
+    "PLANT": [
+      {
+        "word": "FIELD",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "OLIVE",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "ROOT",
+        "weight": 0.9,
+        "kind": "part"
+      },
+      {
+        "word": "WORM",
+        "weight": 0.3,
+        "kind": "content"
+      }
+    ],
+    "PLAYGROUND": [
+      {
+        "word": "BALL",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "PARK",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "SCHOOL",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "SLIP",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "SWING",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "PLAYWRIGHT": [
+      {
+        "word": "OPERA",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "SHAKESPEARE",
+        "weight": 1,
+        "kind": "member"
+      }
+    ],
+    "PLUMBING": [
+      {
+        "word": "IRON",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "PIPE",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "POKER": [
+      {
+        "word": "CARD",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "FACE",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "HAND",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "JACK",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "PORCELAIN": [
+      {
+        "word": "CHINA",
+        "weight": 0.85,
+        "kind": "content"
+      }
+    ],
+    "POUCH": [
+      {
+        "word": "KANGAROO",
+        "weight": 0.7,
+        "kind": "part"
+      }
+    ],
+    "POULTRY": [
+      {
+        "word": "TURKEY",
+        "weight": 0.85,
+        "kind": "member"
+      }
+    ],
+    "PRAYER": [
+      {
+        "word": "ANGEL",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "GRACE",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "MASS",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "PREHISTORIC": [
+      {
+        "word": "DINOSAUR",
+        "weight": 0.95,
+        "kind": "member"
+      },
+      {
+        "word": "VOLCANO",
+        "weight": 0.5,
+        "kind": "content"
+      }
+    ],
+    "PRESIDENT": [
+      {
+        "word": "WASHINGTON",
+        "weight": 0.85,
+        "kind": "member"
+      }
+    ],
+    "PRICE": [
+      {
+        "word": "DROP",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "TAG",
+        "weight": 0.85,
+        "kind": "compound",
+        "collocation": 0.9
+      }
+    ],
+    "PRISON": [
+      {
+        "word": "BAR",
+        "weight": 0.05,
+        "kind": "content"
+      },
+      {
+        "word": "CELL",
+        "weight": 0.85,
+        "kind": "part"
+      },
+      {
+        "word": "CHARGE",
+        "weight": 0.55,
+        "kind": "content"
+      },
+      {
+        "word": "COURT",
+        "weight": 0.5,
+        "kind": "content"
+      }
+    ],
+    "PROGRAMMING": [
+      {
+        "word": "BUG",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "CODE",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "CRASH",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "PROTEST": [
+      {
+        "word": "STATE",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "STRIKE",
+        "weight": 0.85,
+        "kind": "content"
+      }
+    ],
+    "PUB": [
+      {
+        "word": "BAR",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "POUND",
+        "weight": 0.3,
+        "kind": "content"
+      }
+    ],
+    "PUNCH": [
+      {
+        "word": "BOX",
+        "weight": 0.6,
+        "kind": "function"
+      },
+      {
+        "word": "HAM",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "NAIL",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "RACING": [
+      {
+        "word": "CAR",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "CIRCLE",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "LAP",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "RAILROAD": [
+      {
+        "word": "CRASH",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "TRACK",
+        "weight": 0.9,
+        "kind": "part"
+      },
+      {
+        "word": "TRAIN",
+        "weight": 0.95,
+        "kind": "member"
+      }
+    ],
+    "RAILWAY": [
+      {
+        "word": "PASS",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "SWITCH",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "TRACK",
+        "weight": 0.85,
+        "kind": "content"
+      },
+      {
+        "word": "TRAIN",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "RAINFOREST": [
+      {
+        "word": "AMAZON",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "PANDA",
+        "weight": 0.3,
+        "kind": "content"
+      }
+    ],
+    "REBELLION": [
+      {
+        "word": "REVOLUTION",
+        "weight": 0.85,
+        "kind": "content"
+      }
+    ],
+    "RELIGION": [
+      {
+        "word": "CHURCH",
+        "weight": 0.85,
+        "kind": "content"
+      },
+      {
+        "word": "CROSS",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "CROWN",
+        "weight": 0.3,
+        "kind": "content"
+      }
+    ],
+    "RESEARCH": [
+      {
+        "word": "SCIENTIST",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "RESTAURANT": [
+      {
+        "word": "SERVER",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "TABLE",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "TAP",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "RHYTHM": [
+      {
+        "word": "BEAT",
+        "weight": 0.85,
+        "kind": "content"
+      },
+      {
+        "word": "NOTE",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "RIBBON": [
+      {
+        "word": "BOW",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "RIVER": [
+      {
+        "word": "AMAZON",
+        "weight": 0.85,
+        "kind": "content"
+      },
+      {
+        "word": "BANK",
+        "weight": 0.7,
+        "kind": "part"
+      },
+      {
+        "word": "BED",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "FALL",
+        "weight": 0.45,
+        "kind": "content"
+      },
+      {
+        "word": "FISH",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "MOUTH",
+        "weight": 0.6,
+        "kind": "part"
+      },
+      {
+        "word": "STREAM",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "WATER",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "ROBBER": [
+      {
+        "word": "SMUGGLER",
+        "weight": 0.3,
+        "kind": "member"
+      },
+      {
+        "word": "THIEF",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "RODENT": [
+      {
+        "word": "MOUSE",
+        "weight": 0.9,
+        "kind": "member"
+      }
+    ],
+    "ROLLERCOASTER": [
+      {
+        "word": "DROP",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "SCREEN",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "TRACK",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "ROMANCE": [
+      {
+        "word": "CHOCOLATE",
+        "weight": 0.55,
+        "kind": "content"
+      },
+      {
+        "word": "DANCE",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "DATE",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "DRESS",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "HEART",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "RING",
+        "weight": 0.5,
+        "kind": "content"
+      }
+    ],
+    "ROOM": [
+      {
+        "word": "BLOCK",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "HOTEL",
+        "weight": 0.7,
+        "kind": "part"
+      }
+    ],
+    "ROYAL": [
+      {
+        "word": "CHAIR",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "COURT",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "CROWN",
+        "weight": 0.9,
+        "kind": "attribute"
+      },
+      {
+        "word": "DIAMOND",
+        "weight": 0.45,
+        "kind": "content"
+      },
+      {
+        "word": "GRACE",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "PALM",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "PRINCESS",
+        "weight": 0.9,
+        "kind": "member"
+      }
+    ],
+    "RUBBER": [
+      {
+        "word": "BAND",
+        "weight": 0.7,
+        "kind": "compound",
+        "collocation": 0.85
+      },
+      {
+        "word": "BOOT",
+        "weight": 0.3,
+        "kind": "content"
+      }
+    ],
+    "RUNNING": [
+      {
+        "word": "TRACK",
+        "weight": 0.85,
+        "kind": "function"
+      },
+      {
+        "word": "TRAIN",
+        "weight": 0.5,
+        "kind": "function"
+      }
+    ],
+    "RUSSIA": [
+      {
+        "word": "MOSCOW",
+        "weight": 1,
+        "kind": "content"
+      }
+    ],
+    "SAFARI": [
+      {
+        "word": "AFRICA",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "LION",
+        "weight": 0.3,
+        "kind": "content"
+      }
+    ],
+    "SANDWICH": [
+      {
+        "word": "KETCHUP",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "PLATE",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "SUB",
+        "weight": 0.9,
+        "kind": "member"
+      }
+    ],
+    "SCIENCE": [
+      {
+        "word": "CELL",
+        "weight": 0.55,
+        "kind": "content"
+      },
+      {
+        "word": "ENGINE",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "FORCE",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "LAB",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "LASER",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "MASS",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "MICROSCOPE",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "RAY",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "SCOTLAND": [
+      {
+        "word": "LOCH NESS",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "SEA": [
+      {
+        "word": "HAWK",
+        "weight": 0.2,
+        "kind": "member"
+      },
+      {
+        "word": "HORN",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "OCTOPUS",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "SEAL",
+        "weight": 0.7,
+        "kind": "member"
+      }
+    ],
+    "SEASON": [
+      {
+        "word": "FALL",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "MARCH",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "SNOW",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "SPRING",
+        "weight": 0.9,
+        "kind": "member"
+      }
+    ],
+    "SEAT": [
+      {
+        "word": "BELT",
+        "weight": 0.7,
+        "kind": "compound",
+        "collocation": 0.9
+      },
+      {
+        "word": "CHAIR",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "LAP",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "ROW",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "SECRET": [
+      {
+        "word": "AGENT",
+        "weight": 0.7,
+        "kind": "attribute"
+      },
+      {
+        "word": "CLOAK",
+        "weight": 0.5,
+        "kind": "attribute"
+      },
+      {
+        "word": "CODE",
+        "weight": 0.75,
+        "kind": "attribute"
+      },
+      {
+        "word": "COVER",
+        "weight": 0.5,
+        "kind": "attribute"
+      },
+      {
+        "word": "SHADOW",
+        "weight": 0.5,
+        "kind": "attribute"
+      },
+      {
+        "word": "SMUGGLER",
+        "weight": 0.5,
+        "kind": "attribute"
+      },
+      {
+        "word": "SPY",
+        "weight": 0.9,
+        "kind": "attribute"
+      }
+    ],
+    "SEW": [
+      {
+        "word": "BLOCK",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "BUTTON",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "EYE",
+        "weight": 0.5,
+        "kind": "part"
+      },
+      {
+        "word": "PIN",
+        "weight": 0.9,
+        "kind": "function"
+      }
+    ],
+    "SEWING": [
+      {
+        "word": "NEEDLE",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "SHAPE": [
+      {
+        "word": "CIRCLE",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "DIAMOND",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "FIGURE",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "POINT",
+        "weight": 0.4,
+        "kind": "part"
+      },
+      {
+        "word": "PYRAMID",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "RING",
+        "weight": 0.4,
+        "kind": "attribute"
+      },
+      {
+        "word": "ROUND",
+        "weight": 0.6,
+        "kind": "attribute"
+      },
+      {
+        "word": "SPOT",
+        "weight": 0.4,
+        "kind": "member"
+      },
+      {
+        "word": "SQUARE",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "STAR",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "TRIANGLE",
+        "weight": 1,
+        "kind": "member"
+      }
+    ],
+    "SHARES": [
+      {
+        "word": "BANK",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "STOCK",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "SHIRT": [
+      {
+        "word": "BUTTON",
+        "weight": 0.9,
+        "kind": "part"
+      },
+      {
+        "word": "CAP",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "TIE",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "SHORTS": [
+      {
+        "word": "BERMUDA",
+        "weight": 0.7,
+        "kind": "compound",
+        "collocation": 0.85
+      }
+    ],
+    "SHOVE": [
+      {
+        "word": "SHOULDER",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "SHRINK": [
+      {
+        "word": "CONTRACT",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "SKATE": [
+      {
+        "word": "BOARD",
+        "weight": 0.7,
+        "kind": "compound",
+        "collocation": 0.8
+      },
+      {
+        "word": "ICE",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "SKYDIVE": [
+      {
+        "word": "DROP",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "FLY",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "PARACHUTE",
+        "weight": 0.9,
+        "kind": "function"
+      }
+    ],
+    "SLEEP": [
+      {
+        "word": "BED",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "NIGHT",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "SLIMY": [
+      {
+        "word": "SLUG",
+        "weight": 0.9,
+        "kind": "attribute"
+      }
+    ],
+    "SMART": [
+      {
+        "word": "GENIUS",
+        "weight": 0.85,
+        "kind": "attribute"
+      },
+      {
+        "word": "TABLET",
+        "weight": 0.3,
+        "kind": "compound"
+      }
+    ],
+    "SMILE": [
+      {
+        "word": "FACE",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "TOOTH",
+        "weight": 0.5,
+        "kind": "content"
+      }
+    ],
+    "SMOKE": [
+      {
+        "word": "PIPE",
+        "weight": 0.7,
+        "kind": "function"
+      }
+    ],
+    "SMOOTH": [
+      {
+        "word": "SILK",
+        "weight": 0.8,
+        "kind": "attribute"
+      },
+      {
+        "word": "SLIP",
+        "weight": 0.5,
+        "kind": "attribute"
+      }
+    ],
+    "SNAIL": [
+      {
+        "word": "SLUG",
+        "weight": 0.6,
+        "kind": "member"
+      }
+    ],
+    "SNAKE": [
+      {
+        "word": "PIT",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "TAIL",
+        "weight": 0.5,
+        "kind": "part"
+      }
+    ],
+    "SOAP": [
+      {
+        "word": "BAR",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "IVORY",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "OPERA",
+        "weight": 0.7,
+        "kind": "compound",
+        "collocation": 0.85
+      }
+    ],
+    "SOCCER": [
+      {
+        "word": "NET",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "PITCH",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "SHOT",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "SOIL": [
+      {
+        "word": "ROOT",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "WORM",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "SOUP": [
+      {
+        "word": "STOCK",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "SPHERE": [
+      {
+        "word": "BALL",
+        "weight": 0.85,
+        "kind": "attribute"
+      },
+      {
+        "word": "MARBLE",
+        "weight": 0.6,
+        "kind": "member"
+      }
+    ],
+    "SPORT": [
+      {
+        "word": "BEAT",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "CLUB",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "COURT",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "CRICKET",
+        "weight": 0.65,
+        "kind": "member"
+      },
+      {
+        "word": "DUCK",
+        "weight": 0.35,
+        "kind": "content"
+      },
+      {
+        "word": "FIELD",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "POINT",
+        "weight": 0.5,
+        "kind": "content"
+      }
+    ],
+    "SPORTS": [
+      {
+        "word": "BAT",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "CLUB",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "FENCE",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "NET",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "POOL",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "RACKET",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "STADIUM",
+        "weight": 0.85,
+        "kind": "content"
+      }
+    ],
+    "SPOTLIGHT": [
+      {
+        "word": "LIGHT",
+        "weight": 0.6,
+        "kind": "compound"
+      },
+      {
+        "word": "SPOT",
+        "weight": 0.6,
+        "kind": "compound"
+      }
+    ],
+    "STACK": [
+      {
+        "word": "BLOCK",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "PIE",
+        "weight": 0.2,
+        "kind": "content"
+      }
+    ],
+    "STAGE": [
+      {
+        "word": "CAST",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "CONCERT",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "STAIN": [
+      {
+        "word": "SPOT",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "STAMP": [
+      {
+        "word": "MAIL",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "POST",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "SEAL",
+        "weight": 0.7,
+        "kind": "function"
+      },
+      {
+        "word": "SHOE",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "SPOT",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "STARGAZING": [
+      {
+        "word": "SHADOW",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "TELESCOPE",
+        "weight": 0.9,
+        "kind": "function"
+      }
+    ],
+    "STATUE": [
+      {
+        "word": "MARBLE",
+        "weight": 0.75,
+        "kind": "content"
+      }
+    ],
+    "STING": [
+      {
+        "word": "SCORPION",
+        "weight": 0.8,
+        "kind": "attribute"
+      },
+      {
+        "word": "SLUG",
+        "weight": 0.4,
+        "kind": "attribute"
+      },
+      {
+        "word": "SPIDER",
+        "weight": 0.5,
+        "kind": "attribute"
+      },
+      {
+        "word": "SPIKE",
+        "weight": 0.5,
+        "kind": "attribute"
+      },
+      {
+        "word": "TAIL",
+        "weight": 0.5,
+        "kind": "part"
+      }
+    ],
+    "STORE": [
+      {
+        "word": "SHOE",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "SHOP",
+        "weight": 1,
+        "kind": "member"
+      },
+      {
+        "word": "STOCK",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "TAG",
+        "weight": 0.5,
+        "kind": "content"
+      }
+    ],
+    "STORY": [
+      {
+        "word": "NOVEL",
+        "weight": 0.75,
+        "kind": "member"
+      },
+      {
+        "word": "PLOT",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "PRINCESS",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "STUMBLE": [
+      {
+        "word": "DROP",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "TRIP",
+        "weight": 0.85,
+        "kind": "member"
+      }
+    ],
+    "SUBMARINE": [
+      {
+        "word": "HORN",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "SUB",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "SUBWAY": [
+      {
+        "word": "TUBE",
+        "weight": 0.8,
+        "kind": "member"
+      }
+    ],
+    "SUN": [
+      {
+        "word": "RAY",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "SUPERNATURAL": [
+      {
+        "word": "ALIEN",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "GHOST",
+        "weight": 0.8,
+        "kind": "member"
+      }
+    ],
+    "SURF": [
+      {
+        "word": "BEACH",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "BOARD",
+        "weight": 0.7,
+        "kind": "compound",
+        "collocation": 0.8
+      },
+      {
+        "word": "SHARK",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "WAVE",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "SURGERY": [
+      {
+        "word": "HOSPITAL",
+        "weight": 0.55,
+        "kind": "content"
+      },
+      {
+        "word": "NURSE",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "PLASTIC",
+        "weight": 0.8,
+        "kind": "compound"
+      }
+    ],
+    "SWEET": [
+      {
+        "word": "HONEY",
+        "weight": 0.7,
+        "kind": "attribute"
+      },
+      {
+        "word": "JAM",
+        "weight": 0.5,
+        "kind": "attribute"
+      },
+      {
+        "word": "MINT",
+        "weight": 0.6,
+        "kind": "member"
+      }
+    ],
+    "SWIM": [
+      {
+        "word": "BEACH",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "LAP",
+        "weight": 0.75,
+        "kind": "function"
+      },
+      {
+        "word": "POOL",
+        "weight": 0.85,
+        "kind": "function"
+      },
+      {
+        "word": "SEAL",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "WATER",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "WAVE",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "SYRUP": [
+      {
+        "word": "MAPLE",
+        "weight": 0.9,
+        "kind": "compound",
+        "collocation": 0.85
+      }
+    ],
+    "TALL": [
+      {
+        "word": "SKYSCRAPER",
+        "weight": 0.8,
+        "kind": "attribute"
+      },
+      {
+        "word": "SPIKE",
+        "weight": 0.4,
+        "kind": "attribute"
+      }
+    ],
+    "TEETH": [
+      {
+        "word": "MOUTH",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "NURSE",
+        "weight": 0.3,
+        "kind": "content"
+      }
+    ],
+    "TELEVISION": [
+      {
+        "word": "TUBE",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "TEMPERATURE": [
+      {
+        "word": "COLD",
+        "weight": 0.85,
+        "kind": "attribute"
+      },
+      {
+        "word": "DEGREE",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "DROP",
+        "weight": 0.5,
+        "kind": "content"
+      }
+    ],
+    "TENNIS": [
+      {
+        "word": "BALL",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "CIRCLE",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "COURT",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "NET",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "RACKET",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "SHOT",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "SWING",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "TENTACLE": [
+      {
+        "word": "OCTOPUS",
+        "weight": 1,
+        "kind": "part"
+      }
+    ],
+    "THANKSGIVING": [
+      {
+        "word": "TURKEY",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "THEATER": [
+      {
+        "word": "PLAY",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "THERMOMETER": [
+      {
+        "word": "COLD",
+        "weight": 0.4,
+        "kind": "attribute"
+      },
+      {
+        "word": "DEGREE",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "MERCURY",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "SCALE",
+        "weight": 0.6,
+        "kind": "part"
+      }
+    ],
+    "THORN": [
+      {
+        "word": "ROSE",
+        "weight": 0.85,
+        "kind": "part"
+      }
+    ],
+    "THROW": [
+      {
+        "word": "BALL",
+        "weight": 0.75,
+        "kind": "function"
+      }
+    ],
+    "TOGGLE": [
+      {
+        "word": "SWITCH",
+        "weight": 0.7,
+        "kind": "function"
+      },
+      {
+        "word": "TAP",
+        "weight": 0.4,
+        "kind": "function"
+      }
+    ],
+    "TOOL": [
+      {
+        "word": "DRILL",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "HOOK",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "JACK",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "SWITCH",
+        "weight": 0.3,
+        "kind": "member"
+      }
+    ],
+    "TOOTHPASTE": [
+      {
+        "word": "PASTE",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "TUBE",
+        "weight": 0.75,
+        "kind": "compound",
+        "collocation": 0.8
+      }
+    ],
+    "TOY": [
+      {
+        "word": "DINOSAUR",
+        "weight": 0.4,
+        "kind": "member"
+      },
+      {
+        "word": "ROBOT",
+        "weight": 0.6,
+        "kind": "member"
+      },
+      {
+        "word": "SOLDIER",
+        "weight": 0.75,
+        "kind": "content",
+        "collocation": 0.7
+      }
+    ],
+    "TRAFFIC": [
+      {
+        "word": "JAM",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "TRASH": [
+      {
+        "word": "LITTER",
+        "weight": 0.9,
+        "kind": "member"
+      }
+    ],
+    "TREASURE": [
+      {
+        "word": "CHEST",
+        "weight": 0.85,
+        "kind": "compound",
+        "collocation": 0.9
+      },
+      {
+        "word": "CROWN",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "DIAMOND",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "DRAGON",
+        "weight": 0.45,
+        "kind": "content"
+      },
+      {
+        "word": "MINE",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "PIRATE",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "TREE": [
+      {
+        "word": "APPLE",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "BARK",
+        "weight": 0.85,
+        "kind": "part"
+      },
+      {
+        "word": "FIRE",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "FOREST",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "GRASS",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "HORN",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "LOG",
+        "weight": 0.7,
+        "kind": "part"
+      },
+      {
+        "word": "MAPLE",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "NUT",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "PALM",
+        "weight": 0.85,
+        "kind": "compound"
+      },
+      {
+        "word": "POLE",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "RING",
+        "weight": 0.5,
+        "kind": "part"
+      },
+      {
+        "word": "ROOT",
+        "weight": 0.9,
+        "kind": "part"
+      },
+      {
+        "word": "TRUNK",
+        "weight": 0.85,
+        "kind": "part"
+      }
+    ],
+    "TRIAL": [
+      {
+        "word": "COURT",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "LAWYER",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "TRUMPET": [
+      {
+        "word": "BUGLE",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "HORN",
+        "weight": 0.9,
+        "kind": "member"
+      }
+    ],
+    "TUSK": [
+      {
+        "word": "HORN",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "IVORY",
+        "weight": 0.75,
+        "kind": "attribute"
+      }
+    ],
+    "UNDERWATER": [
+      {
+        "word": "SINK",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "SUB",
+        "weight": 0.85,
+        "kind": "content"
+      }
+    ],
+    "USA": [
+      {
+        "word": "MEXICO",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "STATE",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "USAIN": [
+      {
+        "word": "BOLT",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "UTENSIL": [
+      {
+        "word": "FORK",
+        "weight": 0.9,
+        "kind": "member"
+      },
+      {
+        "word": "WHIP",
+        "weight": 0.5,
+        "kind": "member"
+      }
+    ],
+    "VEGETABLE": [
+      {
+        "word": "CARROT",
+        "weight": 0.95,
+        "kind": "member"
+      }
+    ],
+    "VEHICLE": [
+      {
+        "word": "CAR",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "VAN",
+        "weight": 0.85,
+        "kind": "member"
+      }
+    ],
+    "VENOM": [
+      {
+        "word": "OCTOPUS",
+        "weight": 0.3,
+        "kind": "attribute"
+      },
+      {
+        "word": "POISON",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "VETERINARIAN": [
+      {
+        "word": "VET",
+        "weight": 0.9,
+        "kind": "content"
+      }
+    ],
+    "VOLLEYBALL": [
+      {
+        "word": "BALL",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "NET",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "SPIKE",
+        "weight": 0.7,
+        "kind": "content"
+      }
+    ],
+    "WALK": [
+      {
+        "word": "PASS",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "STICK",
+        "weight": 0.5,
+        "kind": "content"
+      }
+    ],
+    "WARRIOR": [
+      {
+        "word": "KNIFE",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "NINJA",
+        "weight": 0.8,
+        "kind": "content"
+      }
+    ],
+    "WEALTH": [
+      {
+        "word": "CAPITAL",
+        "weight": 0.6,
+        "kind": "attribute"
+      },
+      {
+        "word": "DIAMOND",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "KING",
+        "weight": 0.5,
+        "kind": "attribute"
+      },
+      {
+        "word": "MILLIONAIRE",
+        "weight": 0.8,
+        "kind": "member"
+      }
+    ],
+    "WEAPON": [
+      {
+        "word": "BALL",
+        "weight": 0.3,
+        "kind": "member"
+      },
+      {
+        "word": "MISSILE",
+        "weight": 0.85,
+        "kind": "member"
+      },
+      {
+        "word": "NAIL",
+        "weight": 0.3,
+        "kind": "member"
+      },
+      {
+        "word": "PISTOL",
+        "weight": 0.95,
+        "kind": "member"
+      }
+    ],
+    "WEAR": [
+      {
+        "word": "BELT",
+        "weight": 0.7,
+        "kind": "member"
+      },
+      {
+        "word": "BOOT",
+        "weight": 0.7,
+        "kind": "member"
+      }
+    ],
+    "WEATHER": [
+      {
+        "word": "SNOW",
+        "weight": 0.8,
+        "kind": "member"
+      },
+      {
+        "word": "SPOT",
+        "weight": 0.3,
+        "kind": "content"
+      }
+    ],
+    "WEDDING": [
+      {
+        "word": "BALL",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "BAND",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "DRESS",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "HORSE",
+        "weight": 0.2,
+        "kind": "content"
+      },
+      {
+        "word": "RING",
+        "weight": 0.85,
+        "kind": "content"
+      }
+    ],
+    "WEIGHT": [
+      {
+        "word": "MAMMOTH",
+        "weight": 0.3,
+        "kind": "attribute"
+      },
+      {
+        "word": "POUND",
+        "weight": 0.8,
+        "kind": "member"
+      }
+    ],
+    "WHISKEY": [
+      {
+        "word": "SHOT",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "STRAW",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "TAP",
+        "weight": 0.5,
+        "kind": "content"
+      }
+    ],
+    "WHITE": [
+      {
+        "word": "IVORY",
+        "weight": 0.7,
+        "kind": "attribute"
+      },
+      {
+        "word": "SNOW",
+        "weight": 0.6,
+        "kind": "attribute"
+      }
+    ],
+    "WINDOW": [
+      {
+        "word": "GLASS",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "SCREEN",
+        "weight": 0.55,
+        "kind": "content"
+      },
+      {
+        "word": "WALL",
+        "weight": 0.5,
+        "kind": "content"
+      }
+    ],
+    "WINE": [
+      {
+        "word": "GLASS",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "PORT",
+        "weight": 0.7,
+        "kind": "member"
+      }
+    ],
+    "WING": [
+      {
+        "word": "BAT",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "BUGLE",
+        "weight": 0.1,
+        "kind": "content"
+      },
+      {
+        "word": "FLY",
+        "weight": 0.6,
+        "kind": "function"
+      }
+    ],
+    "WINTER": [
+      {
+        "word": "ALPS",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "COLD",
+        "weight": 0.85,
+        "kind": "attribute"
+      },
+      {
+        "word": "ICE",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "SNOW",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "SNOWMAN",
+        "weight": 0.9,
+        "kind": "content"
+      },
+      {
+        "word": "SOCK",
+        "weight": 0.4,
+        "kind": "content"
+      }
+    ],
+    "WISH": [
+      {
+        "word": "LEPRECHAUN",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "WELL",
+        "weight": 0.85,
+        "kind": "content",
+        "collocation": 0.8
+      }
+    ],
+    "WIZARD": [
+      {
+        "word": "CLOAK",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "GENIUS",
+        "weight": 0.3,
+        "kind": "attribute"
+      },
+      {
+        "word": "SPELL",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "STAFF",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "WITCH",
+        "weight": 0.7,
+        "kind": "member"
+      }
+    ],
+    "WOOD": [
+      {
+        "word": "LOG",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "MAPLE",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "POLE",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "STICK",
+        "weight": 0.7,
+        "kind": "attribute"
+      },
+      {
+        "word": "STRAW",
+        "weight": 0.4,
+        "kind": "attribute"
+      },
+      {
+        "word": "TABLE",
+        "weight": 0.4,
+        "kind": "attribute"
+      }
+    ],
+    "WOODS": [
+      {
+        "word": "BARK",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "FOREST",
+        "weight": 0.85,
+        "kind": "member"
+      }
+    ],
+    "WOODWIND": [
+      {
+        "word": "HORN",
+        "weight": 0.5,
+        "kind": "member"
+      }
+    ],
+    "WORKER": [
+      {
+        "word": "AGENT",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "NURSE",
+        "weight": 0.5,
+        "kind": "member"
+      },
+      {
+        "word": "STAFF",
+        "weight": 0.5,
+        "kind": "content"
+      }
+    ],
+    "WORKOUT": [
+      {
+        "word": "TRACK",
+        "weight": 0.4,
+        "kind": "content"
+      },
+      {
+        "word": "TRAIN",
+        "weight": 0.7,
+        "kind": "function"
+      }
+    ],
+    "WORKSHOP": [
+      {
+        "word": "DRILL",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "HOOK",
+        "weight": 0.3,
+        "kind": "content"
+      }
+    ],
+    "WORSHIP": [
+      {
+        "word": "ANGEL",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "GRACE",
+        "weight": 0.6,
+        "kind": "content"
+      },
+      {
+        "word": "TEMPLE",
+        "weight": 1,
+        "kind": "content"
+      }
+    ],
+    "WRESTLING": [
+      {
+        "word": "UNDERTAKER",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ],
+    "ZOO": [
+      {
+        "word": "EAGLE",
+        "weight": 0.5,
+        "kind": "content"
+      },
+      {
+        "word": "LION",
+        "weight": 0.7,
+        "kind": "content"
+      },
+      {
+        "word": "MAMMOTH",
+        "weight": 0.3,
+        "kind": "content"
+      },
+      {
+        "word": "PANDA",
+        "weight": 0.8,
+        "kind": "content"
+      },
+      {
+        "word": "PLATYPUS",
+        "weight": 0.6,
+        "kind": "content"
+      }
+    ]
+  },
+  "proper": {
+    "Aladdin": {
+      "contents": [
+        {
+          "word": "GENIUS",
+          "weight": 0.2
+        }
+      ],
+      "fame": 0.75
+    },
+    "Apollo": {
+      "contents": [
+        {
+          "word": "MOON",
+          "weight": 0.7
+        },
+        {
+          "word": "SPACE",
+          "weight": 0.6
+        }
+      ],
+      "fame": 0.8,
+      "rivals": [
+        {
+          "referent": "Apollo Creed",
+          "fame": 0.6,
+          "contents": [
+            {
+              "word": "RING",
+              "weight": 0.4
+            }
+          ]
+        }
+      ]
+    },
+    "Arizona": {
+      "contents": [
+        {
+          "word": "PHOENIX",
+          "weight": 0.7
+        }
+      ],
+      "fame": 0.6
+    },
+    "Aztecs": {
+      "contents": [
+        {
+          "word": "AMERICA",
+          "weight": 0.3
+        },
+        {
+          "word": "AZTEC",
+          "weight": 0.9
+        },
+        {
+          "word": "GOLD",
+          "weight": 0.05
+        }
+      ],
+      "fame": 0.7
+    },
+    "BFG": {
+      "contents": [
+        {
+          "word": "GIANT",
+          "weight": 0.7
+        }
+      ],
+      "fame": 0.5
+    },
+    "Batman": {
+      "contents": [
+        {
+          "word": "BAT",
+          "weight": 0.8
+        },
+        {
+          "word": "CAR",
+          "weight": 0.3
+        },
+        {
+          "word": "COMIC",
+          "weight": 0.5
+        },
+        {
+          "word": "CROWN",
+          "weight": 0.1
+        },
+        {
+          "word": "KNIGHT",
+          "weight": 0.6
+        },
+        {
+          "word": "PENGUIN",
+          "weight": 0.9
+        },
+        {
+          "word": "POISON",
+          "weight": 0.3
+        },
+        {
+          "word": "ROBIN",
+          "weight": 1
+        },
+        {
+          "word": "ROBOT",
+          "weight": 0.2
+        },
+        {
+          "word": "SHADOW",
+          "weight": 0.3
+        },
+        {
+          "word": "SUPERHERO",
+          "weight": 0.6
+        }
+      ],
+      "fame": 1,
+      "rivals": [
+        {
+          "referent": "Christopher Robin (Winnie the Pooh)",
+          "fame": 0.7,
+          "contents": [
+            {
+              "word": "ROBIN",
+              "weight": 0.7
+            }
+          ]
+        },
+        {
+          "referent": "Dark Knight",
+          "fame": 0.85,
+          "contents": [
+            {
+              "word": "BAT",
+              "weight": 0.6
+            },
+            {
+              "word": "KNIGHT",
+              "weight": 0.7
+            }
+          ]
+        }
+      ]
+    },
+    "Beatles": {
+      "contents": [
+        {
+          "word": "APPLE",
+          "weight": 0.5
+        },
+        {
+          "word": "REVOLUTION",
+          "weight": 0.6
+        }
+      ],
+      "fame": 0.9
+    },
+    "BerlinWall": {
+      "contents": [
+        {
+          "word": "BERLIN",
+          "weight": 0.8
+        },
+        {
+          "word": "WALL",
+          "weight": 0.8
+        }
+      ],
+      "fame": 0.8
+    },
+    "BigBen": {
+      "contents": [
+        {
+          "word": "LONDON",
+          "weight": 0.7
+        }
+      ],
+      "fame": 0.8
+    },
+    "Bollywood": {
+      "contents": [
+        {
+          "word": "INDIA",
+          "weight": 0.8
+        }
+      ],
+      "fame": 0.6
+    },
+    "Broadway": {
+      "contents": [
+        {
+          "word": "MODEL",
+          "weight": 0.2
+        },
+        {
+          "word": "NEW YORK",
+          "weight": 0.7
+        },
+        {
+          "word": "OPERA",
+          "weight": 0.4
+        }
+      ],
+      "fame": 0.7
+    },
+    "Buffy": {
+      "contents": [
+        {
+          "word": "SLUG",
+          "weight": 0.2
+        },
+        {
+          "word": "SPIKE",
+          "weight": 0.6
+        }
+      ],
+      "fame": 0.55
+    },
+    "CIA": {
+      "contents": [
+        {
+          "word": "AGENT",
+          "weight": 0.7
+        },
+        {
+          "word": "SPY",
+          "weight": 0.6
+        }
+      ],
+      "fame": 0.9
+    },
+    "Cadbury": {
+      "contents": [
+        {
+          "word": "CHOCOLATE",
+          "weight": 0.85
+        }
+      ],
+      "fame": 0.75
+    },
+    "Catwoman": {
+      "contents": [
+        {
+          "word": "WHIP",
+          "weight": 0.5
+        }
+      ],
+      "fame": 0.6
+    },
+    "Charlotte": {
+      "contents": [
+        {
+          "word": "SPIDER",
+          "weight": 0.5
+        }
+      ],
+      "fame": 0.6
+    },
+    "Cinderella": {
+      "contents": [
+        {
+          "word": "BELL",
+          "weight": 0.2
+        },
+        {
+          "word": "DANCE",
+          "weight": 0.35
+        },
+        {
+          "word": "DRESS",
+          "weight": 0.65
+        },
+        {
+          "word": "GLASS",
+          "weight": 0.8
+        },
+        {
+          "word": "MOUSE",
+          "weight": 0.4
+        },
+        {
+          "word": "NIGHT",
+          "weight": 0.2
+        },
+        {
+          "word": "PUMPKIN",
+          "weight": 0.85
+        },
+        {
+          "word": "QUEEN",
+          "weight": 0.3
+        },
+        {
+          "word": "SHOE",
+          "weight": 0.8
+        },
+        {
+          "word": "SLIP",
+          "weight": 0.5
+        }
+      ],
+      "fame": 0.9
+    },
+    "Coca-Cola": {
+      "contents": [
+        {
+          "word": "BOTTLE",
+          "weight": 0.5
+        }
+      ],
+      "fame": 0.9
+    },
+    "Cortana": {
+      "contents": [
+        {
+          "word": "AGENT",
+          "weight": 0.2
+        }
+      ],
+      "fame": 0.5
+    },
+    "Dracula": {
+      "contents": [
+        {
+          "word": "BAT",
+          "weight": 0.6
+        },
+        {
+          "word": "NIGHT",
+          "weight": 0.3
+        }
+      ],
+      "fame": 0.85
+    },
+    "E.T.": {
+      "contents": [
+        {
+          "word": "ALIEN",
+          "weight": 0.8
+        },
+        {
+          "word": "FILM",
+          "weight": 0.3
+        },
+        {
+          "word": "MOON",
+          "weight": 0.4
+        }
+      ],
+      "fame": 0.8
+    },
+    "Einstein": {
+      "contents": [
+        {
+          "word": "GENIUS",
+          "weight": 0.7
+        }
+      ],
+      "fame": 0.85
+    },
+    "Elizabeth": {
+      "contents": [
+        {
+          "word": "QUEEN",
+          "weight": 0.7
+        }
+      ],
+      "fame": 0.85
+    },
+    "Everest": {
+      "contents": [
+        {
+          "word": "HIMALAYAS",
+          "weight": 0.9
+        },
+        {
+          "word": "SNOW",
+          "weight": 0.4
+        }
+      ],
+      "fame": 0.8
+    },
+    "FBI": {
+      "contents": [
+        {
+          "word": "AGENT",
+          "weight": 0.7
+        },
+        {
+          "word": "FILE",
+          "weight": 0.4
+        }
+      ],
+      "fame": 0.9
+    },
+    "Fahrenheit": {
+      "contents": [
+        {
+          "word": "SCALE",
+          "weight": 0.6
+        }
+      ],
+      "fame": 0.6
+    },
+    "Ford": {
+      "contents": [
+        {
+          "word": "ENGINE",
+          "weight": 0.3
+        },
+        {
+          "word": "VAN",
+          "weight": 0.3
+        }
+      ],
+      "fame": 0.9
+    },
+    "Fortnite": {
+      "contents": [
+        {
+          "word": "BUTTON",
+          "weight": 0.2
+        },
+        {
+          "word": "GAME",
+          "weight": 0.5
+        }
+      ],
+      "fame": 0.7
+    },
+    "Freddie": {
+      "contents": [
+        {
+          "word": "MERCURY",
+          "weight": 0.8
+        }
+      ],
+      "fame": 0.75,
+      "rivals": [
+        {
+          "referent": "Freddy Krueger",
+          "fame": 0.7,
+          "contents": [
+            {
+              "word": "NEEDLE",
+              "weight": 0.3
+            }
+          ]
+        }
+      ]
+    },
+    "Frosty": {
+      "contents": [
+        {
+          "word": "COLD",
+          "weight": 0.4
+        },
+        {
+          "word": "SNOW",
+          "weight": 0.6
+        },
+        {
+          "word": "SNOWMAN",
+          "weight": 1
+        }
+      ],
+      "fame": 0.7
+    },
+    "Frozen": {
+      "contents": [
+        {
+          "word": "COLD",
+          "weight": 0.6
+        },
+        {
+          "word": "ICE",
+          "weight": 0.7
+        },
+        {
+          "word": "QUEEN",
+          "weight": 0.4
+        },
+        {
+          "word": "SNOW",
+          "weight": 0.7
+        },
+        {
+          "word": "SNOWMAN",
+          "weight": 0.7
+        }
+      ],
+      "fame": 0.9,
+      "rivals": [
+        {
+          "referent": "frozen food",
+          "fame": 0.6,
+          "contents": [
+            {
+              "word": "CHOCOLATE",
+              "weight": 0.2
+            }
+          ]
+        }
+      ]
+    },
+    "GTA": {
+      "contents": [
+        {
+          "word": "CRASH",
+          "weight": 0.3
+        },
+        {
+          "word": "PISTOL",
+          "weight": 0.4
+        },
+        {
+          "word": "STAR",
+          "weight": 0.3
+        }
+      ],
+      "fame": 0.7
+    },
+    "Gandalf": {
+      "contents": [
+        {
+          "word": "STAFF",
+          "weight": 0.5
+        },
+        {
+          "word": "WITCH",
+          "weight": 0.2
+        }
+      ],
+      "fame": 0.75
+    },
+    "George": {
+      "contents": [
+        {
+          "word": "WASHINGTON",
+          "weight": 0.7
+        }
+      ],
+      "fame": 0.7
+    },
+    "Ghostbusters": {
+      "contents": [
+        {
+          "word": "GHOST",
+          "weight": 0.9
+        }
+      ],
+      "fame": 0.8
+    },
+    "Godzilla": {
+      "contents": [
+        {
+          "word": "DINOSAUR",
+          "weight": 0.4
+        },
+        {
+          "word": "TOKYO",
+          "weight": 0.5
+        }
+      ],
+      "fame": 0.8
+    },
+    "Hamlet": {
+      "contents": [
+        {
+          "word": "QUEEN",
+          "weight": 0.3
+        },
+        {
+          "word": "SHAKESPEARE",
+          "weight": 0.9
+        }
+      ],
+      "fame": 0.75
+    },
+    "Hobbit": {
+      "contents": [
+        {
+          "word": "DWARF",
+          "weight": 0.6
+        }
+      ],
+      "fame": 0.75
+    },
+    "JamesBond": {
+      "contents": [
+        {
+          "word": "BOND",
+          "weight": 1
+        },
+        {
+          "word": "MOSCOW",
+          "weight": 0.2
+        },
+        {
+          "word": "SHOT",
+          "weight": 0.3
+        }
+      ],
+      "fame": 0.9
+    },
+    "Jaws": {
+      "contents": [
+        {
+          "word": "FILM",
+          "weight": 0.3
+        },
+        {
+          "word": "SHARK",
+          "weight": 1
+        },
+        {
+          "word": "SHIP",
+          "weight": 0.5
+        }
+      ],
+      "fame": 0.85
+    },
+    "Jurassic": {
+      "contents": [
+        {
+          "word": "DINOSAUR",
+          "weight": 0.9
+        }
+      ],
+      "fame": 0.85
+    },
+    "JurassicPark": {
+      "contents": [
+        {
+          "word": "DINOSAUR",
+          "weight": 0.9
+        }
+      ],
+      "fame": 0.85
+    },
+    "Kremlin": {
+      "contents": [
+        {
+          "word": "MOSCOW",
+          "weight": 0.8
+        }
+      ],
+      "fame": 0.7
+    },
+    "Kungfupanda": {
+      "contents": [
+        {
+          "word": "PANDA",
+          "weight": 0.9
+        }
+      ],
+      "fame": 0.75
+    },
+    "Linux": {
+      "contents": [
+        {
+          "word": "PENGUIN",
+          "weight": 0.7
+        }
+      ],
+      "fame": 0.6
+    },
+    "LuckyCharms": {
+      "contents": [
+        {
+          "word": "LEPRECHAUN",
+          "weight": 0.7
+        }
+      ],
+      "fame": 0.6
+    },
+    "Manhattan": {
+      "contents": [
+        {
+          "word": "NEW YORK",
+          "weight": 0.85
+        }
+      ],
+      "fame": 0.7
+    },
+    "Mars": {
+      "contents": [
+        {
+          "word": "PHOENIX",
+          "weight": 0.3
+        }
+      ],
+      "fame": 0.7,
+      "rivals": [
+        {
+          "referent": "Mars (mythology god of war)",
+          "fame": 0.6,
+          "contents": [
+            {
+              "word": "MARCH",
+              "weight": 0.3
+            }
+          ]
+        }
+      ]
+    },
+    "Marvel": {
+      "contents": [
+        {
+          "word": "COMIC",
+          "weight": 0.6
+        }
+      ],
+      "fame": 0.9
+    },
+    "Matrix": {
+      "contents": [
+        {
+          "word": "AGENT",
+          "weight": 0.6
+        },
+        {
+          "word": "CELL",
+          "weight": 0.2
+        }
+      ],
+      "fame": 0.8
+    },
+    "Moses": {
+      "contents": [
+        {
+          "word": "STAFF",
+          "weight": 0.4
+        }
+      ],
+      "fame": 0.7
+    },
+    "NASA": {
+      "contents": [
+        {
+          "word": "JET",
+          "weight": 0.4
+        },
+        {
+          "word": "LASER",
+          "weight": 0.3
+        },
+        {
+          "word": "MERCURY",
+          "weight": 0.4
+        },
+        {
+          "word": "MISSILE",
+          "weight": 0.4
+        },
+        {
+          "word": "MOON",
+          "weight": 0.6
+        },
+        {
+          "word": "SATELLITE",
+          "weight": 0.7
+        },
+        {
+          "word": "SATURN",
+          "weight": 0.5
+        },
+        {
+          "word": "SPACE",
+          "weight": 0.8
+        },
+        {
+          "word": "STAR",
+          "weight": 0.4
+        }
+      ],
+      "fame": 0.95
+    },
+    "Nemo": {
+      "contents": [
+        {
+          "word": "SCUBA DIVER",
+          "weight": 0.4
+        },
+        {
+          "word": "WHALE",
+          "weight": 0.3
+        }
+      ],
+      "fame": 0.85
+    },
+    "Nessie": {
+      "contents": [
+        {
+          "word": "LOCH NESS",
+          "weight": 1
+        }
+      ],
+      "fame": 0.8
+    },
+    "NintendoSwitch": {
+      "contents": [
+        {
+          "word": "SWITCH",
+          "weight": 0.7
+        }
+      ],
+      "fame": 0.7
+    },
+    "Olympics": {
+      "contents": [
+        {
+          "word": "BEIJING",
+          "weight": 0.7
+        },
+        {
+          "word": "GERMANY",
+          "weight": 0.3
+        }
+      ],
+      "fame": 0.9
+    },
+    "Oscars": {
+      "contents": [
+        {
+          "word": "FILM",
+          "weight": 0.5
+        },
+        {
+          "word": "HOLLYWOOD",
+          "weight": 0.5
+        }
+      ],
+      "fame": 0.8
+    },
+    "Parthenon": {
+      "contents": [
+        {
+          "word": "GREECE",
+          "weight": 0.7
+        }
+      ],
+      "fame": 0.6
+    },
+    "Perry": {
+      "contents": [
+        {
+          "word": "PLATYPUS",
+          "weight": 0.8
+        }
+      ],
+      "fame": 0.6,
+      "rivals": [
+        {
+          "referent": "Katy Perry",
+          "fame": 0.85,
+          "contents": [
+            {
+              "word": "CONCERT",
+              "weight": 0.4
+            }
+          ]
+        }
+      ]
+    },
+    "PeterPan": {
+      "contents": [
+        {
+          "word": "HOOK",
+          "weight": 0.7
+        },
+        {
+          "word": "SHADOW",
+          "weight": 0.5
+        }
+      ],
+      "fame": 0.8
+    },
+    "Pinocchio": {
+      "contents": [
+        {
+          "word": "CRICKET",
+          "weight": 0.5
+        }
+      ],
+      "fame": 0.8
+    },
+    "Pokemon": {
+      "contents": [
+        {
+          "word": "BALL",
+          "weight": 0.5
+        },
+        {
+          "word": "DRAGON",
+          "weight": 0.3
+        }
+      ],
+      "fame": 0.85
+    },
+    "Pompeii": {
+      "contents": [
+        {
+          "word": "VOLCANO",
+          "weight": 0.7
+        }
+      ],
+      "fame": 0.6
+    },
+    "Prague": {
+      "contents": [
+        {
+          "word": "CZECH",
+          "weight": 0.6
+        }
+      ],
+      "fame": 0.6
+    },
+    "RedCross": {
+      "contents": [
+        {
+          "word": "AMBULANCE",
+          "weight": 0.4
+        },
+        {
+          "word": "CROSS",
+          "weight": 0.7
+        }
+      ],
+      "fame": 0.75
+    },
+    "Rocky": {
+      "contents": [
+        {
+          "word": "HOOK",
+          "weight": 0.4
+        },
+        {
+          "word": "RING",
+          "weight": 0.5
+        },
+        {
+          "word": "SHOT",
+          "weight": 0.2
+        }
+      ],
+      "fame": 0.8
+    },
+    "Scarface": {
+      "contents": [
+        {
+          "word": "PISTOL",
+          "weight": 0.5
+        }
+      ],
+      "fame": 0.6
+    },
+    "Skittles": {
+      "contents": [
+        {
+          "word": "ORANGE",
+          "weight": 0.4
+        }
+      ],
+      "fame": 0.6
+    },
+    "SnowWhite": {
+      "contents": [
+        {
+          "word": "DWARF",
+          "weight": 0.7
+        },
+        {
+          "word": "FOREST",
+          "weight": 0.3
+        }
+      ],
+      "fame": 0.85
+    },
+    "Spider-Man": {
+      "contents": [
+        {
+          "word": "SHADOW",
+          "weight": 0.3
+        },
+        {
+          "word": "SPIDER",
+          "weight": 0.9
+        },
+        {
+          "word": "SUPERHERO",
+          "weight": 0.8
+        },
+        {
+          "word": "WEB",
+          "weight": 0.7
+        }
+      ],
+      "fame": 1
+    },
+    "Subway": {
+      "contents": [
+        {
+          "word": "SUB",
+          "weight": 0.8
+        }
+      ],
+      "fame": 0.85
+    },
+    "Superman": {
+      "contents": [
+        {
+          "word": "SPACE",
+          "weight": 0.2
+        },
+        {
+          "word": "SUPERHERO",
+          "weight": 0.9
+        }
+      ],
+      "fame": 1
+    },
+    "Terminator": {
+      "contents": [
+        {
+          "word": "DEATH",
+          "weight": 0.3
+        },
+        {
+          "word": "ROBOT",
+          "weight": 0.8
+        }
+      ],
+      "fame": 0.85
+    },
+    "Tinkerbell": {
+      "contents": [
+        {
+          "word": "BELL",
+          "weight": 0.7
+        },
+        {
+          "word": "PAN",
+          "weight": 0.4
+        }
+      ],
+      "fame": 0.7,
+      "rivals": [
+        {
+          "referent": "Taco Bell",
+          "fame": 0.7,
+          "contents": [
+            {
+              "word": "BELL",
+              "weight": 0.6
+            }
+          ]
+        }
+      ]
+    },
+    "Titanic": {
+      "contents": [
+        {
+          "word": "COLD",
+          "weight": 0.4
+        },
+        {
+          "word": "CRASH",
+          "weight": 0.4
+        },
+        {
+          "word": "DIAMOND",
+          "weight": 0.5
+        },
+        {
+          "word": "HEART",
+          "weight": 0.4
+        },
+        {
+          "word": "ICE",
+          "weight": 0.5
+        },
+        {
+          "word": "SHIP",
+          "weight": 1
+        },
+        {
+          "word": "SINK",
+          "weight": 0.7
+        },
+        {
+          "word": "WATER",
+          "weight": 0.3
+        }
+      ],
+      "fame": 0.95
+    },
+    "Transformers": {
+      "contents": [
+        {
+          "word": "ROBOT",
+          "weight": 0.7
+        }
+      ],
+      "fame": 0.8
+    },
+    "USA": {
+      "contents": [
+        {
+          "word": "AMERICA",
+          "weight": 0.9
+        },
+        {
+          "word": "EAGLE",
+          "weight": 0.6
+        },
+        {
+          "word": "STAR",
+          "weight": 0.5
+        }
+      ],
+      "fame": 1
+    },
+    "USPS": {
+      "contents": [
+        {
+          "word": "MAIL",
+          "weight": 0.8
+        },
+        {
+          "word": "POST",
+          "weight": 0.6
+        }
+      ],
+      "fame": 0.6
+    },
+    "Vegas": {
+      "contents": [
+        {
+          "word": "CASINO",
+          "weight": 0.8
+        }
+      ],
+      "fame": 0.8
+    },
+    "WALL-E": {
+      "contents": [
+        {
+          "word": "ROBOT",
+          "weight": 0.85
+        }
+      ],
+      "fame": 0.75
+    },
+    "WWE": {
+      "contents": [
+        {
+          "word": "UNDERTAKER",
+          "weight": 0.9
+        }
+      ],
+      "fame": 0.7
+    },
+    "Willy": {
+      "contents": [
+        {
+          "word": "CHOCOLATE",
+          "weight": 0.5
+        },
+        {
+          "word": "WHALE",
+          "weight": 0.6
+        }
+      ],
+      "fame": 0.7,
+      "rivals": [
+        {
+          "referent": "Willy Wonka",
+          "fame": 0.8,
+          "contents": [
+            {
+              "word": "CHOCOLATE",
+              "weight": 0.8
+            }
+          ]
+        }
+      ]
+    },
+    "Wimbledon": {
+      "contents": [
+        {
+          "word": "ENGLAND",
+          "weight": 0.3
+        },
+        {
+          "word": "NET",
+          "weight": 0.5
+        },
+        {
+          "word": "RACKET",
+          "weight": 0.5
+        }
+      ],
+      "fame": 0.7
+    },
+    "Wonka": {
+      "contents": [
+        {
+          "word": "CHOCOLATE",
+          "weight": 0.9
+        }
+      ],
+      "fame": 0.85
+    },
+    "Yeti": {
+      "contents": [
+        {
+          "word": "HIMALAYAS",
+          "weight": 0.6
+        },
+        {
+          "word": "SNOWMAN",
+          "weight": 0.5
+        }
+      ],
+      "fame": 0.6
+    },
+    "Zeus": {
+      "contents": [
+        {
+          "word": "GREECE",
+          "weight": 0.5
+        },
+        {
+          "word": "LION",
+          "weight": 0.2
+        },
+        {
+          "word": "OLYMPUS",
+          "weight": 0.7
+        }
+      ],
+      "fame": 0.8
+    },
+    "iPad": {
+      "contents": [
+        {
+          "word": "SCREEN",
+          "weight": 0.5
+        },
+        {
+          "word": "TABLET",
+          "weight": 0.9
+        }
+      ],
+      "fame": 0.9
+    },
+    "iPhone": {
+      "contents": [
+        {
+          "word": "APPLE",
+          "weight": 0.7
+        },
+        {
+          "word": "CELL",
+          "weight": 0.5
+        },
+        {
+          "word": "SCREEN",
+          "weight": 0.6
+        }
+      ],
+      "fame": 0.95
+    }
+  },
+  "commonness": {
+    "AIRCRAFT": 0.85,
+    "AIRPLANE": 0.9,
+    "ANDROID": 0.7,
+    "ANGLE": 0.85,
+    "ANIMAL": 1,
+    "ARACHNID": 0.7,
+    "ARMOR": 0.7,
+    "ARMY": 0.95,
+    "ARROW": 0.85,
+    "ATTORNEY": 0.7,
+    "AUDIO": 0.8,
+    "AUTUMN": 0.85,
+    "AVENGERS": 0.3,
+    "AVIATION": 0.6,
+    "BABY": 0.8,
+    "BACKBONE": 0.7,
+    "BACKYARD": 0.75,
+    "BAG": 0.8,
+    "BAKE": 0.8,
+    "BAMBOO": 0.7,
+    "BARRIER": 0.7,
+    "BASEBALL": 0.95,
+    "BASKETBALL": 0.9,
+    "BATTLE": 0.9,
+    "BEAM": 0.75,
+    "BEDROOM": 0.7,
+    "BEE": 0.8,
+    "BEER": 0.8,
+    "BILLIARDS": 0.6,
+    "BIRD": 1,
+    "BIRTHDAY": 0.6,
+    "BLACK": 0.75,
+    "BLADE": 0.7,
+    "BLANKET": 0.6,
+    "BLOG": 0.8,
+    "BLUE": 0.8,
+    "BOARDGAME": 0.5,
+    "BOAT": 0.85,
+    "BODY": 0.95,
+    "BODYPART": 0.7,
+    "BOOK": 0.9,
+    "BOUNCE": 0.8,
+    "BOUNDARY": 0.7,
+    "BOWLING": 0.7,
+    "BOXER": 0.8,
+    "BOXING": 0.85,
+    "BREAKFAST": 0.7,
+    "BREATHE": 0.8,
+    "BREEZE": 0.85,
+    "BRICK": 0.8,
+    "BRIGHT": 0.9,
+    "BROADWAY": 0.6,
+    "BROKEN": 0.7,
+    "BUILDING": 0.85,
+    "BULL": 0.9,
+    "BULLET": 0.75,
+    "BUNNY": 0.85,
+    "BUSINESSMAN": 0.55,
+    "CALENDAR": 0.9,
+    "CAMERA": 0.9,
+    "CAMPING": 0.75,
+    "CANDY": 0.85,
+    "CAPE": 0.8,
+    "CARDS": 0.95,
+    "CARNIVAL": 0.8,
+    "CARPENTER": 0.7,
+    "CARTOON": 0.85,
+    "CATBOX": 0.5,
+    "CEMETERY": 0.7,
+    "CHAIN": 0.8,
+    "CHARM": 0.8,
+    "CHECKMARK": 0.65,
+    "CHEF": 0.9,
+    "CHEMISTRY": 0.8,
+    "CHESS": 0.9,
+    "CHILD": 1,
+    "CHINESE": 0.7,
+    "CINEMA": 0.85,
+    "CIPHER": 0.6,
+    "CITRUS": 0.8,
+    "CITY": 1,
+    "CLASS": 0.85,
+    "CLASSROOM": 0.9,
+    "CLEAN": 0.9,
+    "CLIMB": 0.75,
+    "CLIMBING": 0.85,
+    "CLOCK": 0.95,
+    "CLOTHES": 0.9,
+    "CLOTHING": 0.9,
+    "COCKPIT": 0.6,
+    "COFFEE": 0.85,
+    "COIL": 0.6,
+    "COIN": 0.85,
+    "COLLISION": 0.75,
+    "COLOR": 0.95,
+    "COMEDY": 0.85,
+    "COMPUTER": 0.9,
+    "CONDIMENT": 0.85,
+    "CONE": 0.9,
+    "CONSTELLATION": 0.6,
+    "CONSTRUCTION": 0.85,
+    "CONTINENT": 0.9,
+    "CONTRABAND": 0.55,
+    "COOKING": 0.7,
+    "COOLING": 0.8,
+    "COP": 0.9,
+    "COSTUME": 0.65,
+    "COUCH": 0.6,
+    "COUNTRY": 1,
+    "CROSSING": 0.7,
+    "CROWD": 0.75,
+    "CURRENCY": 0.8,
+    "CURRY": 0.7,
+    "CUTLERY": 0.7,
+    "DALMATIAN": 0.6,
+    "DARKNESS": 0.6,
+    "DEAL": 0.7,
+    "DECIMAL": 0.6,
+    "DECORATE": 0.4,
+    "DEER": 0.8,
+    "DELIVERY": 0.8,
+    "DENTAL": 0.8,
+    "DENTIST": 0.85,
+    "DESSERT": 1,
+    "DIARY": 0.7,
+    "DINNER": 0.85,
+    "DIPLOMAT": 0.65,
+    "DISGUISE": 0.7,
+    "DISH": 0.8,
+    "DISHES": 0.7,
+    "DISPLAY": 0.75,
+    "DIVING": 0.75,
+    "DOCUMENT": 0.9,
+    "DOLLAR": 0.85,
+    "DRAIN": 0.7,
+    "DRINK": 0.85,
+    "DRIVE": 0.9,
+    "DRIVING": 0.85,
+    "EASTER": 0.85,
+    "EDGE": 0.8,
+    "ELECTION": 0.7,
+    "ELECTRIC": 0.85,
+    "ELECTRICITY": 0.85,
+    "ELEMENT": 0.7,
+    "ELEPHANT": 0.85,
+    "EMAIL": 0.9,
+    "EMERGENCY": 0.9,
+    "EMPLOYEE": 0.8,
+    "EMPLOYEES": 0.8,
+    "ERUPTION": 0.75,
+    "ESPIONAGE": 0.6,
+    "EVEREST": 0.75,
+    "EXERCISE": 0.6,
+    "EXPERIMENT": 0.9,
+    "EXPLOSION": 0.9,
+    "EXTINCT": 0.7,
+    "FABRIC": 0.7,
+    "FANTASY": 0.8,
+    "FARM": 0.9,
+    "FASHION": 0.8,
+    "FAUCET": 0.75,
+    "FINGER": 0.8,
+    "FISHING": 0.9,
+    "FLAGPOLE": 0.7,
+    "FLAME": 0.8,
+    "FLOWER": 1,
+    "FLYING": 0.85,
+    "FOOTWEAR": 0.85,
+    "FORTUNE": 0.9,
+    "FROSTY": 0.6,
+    "FROZEN": 0.9,
+    "FRUIT": 1,
+    "FRYING": 0.8,
+    "FUEL": 0.85,
+    "FUNERAL": 0.8,
+    "FUNNY": 0.85,
+    "FURNITURE": 0.9,
+    "GAMBLING": 0.8,
+    "GARDEN": 0.8,
+    "GEOMETRY": 0.85,
+    "GLUE": 0.9,
+    "GOAT": 0.7,
+    "GOD": 0.85,
+    "GOLF": 0.85,
+    "GOVERNMENT": 0.8,
+    "GRAPH": 0.8,
+    "GRIZZLY": 0.7,
+    "GUITAR": 0.7,
+    "GUN": 0.95,
+    "GYM": 0.6,
+    "HAIR": 0.8,
+    "HALFHORSE": 0.4,
+    "HALLOWEEN": 0.9,
+    "HAMLET": 0.7,
+    "HAMMER": 0.85,
+    "HANDSHAKE": 0.5,
+    "HARBOR": 0.8,
+    "HAT": 0.9,
+    "HAY": 0.75,
+    "HEALTH": 0.9,
+    "HEAVEN": 0.9,
+    "HELLO": 0.7,
+    "HERO": 0.7,
+    "HOCKEY": 0.8,
+    "HUGE": 0.9,
+    "INJECTION": 0.75,
+    "INSECT": 0.95,
+    "INSTRUMENT": 0.9,
+    "INTERNET": 0.9,
+    "IRELAND": 0.8,
+    "IVY": 0.7,
+    "JAPAN": 0.9,
+    "JAWS": 0.75,
+    "JEWELRY": 0.85,
+    "JOURNEY": 0.85,
+    "JUDGE": 0.9,
+    "JUSTICE": 0.7,
+    "KEYBOARD": 0.75,
+    "KISS": 0.75,
+    "KITCHEN": 0.9,
+    "KITTENS": 0.7,
+    "KNOT": 0.8,
+    "LABEL": 0.9,
+    "LABORATORY": 0.8,
+    "LAMP": 0.9,
+    "LAUNDRY": 0.8,
+    "LAW": 0.9,
+    "LAWN": 0.8,
+    "LEGAL": 0.9,
+    "LETTER": 0.9,
+    "LICENSE": 0.75,
+    "LIGHTNING": 0.85,
+    "LOVE": 0.85,
+    "LUGGAGE": 0.75,
+    "LUXURY": 0.7,
+    "MACHINE": 0.85,
+    "MAGIC": 0.8,
+    "MARKET": 0.9,
+    "MARSUPIAL": 0.6,
+    "MARVEL": 0.8,
+    "MASK": 0.7,
+    "MATH": 0.8,
+    "MATTRESS": 0.7,
+    "MEASURE": 0.9,
+    "MEASUREMENT": 0.9,
+    "MEDICAL": 0.85,
+    "MEDIEVAL": 0.7,
+    "METAL": 0.9,
+    "MICROPHONE": 0.7,
+    "MIDDLE": 0.9,
+    "MILITARY": 0.9,
+    "MILK": 0.8,
+    "MONARCH": 0.9,
+    "MONEY": 1,
+    "MONSTER": 0.75,
+    "MONTH": 0.9,
+    "MOTOR": 0.9,
+    "MOUNTAIN": 0.9,
+    "MOVIE": 1,
+    "MUSIC": 1,
+    "MYTH": 0.85,
+    "MYTHICAL": 0.7,
+    "MYTHOLOGY": 0.7,
+    "NAILS": 0.7,
+    "NASA": 0.7,
+    "NATIONALITY": 0.6,
+    "NATO": 0.5,
+    "NAVY": 0.8,
+    "NEW": 0.8,
+    "NEWSPAPER": 0.9,
+    "NEWZEALAND": 0.6,
+    "NIGHTCLUB": 0.8,
+    "NIGHTLIFE": 0.8,
+    "NINTENDO": 0.7,
+    "NOCTURNAL": 0.6,
+    "NOISE": 0.9,
+    "NORTH": 0.9,
+    "OCEAN": 0.9,
+    "OFFICER": 0.9,
+    "OLYMPICS": 0.7,
+    "ORBIT": 0.8,
+    "ORCHESTRA": 0.85,
+    "OUTER": 0.75,
+    "OUTERSPACE": 0.6,
+    "PAINT": 0.8,
+    "PAINTING": 0.6,
+    "PARADE": 0.8,
+    "PARKING": 0.9,
+    "PASSWORD": 0.8,
+    "PENCIL": 0.9,
+    "PET": 1,
+    "PETER": 0.7,
+    "PETROLEUM": 0.6,
+    "PHARAOH": 0.7,
+    "PHONE": 0.9,
+    "PHYSICS": 0.8,
+    "PIECE": 0.9,
+    "PIG": 0.75,
+    "PILL": 0.65,
+    "PLANET": 1,
+    "PLANT": 0.9,
+    "PLAYGROUND": 0.8,
+    "PLAYWRIGHT": 0.7,
+    "PLUMBING": 0.8,
+    "POKER": 0.85,
+    "PORCELAIN": 0.7,
+    "POUCH": 0.65,
+    "POULTRY": 0.7,
+    "PRAYER": 0.8,
+    "PREHISTORIC": 0.75,
+    "PRESIDENT": 0.85,
+    "PRICE": 0.9,
+    "PRISON": 0.9,
+    "PROGRAMMING": 0.75,
+    "PROTEST": 0.75,
+    "PUB": 0.7,
+    "PUNCH": 0.7,
+    "RACING": 0.8,
+    "RAILROAD": 0.85,
+    "RAILWAY": 0.85,
+    "RAINFOREST": 0.75,
+    "REBELLION": 0.8,
+    "RELIGION": 0.9,
+    "RESEARCH": 0.6,
+    "RESTAURANT": 0.8,
+    "RHYTHM": 0.8,
+    "RIBBON": 0.75,
+    "RIVER": 0.9,
+    "ROBBER": 0.8,
+    "RODENT": 0.8,
+    "ROLLERCOASTER": 0.75,
+    "ROMANCE": 0.85,
+    "ROOM": 0.9,
+    "ROYAL": 0.9,
+    "RUBBER": 0.8,
+    "RUNNING": 0.85,
+    "RUSSIA": 0.9,
+    "SAFARI": 0.8,
+    "SANDWICH": 0.85,
+    "SCIENCE": 0.9,
+    "SCOTLAND": 0.7,
+    "SEA": 0.9,
+    "SEASON": 0.9,
+    "SEAT": 0.9,
+    "SECRET": 1,
+    "SEW": 0.8,
+    "SEWING": 0.8,
+    "SHAPE": 0.9,
+    "SHARES": 0.9,
+    "SHIRT": 0.9,
+    "SHORTS": 0.65,
+    "SHOVE": 0.5,
+    "SHRINK": 0.6,
+    "SKATE": 0.75,
+    "SKYDIVE": 0.65,
+    "SLEEP": 0.8,
+    "SLIMY": 0.55,
+    "SMART": 0.8,
+    "SMILE": 0.7,
+    "SMOKE": 0.75,
+    "SMOOTH": 0.55,
+    "SNAIL": 0.6,
+    "SNAKE": 0.75,
+    "SOAP": 0.7,
+    "SOCCER": 0.85,
+    "SOIL": 0.8,
+    "SOUP": 0.6,
+    "SPHERE": 0.8,
+    "SPORT": 0.9,
+    "SPORTS": 0.85,
+    "SPOTLIGHT": 0.7,
+    "STACK": 0.7,
+    "STAGE": 0.8,
+    "STAIN": 0.8,
+    "STAMP": 0.8,
+    "STARGAZING": 0.7,
+    "STATUE": 0.8,
+    "STING": 0.6,
+    "STORE": 0.85,
+    "STORY": 0.9,
+    "STUMBLE": 0.8,
+    "SUBMARINE": 0.75,
+    "SUBWAY": 0.7,
+    "SUN": 1,
+    "SUPERNATURAL": 0.7,
+    "SURF": 0.75,
+    "SURGERY": 0.75,
+    "SWEET": 0.7,
+    "SWIM": 0.85,
+    "SYRUP": 0.85,
+    "TALL": 0.55,
+    "TEETH": 0.8,
+    "TELEVISION": 0.8,
+    "TEMPERATURE": 0.9,
+    "TENNIS": 0.9,
+    "TENTACLE": 0.7,
+    "THANKSGIVING": 0.9,
+    "THEATER": 0.7,
+    "THERMOMETER": 0.7,
+    "THORN": 0.7,
+    "THROW": 0.8,
+    "TOGGLE": 0.5,
+    "TOOL": 0.85,
+    "TOOTHPASTE": 0.8,
+    "TOY": 0.85,
+    "TRAFFIC": 0.8,
+    "TRASH": 0.9,
+    "TREASURE": 0.9,
+    "TREE": 1,
+    "TRIAL": 0.9,
+    "TRUMPET": 0.8,
+    "TUSK": 0.7,
+    "UNDERWATER": 0.8,
+    "USA": 0.7,
+    "USAIN": 0.6,
+    "UTENSIL": 0.8,
+    "VEGETABLE": 0.9,
+    "VEHICLE": 1,
+    "VENOM": 0.8,
+    "VETERINARIAN": 0.7,
+    "VOLLEYBALL": 0.8,
+    "WALK": 0.6,
+    "WARRIOR": 0.6,
+    "WEALTH": 0.75,
+    "WEAPON": 0.9,
+    "WEAR": 0.7,
+    "WEATHER": 0.7,
+    "WEDDING": 0.85,
+    "WEIGHT": 0.8,
+    "WHISKEY": 0.65,
+    "WHITE": 0.85,
+    "WINDOW": 0.85,
+    "WINE": 0.8,
+    "WING": 0.7,
+    "WINTER": 0.95,
+    "WISH": 0.8,
+    "WIZARD": 0.7,
+    "WOOD": 0.85,
+    "WOODS": 0.85,
+    "WOODWIND": 0.5,
+    "WORKER": 0.7,
+    "WORKOUT": 0.75,
+    "WORKSHOP": 0.6,
+    "WORSHIP": 0.8,
+    "WRESTLING": 0.6,
+    "ZOO": 0.8
+  }
+}

@@ -94,6 +94,29 @@ export interface BotSeatMemory {
     readonly clues: readonly ClueMemoryEntry[];
 }
 
+/** One clue candidate proposed by the LLM advice layer (bots/llm/llmAdvice.ts).
+ *  A proposal is NEVER trusted directly: it enters the spymaster's candidate
+ *  pool through the same legality/board-safety choke point as every generated
+ *  candidate and must win the same scoring (assassin berth, guesser-safety
+ *  margins) to be emitted. `targets` is advisory context only. */
+export interface LLMClueProposal {
+    readonly word: string;
+    readonly number: number;
+    readonly targets: readonly string[];
+}
+
+/** Optional per-decision LLM advice, computed asynchronously by the live
+ *  controller BEFORE the (synchronous, pure) strategy runs. Absent = no LLM
+ *  configured or the call failed/timed out — strategies behave exactly as
+ *  without it, so tests and the harness stay deterministic. */
+export interface BotLLMAdvice {
+    /** Spymaster decisions: extra clue candidates for the standard pipeline. */
+    readonly clueProposals?: readonly LLMClueProposal[];
+    /** Clicker/advisor decisions: the LLM's read of how strongly the current
+     *  clue points at each unrevealed word, keyed by NORMALIZED word, in [0, 1]. */
+    readonly guessScores?: ReadonlyMap<string, number>;
+}
+
 /** Immutable context passed to every decision. */
 export interface BotContext {
     readonly gameMode: GameMode;
@@ -102,6 +125,9 @@ export interface BotContext {
     /** Optional within-game memory (clue debt). Absent = no adjustment —
      *  threaded by the harness game loop and the live bot controller. */
     readonly memory?: BotSeatMemory;
+    /** Optional LLM advice for THIS decision (see BotLLMAdvice). Absent = the
+     *  strategy behaves exactly as it does without an LLM configured. */
+    readonly llm?: BotLLMAdvice;
     /** Temperature of the team's CLICKER, when that clicker is a known bot — the
      *  spymaster uses it to size the guesser-safety margin: a low-temperature
      *  (argmax) bot guesser reads a tight clue correctly, so the spymaster can

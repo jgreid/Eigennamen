@@ -28,39 +28,39 @@ kill_timeout = 15
 [build]
   dockerfile = "server/Dockerfile"
 
-  # --- Strong ("scary good") bots via word embeddings (OPT-IN) ---
-  # The bots run fine on the offline association table with NO asset — but the
-  # table only covers its own curated concepts, so bots interpret most HUMAN
-  # clues without semantics (spelling similarity only, one humble guess). To
-  # give bots real semantic guessing and strong GENERATED clues, bake a
-  # word-vectors model into the image; the server auto-detects the baked file
-  # at /app/embeddings/vectors.vec (no env var needed).
-  # Uncomment to enable — it downloads ~300 MB at build time and needs a larger
-  # VM (see the memory note below). If the file is ever missing/unusable the
-  # server safely falls back to the offline table, so this can't break a game.
-  # [build.args]
-  #   BOT_EMBEDDINGS_MODEL = "numberbatch"   # glove | fasttext | numberbatch
-  #   BOT_EMBEDDINGS_TRIM = "100000"
+  # --- Strong ("scary good") bots via word embeddings (ENABLED) ---
+  # The bots run on the offline association table with NO asset — but the table
+  # only covers its own curated concepts, so bots interpret most HUMAN clues
+  # without semantics (spelling similarity only, one humble guess). Baking a
+  # word-vectors model gives bots real semantic guessing and strong GENERATED
+  # clues; the server auto-detects the baked file at /app/embeddings/vectors.vec
+  # (no env var needed). The bake downloads ~600 MB at image build time (Fly's
+  # remote builder; cached in the layer until scripts/ changes) and distils it
+  # to compact board-restricted vectors. It needs the 1 GB VM configured below.
+  # If the bake or file is ever missing/unusable the server safely falls back
+  # to the offline table, so this can't break a game. To disable, comment these
+  # two lines out again (and optionally drop the VM back to 512 MB).
+  [build.args]
+    BOT_EMBEDDINGS_MODEL = "numberbatch"   # glove | fasttext | numberbatch
 
 [deploy]
   strategy = "immediate"
   # The game works fully with just in-memory storage (REDIS_URL=memory)
 
-# Embeddings need more RAM than the 256 MB default. When enabling the bake above,
-# also give the machine ~1 GB and cap the loaded vector count:
-#   fly scale memory 1024
-# [[vm]]
-#   memory = "1gb"
+# Embeddings need more RAM than a small default — the [[vm]] block below is
+# sized to 1 GB for the bake enabled above. If you disable the bake, 512 MB
+# ("512mb") is enough.
 
 [env]
   NODE_ENV = "production"
   PORT = "3000"
   LOG_LEVEL = "info"
 
-  # Strong-bot embeddings (opt-in; see [build] above). A baked model is
+  # Strong-bot embeddings (baked via [build.args] above). The baked model is
   # auto-detected at /app/embeddings/vectors.vec — BOT_EMBEDDINGS_PATH is only
   # needed to override that ("off" disables). BOT_EMBEDDINGS_MAX_WORDS bounds
-  # memory use.
+  # memory use (the board-distilled artifact is ~42k vectors, under the 50k
+  # default cap, so no override is needed).
   # BOT_EMBEDDINGS_PATH = "/app/embeddings/vectors.vec"
   # BOT_EMBEDDINGS_MAX_WORDS = "60000"
 
@@ -104,6 +104,6 @@ kill_timeout = 15
   path = "/health/ready"
 
 [[vm]]
-  memory = "512mb"
+  memory = "1gb"
   cpu_kind = "shared"
   cpus = 1

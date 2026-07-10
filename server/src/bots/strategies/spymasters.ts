@@ -27,7 +27,7 @@ import type {
 import { resolveStyle } from './types';
 import type { EdgeKind, SemanticBackend } from '../semantics/backend';
 import { clueRetrieval, defaultSemanticBackend } from '../semantics/backend';
-import { isClueLegalForBoard, CLUE_NUMBER_MAX, ROUND_WIN_BONUS } from '../../shared/gameRules';
+import { isClueLegalForBoard, normalizeClueWord, CLUE_NUMBER_MAX, ROUND_WIN_BONUS } from '../../shared/gameRules';
 import { makeBoardSafetyCheck, isClueBoardSafe } from './clueSafety';
 
 /** Abstract words unlikely to collide with a Codenames board; filtered for
@@ -727,20 +727,28 @@ export function clueCandidateQueries(
     return queries;
 }
 
-function generateClueCandidates(view: BotSpymasterView, groups: BoardGroups, backend: SemanticBackend): string[] {
+function generateClueCandidates(
+    view: BotSpymasterView,
+    groups: BoardGroups,
+    backend: SemanticBackend,
+    extraCandidates: readonly string[] = []
+): string[] {
     // Board-safe AND legal: the substring/stem legality gate plus the embeddings
     // hygiene filter (cognate near-duplicates, wrong-language tokens). Applied at
     // the single choke point every generated/scanned candidate flows through, so
     // nearest() junk never reaches scoring. The board-safety predicate is built
     // once (board-derived data cached) and reused across the whole pool.
+    // `extraCandidates` (LLM clue proposals) enter HERE, not downstream — they
+    // face the exact same legality/safety gates as every generated candidate.
     const words = view.words as string[];
     const boardSafe = makeBoardSafetyCheck(words);
     const legal = (candidates: string[]): string[] =>
         candidates.filter((c) => isClueLegalForBoard(c, words) && boardSafe(c));
+    const extras = legal([...extraCandidates]);
 
     const queries = clueCandidateQueries(groups, backend);
     if (backend.nearest && queries.length > 0) {
-        const pool = new Set<string>();
+        const pool = new Set<string>(extras);
         for (const q of queries) {
             for (const c of backend.nearest(q.words, q.k)) pool.add(c.word);
         }
@@ -748,7 +756,18 @@ function generateClueCandidates(view: BotSpymasterView, groups: BoardGroups, bac
         if (legalPool.length > 0) return legalPool;
     }
 
-    return legal(backend.vocabulary ? backend.vocabulary() : []);
+    const scanned = legal(backend.vocabulary ? backend.vocabulary() : []);
+    // Dedupe on the normalized key; extras first so a proposal survives the merge.
+    const seen = new Set<string>();
+    const merged: string[] = [];
+    for (const c of [...extras, ...scanned]) {
+        const k = normalizeClueWord(c);
+        if (!seen.has(k)) {
+            seen.add(k);
+            merged.push(c);
+        }
+    }
+    return merged;
 }
 
 /**
@@ -772,7 +791,11 @@ export function makeEmbeddingSpymaster(
             // the round the candidate pool actually contains trap-bridging clues
             // (not just re-scored after generation). Shared with the E4 prewarm.
             const { groups, isMatch, valueOf } = buildTargeting(view);
-            const legalCandidates = generateClueCandidates(view, groups, backend);
+            // LLM clue proposals (when the controller attached advice) join the
+            // pool at the same choke point as generated candidates — they must
+            // win the same scoring and safety gates below to be emitted.
+            const proposals = (ctx.llm?.clueProposals ?? []).map((p) => p.word);
+            const legalCandidates = generateClueCandidates(view, groups, backend, proposals);
             const style = resolveStyle(skill);
             // Restore the house-rule display case of a generated clue at emit time:
             // nearest() returns normalized (uppercase) keys, so a reference like

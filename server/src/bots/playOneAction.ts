@@ -26,7 +26,7 @@ function gameModeOf(game: GameState): GameMode {
     return (game.gameMode as GameMode) ?? 'classic';
 }
 
-function buildSpymasterView(game: GameState, team: 'red' | 'blue'): BotSpymasterView {
+export function buildSpymasterView(game: GameState, team: 'red' | 'blue'): BotSpymasterView {
     const mode = gameModeOf(game);
     // In Duet each side has its own key card: types[] is the side-A (red)
     // perspective (its greens encoded as 'red'), duetTypes[] is the side-B (blue)
@@ -47,7 +47,7 @@ function buildSpymasterView(game: GameState, team: 'red' | 'blue'): BotSpymaster
     };
 }
 
-function buildClickerView(game: GameState, seat: Player, team: 'red' | 'blue'): BotClickerView {
+export function buildClickerView(game: GameState, seat: Player, team: 'red' | 'blue'): BotClickerView {
     const masked = getGameStateForPlayer(game, seat);
     const clue = game.currentClue
         ? { word: game.currentClue.word, number: game.currentClue.number, team: game.currentClue.team }

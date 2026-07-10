@@ -16,6 +16,7 @@ import type { SemanticBackend } from '../semantics/backend';
 import { guessRetrieval, defaultSemanticBackend } from '../semantics/backend';
 import { referenceSignal } from '../semantics/properAssociations';
 import { frameContextFromView, resolveClueFrame, FRAME_DOUBT_FLOOR } from './clueFrame';
+import { normalizeClueWord } from '../../shared/gameRules';
 
 export interface GuessSuggestion {
     /** Board index of the suggested card. */
@@ -37,6 +38,12 @@ export interface AdvisorContext {
     /** Own-team cards still unrevealed — public via the room score. Enables
      *  the late-game stretch warning. */
     ownRemaining?: number;
+    /** Optional LLM read of the clue against each unrevealed word (normalized
+     *  word → [0, 1]), attached by the controller when BOT_LLM_MODEL is set.
+     *  Replaces backend retrieval as the primary ranking; words the reply
+     *  omitted fall back to the backend score. Advice derives only from the
+     *  masked view + the clue — never key information. */
+    guessScores?: ReadonlyMap<string, number>;
 }
 
 // Endgame slice for the late-stretch warning; mirrors the harness's
@@ -114,20 +121,26 @@ export function suggestGuesses(
     }
     const frame = resolveClueFrame(clue.word, unrevealedWords, backend, frameContextFromView(view));
 
+    // LLM advice (when attached): the model's read replaces backend retrieval
+    // as the primary ranking, same as the greedy clicker.
+    const llmScores = advisorCtx?.guessScores;
     const scored: Scored[] = [];
     for (let i = 0; i < view.revealed.length; i++) {
         if (view.revealed[i]) continue;
         // guessRetrieval (same model as the greedy clicker): compound completion
         // competes with associative fit, and a score with no semantic provenance
         // is damped so a spelling coincidence never tops the suggestions.
-        scored.push({ index: i, score: guessRetrieval(backend, frame.word, view.words[i] as string) });
+        const word = view.words[i] as string;
+        const score = llmScores?.get(normalizeClueWord(word)) ?? guessRetrieval(backend, frame.word, word);
+        scored.push({ index: i, score });
     }
     scored.sort((a, b) => b.score - a.score);
     // Provenance of the advice as a whole: with a hasSignal-capable backend,
     // does the clue relate semantically to ANY live card? If not, every
     // suggestion below is spelling similarity and the human should be told so.
+    // LLM advice is real semantic knowledge of the clue.
     const pairSignal = backend.hasSignal?.bind(backend);
-    const informed = !pairSignal || unrevealedWords.some((w) => pairSignal(frame.word, w));
+    const informed = llmScores !== undefined || !pairSignal || unrevealedWords.some((w) => pairSignal(frame.word, w));
 
     // Never suggest more than the clue's remaining intended guesses.
     const remaining = clue.number > 0 ? Math.max(1, clue.number - view.guessesUsed) : scored.length;
