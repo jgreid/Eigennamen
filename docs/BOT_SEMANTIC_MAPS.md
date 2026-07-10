@@ -46,6 +46,28 @@ resolution — set `ANTHROPIC_API_KEY`, or log in once with `ant auth login`.
 The word-list file format matches the in-app custom list: one word per line,
 blank lines and `#` comments ignored.
 
+## The shipped default-list map
+
+The repository ships one committed map: `semantic-maps/default-en.json`, built
+with this same pipeline over the **default English word list** (all 400
+`DEFAULT_WORDS`). It upgrades default-list play everywhere — richer concept
+groups than the hand-curated baked table, plus fame-rated proper references
+with per-edge channels — and the production Docker image copies the
+semantic-maps directory, so deployed bots load it too. Regenerate it after
+changing `DEFAULT_WORDS`:
+
+```bash
+# from server/ — writes src/bots/data/semantic-maps/default-en.json
+npx ts-node --transpile-only -e "import { DEFAULT_WORDS } from './src/shared/gameRules'; console.log(DEFAULT_WORDS.join('\n'))" > /tmp/default-words.txt
+npm run bots:map -- --words /tmp/default-words.txt \
+  --out src/bots/data/semantic-maps/default-en.json --list-name "Default (English)" --passes 3
+```
+
+Under `NODE_ENV=test` the DEFAULT maps directory is skipped so the test suite
+keeps the deterministic bare table; a test opts into map behaviour by setting
+`BOT_SEMANTIC_MAPS_DIR` explicitly (same principle as the embeddings
+auto-detection gate in `selectBackend.ts`).
+
 ## How the runtime uses maps
 
 On the first bot decision, the server loads **every `*.json`** in the maps

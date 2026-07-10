@@ -107,9 +107,17 @@ function resolveEmbeddingsPath(): string | undefined {
 function buildBase(): SemanticBackend {
     if (baseCached) return baseCached;
 
-    // Custom semantic maps overlay the baked table when present.
-    const mapsDir = process.env.BOT_SEMANTIC_MAPS_DIR ?? join(process.cwd(), 'src', 'bots', 'data', 'semantic-maps');
-    const maps = loadSemanticMaps(mapsDir);
+    // Custom semantic maps overlay the baked table when present. Under
+    // NODE_ENV=test the DEFAULT maps directory is skipped (the repo ships a
+    // default-list map there — see docs/BOT_SEMANTIC_MAPS.md), so the test
+    // suite keeps the deterministic bare table; a test that wants map
+    // behaviour opts in by setting BOT_SEMANTIC_MAPS_DIR explicitly. Same
+    // principle as the embeddings auto-detection gate above.
+    const explicitDir = process.env.BOT_SEMANTIC_MAPS_DIR;
+    const mapsDir =
+        explicitDir ??
+        (process.env.NODE_ENV === 'test' ? null : join(process.cwd(), 'src', 'bots', 'data', 'semantic-maps'));
+    const maps = mapsDir ? loadSemanticMaps(mapsDir) : [];
     const base = maps.length > 0 ? makeCustomMapBackend(maps, tableBackend) : tableBackend;
 
     if (maps.length > 0) {
