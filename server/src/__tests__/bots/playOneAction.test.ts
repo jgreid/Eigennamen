@@ -3,7 +3,7 @@
  * to the correct strategy method, returning noop on a role/strategy mismatch.
  */
 import type { GameState, Player, Role } from '../../types';
-import { playOneAction } from '../../bots/playOneAction';
+import { buildClickerView, playOneAction } from '../../bots/playOneAction';
 import { makeRandomSpymaster } from '../../bots/strategies/spymasters';
 import { makeRandomClicker } from '../../bots/strategies/clickers';
 import { resolveSkill } from '../../bots/presets';
@@ -152,5 +152,27 @@ describe('playOneAction', () => {
         playOneAction(g, seat('clicker'), probe, ctx);
         expect(seenTypes).not.toBeNull();
         expect((seenTypes as unknown[]).every((t) => t === null)).toBe(true);
+    });
+});
+
+describe('buildClickerView ownRemaining (ledger 2.11 — public scoreboard count)', () => {
+    const seat = (role: Role, team: 'red' | 'blue'): Player =>
+        ({ sessionId: 's', nickname: 'B', team, role, isBot: true, connected: true, isHost: false }) as Player;
+
+    it('counts unrevealed own cards from the unmasked types', () => {
+        const g = game({ revealed: [true, false, false, false] }); // one red revealed
+        expect(buildClickerView(g, seat('clicker', 'red'), 'red').ownRemaining).toBe(1);
+        expect(buildClickerView(g, seat('clicker', 'blue'), 'blue').ownRemaining).toBe(1);
+    });
+
+    it('duet blue counts against duetTypes (side-B key), red against types', () => {
+        const g = game({
+            gameMode: 'duet',
+            types: ['red', 'neutral', 'red', 'neutral'],
+            duetTypes: ['neutral', 'blue', 'neutral', 'blue'],
+            revealed: [false, true, false, false],
+        });
+        expect(buildClickerView(g, seat('clicker', 'red'), 'red').ownRemaining).toBe(2);
+        expect(buildClickerView(g, seat('clicker', 'blue'), 'blue').ownRemaining).toBe(1);
     });
 });

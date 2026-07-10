@@ -238,7 +238,7 @@ word and *exhaustive* content lists per referent (Thunderball ⊃ pool, casino,
 shark…), so a title-clue collides with its own board-resident contents — and
 with its rivals' contents — at scoring time (lessons 7, 10).
 
-**2.11 Endgame calibration. 🟡 (spymaster side implemented: one-way `ENDGAME_BERTH_RAMP` on the berth floor + endgame-sliced `dangerNextRate`; clicker/advisor stretch-prior modeling remains)** Spymaster: scale the assassin berth *up* as the
+**2.11 Endgame calibration. 🟢 (spymaster side: one-way `ENDGAME_BERTH_RAMP` on the berth floor + endgame-sliced `dangerNextRate`. Clicker side: `ENDGAME_STRETCH_CEILING`/`ENDGAME_STRETCH_SEPARATION` bank a weak, field-blurred guess beyond the first when ≤ 3 own cards remain (`BotClickerView.ownRemaining`, public scoreboard data), and the number+1 bonus floor rises by `ENDGAME_BONUS_BUMP` — calibrated so margin-certified bot clues never trip it (self-play trajectories unchanged); the advisor's late-stretch warning covers the advisory seat)** Spymaster: scale the assassin berth *up* as the
 board empties and own-words dwindle. Clicker/advisor: model the human stretch
 prior — late clues get looser guesses — and require an explicit
 assassin-candidate check before any late stretched guess (lesson 11).
