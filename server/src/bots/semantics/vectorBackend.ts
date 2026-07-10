@@ -22,7 +22,7 @@
  * even smaller footprint. Vectors are L2-normalised at load so relatedness is a
  * single dot product.
  */
-import { openSync, readSync, closeSync, existsSync } from 'fs';
+import { openSync, readSync, closeSync, existsSync, promises as fsp } from 'fs';
 import type { SemanticBackend } from './backend';
 import { tableBackend } from './tableBackend';
 import { referenceSignal } from './properAssociations';
@@ -52,6 +52,12 @@ const DEFAULTS = {
 
 const CHUNK_BYTES = 1 << 20; // 1 MiB read buffer
 
+/** Hand the event loop back once — used by the async loader between chunks so a
+ *  multi-MB parse can't monopolise it and stall every room/socket (N20). */
+function yieldToEventLoop(): Promise<void> {
+    return new Promise((resolve) => setImmediate(resolve));
+}
+
 /** Strip a ConceptNet "/c/<lang>/" prefix if present; return the bare token. */
 function stripConceptNet(token: string): string {
     const m = /^\/c\/[a-z]{2,3}\/(.+)$/.exec(token);
@@ -72,89 +78,115 @@ interface LoadedVectors {
 }
 
 /**
- * Bounded, chunked line reader: reads the file in 1 MiB blocks and parses
- * vectors until `maxWords` is reached, then stops — never loading the whole file.
+ * Stateful line parser shared by the sync and async file readers. Accumulates
+ * vectors as lines are fed to `handleLine` (which returns false once the
+ * `maxWords` cap is hit, signalling "stop reading"); `result()` snapshots the
+ * final LoadedVectors. Keeping the parse in one place means the sync `loadVectors`
+ * and the async `loadVectorsAsync` (N20) can never drift in what they accept.
  */
-function loadVectors(opts: Required<VectorBackendOptions>): LoadedVectors {
+function makeLineParser(opts: Required<VectorBackendOptions>): {
+    handleLine: (raw: string) => boolean;
+    result: () => LoadedVectors;
+} {
     const vecs = new Map<string, Float32Array>();
     const vocab: string[] = [];
     const seenVocab = new Set<string>();
     let conceptNet = false;
     let sortedSoFar = true;
     let prevToken: string | null = null;
+    let dim = -1;
+    let isFirstLine = true;
+
+    const handleLine = (raw: string): boolean => {
+        // returns false to signal "stop reading"
+        const line = raw.trim();
+        if (!line) return true;
+        const parts = line.split(/\s+/);
+
+        // Header line "<count> <dim>" (word2vec text). Detect once, up front.
+        if (isFirstLine) {
+            isFirstLine = false;
+            const [p0, p1] = parts;
+            if (parts.length === 2 && p0 && p1 && /^\d+$/.test(p0) && /^\d+$/.test(p1)) {
+                return true; // skip header
+            }
+        }
+
+        if (parts.length < 3) return true; // not a valid vector row
+        const rawToken = parts[0];
+        if (rawToken === undefined) return true;
+        // Ordering probe for the frequency prior: compare RAW tokens (the
+        // file's own sort key) across every data row, including rows later
+        // skipped as phrases, so the verdict reflects the file's true order.
+        if (sortedSoFar && prevToken !== null && rawToken < prevToken) sortedSoFar = false;
+        prevToken = rawToken;
+        const token = stripConceptNet(rawToken);
+        if (token !== rawToken) conceptNet = true;
+        if (token.includes('_')) return true; // skip multi-word phrases
+        const key = normalizeClueWord(token);
+        if (!key || /\s/.test(key)) return true;
+
+        const values = parts.slice(1);
+        if (dim === -1) dim = values.length;
+        if (values.length !== dim) return true; // malformed / ragged row
+
+        // Parse into a plain array, then build the normalised Float32Array.
+        const rawVec: number[] = new Array(dim);
+        let norm = 0;
+        for (let i = 0; i < dim; i++) {
+            const v = Number(values[i]);
+            if (!Number.isFinite(v)) return true; // skip rows with junk floats
+            rawVec[i] = v;
+            norm += v * v;
+        }
+        if (norm === 0) return true;
+        const inv = 1 / Math.sqrt(norm);
+        const vec = new Float32Array(dim);
+        for (let i = 0; i < dim; i++) {
+            vec[i] = (rawVec[i] ?? 0) * inv;
+        }
+
+        if (!vecs.has(key)) {
+            vecs.set(key, vec);
+            if (
+                vocab.length < opts.vocabCap &&
+                !seenVocab.has(key) &&
+                key.length >= opts.minLen &&
+                key.length <= opts.maxLen &&
+                /^[A-ZÀ-ÖØ-Þ]+$/.test(key)
+            ) {
+                seenVocab.add(key);
+                vocab.push(key);
+            }
+        }
+        return vecs.size < opts.maxWords;
+    };
+
+    const result = (): LoadedVectors => ({
+        vecs,
+        vocab,
+        conceptNet,
+        alphabetical: sortedSoFar && vecs.size >= 2,
+    });
+
+    return { handleLine, result };
+}
+
+/**
+ * Bounded, chunked line reader: reads the file in 1 MiB blocks and parses
+ * vectors until `maxWords` is reached, then stops — never loading the whole file.
+ * SYNCHRONOUS: blocks the event loop for the whole parse, so only safe off the
+ * hot path (tests, or a caller that has already yielded). Production bootstrap
+ * uses `loadVectorsAsync` instead (N20).
+ */
+function loadVectors(opts: Required<VectorBackendOptions>): LoadedVectors {
+    const { handleLine, result } = makeLineParser(opts);
 
     const fd = openSync(opts.path, 'r');
     try {
         const buf = Buffer.allocUnsafe(CHUNK_BYTES);
         let remainder = '';
-        let dim = -1;
-        let isFirstLine = true;
         let bytesRead = readSync(fd, buf, 0, CHUNK_BYTES, null);
-
-        const handleLine = (raw: string): boolean => {
-            // returns false to signal "stop reading"
-            const line = raw.trim();
-            if (!line) return true;
-            const parts = line.split(/\s+/);
-
-            // Header line "<count> <dim>" (word2vec text). Detect once, up front.
-            if (isFirstLine) {
-                isFirstLine = false;
-                const [p0, p1] = parts;
-                if (parts.length === 2 && p0 && p1 && /^\d+$/.test(p0) && /^\d+$/.test(p1)) {
-                    return true; // skip header
-                }
-            }
-
-            if (parts.length < 3) return true; // not a valid vector row
-            const rawToken = parts[0];
-            if (rawToken === undefined) return true;
-            // Ordering probe for the frequency prior: compare RAW tokens (the
-            // file's own sort key) across every data row, including rows later
-            // skipped as phrases, so the verdict reflects the file's true order.
-            if (sortedSoFar && prevToken !== null && rawToken < prevToken) sortedSoFar = false;
-            prevToken = rawToken;
-            const token = stripConceptNet(rawToken);
-            if (token !== rawToken) conceptNet = true;
-            if (token.includes('_')) return true; // skip multi-word phrases
-            const key = normalizeClueWord(token);
-            if (!key || /\s/.test(key)) return true;
-
-            const values = parts.slice(1);
-            if (dim === -1) dim = values.length;
-            if (values.length !== dim) return true; // malformed / ragged row
-
-            // Parse into a plain array, then build the normalised Float32Array.
-            const rawVec: number[] = new Array(dim);
-            let norm = 0;
-            for (let i = 0; i < dim; i++) {
-                const v = Number(values[i]);
-                if (!Number.isFinite(v)) return true; // skip rows with junk floats
-                rawVec[i] = v;
-                norm += v * v;
-            }
-            if (norm === 0) return true;
-            const inv = 1 / Math.sqrt(norm);
-            const vec = new Float32Array(dim);
-            for (let i = 0; i < dim; i++) {
-                vec[i] = (rawVec[i] ?? 0) * inv;
-            }
-
-            if (!vecs.has(key)) {
-                vecs.set(key, vec);
-                if (
-                    vocab.length < opts.vocabCap &&
-                    !seenVocab.has(key) &&
-                    key.length >= opts.minLen &&
-                    key.length <= opts.maxLen &&
-                    /^[A-ZÀ-ÖØ-Þ]+$/.test(key)
-                ) {
-                    seenVocab.add(key);
-                    vocab.push(key);
-                }
-            }
-            return vecs.size < opts.maxWords;
-        };
 
         // keepGoing goes false when handleLine hits the maxWords cap; the inner
         // `if (!keepGoing) break` exits the outer loop, and the trailing-line check
@@ -180,18 +212,55 @@ function loadVectors(opts: Required<VectorBackendOptions>): LoadedVectors {
         closeSync(fd);
     }
 
-    return { vecs, vocab, conceptNet, alphabetical: sortedSoFar && vecs.size >= 2 };
+    return result();
 }
 
 /**
- * Build a vector-backed SemanticBackend from a vectors file. Returns `null` (and
- * logs) if the file is missing or yields no usable vectors, so callers fall back
- * to the table backend. Loading is eager but bounded; construct once and reuse.
+ * Async twin of `loadVectors`: identical parse (shared `makeLineParser`), but
+ * reads with `fs.promises` and yields the event loop between every 1 MiB chunk
+ * so a multi-GB embeddings parse never blocks it. This is the loader the
+ * bootstrap warm uses so the first bot decision after a restart doesn't stall
+ * every room/socket/health-probe with a synchronous parse (N20).
  */
-export function makeVectorBackend(options: VectorBackendOptions): SemanticBackend | null {
-    // Coalesce per-field so an explicit `undefined` (e.g. an unset env var passed
-    // through) does not clobber a default.
-    const opts: Required<VectorBackendOptions> = {
+async function loadVectorsAsync(opts: Required<VectorBackendOptions>): Promise<LoadedVectors> {
+    const { handleLine, result } = makeLineParser(opts);
+
+    const handle = await fsp.open(opts.path, 'r');
+    try {
+        const buf = Buffer.allocUnsafe(CHUNK_BYTES);
+        let remainder = '';
+        let keepGoing = true;
+        /* eslint-disable no-await-in-loop -- sequential chunked read, yielding between chunks */
+        for (;;) {
+            const { bytesRead } = await handle.read(buf, 0, CHUNK_BYTES, null);
+            if (bytesRead <= 0) break;
+            remainder += buf.toString('utf8', 0, bytesRead);
+            let nl = remainder.indexOf('\n');
+            while (nl !== -1) {
+                if (!handleLine(remainder.slice(0, nl))) {
+                    keepGoing = false;
+                    break;
+                }
+                remainder = remainder.slice(nl + 1);
+                nl = remainder.indexOf('\n');
+            }
+            if (!keepGoing) break;
+            // Hand the loop back so the burst can't monopolise it (N20).
+            await yieldToEventLoop();
+        }
+        /* eslint-enable no-await-in-loop */
+        if (keepGoing && remainder.trim()) handleLine(remainder);
+    } finally {
+        await handle.close();
+    }
+
+    return result();
+}
+
+/** Coalesce per-field so an explicit `undefined` (e.g. an unset env var passed
+ *  through) does not clobber a default. */
+function resolveVectorOpts(options: VectorBackendOptions): Required<VectorBackendOptions> {
+    return {
         path: options.path,
         fallback: options.fallback ?? tableBackend,
         maxWords: options.maxWords ?? DEFAULTS.maxWords,
@@ -199,6 +268,16 @@ export function makeVectorBackend(options: VectorBackendOptions): SemanticBacken
         minLen: options.minLen ?? DEFAULTS.minLen,
         maxLen: options.maxLen ?? DEFAULTS.maxLen,
     };
+}
+
+/**
+ * Build a vector-backed SemanticBackend from a vectors file. Returns `null` (and
+ * logs) if the file is missing or yields no usable vectors, so callers fall back
+ * to the table backend. SYNCHRONOUS load (blocks the event loop for the parse) —
+ * use `makeVectorBackendAsync` on the hot/bootstrap path. Construct once and reuse.
+ */
+export function makeVectorBackend(options: VectorBackendOptions): SemanticBackend | null {
+    const opts = resolveVectorOpts(options);
 
     if (!existsSync(opts.path)) {
         logger.warn(`Bot embeddings file not found, using fallback backend: ${opts.path}`);
@@ -220,6 +299,47 @@ export function makeVectorBackend(options: VectorBackendOptions): SemanticBacken
         return null;
     }
 
+    return buildVectorBackend(loaded, opts);
+}
+
+/**
+ * Async twin of `makeVectorBackend` (N20): identical result, but the file parse
+ * yields the event loop between chunks (`loadVectorsAsync`) so it never blocks.
+ * The bootstrap warm calls this; until it resolves, callers keep using the cheap
+ * table/map fallback. Returns `null` on a missing/empty/unusable file.
+ */
+export async function makeVectorBackendAsync(options: VectorBackendOptions): Promise<SemanticBackend | null> {
+    const opts = resolveVectorOpts(options);
+
+    if (!existsSync(opts.path)) {
+        logger.warn(`Bot embeddings file not found, using fallback backend: ${opts.path}`);
+        return null;
+    }
+
+    let loaded: LoadedVectors;
+    try {
+        loaded = await loadVectorsAsync(opts);
+    } catch (err) {
+        logger.warn(`Failed to load bot embeddings (${opts.path}), using fallback backend`, {
+            error: err instanceof Error ? err.message : String(err),
+        });
+        return null;
+    }
+
+    if (loaded.vecs.size === 0) {
+        logger.warn(`Bot embeddings file had no usable vectors, using fallback backend: ${opts.path}`);
+        return null;
+    }
+
+    return buildVectorBackend(loaded, opts);
+}
+
+/**
+ * Construct the SemanticBackend object from an already-loaded vector set. Shared
+ * by the sync and async makers so the two never drift in scoring/vocab/nearest
+ * behaviour — only the file-read strategy differs.
+ */
+function buildVectorBackend(loaded: LoadedVectors, opts: Required<VectorBackendOptions>): SemanticBackend {
     const { vecs, vocab } = loaded;
     const fallback = opts.fallback;
 

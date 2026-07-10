@@ -16,6 +16,7 @@
 import type { GameMode, GameState, Team } from '../../types';
 
 import { connectRedis, getRedis, disconnectRedis } from '../../config/redis';
+import { CLUE_NUMBER_MAX } from '../../shared/gameRules';
 import { seededRandom, hashString } from '../../services/game/boardGenerator';
 import * as gameService from '../../services/gameService';
 import { createEngineGame, applyEngineClue, applyEngineReveal, applyEngineEndTurn } from '../engine';
@@ -50,6 +51,21 @@ function clueSig(clue: GameState['currentClue']): Record<string, unknown> | null
     return clue ? { word: clue.word, number: clue.number, team: clue.team } : null;
 }
 
+// History signature: every field EXCEPT timestamp (engine stamps 0, Lua stamps
+// real ms). This is what surfaces a clue-number clamp drift or a history-cap
+// drift into the diff — without it N23's two drifts stayed invisible. (N23)
+function historySig(history: GameState['history']): Array<Record<string, unknown>> {
+    return (history ?? []).map((entry) => {
+        const { timestamp: _timestamp, ...rest } = entry as unknown as Record<string, unknown>;
+        // Canonical key order: the engine and Lua build these objects with keys in
+        // different orders, and the array-level JSON.stringify compare in diff() is
+        // key-order-sensitive — sort so the compare is on VALUES, not ordering.
+        const sorted: Record<string, unknown> = {};
+        for (const k of Object.keys(rest).sort()) sorted[k] = rest[k];
+        return sorted;
+    });
+}
+
 function snapshot(g: GameState): Record<string, unknown> {
     return {
         redScore: g.redScore,
@@ -68,12 +84,23 @@ function snapshot(g: GameState): Record<string, unknown> {
         timerTokens: g.timerTokens,
         redMatchScore: g.redMatchScore,
         blueMatchScore: g.blueMatchScore,
+        // history exposes submitClue.lua's number clamp and every op's history
+        // cap to the diff. Timestamps are stripped (engine=0, Lua=real ms). (N23)
+        history: historySig(g.history),
     };
 }
 
-/** Seeded clue number 0..3 — exercises guessesForClue's N+1 budget and the 0=unlimited path. */
+/**
+ * Seeded clue number spanning the whole VALID range 0..CLUE_NUMBER_MAX so the
+ * engine's N+1 budget and the 0=unlimited path are cross-checked across every
+ * legal number, not just 0–3. The out-of-range clamp (10+/float) can't be driven
+ * here — gameService.submitClue's Zod shape check rejects it before submitClue.lua
+ * ever runs — so it's pinned by a direct engine unit test against the same Lua
+ * constants instead (submitClue.lua's clamp itself is covered by
+ * __tests__/integration/luaScripts.test.ts). (N23)
+ */
 function clueNumberFor(seed: string, move: number): number {
-    return Math.floor(seededRandom(hashString(`${seed}:clue:${move}`)) * 4);
+    return Math.floor(seededRandom(hashString(`${seed}:clue:${move}`)) * (CLUE_NUMBER_MAX + 1));
 }
 
 /** ~30% of still-live turns are banked voluntarily to drive applyEngineEndTurn / endTurn.lua. */

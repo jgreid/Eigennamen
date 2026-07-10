@@ -213,6 +213,21 @@ async function giveUpAndForceEndTurn(roomCode: string, lastActor: GameActor | nu
         const game = await gameService.getGame(roomCode);
         if (!game || game.gameOver || game.paused) return; // nothing left to force-end
         const team = game.currentTurn;
+        // Re-verify a BOT still holds the stuck seat before force-ending — the
+        // exact seat resolution tickRoom uses. During the multi-second re-arm
+        // streak the host may have removed the stuck bot and a human may have
+        // taken the seat; force-ending then would end that human's healthy turn
+        // with a room-visible BOT_STALLED warning. If no bot occupies the seat
+        // now, there's nothing to force-end. (N22)
+        const role: 'spymaster' | 'clicker' = game.currentClue ? 'clicker' : 'spymaster';
+        const members = await playerService.getTeamMembers(roomCode, team);
+        const botSeat = members.find((p) => p.isBot && p.connected && p.role === role);
+        if (!botSeat) {
+            logger.info(
+                `botController give-up for ${roomCode}: the stuck ${team} ${role} seat is no longer held by a bot — not forcing a turn end`
+            );
+            return;
+        }
         // Prefer the nickname of the bot whose action actually failed, but the
         // team is what matters for the endTurn guard — fall back to a generic
         // identity if the last failure happened before an actor was resolved
@@ -326,6 +341,22 @@ async function emitAdvisorSuggestions(
     const key = `${team}:${clue.word}:${clue.number}:${game.guessesUsed ?? 0}:${game.stateVersion ?? 0}`;
     if (suggestionKeys.get(roomCode) === key) return;
 
+    // Mark this exact board/clue state handled and keep the advisor alive BEFORE
+    // any early return (N24). Otherwise a room whose advisor has nothing to say
+    // for this state repeats getBotConfig (a Redis GET+EXPIRE) and full board
+    // scoring on every unrelated mutation, and the lastSeen keep-alive — which
+    // the module header promises for the advisor as for an acting bot — only
+    // ever fires on emission. The key encodes guessesUsed+stateVersion, so a
+    // genuine state change still produces a new key and recomputes. Delete-
+    // before-set refreshes LRU recency so an active advisor room isn't evicted
+    // first (which would re-emit duplicate suggestions to it).
+    suggestionKeys.delete(roomCode);
+    suggestionKeys.set(roomCode, key);
+    evictOldestBeyondCap(suggestionKeys);
+    await playerService.updatePlayer(advisor.sessionId, { lastSeen: Date.now() }).catch(() => {
+        /* non-critical */
+    });
+
     const view: BotClickerView = {
         role: 'clicker',
         team,
@@ -358,11 +389,6 @@ async function emitAdvisorSuggestions(
     const suggestions = suggestGuesses(view, getSemanticBackend(), 3, skill, makeRng(seed), { ownRemaining });
     if (suggestions.length === 0) return;
 
-    // Delete-before-set: refresh recency so the most active advisor rooms
-    // aren't evicted first (which would re-emit duplicate suggestions to them).
-    suggestionKeys.delete(roomCode);
-    suggestionKeys.set(roomCode, key);
-    evictOldestBeyondCap(suggestionKeys);
     // Scoped to this team's own members only (not safeEmitToRoom) — these are
     // suggestions for the acting team's own clicker, and broadcasting them
     // room-wide would let the opposing team (and spectators) preview which
@@ -374,10 +400,48 @@ async function emitAdvisorSuggestions(
         advisor: { playerId: playerService.derivePlayerId(advisor.sessionId), nickname: advisor.nickname },
         suggestions,
     });
-    // Keep the advisor alive across the disconnect GC window, like an acting bot.
-    await playerService.updatePlayer(advisor.sessionId, { lastSeen: Date.now() }).catch(() => {
-        /* non-critical */
-    });
+}
+
+/**
+ * After the human-like "thinking" pause (and, for a spymaster, the embeddings
+ * prewarm), re-verify the computed action may STILL be applied. Two things can
+ * have changed during those awaits:
+ *
+ *  1. The seat — the bot may have been removed/kicked/reseated or a reconnecting
+ *     human may have reclaimed it (the existing check).
+ *  2. The game — a forfeit + next-round (or any new game) during the pause
+ *     replaces the stored game with a DIFFERENT one (startNextRound mints a fresh
+ *     `id` and seed). The action was computed for the OLD board; no Lua op carries
+ *     a game-identity CAS (submitClue/revealCard/endTurn guard only
+ *     gameOver/paused/turn/clue), so without this an action for round N can land
+ *     in round N+1 when it happens to open on the same team (~50%). (N21)
+ *
+ * Returns true only when the bot still holds the seat AND the game is the same
+ * live game the action was computed against. Exported for tests (the tickRoom
+ * call site only runs under a real "thinking" pace, disabled in tests).
+ */
+export async function botMayStillAct(
+    roomCode: string,
+    seat: Player,
+    role: 'spymaster' | 'clicker',
+    team: Team,
+    expectedGameId: string | undefined
+): Promise<boolean> {
+    const stillSeated = await playerService.getPlayer(seat.sessionId).catch(() => null);
+    if (
+        !stillSeated ||
+        !stillSeated.isBot ||
+        !stillSeated.connected ||
+        stillSeated.team !== team ||
+        stillSeated.role !== role
+    ) {
+        return false;
+    }
+    const freshGame = await gameService.getGame(roomCode).catch(() => null);
+    if (!freshGame || freshGame.gameOver || freshGame.paused) return false;
+    // Game-identity CAS: a different game/round started during the pause.
+    if (expectedGameId !== undefined && freshGame.id !== expectedGameId) return false;
+    return true;
 }
 
 /**
@@ -505,6 +569,12 @@ export async function tickRoom(roomCode: string): Promise<void> {
                 await prewarmSpymasterClues(game, team, getSemanticBackend());
             }
 
+            // Capture the game's identity BEFORE the awaits below (prewarm ran
+            // above; the pace pause runs next). If a forfeit + next-round replaces
+            // the game during that window, this stale action must not land in the
+            // new one. (N21)
+            const expectedGameId = game.id;
+
             const action = playOneAction(game, seat, strategy, ctx);
             if (action.kind === 'noop') break;
 
@@ -517,17 +587,11 @@ export async function tickRoom(roomCode: string): Promise<void> {
             const pace = paceDelayMs(game.stateVersion ?? 0);
             if (pace > 0) {
                 await sleep(pace);
-                // The bot could have been removed/kicked/reseated during the pause.
-                // Re-verify the seat still holds before acting so a removed bot
-                // can't land one last move. (getPlayer returns null if removed.)
-                const stillSeated = await playerService.getPlayer(seat.sessionId).catch(() => null);
-                if (
-                    !stillSeated ||
-                    !stillSeated.isBot ||
-                    !stillSeated.connected ||
-                    stillSeated.team !== team ||
-                    stillSeated.role !== role
-                ) {
+                // The bot could have been removed/kicked/reseated during the pause,
+                // OR the game could have been replaced (forfeit → next round). Drop
+                // the action unless the bot still holds the seat AND it's still the
+                // same live game the action was computed for. (N21 + seat re-verify)
+                if (!(await botMayStillAct(roomCode, seat, role, team, expectedGameId))) {
                     break;
                 }
             }

@@ -8,8 +8,8 @@
 import { writeFileSync, mkdtempSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { makeVectorBackend } from '../../bots/semantics/vectorBackend';
-import { getSemanticBackend, resetSemanticBackendCache } from '../../bots/semantics/selectBackend';
+import { makeVectorBackend, makeVectorBackendAsync } from '../../bots/semantics/vectorBackend';
+import { getSemanticBackend, resetSemanticBackendCache, warmSemanticBackend } from '../../bots/semantics/selectBackend';
 import type { SemanticBackend } from '../../bots/semantics/backend';
 
 let dir: string;
@@ -320,6 +320,72 @@ describe('getSemanticBackend', () => {
     it('falls back to the table backend when the embeddings file is missing', () => {
         process.env.BOT_EMBEDDINGS_PATH = join(dir, 'missing.vec');
         resetSemanticBackendCache();
+        expect(getSemanticBackend().id).toBe('table');
+    });
+});
+
+describe('makeVectorBackendAsync (N20 non-blocking loader)', () => {
+    it('produces the same result as the sync loader', async () => {
+        const be = await makeVectorBackendAsync({ path: vecPath });
+        expect(be).not.toBeNull();
+        const b = be as SemanticBackend;
+        expect(b.relatedness('king', 'king')).toBe(1);
+        expect(b.relatedness('king', 'queen')).toBeGreaterThan(b.relatedness('king', 'apple'));
+        expect(b.vocabulary!()).toContain('KING');
+    });
+
+    it('returns null for a missing file', async () => {
+        expect(await makeVectorBackendAsync({ path: join(dir, 'nope.vec') })).toBeNull();
+    });
+
+    it('yields the event loop while reading (no synchronous block)', async () => {
+        // The async loader awaits real fs I/O and a setImmediate yield between
+        // chunks, so a setImmediate scheduled right after the call runs before it
+        // resolves — a fully-synchronous parse would resolve the microtask first.
+        let ranDuringLoad = false;
+        const p = makeVectorBackendAsync({ path: vecPath });
+        setImmediate(() => {
+            ranDuringLoad = true;
+        });
+        await p;
+        expect(ranDuringLoad).toBe(true);
+    });
+});
+
+describe('warmSemanticBackend (N20 bootstrap warm)', () => {
+    const prev = process.env.BOT_EMBEDDINGS_PATH;
+
+    afterEach(() => {
+        if (prev === undefined) delete process.env.BOT_EMBEDDINGS_PATH;
+        else process.env.BOT_EMBEDDINGS_PATH = prev;
+        resetSemanticBackendCache();
+    });
+
+    it('serves the table fallback WHILE vectors load, then the vectors once warm', async () => {
+        process.env.BOT_EMBEDDINGS_PATH = vecPath;
+        resetSemanticBackendCache();
+
+        const warm = warmSemanticBackend();
+        // Synchronously, before the warm resolves, a bot that acts must get a
+        // working backend — the cheap table, never a blocking vector parse.
+        expect(getSemanticBackend().id).toBe('table');
+
+        await warm;
+        // Once warmed, the vectors are active.
+        expect(getSemanticBackend().id).toBe('vectors');
+    });
+
+    it('resolves the table backend eagerly when no embeddings path is set', async () => {
+        delete process.env.BOT_EMBEDDINGS_PATH;
+        resetSemanticBackendCache();
+        await warmSemanticBackend();
+        expect(getSemanticBackend().id).toBe('table');
+    });
+
+    it('falls back to the table backend when the embeddings file is missing', async () => {
+        process.env.BOT_EMBEDDINGS_PATH = join(dir, 'missing-warm.vec');
+        resetSemanticBackendCache();
+        await warmSemanticBackend();
         expect(getSemanticBackend().id).toBe('table');
     });
 });

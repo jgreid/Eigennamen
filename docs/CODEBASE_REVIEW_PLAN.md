@@ -567,7 +567,9 @@ rate-limit entry + doc row); otherwise wire the typing indicator.
 
 ## Phase 4 — Bot subsystem
 
-### N20 — The embeddings vector model loads synchronously on the first bot decision, blocking the event loop for the entire parse (unshipped residue of E4)
+### N20 — The embeddings vector model loads synchronously on the first bot decision, blocking the event loop for the entire parse (unshipped residue of E4) — **FIXED**
+
+**Resolution:** Added an async, chunked loader (`loadVectorsAsync` / `makeVectorBackendAsync` in `vectorBackend.ts`) that yields the event loop between 1 MiB reads, sharing one `makeLineParser` with the sync loader so the two can't drift. `selectBackend.ts` gained `warmSemanticBackend()`, which builds the vectors off the event loop and, while the warm is in flight, has `getSemanticBackend()` serve the cheap table/map base instead of triggering a blocking parse. `src/index.ts` fires the warm (non-blocking) at bootstrap, so the first bot to act after a restart uses ready vectors — or the fallback until they finish — never a multi-hundred-ms synchronous block. Tests cover async≡sync parity, the fallback-during-load handoff, and the event-loop yield.
 
 **Severity:** Medium (latent in prod; live under `dev:bots` and the fly.toml "enable embeddings" path)
 · **Area:** Performance / driver stall
@@ -592,7 +594,9 @@ exceeds ~20ms — reuse E4's harness).
 
 ---
 
-### N21 — A stale bot action computed before the "thinking" pause can land in a *different* game started during the pause
+### N21 — A stale bot action computed before the "thinking" pause can land in a *different* game started during the pause — **FIXED**
+
+**Resolution:** `tickRoom` now captures `game.id` before the prewarm/pace awaits and, after the pause, re-verifies through the new `botMayStillAct` helper — which checks the bot still holds the seat AND the game is still the same live game (`freshGame.id === expectedGameId`, not over/paused). A forfeit→next-round during the pause mints a fresh `randomUUID()` id (via `buildGameState`), so a stale clue for round N is now dropped instead of landing in round N+1. `botMayStillAct` is exported and unit-tested across same-game / id-mismatch / seat-lost / reseated-to-human / over-or-paused.
 
 **Severity:** Medium-Low · **Area:** Driver race (game-boundary)
 
@@ -615,7 +619,9 @@ with a new one (different id, same team to move, no clue); assert no clue is sub
 
 ---
 
-### N22 — `giveUpAndForceEndTurn` force-ends whatever team holds the turn without re-verifying a bot still owns the stuck seat
+### N22 — `giveUpAndForceEndTurn` force-ends whatever team holds the turn without re-verifying a bot still owns the stuck seat — **FIXED**
+
+**Resolution:** `giveUpAndForceEndTurn` now re-runs the exact seat resolution `tickRoom` uses (`role = currentClue ? 'clicker' : 'spymaster'`, `getTeamMembers`, find a connected bot in that seat) and no-ops (logs, no force-end, no `BOT_STALLED`) when a bot no longer holds the stuck seat — so a human who took the seat mid-streak keeps their healthy turn. Regression test drives the full 7-failure streak with a human seated before give-up and asserts no `applyEndTurn` and no `BOT_STALLED` broadcast.
 
 **Severity:** Low · **Area:** Driver correctness (P1-6 edge)
 
@@ -635,7 +641,9 @@ assert no forced `endTurn` and no `BOT_STALLED` broadcast.
 
 ---
 
-### N23 — Bot engine skips `submitClue.lua`'s clamps and the history cap; the parity harness can't see it (tests numbers 0–3 only)
+### N23 — Bot engine skips `submitClue.lua`'s clamps and the history cap; the parity harness can't see it (tests numbers 0–3 only) — **FIXED**
+
+**Resolution:** `applyEngineClue` now clamps the clue number exactly as `submitClue.lua` does (nil/negative→0, truncate, cap at `CLUE_NUMBER_MAX=9`) and stores the clamped value in `currentClue`/`clues`/`history`; a shared `capHistory` trims `history` to `GAME_HISTORY.MAX_ENTRIES` in all three engine ops (clue/reveal/endTurn), mirroring every Lua op. Parity was extended to seed the full valid 0–9 range and to compare a timestamp-stripped, key-canonicalized `history` snapshot (200 seeds/mode, all green). The out-of-range clamp (10+/float) — which `gameService.submitClue`'s Zod check rejects before Lua, so the harness can't drive it — is pinned by a direct engine unit test against the same Lua constants (the Lua clamp itself is covered by `luaScripts.test.ts`).
 
 **Severity:** Low (latent) · **Area:** Engine↔Lua drift
 
@@ -655,7 +663,9 @@ compare `history`.
 
 ---
 
-### N24 — Advisor path re-does full scoring (plus a Redis config read) on every mutation of a room whose advisor has nothing to say, and refreshes `lastSeen` only on emission
+### N24 — Advisor path re-does full scoring (plus a Redis config read) on every mutation of a room whose advisor has nothing to say, and refreshes `lastSeen` only on emission — **FIXED**
+
+**Resolution:** `emitAdvisorSuggestions` now stores the de-dupe key and refreshes the advisor's `lastSeen` **before** the `suggestions.length === 0` early return (the key already encodes `stateVersion`+`guessesUsed`, so a genuine state change still recomputes). A second tick on the same state now short-circuits at the top dedup check instead of repeating `getBotConfig` + full board scoring, and the `lastSeen` keep-alive is honoured whether or not anything is emitted (matching the module-header invariant). Regression test: two ticks on an all-empty-suggestion state call `suggestGuesses`/`getBotConfig` exactly once.
 
 **Severity:** Low · **Area:** Driver efficiency / lifecycle
 
@@ -675,7 +685,9 @@ key already encodes `stateVersion`, so a later state change still recomputes).
 
 ---
 
-### N25 — Removing the current-turn's acting bot leaves the turn seatless with no room warning
+### N25 — Removing the current-turn's acting bot leaves the turn seatless with no room warning — **FIXED**
+
+**Resolution:** The `BOT_REMOVE` handler now reads the live game after removal and, when the removed bot held the current turn's pending seat (`removedTeam === currentTurn && removedRole === (currentClue ? 'clicker' : 'spymaster')`), broadcasts a `ROOM_WARNING` with code `SEAT_VACATED` so the room knows it's waiting on a human. It also calls `notifyGameMutation` on any live game (as `BOT_ADD` already did) so a remaining or re-added bot re-evaluates. Tests cover the SEAT_VACATED broadcast on the acting seat, the no-warning-but-still-nudge case for a non-acting bot, and the no-op when no game is live.
 
 **Severity:** Low · **Area:** Bot lifecycle
 

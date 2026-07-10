@@ -84,6 +84,10 @@ function botHandlers(io: Server, socket: GameSocket): void {
                 if (!bot) {
                     throw PlayerError.notFound(validated.playerId);
                 }
+                // Capture the seat the bot held BEFORE removing it, so we can tell
+                // whether the current turn was waiting on it (N25).
+                const removedTeam = bot.team;
+                const removedRole = bot.role;
                 await botService.removeBot(ctx.roomCode, bot.sessionId);
 
                 const players: Player[] = await playerService.getPlayersInRoom(ctx.roomCode);
@@ -98,6 +102,27 @@ function botHandlers(io: Server, socket: GameSocket): void {
 
                 const stats: RoomStats = await playerService.getRoomStats(ctx.roomCode, players);
                 safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats });
+
+                // If a game is live, the removed bot may have held the very seat
+                // the current turn is waiting on. Unlike BOT_ADD, this path never
+                // nudged the controller, and nothing warned the room — so in a
+                // timer-less room the turn indicator would hang on a seat nobody
+                // holds (the silent-stall symptom P1-6/B4 fixed, just human-
+                // initiated). Warn the room when the vacated seat is the pending
+                // one, and nudge the controller either way so a remaining bot on
+                // the team (or a re-added one) re-evaluates. (N25)
+                const game = await gameService.getGame(ctx.roomCode);
+                if (game && !game.gameOver && !game.paused) {
+                    const pendingRole: 'spymaster' | 'clicker' = game.currentClue ? 'clicker' : 'spymaster';
+                    if (removedTeam === game.currentTurn && removedRole === pendingRole) {
+                        safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_WARNING, {
+                            code: 'SEAT_VACATED',
+                            message: `The ${removedTeam} ${pendingRole} bot was removed mid-turn; the game is now waiting on a human to take that seat.`,
+                            team: removedTeam,
+                        });
+                    }
+                    notifyGameMutation(ctx.roomCode);
+                }
 
                 logger.info(
                     `Bot ${validated.playerId} removed from room ${ctx.roomCode} by host ${ctx.player.nickname}`
