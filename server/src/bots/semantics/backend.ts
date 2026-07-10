@@ -54,6 +54,16 @@ export interface SemanticBackend {
      * says. Optional; 0 or a missing method means "no phrase signal".
      */
     collocation?(a: string, b: string): number;
+    /**
+     * Whether relatedness(a, b) is backed by SEMANTIC knowledge (a table edge,
+     * concept co-membership, a proper reading, a vector pair) rather than the
+     * lexical (character-bigram) floor. The guesser side uses this to tell a
+     * real read from a spelling coincidence: a lexical-floor score like
+     * SUNDIAL→INDIA (0.60 raw) must never impersonate an informed pick.
+     * Optional: a missing method means "provenance unknown, assume informed"
+     * so a bare backend behaves exactly as before.
+     */
+    hasSignal?(a: string, b: string): boolean;
     /** Candidate clue words this backend knows about (spymaster vocabulary).
      *  Optional — backends without a fixed vocabulary (e.g. lexical) omit it. */
     vocabulary?(): string[];
@@ -148,6 +158,31 @@ export function clueRetrieval(backend: SemanticBackend, clue: string, word: stri
     const rel = backend.relatedness(clue, word);
     if (!backend.collocation) return rel;
     return Math.max(rel, backend.collocation(clue, word));
+}
+
+/**
+ * Damp applied to a retrieval score with NO semantic provenance (hasSignal
+ * false) when ranking GUESSES. Raw bigram overlap peaks around 0.6 for
+ * accidental lookalikes (SUNDIAL→INDIA), which outranks genuine table signal
+ * (co-membership starts at 0.5); damped, spelling noise tops out well below
+ * every real semantic read while still ordering the field when the backend
+ * knows nothing at all (the least-bad forced first guess on an unknown clue).
+ */
+export const LEXICAL_GUESS_DAMP = 0.35;
+
+/**
+ * clueRetrieval for the GUESSER side (clicker ranking, advisor suggestions):
+ * identical to clueRetrieval when the pair has semantic provenance, damped by
+ * LEXICAL_GUESS_DAMP when the score is only the lexical floor. The damp is
+ * deliberately NOT applied in the spymaster's danger modeling: there an
+ * orthographic lookalike of the clue is a real hazard for a HUMAN guesser, so
+ * the halo must keep its full width (relatedness/clueRetrieval stay raw).
+ * Backends without hasSignal are never damped (provenance unknown).
+ */
+export function guessRetrieval(backend: SemanticBackend, clue: string, word: string): number {
+    const score = clueRetrieval(backend, clue, word);
+    if (score > 0 && backend.hasSignal && !backend.hasSignal(clue, word)) return score * LEXICAL_GUESS_DAMP;
+    return score;
 }
 
 /** The backend used when no semantic asset is configured. */

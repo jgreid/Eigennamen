@@ -351,6 +351,33 @@ export function makeCustomMapBackend(maps: SemanticMap[], fallback: SemanticBack
             const common = scoreCommonAssociation(index, a, b);
             return Math.max(common ?? 0, properReading(a, b), fallback.relatedness(a, b));
         },
+        hasSignal(a: string, b: string): boolean {
+            // Provenance mirror of relatedness(): a pair is informed when THIS
+            // overlay carries an edge/co-membership/proper reading (or phrase
+            // channel) for it, or the fallback chain reports its own signal. A
+            // fallback without hasSignal contributes nothing (its floor is the
+            // lexical noise this method exists to expose).
+            if (normalizeClueWord(a) === normalizeClueWord(b)) return true;
+            if ((directEdgeMeta(index, a, b)?.collocation ?? 0) > 0 || (properEdge(a, b)?.collocation ?? 0) > 0) {
+                return true;
+            }
+            const aSig = signalFor(a);
+            const bSig = signalFor(b);
+            const fallbackSignal = (): boolean => fallback.hasSignal?.(a, b) ?? false;
+            if (aSig === 'common' || bSig === 'common') {
+                return scoreCommonAssociation(index, a, b) !== null || fallbackSignal();
+            }
+            if (aSig === 'proper' || bSig === 'proper') {
+                const refKey = normalizeClueWord(aSig === 'proper' ? a : b);
+                const entry = properIndex.table.get(refKey);
+                if (entry) {
+                    const other = normalizeClueWord(aSig === 'proper' ? b : a);
+                    return entry.has(other) || rivalPull(refKey, other) > 0;
+                }
+                return fallbackSignal();
+            }
+            return scoreCommonAssociation(index, a, b) !== null || properReading(a, b) > 0 || fallbackSignal();
+        },
         vocabulary(): string[] {
             // Map concepts + display-cased references first (they cover the
             // custom words), then whatever the fallback offers.

@@ -21,8 +21,9 @@ current state, the code in `server/src/bots/` is authoritative.**
   blundering onto the clue-unrelated assassin.
 - **Embedding-backed clue GENERATION**: `SemanticBackend.nearest()` lets the
   spymaster generate board-specific candidates (nearest own-card neighbours),
-  not just score a fixed vocabulary. Enabled via `BOT_EMBEDDINGS_PATH` (opt-in in
-  prod; graceful table fallback).
+  not just score a fixed vocabulary. Enabled via `BOT_EMBEDDINGS_PATH`, or by
+  auto-detection of a previously downloaded/baked vectors file at the
+  well-known locations (opt-in in prod; graceful table fallback).
 - **New roles**: `advisor` (suggests ranked guesses to a human clicker via
   `game:botSuggestion`, never acts) and `observer` (watches the unmasked board,
   never participates). Bots can be seated as advisors; the advisor honours its
@@ -822,9 +823,13 @@ suites:
 > shipped: lexical floor (`backend.ts`) → baked association table
 > (`tableBackend.ts`) → optional pre-trained word vectors
 > (`vectorBackend.ts`, fastText / GloVe / word2vec / ConceptNet Numberbatch),
-> selected lazily by `selectBackend.ts` via `BOT_EMBEDDINGS_PATH`. OOV words fall
-> through the chain, so custom lists always get a signal. Operator guide:
-> [docs/BOT_EMBEDDINGS.md](BOT_EMBEDDINGS.md).
+> selected lazily by `selectBackend.ts` via `BOT_EMBEDDINGS_PATH` (or
+> auto-detected at the well-known download/bake locations when unset). OOV words
+> fall through the chain, so custom lists always get a signal — and every
+> backend reports per-pair PROVENANCE (`hasSignal`), so the guesser side
+> (`guessRetrieval`) damps lexical-floor scores, banks an uninformed streak
+> after one guess, and the advisor labels spelling-only suggestions. Operator
+> guide: [docs/BOT_EMBEDDINGS.md](BOT_EMBEDDINGS.md).
 
 The game is **Eigennamen** — *proper nouns* — and custom word lists (a stored
 `wordListId`, or an inline `wordList` passed to `game:start`) are a first-class,

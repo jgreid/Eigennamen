@@ -490,6 +490,13 @@ function buildVectorBackend(loaded: LoadedVectors, opts: Required<VectorBackendO
             // One or both OOV: defer to the fallback chain (table → lexical).
             return fallback.relatedness(a, b);
         },
+        hasSignal(a: string, b: string): boolean {
+            // A vector pair is real semantic knowledge; an OOV pair is informed
+            // only if the fallback chain (table/maps) has its own signal for it.
+            if (normalizeClueWord(a) === normalizeClueWord(b)) return true;
+            if (vecs.has(normalizeClueWord(a)) && vecs.has(normalizeClueWord(b))) return true;
+            return fallback.hasSignal?.(a, b) ?? false;
+        },
         vocabulary(): string[] {
             return merged;
         },

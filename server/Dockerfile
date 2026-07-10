@@ -28,7 +28,8 @@ RUN npm run build
 # With no build-arg the build is byte-for-byte unchanged (/app/embeddings holds only
 # a .keep placeholder). To ship strong bots in a deployed image, build with e.g.:
 #   docker build --build-arg BOT_EMBEDDINGS_MODEL=numberbatch -f server/Dockerfile .
-# then set BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec on the running container.
+# The running server auto-detects the baked file at ./embeddings/vectors.vec — no
+# env var needed (BOT_EMBEDDINGS_PATH still overrides; =off disables).
 #
 # By default the model is distilled to COMPACT board-restricted vectors
 # (build-board-vectors.mjs): a few MB with guaranteed coverage of every board/concept
@@ -96,7 +97,8 @@ COPY --chown=eigennamen:nodejs --from=builder /app/dist ./dist
 COPY --chown=eigennamen:nodejs --from=builder /app/public ./public
 
 # Copy baked bot embeddings (empty unless built with --build-arg BOT_EMBEDDINGS_MODEL).
-# Enable at runtime with BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec.
+# Auto-detected at runtime (embeddings/vectors.vec is a well-known location);
+# BOT_EMBEDDINGS_PATH overrides, =off disables.
 COPY --chown=eigennamen:nodejs --from=builder /app/embeddings ./embeddings
 
 # Switch to non-root user
