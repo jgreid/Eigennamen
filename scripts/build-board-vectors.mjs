@@ -33,12 +33,28 @@
  * sorted file and cleanly DISABLES the prior rather than reading meaning into a
  * non-frequency order.
  *
+ * WIDE COMPREHENSION TIER (--wide N). The breadth sample bounds which words the
+ * spymaster can GENERATE; it also silently bounded which human clues the bots
+ * could UNDERSTAND — a clue rarer than the breadth region (SIDEREAL, FUMAROLE,
+ * INGOT, NECROMANCER) had no vector, so the guesser was word-blind and fell
+ * back to spelling similarity. `--wide N` appends up to N additional
+ * comprehension-only words AFTER the frequency-graded head: every word-like
+ * token the model knows that is ATTESTED in the frequency reference, ordered
+ * by its reference rank, so the cut keeps the most plausible N and junk tokens
+ * without attestation never enter. The runtime (vectorBackend.ts) understands
+ * these words fully but excludes them from clue generation and gives them zero
+ * commonness credit, so a wide file widens what the bots can READ without
+ * reviving obscure clue-GIVING. Requires --freq; use a DEEP reference (e.g.
+ * hermitdave en_full) so the tail ordering stays meaningful beyond the breadth
+ * region.
+ *
  * The result is a few MB (vs. hundreds), loads fast, and covers exactly what
  * the game needs. Point the bots at it with BOT_EMBEDDINGS_PATH.
  *
  * Usage (from repo root or server/):
  *   node scripts/build-board-vectors.mjs --in <model.vec[.gz]> [--out <path>]
  *     [--breadth 40000] [--freq <freq-ordered.vec[.gz]>] [--freq-top 60000]
+ *     [--wide 110000]
  */
 import {
   createReadStream,
@@ -73,6 +89,18 @@ const outPath = resolve(
 const breadth = Math.max(0, parseInt(arg("--breadth", "40000"), 10) || 0);
 const freqPath = arg("--freq", null);
 const freqTop = Math.max(0, parseInt(arg("--freq-top", "60000"), 10) || 0);
+const wide = Math.max(0, parseInt(arg("--wide", "0"), 10) || 0);
+if (wide > 0 && !freqPath) {
+  // The wide tier's whole safety story is "attested in the reference, ordered
+  // by its rank" — without a reference it would admit the model's junk tokens.
+  console.error(
+    "--wide requires --freq (a frequency reference orders and gates the tail)",
+  );
+  process.exit(2);
+}
+// How deep into the frequency reference the wide tier may reach for
+// attestation ranks. Far beyond any sane --wide budget; bounds build memory.
+const WIDE_REF_CAP = 600000;
 
 // Resolve a source file that lives under either the repo layout (`<root>/server/…`,
 // local checkout) or a flattened layout (`<root>/…`, e.g. the Docker builder, which
@@ -163,16 +191,25 @@ function streamRows(path, onRow) {
 // and use them to (a) restrict the breadth sample to common words and (b) order
 // the output by frequency so the runtime re-enables its commonness prior.
 let freqRank = null;
+// Extended reference ranks for the wide tier: token → rank across the WHOLE
+// reference (up to WIDE_REF_CAP), superset of freqRank's common region.
+let extRank = null;
 if (freqPath) {
   if (!existsSync(resolve(freqPath))) {
     console.error(`--freq file not found: ${freqPath}`);
     process.exit(2);
   }
   freqRank = new Map();
+  extRank = wide > 0 ? new Map() : null;
   await streamRows(freqPath, (u) => {
-    if (freqRank.size >= freqTop) return;
-    if (u && !u.includes(" ") && wordlike(u) && !freqRank.has(u))
-      freqRank.set(u, freqRank.size);
+    if (freqRank.size >= freqTop && (!extRank || extRank.size >= WIDE_REF_CAP))
+      return;
+    if (u && !u.includes(" ") && wordlike(u)) {
+      if (freqRank.size < freqTop && !freqRank.has(u))
+        freqRank.set(u, freqRank.size);
+      if (extRank && extRank.size < WIDE_REF_CAP && !extRank.has(u))
+        extRank.set(u, extRank.size);
+    }
   });
   if (freqRank.size === 0) {
     // An empty/mismatched reference would yield a breadth-less, wrongly-
@@ -209,12 +246,24 @@ await streamRows(inPath, (u, line, sp) => {
   const isGuaranteed = wantWord(u);
   let take = isGuaranteed;
   let rank = Infinity;
+  let wideTier = false;
   if (!isGuaranteed && wordlike(u)) {
     if (freqRank) {
       const r = freqRank.get(u);
       if (r !== undefined) {
         take = true;
         rank = r;
+      } else if (extRank) {
+        // Wide comprehension tier: attested in the reference beyond the
+        // common region. freqRank and extRank share one admission counter
+        // (same pass, same word-like test), so ranks are comparable across
+        // the two maps.
+        const er = extRank.get(u);
+        if (er !== undefined) {
+          take = true;
+          rank = er;
+          wideTier = true;
+        }
       }
     } else if (breadth > 0 && Number.isFinite(stride)) {
       take = sampleStride % stride === 0;
@@ -229,6 +278,7 @@ await streamRows(inPath, (u, line, sp) => {
       vec: line.slice(sp + 1).trim(),
       guaranteed: isGuaranteed,
       rank,
+      wideTier,
     });
     keptWords.add(u);
   }
@@ -239,21 +289,30 @@ await streamRows(inPath, (u, line, sp) => {
 // means "no breadth" on BOTH paths (the no-freq path's stride is already gated
 // on breadth > 0), so it slices to an empty pool here rather than keeping all.
 const guaranteedRows = kept.filter((k) => k.guaranteed);
-let breadthRows = kept.filter((k) => !k.guaranteed);
+let breadthRows = kept.filter((k) => !k.guaranteed && !k.wideTier);
+let wideRows = kept.filter((k) => k.wideTier);
 if (freqRank) {
   breadthRows.sort((a, b) => a.rank - b.rank); // most common first
+  const overflow = breadth > 0 ? breadthRows.slice(breadth) : breadthRows;
   breadthRows = breadth > 0 ? breadthRows.slice(0, breadth) : [];
+  // Wide tier: breadth-budget overflow (the most-attested words that missed
+  // the generation cut) plus the beyond-region attested words, most-attested
+  // first, capped to the --wide budget. Ranks are comparable (shared counter).
+  wideRows = [...overflow, ...wideRows].sort((a, b) => a.rank - b.rank);
+  wideRows = wide > 0 ? wideRows.slice(0, wide) : [];
 }
 
 // Output ORDER is the runtime's frequency-prior switch (see vectorBackend.ts):
-//   - with --freq: most-common-first (board words first, then breadth by rank).
-//     The non-sorted order tells the loader this file IS frequency-ordered, so
-//     it builds a MEANINGFUL rank→commonness prior that taxes obscure clues.
+//   - with --freq: most-common-first (board words first, then breadth by rank,
+//     then the wide comprehension tail by rank). The non-sorted order tells the
+//     loader this file IS frequency-ordered, so it builds a MEANINGFUL
+//     rank→commonness prior that taxes obscure clues; the runtime grades only
+//     the head region and treats everything beyond it as comprehension-only.
 //   - without --freq: alphabetical, so the loader detects a sorted file and
 //     DISABLES the prior rather than reading frequency into a non-frequency order.
 let ordered;
 if (freqRank) {
-  ordered = [...guaranteedRows, ...breadthRows];
+  ordered = [...guaranteedRows, ...breadthRows, ...wideRows];
 } else {
   ordered = [...guaranteedRows, ...breadthRows].sort((a, b) =>
     a.u < b.u ? -1 : a.u > b.u ? 1 : 0,
@@ -269,7 +328,8 @@ writeFileSync(outPath, header + lines.join("\n") + "\n");
 console.log(`Wrote ${outPath}`);
 console.log(
   `  ${lines.length} vectors (dim ${dim}); board/concept coverage ${coveredBoard.length}/${guaranteed.size}; ` +
-    `${breadthRows.length} breadth ${freqRank ? "(freq-ordered → commonness prior ON)" : "(alphabetical → prior OFF)"}.`,
+    `${breadthRows.length} breadth ${freqRank ? "(freq-ordered → commonness prior ON)" : "(alphabetical → prior OFF)"}` +
+    `${wide > 0 ? `; ${wideRows.length} wide comprehension-only tail` : ""}.`,
 );
 if (missing.length) {
   console.log(

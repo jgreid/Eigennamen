@@ -168,6 +168,89 @@ describe('registry & presets', () => {
     });
 });
 
+describe('temperature sampling (scale-invariant, confidence-scaled)', () => {
+    // A backend with fixed clue→word scores and full provenance, so the ONLY
+    // stochastic element in the pick is the temperature softmax under test.
+    function fixedBackend(scores: Record<string, number>) {
+        return {
+            id: 'fixed',
+            relatedness: (_clue: string, word: string) => scores[word.toUpperCase()] ?? 0,
+            hasSignal: () => true,
+        };
+    }
+    // First guess (no stop gates), zero blunder, aggression 0 — pure sampling.
+    const skill = { temperature: 0.42, blunderRate: 0, riskAversion: 0.5, seed: 1 };
+    function sample(scores: Record<string, number>, runs = 600): Map<string, number> {
+        const words = Object.keys(scores);
+        const clicker = makeGreedyClicker(skill, fixedBackend(scores));
+        const view = clickerView({
+            words,
+            revealed: words.map(() => false),
+            types: words.map(() => null),
+            currentClue: { word: 'CLUE', number: 2, team: 'red' },
+            guessesUsed: 0,
+        });
+        const counts = new Map<string, number>();
+        for (let seed = 1; seed <= runs; seed++) {
+            const action = clicker.chooseGuess(view, { gameMode: 'classic', skill, rng: makeRng(seed) });
+            if (action.kind !== 'reveal') throw new Error(`expected reveal, got ${action.kind}`);
+            const w = words[action.index] as string;
+            counts.set(w, (counts.get(w) ?? 0) + 1);
+        }
+        return counts;
+    }
+
+    it('a WEAK field samples near-argmax instead of a lottery (the gear→HAND assassin regression)', () => {
+        // The exact live-play field that put the assassin (HAND, ranked BELOW
+        // the argmax) into a near-uniform 3-way lottery under the old
+        // absolute-difference softmax: on the Numberbatch cosine scale the
+        // differences compress and intermediate temperature went flat, hitting
+        // the assassin ~1/3 of the time. Confidence scaling makes a weak field
+        // play close to its best hunch.
+        const counts = sample({ CHANGE: 0.157, HAND: 0.109, BEAT: 0.105, DATE: 0.05 });
+        const total = 600;
+        expect((counts.get('CHANGE') ?? 0) / total).toBeGreaterThan(0.7);
+        expect((counts.get('HAND') ?? 0) / total).toBeLessThan(0.18);
+    });
+
+    it("a STRONG field keeps the preset's tuned exploration (no over-sharpening)", () => {
+        // Curated-scale scores (what the presets were tuned on): the fix must
+        // not turn intermediate into argmax-only there — a clear second-best
+        // still gets picked a meaningful fraction of the time.
+        const counts = sample({ APPLE: 0.9, PEAR: 0.6, ROCK: 0.1 });
+        const total = 600;
+        const second = (counts.get('PEAR') ?? 0) / total;
+        expect(second).toBeGreaterThan(0.15);
+        expect(second).toBeLessThan(0.45);
+    });
+
+    it('sampling depends on RELATIVE scores above the confidence reference (scale invariance)', () => {
+        // Same 2:3 relative field at two absolute scales, both at/above the
+        // confidence reference — the misread rate must match closely. This is
+        // the property whose absence broke the tuning on compressed scales.
+        const a = sample({ A: 0.9, B: 0.6 });
+        const b = sample({ A: 0.6, B: 0.4 });
+        const pa = (a.get('B') ?? 0) / 600;
+        const pb = (b.get('B') ?? 0) / 600;
+        expect(Math.abs(pa - pb)).toBeLessThan(0.08);
+    });
+
+    it('temperature 0 stays pure argmax on any scale', () => {
+        const zeroSkill = { temperature: 0, blunderRate: 0, riskAversion: 0.5, seed: 1 };
+        const clicker = makeGreedyClicker(zeroSkill, fixedBackend({ LOW: 0.11, LOWER: 0.09 }));
+        const view = clickerView({
+            words: ['LOW', 'LOWER'],
+            revealed: [false, false],
+            types: [null, null],
+            currentClue: { word: 'CLUE', number: 1, team: 'red' },
+        });
+        for (let seed = 1; seed <= 20; seed++) {
+            const action = clicker.chooseGuess(view, { gameMode: 'classic', skill: zeroSkill, rng: makeRng(seed) });
+            expect(action).toEqual({ kind: 'reveal', index: 0 });
+        }
+    });
+});
+
 describe('skill preset ladder (5 monotonic rungs)', () => {
     it('is ordered weakest→strongest with a monotonic knob gradient', () => {
         expect([...SKILL_PRESETS]).toEqual(['novice', 'beginner', 'intermediate', 'advanced', 'expert']);

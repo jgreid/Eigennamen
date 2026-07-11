@@ -41,6 +41,10 @@ export interface VectorBackendOptions {
     /** Min/max length of a token to be offered as a clue candidate. */
     minLen?: number;
     maxLen?: number;
+    /** Size of the frequency-trusted head region (see COMMONNESS_PRIOR_REF).
+     *  Override only in tests — production artifacts are built against the
+     *  default. */
+    priorRef?: number;
 }
 
 const DEFAULTS = {
@@ -49,6 +53,19 @@ const DEFAULTS = {
     minLen: 3,
     maxLen: 12,
 };
+
+// The frequency prior (and with it, clue GENERATION) only trusts file ranks
+// inside this region. A wide bake (build-board-vectors.mjs --wide) appends a
+// large comprehension-only tail of rarer words AFTER the frequency-graded
+// head so the bots UNDERSTAND a word-nerd's clue (SIDEREAL, FUMAROLE, INGOT)
+// — but those words must never be GENERATED as clues, and the rank→commonness
+// prior must not be diluted by the tail's presence (rank 45k of 150k would
+// read as "common"). So: commonness ramps to 0 across this region and stays 0
+// beyond it, and nearest()'s candidate pool excludes beyond-region words
+// outright — a tax is not enough, because the rarity penalty is subtractive
+// (and mostly waived at N=1 by the singles doctrine), so a junk tail token
+// with a hot cosine could still ride into a single-card clue.
+const COMMONNESS_PRIOR_REF = 50_000;
 
 const CHUNK_BYTES = 1 << 20; // 1 MiB read buffer
 
@@ -96,6 +113,15 @@ function makeLineParser(opts: Required<VectorBackendOptions>): {
     let prevToken: string | null = null;
     let dim = -1;
     let isFirstLine = true;
+    // Vector storage is POOLED: one shared Float32Array per POOL_WORDS words,
+    // with each entry a subarray view into it. A per-word `new Float32Array`
+    // carries ~200 bytes of object overhead on top of its 4·dim payload and
+    // fragments the heap — at wide-bake scale (~140k words) that overhead and
+    // the parse churn measurably dominated RSS. Views keep the scoring path
+    // byte-identical (relatedness indexes a Float32Array either way).
+    const POOL_WORDS = 10_000;
+    let pool: Float32Array | null = null;
+    let poolUsed = 0; // elements consumed in the current pool
 
     const handleLine = (raw: string): boolean => {
         // returns false to signal "stop reading"
@@ -129,24 +155,30 @@ function makeLineParser(opts: Required<VectorBackendOptions>): {
         const values = parts.slice(1);
         if (dim === -1) dim = values.length;
         if (values.length !== dim) return true; // malformed / ragged row
+        if (vecs.has(key)) return vecs.size < opts.maxWords; // duplicate token
 
-        // Parse into a plain array, then build the normalised Float32Array.
-        const rawVec: number[] = new Array(dim);
+        // Parse straight into pooled storage, then L2-normalise in place. A
+        // rejected row (junk float, zero norm) rolls the pool cursor back.
+        if (!pool || poolUsed + dim > pool.length) {
+            pool = new Float32Array(POOL_WORDS * dim);
+            poolUsed = 0;
+        }
+        const vec = pool.subarray(poolUsed, poolUsed + dim);
         let norm = 0;
         for (let i = 0; i < dim; i++) {
             const v = Number(values[i]);
             if (!Number.isFinite(v)) return true; // skip rows with junk floats
-            rawVec[i] = v;
+            vec[i] = v;
             norm += v * v;
         }
         if (norm === 0) return true;
+        poolUsed += dim;
         const inv = 1 / Math.sqrt(norm);
-        const vec = new Float32Array(dim);
         for (let i = 0; i < dim; i++) {
-            vec[i] = (rawVec[i] ?? 0) * inv;
+            vec[i] = (vec[i] as number) * inv;
         }
 
-        if (!vecs.has(key)) {
+        {
             vecs.set(key, vec);
             if (
                 vocab.length < opts.vocabCap &&
@@ -267,6 +299,7 @@ function resolveVectorOpts(options: VectorBackendOptions): Required<VectorBacken
         vocabCap: options.vocabCap ?? DEFAULTS.vocabCap,
         minLen: options.minLen ?? DEFAULTS.minLen,
         maxLen: options.maxLen ?? DEFAULTS.maxLen,
+        priorRef: options.priorRef ?? COMMONNESS_PRIOR_REF,
     };
 }
 
@@ -358,11 +391,20 @@ function buildVectorBackend(loaded: LoadedVectors, opts: Required<VectorBackendO
 
     // Vector dimensionality (all vectors share it) and the full set of
     // clue-suitable words that HAVE a vector — the search space for nearest().
-    // Unlike vocabulary() (capped for a fixed scan), this spans the whole loaded
-    // model so the spymaster can generate clues from its entire vocabulary.
+    // Unlike vocabulary() (capped for a fixed scan), this spans the loaded
+    // model so the spymaster can generate clues from its whole vocabulary —
+    // EXCEPT the wide bake's comprehension-only tail: on a frequency-ordered
+    // file, words beyond COMMONNESS_PRIOR_REF are understood (relatedness,
+    // hasSignal) but never offered as clue candidates (see the constant's
+    // rationale). Without a frequency prior (ranks === null) there is no tail
+    // notion and the whole model remains eligible, as before.
     const dim = vecs.size > 0 ? (vecs.values().next().value as Float32Array).length : 0;
     const candidateKeys: string[] = [];
+    let fileRank = 0;
     for (const key of vecs.keys()) {
+        const generationEligible = ranks === null || fileRank < opts.priorRef;
+        fileRank++;
+        if (!generationEligible) continue;
         if (key.length >= opts.minLen && key.length <= opts.maxLen && /^[A-ZÀ-ÖØ-Þ]+$/.test(key)) {
             candidateKeys.push(key);
         }
@@ -522,7 +564,13 @@ function buildVectorBackend(loaded: LoadedVectors, opts: Required<VectorBackendO
             const key = normalizeClueWord(word);
             const rank = ranks?.get(key);
             if (rank === undefined) return fallback.commonness?.(word) ?? 1;
-            return 1 - rank / vecs.size;
+            // Grade against the frequency-trusted region, not the whole file:
+            // normalising by vecs.size let a wide comprehension tail dilute the
+            // prior (rank 45k of a 150k wide file would read as 0.7 "common").
+            // For files at or under the region size this is exactly the old
+            // rank/size formula; beyond it, commonness clamps to 0 (max rarity
+            // tax) — the tail is for understanding clues, never for playing them.
+            return Math.max(0, 1 - rank / Math.min(vecs.size, opts.priorRef));
         },
         displayCase(word: string): string {
             // Reference display case lives in the curated tables beneath the

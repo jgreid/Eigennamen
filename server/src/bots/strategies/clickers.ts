@@ -40,7 +40,32 @@ function intendedGuesses(view: BotClickerView): number {
  *  - temperature <= 0: argmax (the card the clue fits best).
  *  - temperature > 0: softmax sample, so a weaker bot sometimes takes the
  *    second- or third-best card. All randomness flows through the seeded rng.
+ *
+ * The softmax is SCALE-INVARIANT and confidence-scaled. The raw form
+ * exp((score − best)/T) reads ABSOLUTE score differences, so its behaviour is
+ * an artifact of the backend's score scale: the presets were tuned on the
+ * curated scale (genuine reads 0.5–1.0), and when the Numberbatch vector scale
+ * (genuine reads ~0.1–0.35) sat underneath, every difference compressed and
+ * the sample went near-uniform across the plausible set — the tuned
+ * "temperature stays below the flat-enough-to-sample-the-assassin range"
+ * guarantee (presets.ts) silently evaporated. Live-play: an intermediate bot
+ * picked the assassin ranked BELOW the argmax (gear→HAND at 0.109 vs 0.157)
+ * and a 4th-ranked opponent card (duel→SUIT), and misfired its own good clues
+ * (VENICE→HOLLYWOOD at half of ROME's score kept 56% relative weight).
+ * Two changes, together:
+ *  - weights read RELATIVE scores (score/best) — invariant when the whole
+ *    field is rescaled, so a preset means the same misread rate on every
+ *    backend;
+ *  - the effective temperature shrinks with the field's confidence
+ *    (best/TEMPERATURE_CONFIDENCE_REF, capped at 1). A weak field is a
+ *    low-information state: a human who isn't sure falls back on their best
+ *    hunch — noise should express as taking a CLEAR second-best, never as
+ *    spraying across a flat fog that includes the assassin.
+ * On the curated scale (best ≥ REF) both changes are near-no-ops, preserving
+ * the tournament tuning the presets were built against.
  */
+const TEMPERATURE_CONFIDENCE_REF = 0.5;
+
 function selectIndexByTemperature(
     scored: { index: number; score: number }[],
     temperature: number,
@@ -49,7 +74,11 @@ function selectIndexByTemperature(
     let best = scored[0] as { index: number; score: number };
     for (const c of scored) if (c.score > best.score) best = c;
     if (temperature <= 0 || scored.length === 1) return best.index;
-    const weights = scored.map((c) => Math.exp((c.score - best.score) / temperature));
+    // A zero-signal field has no ranking to express a preference — uniform
+    // among the (already plausibility-filtered) candidates, as before.
+    if (best.score <= 0) return (scored[rng.int(scored.length)] as { index: number; score: number }).index;
+    const t = temperature * Math.min(1, best.score / TEMPERATURE_CONFIDENCE_REF);
+    const weights = scored.map((c) => Math.exp((c.score / best.score - 1) / t));
     const total = weights.reduce((a, w) => a + w, 0);
     let r = rng.next() * total;
     for (let i = 0; i < scored.length; i++) {
