@@ -136,6 +136,17 @@ const cardTypeSchema = z.enum(['red', 'blue', 'neutral', 'assassin']);
 // Use cardTypeSchema (matching the TS type) to preserve type compatibility.
 // If the TS type is broadened to include 'green', update this too.
 
+// Nullable Lua RESULT fields must tolerate the key being ABSENT (or empty), not
+// just present-and-null: real Redis's cjson encodes cjson.null as JSON null,
+// but Upstash's Lua emulation (Fly.io managed Redis) drops null-valued object
+// fields when a script encodes its result. Every mid-game reveal legitimately
+// carries winner=null + endReason=null, so requiring those keys rejected EVERY
+// reveal on Upstash — after revealCard.lua had already committed the mutation,
+// leaving clients one reveal behind with no broadcast and bots stuck retrying.
+// revealCard.lua now omits null fields from its result too, making key-absence
+// the canonical "no value" encoding on every Redis implementation.
+const absentToNull = (val: unknown) => (val === undefined || val === '' ? null : val);
+
 export const revealResultSchema = z
     .object({
         index: z.number(),
@@ -148,8 +159,11 @@ export const revealResultSchema = z
         guessesAllowed: z.number(),
         turnEnded: z.boolean(),
         gameOver: z.boolean(),
-        winner: teamSchema.nullable(),
-        endReason: z.enum(['assassin', 'completed', 'maxGuesses', 'timerTokens', 'unreachable']).nullable(),
+        winner: z.preprocess(absentToNull, teamSchema.nullable()),
+        endReason: z.preprocess(
+            absentToNull,
+            z.enum(['assassin', 'completed', 'maxGuesses', 'timerTokens', 'unreachable']).nullable()
+        ),
         // allTypes is absent from Lua result when gameOver=false, present when true
         allTypes: z.array(cardTypeSchema).nullable().optional().default(null),
         // Duet mode fields

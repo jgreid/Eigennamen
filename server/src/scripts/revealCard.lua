@@ -330,7 +330,12 @@ game.stateVersion = (game.stateVersion or 0) + 1
 local saveTtl = currentTTL > 0 and currentTTL or defaultTtl
 redis.call('SET', gameKey, cjson.encode(game), 'EX', saveTtl)
 
--- Return result
+-- Return result. The nullable fields (winner, endReason) are OMITTED when they
+-- have no value instead of being encoded as JSON null: real Redis's cjson
+-- emits null for cjson.null, but Upstash's Lua emulation drops such fields, so
+-- key-absence is the only "no value" encoding that round-trips identically on
+-- every Redis implementation. revealResultSchema (luaGameOps.ts) maps a
+-- missing key back to null.
 local result = {
     success = true,
     index = index,
@@ -342,10 +347,14 @@ local result = {
     guessesUsed = game.guessesUsed,
     guessesAllowed = game.guessesAllowed,
     turnEnded = turnEnded,
-    gameOver = game.gameOver,
-    winner = game.winner,
-    endReason = endReason
+    gameOver = game.gameOver
 }
+if game.winner ~= nil and game.winner ~= cjson.null then
+    result.winner = game.winner
+end
+if endReason ~= nil and endReason ~= cjson.null then
+    result.endReason = endReason
+end
 
 if game.gameOver then
     result.allTypes = game.types
