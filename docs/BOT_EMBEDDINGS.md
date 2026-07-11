@@ -211,6 +211,51 @@ node scripts/build-board-vectors.mjs \
   --out server/src/bots/data/board-vectors.vec --breadth 40000
 ```
 
+### Wide comprehension tier (`--wide`) — understand a word nerd's clues
+
+The breadth sample bounds which words the spymaster can **generate** — but it
+also silently bounded which human clues the bots could **understand**: a clue
+rarer than the breadth region (`SIDEREAL`, `FUMAROLE`, `INGOT`, `NECROMANCER`)
+had no vector at all, so the guesser fell back to spelling similarity, took one
+humble guess, and banked the turn. `--wide N` fixes the reading side without
+touching the giving side: it appends up to N additional **comprehension-only**
+words after the frequency-graded head — every word-like token the model knows
+that is *attested* in the frequency reference, ordered by its reference rank
+(so junk tokens without attestation never enter, and the cut keeps the most
+plausible N).
+
+The runtime treats the tail asymmetrically, by design:
+
+- **Understanding** (`relatedness`, `hasSignal`): full — `sidereal → MOON`
+  scores a real cosine (0.55) instead of falling to the lexical floor.
+- **Generation** (`nearest()` candidates, the commonness prior): excluded —
+  tail words carry zero commonness credit and are never offered as clue
+  candidates, so the spymaster's clue vocabulary stays exactly as recognizable
+  as the narrow build's.
+
+Use a **deep** frequency reference so tail ordering stays meaningful beyond the
+common region (the `--board --wide` path auto-fetches hermitdave's `en_full`,
+~1.66M ranked tokens, instead of the 50k file):
+
+```bash
+# one command (fetch + distil, no server start):
+BOT_MODEL=numberbatch BOT_WIDE=1 npm run bots:embeddings -- --board
+
+# or by hand:
+node scripts/build-board-vectors.mjs \
+  --in server/src/bots/data/numberbatch-en-19.08.vec \
+  --freq server/src/bots/data/en_full.txt --freq-top 40000 \
+  --out server/src/bots/data/board-vectors.vec --breadth 40000 --wide 110000
+```
+
+Costs: the artifact grows to ~140k vectors (~300 MB on disk, ~550 MB RSS at
+load), so **raise `BOT_EMBEDDINGS_MAX_WORDS` (e.g. to `200000`)** — the loader
+otherwise truncates the tail at its 50k default — and size the machine
+accordingly (the Fly config pairs the wide bake with a 2 GB VM). A dedicated
+word (`PENSIEVE`) that the source model itself lacks still degrades to the
+lexical floor; that class needs the curated proper-noun/reference layer, not
+vectors.
+
 ## Supported file format
 
 Standard whitespace-separated word-vectors text, auto-detected:

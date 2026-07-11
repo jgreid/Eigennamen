@@ -108,16 +108,41 @@ const FREQ_REF = {
   top: 40000, // --freq-top: how much of the reference's common head to admit
 };
 
+// Deep variant of the same reference (~25 MB, ~1.66M ranked tokens) used when
+// the WIDE comprehension tier is requested: the tail must be ordered by real
+// attestation rank far beyond the 50k common region, so a word-nerd clue
+// (SIDEREAL, FUMAROLE, INGOT) gets a vector while unattested junk tokens never
+// enter. Same source, same license, same "word count" line format; `top` still
+// bounds only the breadth/generation region.
+const FREQ_REF_WIDE = {
+  url: "https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/en/en_full.txt",
+  out: "en_full.txt",
+  top: 40000,
+};
+
+// Default word budget for the wide comprehension tier (--wide with no value /
+// BOT_WIDE=1). Sized so the full artifact (~880 board words + 40k breadth +
+// the tail) stays comfortably inside the production 1 GB VM alongside the
+// server itself; see docs/BOT_EMBEDDINGS.md "Wide comprehension tier".
+const DEFAULT_WIDE = 110000;
+
 function parseArgs(argv) {
+  // BOT_WIDE: "0"/unset = off, "1" = the default budget, any other number = a
+  // word budget for the wide comprehension tier (board mode only).
+  const envWide = Number(process.env.BOT_WIDE || 0);
   const opts = {
     model: process.env.BOT_MODEL || "glove",
     trim: Number(process.env.BOT_TRIM || 100000),
     board: process.env.BOT_BOARD === "1",
+    wide: envWide === 1 ? DEFAULT_WIDE : Math.max(0, envWide || 0),
     run: true,
   };
   for (const arg of argv) {
     if (arg === "--no-run" || arg === "--setup-only") opts.run = false;
     else if (arg === "--board") opts.board = true;
+    else if (arg === "--wide") opts.wide = DEFAULT_WIDE;
+    else if (arg.startsWith("--wide="))
+      opts.wide = Math.max(0, Number(arg.slice("--wide=".length)) || 0);
     else if (arg.startsWith("--model="))
       opts.model = arg.slice("--model=".length);
     else if (arg.startsWith("--trim="))
@@ -430,28 +455,42 @@ async function ensureModel(model, trim) {
  * proceed WITHOUT the prior (a warning, not a hard failure) so a flaky network
  * still yields a usable-if-coarser artifact rather than no artifact at all.
  */
-async function ensureFreqReference() {
+async function ensureFreqReference(wide) {
   mkdirSync(DATA_DIR, { recursive: true });
-  const outPath = join(DATA_DIR, FREQ_REF.out);
+  // The wide tier needs the DEEP reference so tail words are rank-ordered far
+  // beyond the common region; a plain board build keeps the tiny 50k file. If
+  // the deep fetch fails, fall back to the small one (wide tier skipped) so a
+  // flaky network still yields the prior-on artifact.
+  const ref = wide > 0 ? FREQ_REF_WIDE : FREQ_REF;
+  const outPath = join(DATA_DIR, ref.out);
   if (existsSync(outPath) && fileSize(outPath) > 4096) {
     console.log(`✓ Reusing frequency reference: ${outPath}`);
     return outPath;
   }
   console.log(
-    "📥 Fetching commonness reference (small; enables the clue rarity tax)…",
+    wide > 0
+      ? "📥 Fetching deep commonness reference (~25 MB; enables the rarity tax + wide tier)…"
+      : "📥 Fetching commonness reference (small; enables the clue rarity tax)…",
   );
   try {
-    await download(FREQ_REF.url, outPath);
+    await download(ref.url, outPath);
     if (fileSize(outPath) < 4096)
       throw new Error("frequency reference looks too small");
     console.log(`✓ Frequency reference ready: ${outPath}`);
     return outPath;
   } catch (err) {
+    rmSync(outPath, { force: true }); // don't leave a truncated file to be "reused"
+    if (wide > 0) {
+      console.warn(
+        `   ⚠ could not fetch the deep frequency reference (${err.message || err}); ` +
+          "trying the small one (the wide tier degrades to that reference's region).",
+      );
+      return ensureFreqReference(0);
+    }
     console.warn(
       `   ⚠ could not fetch the frequency reference (${err.message || err}); ` +
         "building board vectors WITHOUT the commonness prior (clues may run obscure).",
     );
-    rmSync(outPath, { force: true }); // don't leave a truncated file to be "reused"
     return null;
   }
 }
@@ -466,15 +505,17 @@ async function ensureFreqReference() {
  * difference between recognizable clues and obscure ones for a Numberbatch board.
  * Returns the artifact name written into DATA_DIR.
  */
-function distilBoardVectors(modelVecName, freqPath) {
+function distilBoardVectors(modelVecName, freqPath, wide) {
   const inPath = join(DATA_DIR, modelVecName);
   const outVec = join(DATA_DIR, "board-vectors.vec");
   const script = join(SCRIPT_DIR, "build-board-vectors.mjs");
   const args = [script, "--in", inPath, "--out", outVec, "--breadth", "40000"];
   if (freqPath)
     args.push("--freq", freqPath, "--freq-top", String(FREQ_REF.top));
+  // The wide comprehension tier needs the reference to gate/order its tail.
+  if (freqPath && wide > 0) args.push("--wide", String(wide));
   console.log(
-    `🧬 Distilling board-restricted vectors (board/concept coverage + breadth sample${freqPath ? ", commonness prior ON" : ""})…`,
+    `🧬 Distilling board-restricted vectors (board/concept coverage + breadth sample${freqPath ? ", commonness prior ON" : ""}${freqPath && wide > 0 ? `, wide tier ≤${wide}` : ""})…`,
   );
   const r = spawnSync(process.execPath, args, {
     stdio: "inherit",
@@ -492,7 +533,7 @@ async function main() {
   const opts = parseArgs(process.argv.slice(2));
   if (opts.help) {
     console.log(
-      "Usage: npm run dev:bots [-- --model=glove|fasttext|numberbatch] [--board] [--trim=N] [--no-run]",
+      "Usage: npm run dev:bots [-- --model=glove|fasttext|numberbatch] [--board] [--wide[=N]] [--trim=N] [--no-run]",
     );
     return;
   }
@@ -513,9 +554,9 @@ async function main() {
   // most-common-first and the runtime commonness prior is ON — without it a
   // Numberbatch board surfaces obscure/non-word clues. Best-effort: a fetch
   // failure degrades to a prior-off build rather than aborting.
-  const freqPath = opts.board ? await ensureFreqReference() : null;
+  const freqPath = opts.board ? await ensureFreqReference(opts.wide) : null;
   const outName = opts.board
-    ? distilBoardVectors(modelName, freqPath)
+    ? distilBoardVectors(modelName, freqPath, opts.wide)
     : modelName;
   const relPath = `src/bots/data/${outName}`; // relative to server/ (the dev server's cwd)
   console.log(`✓ BOT_EMBEDDINGS_PATH=${relPath}`);

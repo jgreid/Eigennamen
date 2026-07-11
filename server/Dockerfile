@@ -41,9 +41,18 @@ RUN npm run build
 # and clue words stay recognizable; that fetch is best-effort (a block degrades to a
 # prior-off build, not a build failure). Set BOT_EMBEDDINGS_BOARD=0 to bake the legacy
 # coarse trim instead.
+# BOT_EMBEDDINGS_WIDE adds the wide comprehension tier to the board bake: up to
+# N additional rarer-but-attested words (ordered by a deep frequency reference)
+# appended after the frequency-graded head, so bots UNDERSTAND word-nerd clues
+# (SIDEREAL, FUMAROLE, INGOT) without ever GENERATING obscure clues themselves
+# (the runtime excludes the tail from clue candidates and zeroes its commonness
+# credit). Costs a bigger artifact + RAM at load — pair a non-zero value with a
+# BOT_EMBEDDINGS_MAX_WORDS env raise (fly.toml does) so the loader doesn't
+# silently truncate the tail at its 50k default. Set to 0 to disable.
 ARG BOT_EMBEDDINGS_MODEL=
 ARG BOT_EMBEDDINGS_TRIM=100000
 ARG BOT_EMBEDDINGS_BOARD=1
+ARG BOT_EMBEDDINGS_WIDE=0
 COPY scripts/ ./scripts/
 RUN mkdir -p /app/embeddings && touch /app/embeddings/.keep && \
     if [ -n "$BOT_EMBEDDINGS_MODEL" ]; then \
@@ -52,7 +61,7 @@ RUN mkdir -p /app/embeddings && touch /app/embeddings/.keep && \
             BOT_MODEL="$BOT_EMBEDDINGS_MODEL" BOT_TRIM="$BOT_EMBEDDINGS_TRIM" node scripts/dev-bots.mjs --no-run && \
             cp /app/server/src/bots/data/*.vec /app/embeddings/vectors.vec; \
         else \
-            BOT_MODEL="$BOT_EMBEDDINGS_MODEL" node scripts/dev-bots.mjs --no-run --board && \
+            BOT_MODEL="$BOT_EMBEDDINGS_MODEL" BOT_WIDE="$BOT_EMBEDDINGS_WIDE" node scripts/dev-bots.mjs --no-run --board && \
             cp /app/server/src/bots/data/board-vectors.vec /app/embeddings/vectors.vec; \
         fi; \
     fi

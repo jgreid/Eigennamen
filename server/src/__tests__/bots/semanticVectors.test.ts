@@ -273,6 +273,50 @@ describe('commonness (file-rank frequency prior)', () => {
     });
 });
 
+describe('wide comprehension tier (beyond the frequency-trusted head region)', () => {
+    // A frequency-ordered file whose last two words sit BEYOND the trusted
+    // region (priorRef 3 for the test): they must be fully understood
+    // (relatedness, hasSignal) yet carry zero commonness credit and never be
+    // offered by nearest() — a wide-bake tail word is for READING a word
+    // nerd's clue, never for GIVING one.
+    function wideBackend(): SemanticBackend {
+        const widePath = join(dir, 'wide.vec');
+        writeFileSync(
+            widePath,
+            ['the 1 0.1 0', 'castle 0.5 0.5 0', 'house 0.6 0.4 0', 'sidereal 0.1 0.2 1', 'fumarole 0 0.3 1', ''].join(
+                '\n'
+            )
+        );
+        return makeVectorBackend({ path: widePath, priorRef: 3 }) as SemanticBackend;
+    }
+
+    it('understands tail words fully (relatedness + provenance)', () => {
+        const b = wideBackend();
+        expect(b.relatedness('sidereal', 'fumarole')).toBeGreaterThan(0.5); // both tail, real cosine
+        expect(b.hasSignal!('sidereal', 'castle')).toBe(true);
+    });
+
+    it('gives tail words zero commonness credit, without diluting head grading', () => {
+        const b = wideBackend();
+        expect(b.commonness!('the')).toBe(1);
+        // Head grading uses the trusted region, not the file size: castle is
+        // rank 1 of a 3-word trusted head, not rank 1 of a 5-word file.
+        expect(b.commonness!('castle')).toBeCloseTo(1 - 1 / 3, 5);
+        expect(b.commonness!('sidereal')).toBe(0);
+        expect(b.commonness!('fumarole')).toBe(0);
+    });
+
+    it('never surfaces tail words as clue candidates (nearest)', () => {
+        const b = wideBackend();
+        // FUMAROLE's closest neighbour is SIDEREAL — but both are tail, so a
+        // query near them may only return head words.
+        const near = b.nearest!(['FUMAROLE'], 4);
+        const words = near.map((n) => n.word);
+        expect(words).not.toContain('SIDEREAL');
+        expect(words.length).toBeGreaterThan(0); // head words still offered
+    });
+});
+
 describe('proper-noun case signal through the vector backend', () => {
     it('a mixed-case reference clue takes the curated proper reading when it is stronger', () => {
         // WONKA has no vector, and even if it did, embeddings conflate senses —
