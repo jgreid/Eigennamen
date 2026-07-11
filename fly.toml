@@ -1,13 +1,14 @@
 # Fly.io configuration for Eigennamen game server
 # See https://fly.io/docs/reference/configuration/ for details
 #
-# STORAGE: This app defaults to in-memory storage (REDIS_URL=memory).
-# This works but rooms only exist on ONE machine - if Fly routes a player
-# to a different machine, they get "room not found". To fix this:
-#   1. fly redis create
-#   2. fly secrets set REDIS_URL=rediss://...
-#   3. Remove REDIS_URL and MEMORY_MODE_ALLOW_FLY from [env] below
-# Until then, keep exactly 1 machine: fly scale count 1
+# STORAGE: game state lives in an external Redis, provided via the REDIS_URL
+# secret (fly redis create && fly secrets set REDIS_URL=rediss://...). With a
+# shared Redis, deploys no longer wipe live rooms (sockets reconnect into the
+# still-live room) and multi-machine scaling stops being split-brained — though
+# other per-process coordination state still gates scaling past one machine
+# (see docs/HARDENING_PLAN.md Phase 2). DO NOT deploy this config before the
+# REDIS_URL secret exists: without it the server refuses to start (deploy fails
+# health checks and auto-rolls back).
 #
 # NOTE: `min_machines_running = 1` below is a floor, not a ceiling — it does not
 # stop the autoscaler from starting a 2nd machine if auto_start_machines and the
@@ -45,7 +46,8 @@ kill_timeout = 15
 
 [deploy]
   strategy = "immediate"
-  # The game works fully with just in-memory storage (REDIS_URL=memory)
+  # With external Redis, an immediate deploy is non-destructive: rooms live in
+  # Redis and clients reconnect into them after the restart.
 
 # Embeddings need more RAM than a small default — the [[vm]] block below is
 # sized to 1 GB for the bake enabled above. If you disable the bake, 512 MB
@@ -68,12 +70,10 @@ kill_timeout = 15
   # Override with: fly secrets set CORS_ORIGIN=https://yourdomain.com
   CORS_ORIGIN = "https://eigennamen.fly.dev"
 
-  # Storage backend for game state (rooms, players, timers).
-  # RECOMMENDED: Provision Redis and move REDIS_URL to a Fly secret:
-  #   fly redis create && fly secrets set REDIS_URL=rediss://...
-  # Then delete these two lines:
-  REDIS_URL = "memory"
-  MEMORY_MODE_ALLOW_FLY = "true"
+  # Storage backend for game state (rooms, players, timers) comes from the
+  # REDIS_URL secret (see the STORAGE note at the top of this file) — no
+  # in-memory fallback is configured here, so a missing secret fails the
+  # deploy loudly instead of silently running a state-losing mode.
 
 [http_service]
   internal_port = 3000

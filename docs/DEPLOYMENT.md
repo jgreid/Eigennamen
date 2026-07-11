@@ -76,22 +76,24 @@ Environment variables in `docker-compose.yml`:
 
 The stronger ("Smart") bots reason over real word embeddings. The vectors file is not
 shipped in the image by default, so bake it at **build time** with a build-arg (off by
-default — a normal build is byte-for-byte unchanged and downloads nothing):
+default — a normal build is byte-for-byte unchanged and downloads nothing). The running
+server **auto-detects** the baked file at `/app/embeddings/vectors.vec` — no env var
+needed (`BOT_EMBEDDINGS_PATH` overrides; `=off` disables):
 
 ```bash
 # Docker (build context = repo root)
-docker build --build-arg BOT_EMBEDDINGS_MODEL=glove -f server/Dockerfile -t eigennamen .
-docker run -e BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec ... eigennamen
+docker build --build-arg BOT_EMBEDDINGS_MODEL=numberbatch -f server/Dockerfile -t eigennamen .
+docker run ... eigennamen
 
-# docker compose — one command sets the build-arg and the runtime path:
-BOT_EMBEDDINGS_MODEL=glove BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec \
-  docker compose up -d --build
+# docker compose — the build-arg alone is enough:
+BOT_EMBEDDINGS_MODEL=numberbatch docker compose up -d --build
 ```
 
-Supported models: `glove` (default) and `fasttext`. The bake trims to `BOT_EMBEDDINGS_TRIM`
-(default 100000) and writes `/app/embeddings/vectors.vec`. If the path is missing at runtime
-the server logs a warning and falls back to the baked association table, so a misconfigured
-deploy still runs. See [BOT_EMBEDDINGS.md](./BOT_EMBEDDINGS.md#deploying-with-embeddings-docker--flyio).
+Supported models: `numberbatch` (recommended), `glove`, and `fasttext`. By default the
+bake distils to compact board-restricted vectors and writes `/app/embeddings/vectors.vec`.
+If the file is missing at runtime the server logs a warning and falls back to the baked
+association table, so a misconfigured deploy still runs. See
+[BOT_EMBEDDINGS.md](./BOT_EMBEDDINGS.md#deploying-with-embeddings-docker--flyio).
 
 ---
 
@@ -137,8 +139,10 @@ choice and details; comment the build-arg out (and optionally drop the VM to
 
 The repository includes a well-commented `fly.toml`; read that file for the
 authoritative, current settings. The key excerpts below are what most affect a
-deployment — note especially the **storage backend** (`REDIS_URL = "memory"`),
-which is load-bearing for the single-machine constraint discussed under Scaling:
+deployment — note especially that the **storage backend comes from the
+`REDIS_URL` secret** (`fly redis create && fly secrets set REDIS_URL=rediss://...`),
+which must exist BEFORE deploying this config: without it the server refuses to
+start, the deploy fails health checks, and the pipeline auto-rolls back.
 
 ```toml
 [env]
@@ -147,14 +151,9 @@ which is load-bearing for the single-machine constraint discussed under Scaling:
   LOG_LEVEL = "info"
   CORS_ORIGIN = "https://eigennamen.fly.dev"
 
-  # Storage backend for game state (rooms, players, timers). The app ships in
-  # in-memory mode: state lives ONLY in the one running machine's process — it
-  # does NOT survive a deploy or restart, and a second machine can't see it (see
-  # Scaling below). Provision Redis and move REDIS_URL to a secret to change this:
-  #   fly redis create && fly secrets set REDIS_URL=rediss://...
-  # then delete these two lines.
-  REDIS_URL = "memory"
-  MEMORY_MODE_ALLOW_FLY = "true"
+  # Storage backend for game state comes from the REDIS_URL secret — no
+  # in-memory fallback here, so a missing secret fails the deploy loudly
+  # instead of silently running a state-losing mode.
 
 [http_service]
   internal_port = 3000
@@ -180,38 +179,28 @@ which is load-bearing for the single-machine constraint discussed under Scaling:
   path = "/health/ready"
 
 [[vm]]
-  memory = "512mb"
+  memory = "1gb"
   cpu_kind = "shared"
   cpus = 1
 ```
 
-### Deploys wipe live game state (memory mode)
+### Deploys and live game state
 
-With the shipped `REDIS_URL = "memory"` config and `[deploy] strategy = "immediate"`,
-**every deploy restarts the machine and destroys all in-progress games** — rooms,
-players, timers, and history all live in the process and do not survive the
-restart. Players mid-game see a disconnect and, on reconnect, the room no longer
-exists (the client shows a "server is restarting" notice). Because `deploy.yml`
-auto-deploys every CI-green push to `main`, prefer to **merge during low-traffic
-windows**. To make state survive deploys, provision Redis (see below) — with an
-external Redis, sockets reconnect into the still-live room and `strategy = "immediate"`
-stops being destructive. Tracked as `docs/IMPROVEMENT_PLAN.md` B5.
+With an external Redis (the shipped config), `[deploy] strategy = "immediate"` is
+non-destructive: rooms, players, timers, and history live in Redis, and clients
+reconnect into the still-live room after the restart. (Historical note: while the
+app shipped with `REDIS_URL = "memory"`, every auto-deploy wiped all in-progress
+games — IMPROVEMENT_PLAN B5. If you deliberately run memory mode elsewhere, merge
+during low-traffic windows.)
 
 ### Scaling
 
-> **Single-machine constraint (memory mode).** While `REDIS_URL = "memory"` is set
-> (the shipped default), game state lives only in one machine's process, so a
-> second machine can't see existing rooms — a player routed there gets
-> "room not found" (split-brain). **Do not scale past one machine until you
-> provision external Redis first:**
->
-> ```bash
-> fly redis create
-> fly secrets set REDIS_URL=rediss://...     # then remove REDIS_URL/MEMORY_MODE_ALLOW_FLY from fly.toml [env]
-> ```
->
-> Only after Redis is shared across instances is `fly scale count 2` safe. See
-> `fly.toml`'s storage comment and `docs/HARDENING_PLAN.md` P2-5.
+> **Single-machine constraint (still applies).** External Redis removes the
+> split-brain on game state, but several pieces of per-room coordination
+> (socket-level rate limiting, the bot controller's in-flight guard, turn-timer
+> expiry) still live in a plain in-process `Map` — correct only for a single
+> instance. **Keep `fly scale count 1` until docs/HARDENING_PLAN.md Phase 2
+> (P2-1/P2-2/P2-5) is closed.**
 
 ```bash
 # Scale to 2 instances — ONLY after provisioning shared Redis (see the note above)
