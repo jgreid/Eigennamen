@@ -104,6 +104,11 @@ export const PROPER_ASSOCIATIONS: Record<string, AssociationTarget[]> = {
     USSR: ['MOSCOW', 'REVOLUTION'],
 
     // Games & tech
+    // "Apple" the company — THE canonical proper/common case split (found by an
+    // adversarial round: mixed-case Apple still read as the fruit). The key
+    // collides with board word APPLE by design: the clue simply can't fire on
+    // boards carrying it (see the collision note above).
+    Apple: ['SCREEN', 'TABLET', 'MOUSE', 'GENIUS'],
     iPhone: ['APPLE', 'SCREEN', 'TABLET'],
     Lego: ['BLOCK', 'PLASTIC'],
     Mario: ['PIPE', 'PRINCESS', 'STAR'],
