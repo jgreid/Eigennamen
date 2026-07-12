@@ -7,9 +7,10 @@ import * as playerService from '../playerService';
 import * as gameService from '../gameService';
 import { withTimeout, TIMEOUTS } from '../../utils/timeout';
 import { normalizeRoomCode } from '../../utils/sanitize';
-import { ROOM_MAX_PLAYERS, REDIS_TTL, LOCKS } from '../../config/constants';
+import { ROOM_MAX_PLAYERS, REDIS_TTL, LOCKS, SOCKET_EVENTS } from '../../config/constants';
 import { RoomError, ServerError, GameStateError } from '../../errors/GameError';
 import { ATOMIC_JOIN_SCRIPT, RELEASE_LOCK_SCRIPT } from '../../scripts';
+import { getSocketFunctions, isRegistered as socketFunctionsRegistered } from '../../socket/socketFunctionProvider';
 import { getRoom, refreshRoomTTL, cleanupRoom } from '../roomService';
 
 /**
@@ -142,6 +143,18 @@ export async function joinRoom(roomId: string, sessionId: string, nickname: stri
         throw new ServerError('Failed to create or retrieve player');
     }
 
+    // A human joining (or rejoining) a bot-hosted room must displace the
+    // placeholder host (see ensureRoomHasHost) — otherwise a room whose humans
+    // all dropped stays uncontrollable for every newcomer during the grace
+    // window. Best-effort: never fail the join over the repair.
+    if (!player.isBot) {
+        try {
+            await ensureRoomHasHost(normalizedRoomId);
+        } catch (repairErr) {
+            logger.warn(`Host repair during join failed: ${(repairErr as Error).message}`);
+        }
+    }
+
     // Re-read room data after join to avoid returning stale settings
     // (room config may have changed between initial getRoom and Lua script execution)
     const freshRoom = await getRoom(normalizedRoomId);
@@ -160,9 +173,10 @@ export async function joinRoom(roomId: string, sessionId: string, nickname: stri
  *
  * A human ALWAYS beats a bot: a bot is a first-class player that never
  * disconnects but can run no host-only function (start game, settings, kick,
- * add/remove bot, pause), so handing it host bricks the room until TTL — and
- * `ensureRoomHasHost` won't repair it because a bot-host is a live, resolvable
- * player. Preference order: connected human → any human → connected non-human
+ * add/remove bot, pause), so a bot only ever gets host as the last resort that
+ * keeps the room alive while no human is connected — `ensureRoomHasHost`
+ * displaces a bot host as soon as a connected human is back (reconnect, resync
+ * and join all run it). Preference order: connected human → any human → connected non-human
  * (last resort so an in-progress transfer still names someone). Returns null if
  * the pool is empty or holds only disconnected bots.
  *
@@ -313,15 +327,29 @@ export async function ensureRoomHasHost(code: string): Promise<string | null> {
     const room = await getRoom(normalized);
     if (!room) return null;
 
-    // Host record still exists → nothing to repair.
+    // Host record still resolves to a HUMAN → nothing to repair. A bot host is
+    // a PLACEHOLDER, not an owner: it can run no host-only function
+    // (game:start, room:settings, bot:add/remove, kick), so a bot-hosted room
+    // is exactly as locked for its human members as a hostless one. A bot
+    // gets host by design when the last connected human disconnects (the
+    // transfer's last-resort fallback keeps the room alive through the
+    // reconnect grace window) — but the moment a human is connected again
+    // they must displace it, or the room stays uncontrollable until TTL
+    // teardown (live-play finding: the returning host could not start the
+    // next game).
+    let currentHost: Player | null = null;
     if (room.hostSessionId) {
-        const currentHost = await playerService.getPlayer(room.hostSessionId);
-        if (currentHost) return room.hostSessionId;
+        currentHost = await playerService.getPlayer(room.hostSessionId);
+        if (currentHost && !currentHost.isBot) return room.hostSessionId;
     }
 
     const players = await playerService.getPlayersInRoom(normalized);
     const candidate = players.find((p) => p.connected && !p.isBot);
-    if (!candidate) return null;
+    // No connected human to promote: keep a live bot placeholder (the room is
+    // being held for a reconnect; bots-only rooms are torn down by cleanup) —
+    // but a DANGLING host record (player reaped) stays reported as null, as
+    // before.
+    if (!candidate) return currentHost ? (room.hostSessionId ?? null) : null;
 
     // Promote under the host-transfer lock so we don't race disconnectHandler /
     // leaveRoom doing their own transfer.
@@ -345,9 +373,11 @@ export async function ensureRoomHasHost(code: string): Promise<string | null> {
         if (!fresh) return null;
         if (fresh.hostSessionId) {
             const stillHost = await playerService.getPlayer(fresh.hostSessionId);
-            if (stillHost) return fresh.hostSessionId; // repaired by someone else meanwhile
+            // Same bot-placeholder rule as the unlocked pre-check above.
+            if (stillHost && !stillHost.isBot) return fresh.hostSessionId; // repaired by someone else meanwhile
         }
 
+        const displacedHostId = fresh.hostSessionId ?? null;
         fresh.hostSessionId = candidate.sessionId;
         await withTimeout(
             redis.set(`room:${normalized}`, JSON.stringify(fresh), { EX: REDIS_TTL.ROOM }),
@@ -355,7 +385,28 @@ export async function ensureRoomHasHost(code: string): Promise<string | null> {
             `ensureRoomHasHost-set-${normalized}`
         );
         await playerService.updatePlayer(candidate.sessionId, { isHost: true });
+        // Clear the displaced (bot) host's stale flag so exactly one player
+        // reads isHost — best-effort: the room record above is authoritative.
+        if (displacedHostId && displacedHostId !== candidate.sessionId) {
+            await playerService
+                .updatePlayer(displacedHostId, { isHost: false })
+                .catch((err: Error) => logger.warn(`Could not clear displaced host flag: ${err.message}`));
+        }
         logger.info(`Lazy host repair: promoted ${candidate.sessionId} to host of room ${normalized}`);
+        // Tell the room (best-effort; unregistered in unit tests/harness). The
+        // repairing client itself gets fresh isHost in its own reconnect/resync/
+        // join payload — this broadcast is for everyone else's host display.
+        if (socketFunctionsRegistered()) {
+            try {
+                getSocketFunctions().emitToRoom(normalized, SOCKET_EVENTS.ROOM_HOST_CHANGED, {
+                    newHostPlayerId: playerService.derivePlayerId(candidate.sessionId),
+                    newHostNickname: candidate.nickname,
+                    reason: 'hostRepaired',
+                });
+            } catch (emitErr) {
+                logger.warn(`Host-repair broadcast failed: ${(emitErr as Error).message}`);
+            }
+        }
         return candidate.sessionId;
     } catch (err) {
         logger.error(`ensureRoomHasHost failed for room ${normalized}: ${(err as Error).message}`);

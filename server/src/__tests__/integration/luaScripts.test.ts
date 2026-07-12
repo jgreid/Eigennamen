@@ -23,6 +23,7 @@ import * as playerService from '../../services/playerService';
 import { setTeam, setRole } from '../../services/player/mutations';
 import * as timerService from '../../services/timerService';
 import * as gameHistoryService from '../../services/gameHistoryService';
+import * as botService from '../../services/botService';
 import { checkValidationRateLimit } from '../../middleware/auth/sessionValidator';
 import { acquire } from '../../utils/distributedLock';
 import { SUBMIT_CLUE_SCRIPT, ATOMIC_SET_ROOM_STATUS_SCRIPT, ATOMIC_EXPIRE_TIMER_SCRIPT } from '../../scripts';
@@ -857,6 +858,65 @@ describe('Real-Redis Lua script integration', () => {
             await getRedis().del('player:host-1');
 
             expect(await roomService.ensureRoomHasHost(code)).toBeNull();
+        });
+
+        // A bot host is a PLACEHOLDER, not an owner: it can run no host-only
+        // function (game:start, settings, bot management), so a returning human
+        // must displace it or the room stays uncontrollable until TTL teardown
+        // (live-play finding: after the last human's disconnect handed host to a
+        // bot, the reconnected host could not start the next game).
+        it('displaces a bot placeholder host as soon as a human is connected again', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            const bot = await botService.addBot(code, {
+                team: 'red',
+                role: 'spymaster',
+                strategyId: 'randomSpymaster',
+                skillPreset: 'novice',
+            });
+
+            // Simulate the disconnect-driven transfer that fires when the last
+            // connected human drops: the bot takes host, the human goes dark.
+            const transfer = await playerService.atomicHostTransfer('host-1', bot.sessionId, code);
+            expect(transfer.success).toBe(true);
+            await playerService.updatePlayer('host-1', { connected: false });
+
+            // While nobody human is connected, the bot placeholder holds.
+            expect(await roomService.ensureRoomHasHost(code)).toBe(bot.sessionId);
+            expect((await roomService.getRoom(code))?.hostSessionId).toBe(bot.sessionId);
+
+            // The human reconnects → the repair must hand host back.
+            await playerService.updatePlayer('host-1', { connected: true });
+            expect(await roomService.ensureRoomHasHost(code)).toBe('host-1');
+
+            const room = await roomService.getRoom(code);
+            expect(room?.hostSessionId).toBe('host-1');
+            expect((await playerService.getPlayer('host-1'))?.isHost).toBe(true);
+            // Exactly one host: the displaced bot's stale flag is cleared.
+            expect((await playerService.getPlayer(bot.sessionId))?.isHost).toBe(false);
+        });
+
+        it('a brand-new human joining a bot-hosted room becomes host via the join-path repair', async () => {
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            const bot = await botService.addBot(code, {
+                team: 'blue',
+                role: 'clicker',
+                strategyId: 'randomClicker',
+                skillPreset: 'novice',
+            });
+            const transfer = await playerService.atomicHostTransfer('host-1', bot.sessionId, code);
+            expect(transfer.success).toBe(true);
+            // The original human is fully reaped (grace cleanup), not just offline.
+            await getRedis().del('player:host-1');
+            await getRedis().sRem(`room:${code}:players`, 'host-1');
+
+            const { room, player } = await joinRoom(code, 'p9', 'Newcomer');
+
+            expect(player.sessionId).toBe('p9');
+            expect(room?.hostSessionId).toBe('p9');
+            expect((await playerService.getPlayer('p9'))?.isHost).toBe(true);
+            expect((await playerService.getPlayer(bot.sessionId))?.isHost).toBe(false);
         });
     });
 
