@@ -617,7 +617,18 @@ temperature softmax handles a weak absolute signal.
 
 ### Engineering addition (2.29)
 
-**2.29 Signal-strength floor on clue selection. 🔴** `scoreClue` (or the
+**2.29 Signal-strength floor on clue selection. 🟡 (clicker/advisor half
+shipped)** The guesser side of this item has since landed: the clicker's
+`selectIndexByTemperature` and the advisor's `sampleWithoutReplacement` are now
+**scale-invariant and confidence-scaled** — weights read *relative* scores
+(`exp((score/best − 1)/t)`) and the effective temperature shrinks when the
+whole field is weak (`t = temperature × min(1, best/TEMPERATURE_CONFIDENCE_REF)`,
+`TEMPERATURE_CONFIDENCE_REF = 0.5` in `strategies/clickers.ts`), so a thin
+field no longer randomizes *harder* than a strong one — exactly the
+weak-absolute-signal failure lesson 42 measured (and what live-play misfires
+like gear→HAND picking the assassin below the argmax confirmed). The
+spymaster-side floor — treating a thin real-target read as a risk factor in
+`scoreClue` itself — remains open, as originally specified: `scoreClue` (or the
 spymaster's candidate legality/ranking step) should treat "the best-scoring
 candidate for this intended target barely clears the table's floor" as a
 distinct risk factor, independent of `assassinCaution`/`defenseBias` — a
@@ -685,6 +696,10 @@ which a distinct target clears) — but on a still-more-compressed backend those
 floors would bite the same way `PROMISE_FLOOR` did. The principled end state is a
 single backend-scale signal the strategies read, rather than N independently-tuned
 absolutes; deferred until a backend actually trips one of them (measure first).
+One HAS since tripped: the clicker's temperature softmax went near-uniform on the
+compressed Numberbatch scale (live-play assassin picks below the argmax) and was
+made scale-invariant + confidence-scaled (see 2.29's shipped half) — the same
+relative-scale treatment the remaining constants should get if they ever bite.
 
 ### One persona to watch
 

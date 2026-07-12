@@ -22,7 +22,7 @@ All commands run from the `server/` directory:
 npm install                    # Install dependencies
 
 # Development
-npm run dev                    # Start dev server (uses REDIS_URL env, defaults to memory mode)
+npm run dev                    # Start dev server (uses REDIS_URL env, defaults to redis://localhost:6379; set REDIS_URL=memory for embedded)
 npm run dev:bots               # Dev server with embedding-backed bots; auto-ensures Redis, fetches model once
 npm run redis:up               # Ensure a local Redis (reuse one, else start a managed Docker container)
 npm run redis:down             # Stop the managed Redis container
@@ -135,7 +135,9 @@ Eigennamen/
         │   ├── presets.ts      # Skill-preset resolution (5-rung novice→beginner→intermediate→advanced→expert → SkillParams); routes persona ids
         │   ├── personas.ts     # Persona registry (playstyle = difficulty + style knobs) → SkillParams
         │   ├── rng.ts          # Seeded RNG for reproducible bot decisions
-        │   ├── strategies/     # spymasters, clickers, registry, types (SkillParams style knobs), clueSafety (board-safety filter)
+        │   ├── botRoomCache.ts # Per-room has-bots cache so the controller skips bot-less rooms for free (E3)
+        │   ├── llm/            # Opt-in LLM advice layer (llmAdvice.ts — Claude proposes, machinery verifies)
+        │   ├── strategies/     # spymasters, clickers, advisor, clueFrame (sense enumeration/frame doubt), registry, types (SkillParams style knobs), clueSafety (board-safety filter)
         │   ├── semantics/      # Clue semantics: association table + optional embedding backends
         │   └── harness/        # Headless self-play (runMatches, analyze, parity, playGame, scoring)
         ├── config/             # Configuration modules (13 files)
@@ -196,6 +198,8 @@ Eigennamen/
         │   │   ├── mutations.ts # setTeam, setRole, setNickname
         │   │   ├── queries.ts  # getPlayersInRoom, getTeamMembers, role rotation
         │   │   ├── reconnection.ts # Token generation/validation/invalidation
+        │   │   ├── publicId.ts # Derived opaque playerId (sha256 prefix of sessionId) for peer-facing payloads (N1)
+        │   │   ├── sessionAuth.ts # Per-session sessionToken secret for handshake session adoption (N1)
         │   │   ├── schemas.ts  # Player data schemas for Redis
         │   │   └── stats.ts    # Room stats, spectator info
         │   └── room/
@@ -247,6 +251,9 @@ Eigennamen/
         │   ├── settings.ts     # Settings panel logic
         │   ├── history.ts      # Game history barrel — delegates to history-replay.ts
         │   ├── history-replay.ts # Replay UI (step controls, event rendering)
+        │   ├── recap.ts        # Post-game recap modal (word-list provenance, per-team stats)
+        │   ├── spectatorJoin.ts # Spectator join-request flow UI (request/approve/deny)
+        │   ├── wordListLibrary.ts # localStorage library of named custom word lists (A1)
         │   ├── clueUI.ts       # Clue input/display UI
         │   ├── gameLog.ts      # In-game event log UI
         │   ├── chat.ts         # Chat UI
@@ -309,7 +316,7 @@ Eigennamen/
         │   ├── config.ts       # Configuration types
         │   ├── errors.ts       # ErrorCode + SafeErrorCode types
         │   └── vendor.d.ts     # Third-party declarations (qrcode, Socket.io globals)
-        ├── utils/              # Utility modules (13 files)
+        ├── utils/              # Utility modules (14 files)
         │   ├── distributedLock.ts # Redis-based distributed locking (NX + EX pattern)
         │   ├── logger.ts       # Structured logging (Winston)
         │   ├── metrics.ts      # Application metrics collection
@@ -329,7 +336,7 @@ Eigennamen/
         │   ├── index.ts        # Barrel export with documented KEYS/ARGV/Returns headers
         │   └── atomicRateLimit.lua # Extracted rate-limit Lua script
         └── __tests__/          # Jest tests (129 backend + 62 frontend suites)
-            ├── helpers/        # Test utilities + mock factories (mocks.ts ~782 lines)
+            ├── helpers/        # Test utilities + mock factories (mocks.ts ~792 lines)
             ├── integration/    # Integration tests
             └── frontend/       # Frontend unit tests
 ```
@@ -364,9 +371,9 @@ Factory functions for different authorization levels:
 
 ```
 GameError (base) — code, details, timestamp
-├── RoomError — .notFound(), .full(), .gameInProgress()
+├── RoomError — .notFound(), .full(), .gameInProgress(), .spectatorsNotAllowed()
 ├── PlayerError — .notHost(), .notSpymaster(), .notClicker(), .notYourTurn(), .notAuthorized(), .notFound()
-├── GameStateError — .cardAlreadyRevealed(), .gameOver(), .noActiveGame(), .corrupted()
+├── GameStateError — .cardAlreadyRevealed(), .gameOver(), .noActiveGame(), .corrupted(), .gamePaused(), .noClueGiven()
 ├── ValidationError — .invalidCardIndex(), .noGuessesRemaining()
 ├── RateLimitError
 └── ServerError — .concurrentModification()
@@ -727,7 +734,7 @@ Module aliases: `@/`, `@config/`, `@services/`, `@errors/`, `@utils/`, `@middlew
 
 ### Test Patterns
 
-- Shared mocks in `__tests__/helpers/mocks.ts` (~782 lines)
+- Shared mocks in `__tests__/helpers/mocks.ts` (~792 lines)
 - `clearMocks: true`, `restoreMocks: true` — clean state between tests
 - playerService re-exports use `export const` pattern for test mock overrides
 - CommonJS `module.exports` at end of route files for `require()` compatibility in tests
@@ -762,23 +769,23 @@ All GitHub Actions are SHA-pinned to immutable commit hashes. Workflow permissio
 
 Key env vars (see `server/.env.example` for full list):
 
-| Variable                        | Purpose                                                   | Default                      |
-| ------------------------------- | --------------------------------------------------------- | ---------------------------- |
-| `REDIS_URL`                     | Redis connection (`redis://...`) or `memory` for embedded | Required                     |
-| `JWT_SECRET`                    | JWT signing key (min 32 chars in prod)                    | Required in production       |
-| `ADMIN_PASSWORD`                | Admin dashboard authentication                            | Optional (warned if missing) |
-| `NODE_ENV`                      | Environment (`development`/`production`)                  | `development`                |
-| `PORT`                          | Server port                                               | `3000`                       |
-| `LOG_LEVEL`                     | Logging verbosity                                         | `info`                       |
-| `CORS_ORIGIN`                   | Allowed CORS origins (wildcard blocked in prod)           | `*`                          |
-| `TRUST_PROXY`                   | Enable behind reverse proxy (auto on Fly.io)              | `false`                      |
-| `ALLOW_IP_MISMATCH`             | Allow reconnection from different IP                      | `false`                      |
-| `RATE_LIMIT_WINDOW_MS`          | HTTP rate limit window                                    | `60000`                      |
-| `RATE_LIMIT_MAX_REQUESTS`       | HTTP rate limit max requests                              | `100`                        |
-| `RATE_LIMIT_MAX_ENTRIES`        | Max rate limit tracking entries                           | `10000`                      |
-| `INSTANCE_ID`                   | Custom instance ID for multi-instance deployments         | Auto-generated               |
-| `EMBEDDED_REDIS_TIMEOUT_MS`     | Timeout for embedded Redis startup (min 1000)             | `5000`                       |
-| `REDIS_TLS_REJECT_UNAUTHORIZED` | Reject unauthorized TLS connections to Redis              | `true`                       |
+| Variable                        | Purpose                                                   | Default                                                         |
+| ------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------- |
+| `REDIS_URL`                     | Redis connection (`redis://...`) or `memory` for embedded | `redis://localhost:6379` (must be set explicitly in production) |
+| `JWT_SECRET`                    | JWT signing key (min 32 chars in prod)                    | Required in production (warn-only placeholder in dev)           |
+| `ADMIN_PASSWORD`                | Admin dashboard authentication                            | Optional (warned if missing)                                    |
+| `NODE_ENV`                      | Environment (`development`/`production`)                  | `development`                                                   |
+| `PORT`                          | Server port                                               | `3000`                                                          |
+| `LOG_LEVEL`                     | Logging verbosity                                         | `info`                                                          |
+| `CORS_ORIGIN`                   | Allowed CORS origins (wildcard blocked in prod)           | `*`                                                             |
+| `TRUST_PROXY`                   | Enable behind reverse proxy (auto on Fly.io)              | `false`                                                         |
+| `ALLOW_IP_MISMATCH`             | Allow reconnection from different IP                      | `false`                                                         |
+| `RATE_LIMIT_WINDOW_MS`          | HTTP rate limit window                                    | `60000`                                                         |
+| `RATE_LIMIT_MAX_REQUESTS`       | HTTP rate limit max requests                              | `100`                                                           |
+| `RATE_LIMIT_MAX_ENTRIES`        | Max rate limit tracking entries                           | `10000`                                                         |
+| `INSTANCE_ID`                   | Custom instance ID for multi-instance deployments         | Auto-generated                                                  |
+| `EMBEDDED_REDIS_TIMEOUT_MS`     | Timeout for embedded Redis startup (min 1000)             | `5000`                                                          |
+| `REDIS_TLS_REJECT_UNAUTHORIZED` | Reject unauthorized TLS connections to Redis              | `true`                                                          |
 
 ## Health & Monitoring
 

@@ -17,6 +17,9 @@ services:
     deploy:
       resources:
         limits:
+          # NOTE: enough for the default table-backed bots. If you enable an
+          # embeddings bake above, raise this (narrow ~1g, wide ~2g — the wide
+          # tier alone is ~550 MB RSS at load) or the container will OOM.
           memory: 512M
           cpus: '1.0'
         reservations:

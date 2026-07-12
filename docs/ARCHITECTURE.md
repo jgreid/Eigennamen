@@ -206,7 +206,7 @@ This document describes the high-level architecture of Eigennamen Online, a real
 │  ┌─────────────────────┼───────────────────────────────┐    │
 │  │    ┌────────┐  ┌────────┐  ┌────────┐              │    │
 │  │    │ App #1 │  │ App #2 │  │ App #n │              │    │
-│  │    │ 512MB  │  │ 512MB  │  │ 512MB  │              │    │
+│  │    │  2GB   │  │  2GB   │  │  2GB   │              │    │
 │  │    └───┬────┘  └───┬────┘  └───┬────┘              │    │
 │  │        └───────────┼───────────┘                   │    │
 │  │                    │ Redis Pub/Sub                 │    │
@@ -257,7 +257,7 @@ Eigennamen/
     │   ├── middleware/      # Express middleware (10 files)
     │   │   └── auth/       # Socket auth sub-modules (4 files)
     │   ├── routes/         # REST API routes (8 files)
-    │   ├── services/       # Business logic (22 service files incl. botService)
+    │   ├── services/       # Business logic (24 service files incl. botService)
     │   │   ├── game/       # Game sub-modules (board, reveal, lua)
     │   │   ├── gameHistory/ # Game history sub-modules (types, validation, storage, replayEngine)
     │   │   ├── player/     # Player sub-modules (cleanup, mutations, queries, reconnection, schemas, stats)
@@ -271,10 +271,10 @@ Eigennamen/
     │   │   ├── store/      # Reactive state store + actions
     │   │   └── game/       # Game sub-modules (reveal, scoring)
     │   ├── types/          # TypeScript type definitions (11 files)
-    │   ├── utils/          # Utility modules (13 files)
+    │   ├── utils/          # Utility modules (14 files)
     │   ├── validators/     # Zod validation schemas (8 files)
     │   ├── scripts/        # Redis Lua scripts (30 atomic operations)
-    │   └── __tests__/      # Jest tests (179 suites)
+    │   └── __tests__/      # Jest tests (191 suites)
     │       ├── helpers/    # Test utilities and mocks
     │       ├── integration/ # Integration tests
     │       └── frontend/   # Frontend unit tests

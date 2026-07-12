@@ -63,7 +63,9 @@ cover and which therefore falls all the way to lexical — that log is the signa
 to enable embeddings (below). Without any semantic coverage for a clue, bots no
 longer chase spelling lookalikes: lexical-floor scores are damped in guess
 ranking (`guessRetrieval`), the clicker banks the turn after one uninformed
-guess, and the advisor flags its suggestions as spelling-only.
+guess (unless late-game pressure applies — with the win in reach or the
+opponent at match point it takes its best read instead of banking), and the
+advisor flags its suggestions as spelling-only.
 
 ## Quick local playtest (one command)
 

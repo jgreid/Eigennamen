@@ -35,7 +35,7 @@ This document defines the backup strategy, recovery procedures, and operational 
 |------|-------|-------------|
 | **Single instance** (`REDIS_URL=memory`) | Embedded redis-server process (no persistence, `--save "" --appendonly no`) | Local development, quick demos |
 | **Docker Compose** | `redis:7-alpine` with AOF enabled (`--appendonly yes`), data on `redis_data` volume | Local development, staging |
-| **Fly.io** | Fly Redis (Upstash) or `REDIS_URL=memory` | Production |
+| **Fly.io** | Fly Redis (Upstash) via the required `REDIS_URL` secret | Production |
 
 ---
 
@@ -109,7 +109,7 @@ fly redis status <redis-app-name>
 fly redis dashboard <redis-app-name>
 ```
 
-If running with `REDIS_URL=memory` on Fly.io (the current default per `fly.toml`), there is **no persistence**. All game state is lost on machine restart. This is acceptable because:
+Production on Fly.io uses an external Redis via the `REDIS_URL` secret (`fly.toml` refuses to deploy without it), so deploys and machine restarts do NOT lose game state — rooms live in Redis and clients reconnect into them. Memory mode (`REDIS_URL=memory`) is a local-development convenience only; if you run it anywhere, all game state is lost on restart, which is tolerable there because:
 - Game rooms have a 4-hour TTL in memory mode
 - Games typically last 30-60 minutes
 - Players can simply create a new room
@@ -224,11 +224,11 @@ curl -s http://localhost:3000/health/ready | python3 -m json.tool
 **Fly.io rebuild:**
 
 ```bash
-# Set secrets
+# Set secrets — REDIS_URL is REQUIRED: without it the server refuses to
+# start and the deploy fails health checks and rolls back (see fly.toml)
 fly secrets set JWT_SECRET="$(openssl rand -base64 32)"
 fly secrets set ADMIN_PASSWORD="your-secure-password"
-# Optionally:
-# fly secrets set REDIS_URL="rediss://..."
+fly secrets set REDIS_URL="rediss://..."   # from `fly redis create`
 
 # Deploy
 fly deploy
@@ -285,7 +285,7 @@ The application exposes several health endpoints (defined in `server/src/routes/
 
 ```toml
 [[http_service.checks]]
-  grace_period = "30s"
+  grace_period = "60s"
   interval = "30s"
   method = "GET"
   timeout = "10s"
@@ -349,7 +349,7 @@ scrape_configs:
 The admin dashboard (`GET /admin`, protected by `ADMIN_PASSWORD`) provides:
 
 - Real-time server stats via SSE (`/admin/api/stats/stream`, 5-second updates)
-- Memory usage with alert threshold at 480MB RSS
+- Memory usage (the server logs a warning at 75% and critical at 90% of the V8 heap limit — thresholds scale with the VM size)
 - Active room listing and details
 - Player management (kick players, close rooms)
 - Audit log viewer
@@ -359,7 +359,7 @@ The admin dashboard (`GET /admin`, protected by `ADMIN_PASSWORD`) provides:
 
 | Alert | Condition | Severity | Action |
 |-------|-----------|----------|--------|
-| High memory | RSS > 480MB (of 512MB limit) | Critical | See [6.3 High Memory Usage](#63-high-memory-usage) |
+| High memory | heap used > 90% of V8 heap limit (server logs "Critical memory usage") | Critical | See [6.3 High Memory Usage](#63-high-memory-usage) |
 | Redis memory | usage_percent > 90% | Critical | See [6.1 Redis Out of Memory](#61-redis-out-of-memory) |
 | Redis memory | usage_percent > 75% | Warning | Monitor and plan capacity |
 | Redis disconnected | `/health/ready` returns 503 | Critical | See [6.2 Redis Connection Failures](#62-redis-connection-failures) |
@@ -487,7 +487,7 @@ docker compose logs api --tail=50
 ### 6.3 High Memory Usage
 
 **Symptoms:**
-- Admin dashboard SSE reports RSS > 480MB
+- Server logs "High memory usage detected" (75% of heap limit) or "Critical memory usage" (90%)
 - `/health/metrics` shows high `heapUsed` or `rss`
 - Container OOM-killed (check with `docker compose logs api`)
 - Fly.io machine restarts unexpectedly

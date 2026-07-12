@@ -1,7 +1,7 @@
 /**
  * Real-Redis Lua Script Integration Tests
  *
- * Every other backend test mocks `config/redis`, so the 29 Lua atomic scripts
+ * Every other backend test mocks `config/redis`, so the 30 Lua atomic scripts
  * are never actually executed — the dedicated Lua test files
  * (`__tests__/scripts/luaScriptLogic.test.ts`) only assert on the script's
  * *source text*. This suite boots a real embedded Redis (the same

@@ -153,7 +153,7 @@ myNewHandlers(socketServer, gameSocket);
 **File:** `frontend/handlers/chatEventHandlers.ts`
 
 ```typescript
-export function registerChatEventHandlers(): void {
+export function registerChatAndErrorHandlers(): void {
     EigennamenClient.on('chat:spectatorMessage', (message) => {
         // Update UI with the received message
         appendChatMessage(message);
@@ -161,7 +161,7 @@ export function registerChatEventHandlers(): void {
 }
 ```
 
-Client handlers are registered in `frontend/multiplayer.ts` when the socket connects.
+Client handlers are registered in `frontend/multiplayerListeners.ts` when the socket connects.
 
 ---
 
@@ -172,8 +172,8 @@ Client handlers are registered in `frontend/multiplayer.ts` when the socket conn
 Events use a default rate limit, but you can configure per-event limits:
 
 ```typescript
-export const EVENT_RATE_LIMITS: Partial<Record<string, RateLimit>> = {
-    'chat:spectator': { maxEvents: 10, windowMs: 60000 },  // 10 per minute
+export const RATE_LIMITS: Record<string, RateLimitConfig> = {
+    'chat:spectator': { window: 5000, max: 10 }, // 10 per 5 seconds
 };
 ```
 

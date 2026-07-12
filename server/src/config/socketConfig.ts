@@ -94,9 +94,8 @@ export const SOCKET_EVENTS = {
     PLAYER_DISCONNECTED: 'player:disconnected',
     PLAYER_ERROR: 'player:error',
 
-    // Timer events
-    TIMER_START: 'timer:start',
-    TIMER_TICK: 'timer:tick',
+    // Timer events (server-initiated: no client 'timer:start'; countdown is
+    // client-local, so there is no per-second 'timer:tick' broadcast either)
     TIMER_EXPIRED: 'timer:expired',
     TIMER_PAUSE: 'timer:pause',
     TIMER_RESUME: 'timer:resume',

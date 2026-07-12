@@ -1,10 +1,11 @@
 # Bot Nuance Plan — from the Play-Session Ledger to Code
 
 Companion to [BOT_CLUE_LESSONS.md](BOT_CLUE_LESSONS.md). That document is the
-*ledger* — 42 lessons and 9 catalogued failure modes (A–I) from six human-vs-AI
-play sessions. This one is the *build sheet*: open plan items (2.8–2.29) mapped
-to the exact functions, constants, and data structures that host it, sequenced
-into phases with the metric that gates each change.
+*ledger* — 45 lessons and 9 catalogued failure modes (A–I) from ten play
+rounds (six human-vs-AI sessions plus batch self-play rounds 7–10). This one
+is the *build sheet*: plan items (2.8 onward; the ledger now runs to 2.33)
+mapped to the exact functions, constants, and data structures that host them,
+sequenced into phases with the metric that gates each change.
 
 All paths relative to `server/src/bots/`. Line anchors are as of the round-3
 audit; treat them as landmarks, not contracts.
@@ -26,6 +27,11 @@ interface itself.
 ---
 
 ## Phase 0 — Instrument first (harness only, no gameplay change)
+
+> **Shipped.** `dangerNextRateEndgame` + `revealedCount`/`ownAvailable`
+> slicing, fixed cross-entrant boards + per-board best-line baseline
+> (`ceilingUtilization`), and the magnitude-aware `dangerNext` below are all
+> in `harness/analyze.ts`.
 
 > Ledger guardrail: measure before tuning. Both assassin hits in live play
 > (BOX, GOLD) were endgame events; today's metrics can't even see that.
@@ -67,6 +73,11 @@ rather than backend density. Harness-only; no gameplay change. Unit-tested in
 `harness.test.ts` (comfortably-cleared vs tight-halo vs neutral-brightest).
 
 ## Phase 1 — Free safety wins (existing scoring paths, no interface change)
+
+> **Shipped.** `PROMISE_FLOOR` + the promise-trim loop (1.1, since made
+> backend-relative — ledger 2.30), the assassin-berth re-assert at emission
+> (1.2), and `ENDGAME_BERTH_RAMP` (1.3) are all in `strategies/spymasters.ts`;
+> the ledger marks 2.8/2.11/2.15 🟢.
 
 **1.1 Number-inventory guard (2.15)** *(lesson 18: Tinder 3 → GOLD; round-2
 ENGINE 2 → BOX)*

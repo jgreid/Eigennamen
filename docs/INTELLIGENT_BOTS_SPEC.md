@@ -321,17 +321,27 @@ export interface SkillParams {
     temperature: number;  // softmax temp over ranking; 0 = argmax (strongest)
     blunderRate: number;  // probability of an outright random legal move
     riskAversion: number; // clicker stop-vs-continue + assassin/opponent penalty
-    vocabSize: number;    // truncates clue vocabulary; small = clumsier clues
-    lookahead: number;    // search depth for search families (0 = none)
     seed: number;         // seeds the per-bot SeededRng
+    // Style knobs (personae, all optional — neutral defaults keep plain
+    // difficulty presets unchanged; see personas.ts):
+    defenseBias?: number;     // multiplier on the "don't arm the opponent" penalty
+    aggression?: number;      // 0 = tightest safe clue … 1 = stretch for coverage
+    assassinCaution?: number; // multiplier on assassin penalty + safety berth
+    commonnessBias?: number;  // multiplier on legibility/anti-idiosyncrasy penalties
 }
 
 export interface BotContext {
     readonly gameMode: GameMode;
-    readonly teamNames: { red: string; blue: string };
     readonly skill: SkillParams;
     readonly rng: SeededRng;
-    readonly memory?: BotSeatMemory; // within-game clue-debt memory (absent = no adjustment)
+    readonly memory?: BotSeatMemory; // within-game seat memory (absent = no adjustment) — drives the
+                                     // clicker's clue-debt boost, the spymaster's no-repeat rule
+                                     // (burnedClueKeys: a bounced/undershot clue word is never re-given)
+                                     // and its redundancy discount (prefer cluing un-indicated cards)
+    readonly llm?: BotLLMAdvice;     // opt-in LLM advice for this decision (absent = normal play)
+    readonly guesserTemperature?: number; // team clicker's temperature when it is a known bot —
+                                          // sizes the guesser-safety margin (absent = human/unknown,
+                                          // full misread-tolerant width)
 }
 
 /** Spymaster view: full unmasked types[] (+ duetTypes/cardScores per mode). */
@@ -361,6 +371,8 @@ export interface BotClickerView {
     readonly redScore: number; readonly blueScore: number;
     readonly cardScores?: readonly (number | null)[]; // match: revealed only
     readonly timerTokens?: number; readonly greenFound?: number; // duet
+    readonly ownRemaining?: number; // public scoreboard info: own cards left (endgame discipline)
+    readonly oppRemaining?: number; // public scoreboard info: opponent cards left (pressure override)
     readonly history: readonly unknown[];
 }
 
@@ -438,32 +450,37 @@ A parity test asserts its view construction equals `getGameStateForPlayer`.
 
 Added one registry entry at a time. The catalogue grows; the interface does not.
 
+The five strategies that shipped (`registry.ts` `STRATEGY_IDS`):
+
 | Strategy | Role | How it works |
 |----------|------|--------------|
 | `randomClicker` | clicker | Uniform random over legal unrevealed indices. Baseline / regression anchor. |
-| `greedyClicker` | clicker | Ranks unrevealed cards by semantic similarity to `currentClue.word`; reveals the top candidate; continues until `guessesAllowed` or a stop heuristic (risk-gated). |
+| `greedyClicker` | clicker | Ranks unrevealed cards by semantic similarity to `currentClue.word`; reveals the top candidate; continues until `guessesAllowed` or a stop heuristic (risk-gated). Duet- and match-aware internally: it branches on `view.gameMode` and weights match `cardScores` rather than shipping as separate strategies. |
 | `cautiousClicker` | clicker | `greedyClicker` that ends turn early when the top candidate's similarity margin over the next is thin (careful human model). |
 | `randomSpymaster` | spymaster | Emits an arbitrary legal clue word + number. Degenerate driver so the harness runs **with no semantic assets**. |
-| `numberOnlySpymaster` | spymaster | Picks `number` = count of own cards it intends to link, placeholder word. Exercises clicker bots without embeddings. |
-| `embeddingSpymaster` | spymaster | Loads external word vectors (ConceptNet Numberbatch preferred) via `semantics/vectorBackend.ts` (path set by `BOT_EMBEDDINGS_PATH`); picks a word maximizing cosine similarity to own unrevealed cards while maximizing distance from assassin/opponent cards. Falls back to subword vectors / a hash-keyed association index for out-of-vocabulary custom-list words (see §20). |
-| `mctsLiteSpymaster` | spymaster | Shallow search over clue candidates scoring expected cards-revealed-before-mistake; depth bounded by `SkillParams.lookahead`. |
-| `duetCooperativeClicker` | clicker | Duet-aware: trades high-confidence green reveals against `timerToken` risk; tracks progress toward 15 greens. |
-| `matchAwareClicker` / `matchAwareSpymaster` | both | Weight match-mode `cardScores` (gold/silver/trap) and score margin into reveal/clue choice; reuse classic strategies with a scoring overlay where possible. |
+| `embeddingSpymaster` | spymaster | Generates clue candidates from the active semantic backend (curated association table by default; word vectors via `semantics/vectorBackend.ts` when an embeddings asset is present); picks the candidate maximizing own-card coverage while keeping a graded assassin berth and defensive margins. Match- and duet-aware internally (value-weighted targets, duet green hunting). Falls back to lexical similarity for out-of-vocabulary custom-list words (see §20). |
+
+Early drafts of this spec sketched additional separate strategies
+(`numberOnlySpymaster`, `mctsLiteSpymaster`, `duetCooperativeClicker`,
+`matchAwareClicker`/`matchAwareSpymaster`). None were built as registry
+entries: mode-awareness was folded *into* `greedyClicker`/`embeddingSpymaster`,
+and no search-based spymaster exists.
 
 ---
 
 ## 11. Skill model (the "various skill")
 
 - Skill is a **typed `SkillParams` bundle** (`temperature`, `blunderRate`,
-  `riskAversion`, `vocabSize`, `lookahead`, `seed`) — not a single 0–1 scalar.
-  More expressive while staying pure data.
-- **Named presets** in `server/src/bots/presets.ts`, referenced by string from
-  the Add-Bot UI and the tournament spec:
-  - `novice` — high temperature, high blunder rate, low risk aversion, small
-    vocab, no lookahead.
+  `riskAversion`, `seed`, plus the optional style knobs of §11.1) — not a
+  single 0–1 scalar. More expressive while staying pure data.
+- **Named presets** in `server/src/bots/presets.ts` — a five-rung ladder
+  (`novice` → `beginner` → `intermediate` → `advanced` → `expert`), referenced
+  by string from the Add-Bot UI and the tournament spec:
+  - `novice` — high temperature, high blunder rate, low risk aversion.
   - `intermediate` — moderate temperature/blunder, balanced risk aversion.
-  - `expert` — temperature → 0 (argmax), blunder → 0, calibrated risk aversion,
-    full vocab, `lookahead > 0` for search families.
+  - `expert` — temperature → 0 (argmax), blunder → 0, calibrated risk aversion.
+  (The ladder is tuned monotonic against the embeddings tournament; a persona
+  id from `personas.ts` is a drop-in replacement for a preset id.)
 - **Orthogonal to type:** any `(strategyId, skillPreset)` pair is valid. A weak
   expert-family bot and a strong novice-family bot are both expressible without a
   combinatorial difficulty matrix.
@@ -666,8 +683,8 @@ server/src/bots/
 ├── strategies/
 │   ├── types.ts            # BotAction, Spymaster/ClickerStrategy, views, SeededRng, SkillParams (+ style knobs), StyleParams/resolveStyle, BotContext, BotConfig
 │   ├── registry.ts         # strategyId → StrategyFactory; one entry per type
-│   ├── clickers.ts         # clicker strategies (random/greedy/cautious/duet/match-aware)
-│   ├── spymasters.ts       # spymaster strategies (random/numberOnly/embedding/mctsLite/match-aware)
+│   ├── clickers.ts         # clicker strategies (random/greedy/cautious; duet- and match-aware internally)
+│   ├── spymasters.ts       # spymaster strategies (random/embedding; match- and duet-aware internally)
 │   ├── advisor.ts          # advisor role: ranked guess suggestions, never acts
 │   └── clueFrame.ts        # sense/frame-switch resolution shared by clicker + advisor
 ├── semantics/
@@ -732,7 +749,7 @@ Appendix A summarizes the per-mode rules a bot engine must respect.
 | **0** ✅ **SHIPPED** | `game:clue` feature, decoupled from bots: socketConfig events, shared stemming-aware `gameClueSchema`, `submitClue.lua` under the reveal lock, `gameService.submitClue`, the handler (reusing the reveal permission pattern), cross-mode tests, minimal frontend clue form + `EigennamenClient.submitClue` + `game:clueGiven` handler. Independently human-usable. | 3–5 d |
 | **1** ✅ **SHIPPED** | Solo playtest, **classic** mode: `isBot` field, `botService`, `botController` on `onGameMutation`, `playOneAction`, `bot:add/remove` host handlers, reentrancy guard + `connected:true`/`lastSeen` cleanup survival, `randomClicker` + `greedyClicker`. Playable bot-filled room with human or bot clues. | 5–8 d |
 | **2** | Parity gate + harness skeleton: share the already-pure `revealEngine`/`boardGenerator` rules; add the blocking Lua-vs-TS parity test across all three modes; `runMatches.ts` running the first corpus against the real `gameService`/Lua path via `createMockRedis`; `worker_threads` sharding; `MatchResult` + NDJSON output. | 4–6 d |
-| **3** | Spymaster strategies + skill model: `registry`, `presets.ts`, per-bot `SeededRng` wiring, `embeddingSpymaster` (pluggable vector backend), `mctsLite`. Add 2–4 d if bundling/licensing an embedding set. | 4–7 d |
+| **3** | Spymaster strategies + skill model: `registry`, `presets.ts`, per-bot `SeededRng` wiring, `embeddingSpymaster` (pluggable vector backend). (An `mctsLite` search spymaster was sketched here but never built.) Add 2–4 d if bundling/licensing an embedding set. | 4–7 d |
 | **4** | Scoring + iteration loop: Elo/TrueSkill, mode-specific + graded-duet fitness, Wilson-interval win-rate, `leaderboard.json`, seed-stable regression diffing, optional pure-rules fast path **only after** the parity gate is green, periodic socket-mode fidelity sample. | 4–6 d |
 | **5** | Per-mode coverage + polish: duet token-economy and match score-aware branches with targeted tests (reuse `duetMode`/`matchMode` patterns), `isBot` UI badge, bot attribution in history. | 3–5 d |
 
@@ -867,8 +884,8 @@ choice.
    3. still stuck → **LLM backend (Claude)** — the right tool for arbitrary
       proper-noun / multilingual lists; acceptable for *one live game*, never
       the training hot path;
-   4. floor → `numberOnlySpymaster` + lexical-similarity clicker, so the game
-      never stalls.
+   4. floor → lexical similarity on both seats (the curated table's
+      dictionary-word fallback), so the game never stalls.
 
 ### The unifying primitive: a hash-keyed association index
 
@@ -964,9 +981,10 @@ embeddings conflate every sense of a token under one vector.
 - **Multi-word board entries** ("NEW YORK", "Marie Curie") → average token
   vectors or treat the phrase as a unit; board words may be up to 50 chars
   (`gameStartSchema`), clue words are single-token ≤ 40.
-- **Default-zero assets:** the harness still defaults to
-  `randomSpymaster`/`numberOnlySpymaster`, so CI and fresh clones run with no
-  downloads; semantic backends are opt-in via a configured path.
+- **Default-zero assets:** with no embeddings asset the bots run on the baked
+  curated association table (and `randomSpymaster` remains as the zero-semantics
+  driver), so CI and fresh clones run with no downloads; embedding backends are
+  opt-in via a configured path or auto-detected download.
 
 ---
 

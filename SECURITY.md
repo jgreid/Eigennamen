@@ -76,7 +76,7 @@ We aim to acknowledge reports within 48 hours and provide an initial assessment 
 
 ### Infrastructure
 - Non-root Docker container execution with dropped capabilities (`cap_drop: ALL`)
-- Pinned Docker base image (`node:22.14-alpine3.21`)
+- Pinned Docker base image (`node:24-alpine3.21`, guarded by a CI major-version check)
 - Redis password required in docker-compose
 - Graceful shutdown with client notification
 - CI/CD: npm audit, Trivy vulnerability scanning, CodeQL analysis
