@@ -76,7 +76,7 @@ const arg = (flag, def) => {
 const inPath = arg("--in", null);
 if (!inPath) {
   console.error(
-    "Usage: node scripts/build-board-vectors.mjs --in <model.vec[.gz]> [--out <path>] [--breadth N]",
+    "Usage: node scripts/build-board-vectors.mjs --in <model.vec[.gz]> [--out <path>] [--breadth N] [--freq <ref.vec[.gz]>] [--freq-top N] [--wide N]",
   );
   process.exit(2);
 }

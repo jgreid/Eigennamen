@@ -35,7 +35,7 @@ kill_timeout = 15
   # without semantics (spelling similarity only, one humble guess). Baking a
   # word-vectors model gives bots real semantic guessing and strong GENERATED
   # clues; the server auto-detects the baked file at /app/embeddings/vectors.vec
-  # (no env var needed). The bake downloads ~600 MB at image build time (Fly's
+  # (no env var needed). The bake downloads ~350 MB at image build time (Fly's
   # remote builder; cached in the layer until scripts/ changes) and distils it
   # to compact board-restricted vectors. It needs the 2 GB VM configured below.
   # If the bake or file is ever missing/unusable the server safely falls back

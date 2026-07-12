@@ -62,6 +62,17 @@ export function buildClickerView(game: GameState, seat: Player, team: 'red' | 'b
     for (let i = 0; i < ownTypes.length; i++) {
         if (ownTypes[i] === team && !game.revealed[i]) ownRemaining++;
     }
+    // Opponent-remaining count for the late-game pressure override — the same
+    // PUBLIC scoreboard information as ownRemaining, from the other side.
+    // Undefined in duet (co-op: there is no opponent).
+    let oppRemaining: number | undefined;
+    if (mode !== 'duet') {
+        const opponent = team === 'red' ? 'blue' : 'red';
+        oppRemaining = 0;
+        for (let i = 0; i < game.types.length; i++) {
+            if (game.types[i] === opponent && !game.revealed[i]) oppRemaining++;
+        }
+    }
     return {
         role: 'clicker',
         team,
@@ -74,6 +85,7 @@ export function buildClickerView(game: GameState, seat: Player, team: 'red' | 'b
         guessesUsed: game.guessesUsed ?? 0,
         guessesAllowed: game.guessesAllowed ?? 0,
         ownRemaining,
+        oppRemaining,
     };
 }
 

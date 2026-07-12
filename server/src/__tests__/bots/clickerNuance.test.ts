@@ -377,12 +377,30 @@ describe('2.11 endgame stretch discipline (lesson 11 — the guesser-side berth 
             kind: 'reveal',
             index: 0,
         });
-        expect(makeGreedyClicker(s, weakBlurred).chooseGuess(midClue(2), ctx(s))).toEqual({ kind: 'endTurn' });
+        // ownRemaining 3 with 2 grant left: endgame discipline applies but the
+        // clue can NOT finish the board, so the pressure override stays out of
+        // the way. (ownRemaining 2 here is WIN IN REACH — the grant covers
+        // everything left — and is deliberately pressed instead; see below.)
+        expect(makeGreedyClicker(s, weakBlurred).chooseGuess(midClue(3), ctx(s))).toEqual({ kind: 'endTurn' });
+    });
+
+    it('presses the same weak, blurred field when the grant covers every remaining card (win in reach)', () => {
+        // Identical board and scores as the banked case above — the ONLY
+        // difference is ownRemaining 2 vs 3: with 2 cards left and 2 promised
+        // guesses remaining, banking is the play that loses the game
+        // (live-play finding), so the caution gate yields to the argmax read.
+        const s = skill();
+        expect(makeGreedyClicker(s, weakBlurred).chooseGuess(midClue(2), ctx(s))).toEqual({
+            kind: 'reveal',
+            index: 0,
+        });
     });
 
     it('still takes a strong, clear read in the endgame', () => {
+        // ownRemaining 3 keeps this on the discipline path (not pressure), so
+        // it proves the STRONG read itself clears the stretch gate.
         const s = skill();
-        expect(makeGreedyClicker(s, strongClear).chooseGuess(midClue(2), ctx(s))).toEqual({
+        expect(makeGreedyClicker(s, strongClear).chooseGuess(midClue(3), ctx(s))).toEqual({
             kind: 'reveal',
             index: 0,
         });

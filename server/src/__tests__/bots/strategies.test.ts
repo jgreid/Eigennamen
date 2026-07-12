@@ -251,6 +251,74 @@ describe('temperature sampling (scale-invariant, confidence-scaled)', () => {
     });
 });
 
+describe('late-game pressure override (banking would hand the game away)', () => {
+    // A deliberately WEAK, BLURRED field: without pressure, the confidence
+    // floor (riskAversion 0.8 → 0.16 > 0.12) and the endgame stretch gate both
+    // bank the turn after the first guess. Pressure must take the argmax read.
+    const weakScores = { ALPHA: 0.12, BETA: 0.1, GAMMA: 0.02, DELTA: 0.02 };
+    function fixedBackend(scores: Record<string, number>, signal = true) {
+        return {
+            id: 'fixed',
+            relatedness: (_clue: string, word: string) => scores[word.toUpperCase()] ?? 0,
+            hasSignal: () => signal,
+        };
+    }
+    const skill = { temperature: 0, blunderRate: 0, riskAversion: 0.8, seed: 1 };
+    const kctx = (): BotContext => ({ gameMode: 'classic', skill, rng: makeRng(1) });
+    function pressView(overrides: Partial<BotClickerView>): BotClickerView {
+        return clickerView({
+            words: ['ALPHA', 'BETA', 'GAMMA', 'DELTA'],
+            revealed: [false, false, false, false],
+            types: [null, null, null, null],
+            currentClue: { word: 'CLUE', number: 2, team: 'red' },
+            guessesUsed: 1,
+            guessesAllowed: 3,
+            ...overrides,
+        });
+    }
+
+    it('control: with no pressure, the weak blurred field banks the turn (discipline intact)', () => {
+        const view = pressView({ ownRemaining: 3, oppRemaining: 3 });
+        const action = makeGreedyClicker(skill, fixedBackend(weakScores)).chooseGuess(view, kctx());
+        expect(action.kind).toBe('endTurn');
+    });
+
+    it('WIN IN REACH: clue for 2, one own card left inside the grant → must guess', () => {
+        // The live-play complaint: "clue for 2 with 2 words left, guessing only
+        // 1 is basically throwing the game."
+        const view = pressView({ ownRemaining: 1, oppRemaining: 3 });
+        const action = makeGreedyClicker(skill, fixedBackend(weakScores)).chooseGuess(view, kctx());
+        expect(action).toEqual({ kind: 'reveal', index: 0 }); // argmax, not a sample
+    });
+
+    it('OPPONENT AT MATCH POINT: one opponent card left → must guess even far from winning', () => {
+        const view = pressView({ ownRemaining: 4, oppRemaining: 1 });
+        const action = makeGreedyClicker(skill, fixedBackend(weakScores)).chooseGuess(view, kctx());
+        expect(action).toEqual({ kind: 'reveal', index: 0 });
+    });
+
+    it('presses the number+1 bonus guess to take the winning card (no aggression required)', () => {
+        // Grant exhausted (used == number) but the engine allows one more, and
+        // taking our single remaining card wins — the old bonus floors
+        // (aggression-gated, 0.6+ absolute) banked here unconditionally.
+        const view = pressView({ ownRemaining: 1, oppRemaining: 3, guessesUsed: 2 });
+        const action = makeGreedyClicker(skill, fixedBackend(weakScores)).chooseGuess(view, kctx());
+        expect(action).toEqual({ kind: 'reveal', index: 0 });
+    });
+
+    it('presses even UNINFORMED: a least-bad read beats banking a lost position', () => {
+        const view = pressView({ ownRemaining: 1, oppRemaining: 3 });
+        const action = makeGreedyClicker(skill, fixedBackend(weakScores, false)).chooseGuess(view, kctx());
+        expect(action.kind).toBe('reveal');
+    });
+
+    it('duet is exempt: no opponent, normal discipline holds', () => {
+        const view = pressView({ gameMode: 'duet', ownRemaining: 1, oppRemaining: undefined });
+        const action = makeGreedyClicker(skill, fixedBackend(weakScores)).chooseGuess(view, kctx());
+        expect(action.kind).toBe('endTurn');
+    });
+});
+
 describe('skill preset ladder (5 monotonic rungs)', () => {
     it('is ordered weakest→strongest with a monotonic knob gradient', () => {
         expect([...SKILL_PRESETS]).toEqual(['novice', 'beginner', 'intermediate', 'advanced', 'expert']);

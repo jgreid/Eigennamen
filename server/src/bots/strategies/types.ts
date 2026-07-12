@@ -174,6 +174,12 @@ export interface BotClickerView {
      *  discipline (ledger 2.11 / lesson 11). Optional: absent (older fixtures,
      *  synthetic views) means "unknown", and no endgame tightening applies. */
     readonly ownRemaining?: number;
+    /** Opponent cards still unrevealed — the same PUBLIC scoreboard information
+     *  as ownRemaining, from the other side. Drives the late-game pressure
+     *  override (banking a granted guess while the opponent sits at match point
+     *  hands them the game). Absent in duet (no opponent) and in older
+     *  fixtures/synthetic views, where no pressure applies. */
+    readonly oppRemaining?: number;
 }
 
 /** One variant per legal move; maps 1:1 to a game action. */

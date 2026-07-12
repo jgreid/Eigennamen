@@ -17,6 +17,7 @@ import { guessRetrieval, defaultSemanticBackend } from '../semantics/backend';
 import { referenceSignal } from '../semantics/properAssociations';
 import { frameContextFromView, resolveClueFrame, FRAME_DOUBT_FLOOR } from './clueFrame';
 import { normalizeClueWord } from '../../shared/gameRules';
+import { TEMPERATURE_CONFIDENCE_REF } from './clickers';
 
 export interface GuessSuggestion {
     /** Board index of the suggested card. */
@@ -67,13 +68,19 @@ interface Scored {
     score: number;
 }
 
-/** Sample `k` distinct items by softmax over score, hottest-first-ish. */
+/** Sample `k` distinct items by softmax over score, hottest-first-ish.
+ *  Scale-invariant and confidence-scaled exactly like the clicker's
+ *  selectIndexByTemperature (see the rationale there): raw absolute-delta
+ *  weights go near-uniform on a compressed vector-score scale, which here
+ *  meant a weak suggestion could displace the advisor's best read from the
+ *  human's list. Callers guarantee temperature > 0 and positive scores. */
 function sampleWithoutReplacement(items: Scored[], k: number, temperature: number, rng: SeededRng): Scored[] {
     const pool = [...items];
     const picks: Scored[] = [];
     while (picks.length < k && pool.length > 0) {
         const maxScore = pool.reduce((m, p) => (p.score > m ? p.score : m), -Infinity);
-        const weights = pool.map((p) => Math.exp((p.score - maxScore) / temperature));
+        const t = temperature * Math.min(1, maxScore / TEMPERATURE_CONFIDENCE_REF);
+        const weights = pool.map((p) => Math.exp((p.score / maxScore - 1) / t));
         const total = weights.reduce((a, w) => a + w, 0);
         let r = rng.next() * total;
         let idx = pool.length - 1;

@@ -24,7 +24,7 @@
  *
  * Usage (from server/):
  *   npm run bots:eval -- --norms <file> [--distractors 24] [--seed eval]
- *     [--max-cues 4000] [--all-responses]
+ *     [--max-cues 4000]
  */
 import { clueRetrieval, guessRetrieval, lexicalBackend, type SemanticBackend } from '../semantics/backend';
 import { tableBackend } from '../semantics/tableBackend';

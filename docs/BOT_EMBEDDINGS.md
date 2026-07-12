@@ -88,9 +88,10 @@ npm run bots:embeddings                # only prepare the model, don't start the
 
 Knobs (flags win over env): `--model` / `BOT_MODEL` (`glove` default | `fasttext`)
 and `--trim` / `BOT_TRIM` (keep the first N vectors to save disk; default `100000`).
-Only frequency-ordered models are offered here, because the loader keeps the first
-N vectors — for GloVe/fastText that means the most common N words. For ConceptNet
-Numberbatch (alphabetical), use `scripts/fetch-bot-embeddings.sh` instead. The first
+Trimming applies to frequency-ordered models only, because the loader keeps the
+first N vectors — for GloVe/fastText that means the most common N words. For
+ConceptNet Numberbatch (alphabetical), use `--model=numberbatch --board` so the
+distillation (not a first-N cut) selects the words. The first
 download is large (GloVe ~830 MB zip); after that the git-ignored
 `server/src/bots/data/` file is reused with no network access. Run `npm install`
 (or `npm run setup`) first if you haven't installed deps / created `.env`.

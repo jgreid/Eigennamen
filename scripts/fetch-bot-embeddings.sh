@@ -16,9 +16,11 @@
 #               100d vectors file is ~330 MB. No header line.
 #   fasttext    fastText wiki-news 300d 1M — ~600 MB unzipped, richer vocab.
 #   numberbatch ConceptNet Numberbatch English 19.08 — ~300 MB, knowledge-graph.
-#   --trim N    keep only the first N vectors (files are frequency-ordered, so
-#               the top N are the most common words). The loader also caps at
-#               BOT_EMBEDDINGS_MAX_WORDS, so trimming mainly saves disk.
+#   --trim N    keep only the first N vectors. GloVe/fastText are
+#               frequency-ordered (top N = most common words); Numberbatch is
+#               ALPHABETICAL, so trimming it keeps only the early alphabet —
+#               distil it with build-board-vectors.mjs instead. The loader also
+#               caps at BOT_EMBEDDINGS_MAX_WORDS, so trimming mainly saves disk.
 #
 # Models are large and licensed by their authors (GloVe: PDDL/ODC-BY; fastText:
 # CC-BY-SA-3.0; Numberbatch: CC-BY-SA-4.0). Review the license before bundling.

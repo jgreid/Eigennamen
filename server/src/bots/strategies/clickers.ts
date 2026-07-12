@@ -64,7 +64,7 @@ function intendedGuesses(view: BotClickerView): number {
  * On the curated scale (best ≥ REF) both changes are near-no-ops, preserving
  * the tournament tuning the presets were built against.
  */
-const TEMPERATURE_CONFIDENCE_REF = 0.5;
+export const TEMPERATURE_CONFIDENCE_REF = 0.5;
 
 function selectIndexByTemperature(
     scored: { index: number; score: number }[],
@@ -193,6 +193,25 @@ const ENDGAME_STRETCH_CEILING = 0.35;
 const ENDGAME_STRETCH_AGGRESSION_RELIEF = 0.1;
 const ENDGAME_STRETCH_SEPARATION = 0.08;
 const ENDGAME_BONUS_BUMP = 0.15;
+
+// Late-game PRESSURE override (live-play finding): the endgame discipline
+// above tightens stretch guessing to refuse assassin coin-flips — but there
+// are two board states where BANKING a granted guess is itself the losing
+// move, and caution must yield:
+//  - WIN IN REACH: our unrevealed cards all fit inside this clue's remaining
+//    grant. The number is a promise that covers everything we have left
+//    ("clue for 2 with 2 words left") — finishing wins NOW, and banking spends
+//    our last tempo for nothing.
+//  - OPPONENT AT MATCH POINT: with ≤1 opponent card unrevealed, the next
+//    enemy turn almost certainly ends the game, so a banked turn's option
+//    value is ~zero; any plausible own-read strictly dominates it.
+// Pressure bypasses the caution gates (uninformed bank, confidence floor,
+// endgame stretch, relative cliff) and the bonus-guess floors — but the
+// pressed pick is the deterministic ARGMAX (a deliberate stretch, exactly
+// like the bonus guess), never a temperature sample or blunder: pressure
+// means "take your best read", not "gamble louder". Duet is exempt (no
+// opponent; its token economy keeps the normal discipline).
+const PRESSURE_OPP_REMAINING_MAX = 1;
 
 // A guesser only ever reaches for cards that PLAUSIBLY match the clue. Even a
 // noisy/weak one won't pick a card fitting far worse than the best candidate —
@@ -336,6 +355,20 @@ export function makeGreedyClicker(
                 // is the purest stretch there is, in the phase where a miss is
                 // most likely to be lethal rather than merely wasteful.
                 const engineAllows = view.guessesAllowed === 0 || view.guessesUsed < view.guessesAllowed;
+                // Pressure (see PRESSURE_OPP_REMAINING_MAX): the engine still
+                // grants a guess, and either taking our single remaining card
+                // WINS outright or the opponent is at match point — spend it
+                // on the argmax read instead of banking a near-lost position.
+                if (
+                    engineAllows &&
+                    view.gameMode !== 'duet' &&
+                    (view.ownRemaining === 1 ||
+                        (view.oppRemaining !== undefined &&
+                            view.oppRemaining <= PRESSURE_OPP_REMAINING_MAX &&
+                            (view.ownRemaining ?? 1) > 0))
+                ) {
+                    return { kind: 'reveal', index: best.index };
+                }
                 const bonusFloor =
                     BONUS_FLOOR_BASE + BONUS_FLOOR_TIMIDITY * (1 - aggression) + (endgame ? ENDGAME_BONUS_BUMP : 0);
                 if (
@@ -347,6 +380,24 @@ export function makeGreedyClicker(
                     return { kind: 'reveal', index: best.index };
                 }
                 return { kind: 'endTurn' };
+            }
+
+            // Late-game pressure (see PRESSURE_OPP_REMAINING_MAX): while the
+            // clue's grant lasts, a win-in-reach or match-point board takes the
+            // deterministic argmax instead of falling into any caution gate
+            // below — banking here is the play that loses the game.
+            const promised = view.currentClue.number;
+            const pressure =
+                view.gameMode !== 'duet' &&
+                ((view.oppRemaining !== undefined &&
+                    view.oppRemaining <= PRESSURE_OPP_REMAINING_MAX &&
+                    (view.ownRemaining ?? 1) > 0) ||
+                    (promised > 0 &&
+                        view.ownRemaining !== undefined &&
+                        view.ownRemaining > 0 &&
+                        view.ownRemaining <= promised - view.guessesUsed));
+            if (pressure) {
+                return { kind: 'reveal', index: best.index };
             }
 
             // An UNINFORMED decision — the clue means nothing to the backend, so
