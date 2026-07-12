@@ -274,8 +274,6 @@ export interface SocketEventNames {
     PLAYER_ERROR: string;
 
     // Timer events
-    TIMER_START: string;
-    TIMER_TICK: string;
     TIMER_EXPIRED: string;
     TIMER_PAUSE: string;
     TIMER_RESUME: string;

@@ -149,7 +149,10 @@ Deploy to Fly.io for a permanent URL accessible from anywhere. Free for typical 
    ```bash
    fly deploy
    ```
-   Wait 2-3 minutes for the build to complete.
+   Expect roughly 10 minutes for the first build: the default `fly.toml`
+   bakes the bot word-embeddings model (a ~350 MB download that is distilled
+   during the image build, then cached until `scripts/` changes). Later
+   deploys that hit the cache take 2-3 minutes.
 
 5. **Open your game**
    ```bash
@@ -160,11 +163,13 @@ Your game is now live at `https://YOUR-APP-NAME.fly.dev` - share this link with 
 
 ### Costs
 
-Everything runs on free tiers:
-- **App:** Free (includes $5/month credit)
 - **Redis:** Free (Upstash free tier)
-
-**Total: $0/month** for typical usage
+- **App:** the default `fly.toml` enables the wide bot-embeddings tier, which
+  needs the configured 2 GB VM — roughly **a few dollars per month** with one
+  always-on machine (Fly's small monthly credit offsets part of it). To run
+  free-tier instead, set `BOT_EMBEDDINGS_WIDE = "0"` (or comment out the
+  `[build.args]` embeddings lines) in `fly.toml` and drop `[[vm]] memory` to
+  `512mb` — bots then fall back to the offline association table.
 
 ---
 

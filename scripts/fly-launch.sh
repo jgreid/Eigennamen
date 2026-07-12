@@ -18,7 +18,6 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 # Defaults matching fly.toml
 DEFAULT_APP_NAME="eigennamen"
 DEFAULT_REGION="iad"
-DEFAULT_VM_MEMORY="512"
 
 # Colors for output
 RED='\033[0;31m'
@@ -150,21 +149,20 @@ set_secrets() {
         fi
     fi
 
-    # REDIS_URL
+    # REDIS_URL — REQUIRED: fly.toml carries no in-memory fallback, so without
+    # this secret the server refuses to start and the deploy rolls back.
     if echo "$existing_secrets" | grep -q "REDIS_URL"; then
         info "REDIS_URL is already set as a secret"
     else
         echo ""
-        info "REDIS_URL is currently set to 'memory' in fly.toml (in-memory mode)"
-        warn "In-memory mode: data lost on restart, limited to 1 machine"
+        warn "REDIS_URL secret is NOT set — the deploy will fail without it"
         echo "  To provision Redis: fly redis create"
-        read -rp "  Enter Redis URL (or press Enter to keep memory mode): " redis_input
+        read -rp "  Enter Redis URL (rediss://...): " redis_input
         if [ -n "$redis_input" ]; then
             secrets_to_set+=("REDIS_URL=$redis_input")
             success "REDIS_URL will be set"
-            info "Remember to remove REDIS_URL and MEMORY_MODE_ALLOW_FLY from fly.toml [env]"
         else
-            info "Keeping in-memory mode"
+            warn "Skipping REDIS_URL — set it before deploying: fly secrets set REDIS_URL=rediss://..."
         fi
     fi
 
@@ -213,13 +211,10 @@ deploy() {
     fi
     success "Deployment complete!"
 
-    # Scale to 1 machine if using memory mode
-    local env_redis
-    env_redis=$(grep 'REDIS_URL' "$PROJECT_ROOT/fly.toml" 2>/dev/null | grep -v '^#' | head -1 || echo "")
-    if echo "$env_redis" | grep -q 'memory'; then
-        info "Memory mode detected - ensuring exactly 1 machine"
-        fly scale count 1 -a "$app_name" --yes 2>/dev/null || true
-    fi
+    # Per-process coordination state (timers, socket rate limits, bot driver)
+    # still gates scaling past one machine — see docs/HARDENING_PLAN.md Phase 2.
+    info "Ensuring exactly 1 machine (single-instance deployment)"
+    fly scale count 1 -a "$app_name" --yes 2>/dev/null || true
 
     echo ""
     show_status

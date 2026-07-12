@@ -156,7 +156,7 @@ All game state is stored in Redis (or in-memory fallback). There is no relationa
 
 ```
 GET /api/rooms/:code
-    Response: { room, players, game? }
+    Response: { room: { code, status, settings: { teamNames, allowSpectators } }, playerCount }
 
 GET /api/rooms/:code/exists
     Response: { exists: boolean }
@@ -277,6 +277,12 @@ socket.emit('player:setRole', {
     role: "spymaster" // "spymaster", "clicker", "advisor", "observer", or "spectator"
 });
 
+// Set team and role atomically (one broadcast instead of two)
+socket.emit('player:setTeamRole', {
+    team: "red",
+    role: "spymaster"
+});
+
 // Update nickname
 socket.emit('player:setNickname', {
     nickname: "NewName"
@@ -365,7 +371,7 @@ socket.on('game:over', {
     types: [...] // Reveal all card types
 });
 
-// ===== READY CHECK / PAUSE / TYPING =====
+// ===== READY CHECK / PAUSE =====
 
 // Host starts a ready check; each player marks themselves ready. Both push an
 // updated roster to the room via `game:readyStatus`.
@@ -385,9 +391,41 @@ socket.on('game:paused', { by: "session-id" });
 socket.emit('game:resume');
 socket.on('game:resumed', { by: "session-id" });
 
-// Spymaster "is typing a clue" indicator — echoed to the room.
-socket.emit('game:typing');
-socket.on('game:typing', { team: "red", nickname: "Alice" });
+// ===== MATCH MODE (multi-round scoring) =====
+
+// Host advances to the next round after a round ends.
+socket.emit('game:nextRound');
+socket.on('game:roundEnded', {
+    roundResult: { ... },   // the finalized round (winner, bonus, scores)
+    redMatchScore: 9,
+    blueMatchScore: 0,
+    matchRound: 2
+});
+socket.on('game:matchOver', {
+    matchWinner: "red",
+    redMatchScore: 42,
+    blueMatchScore: 17,
+    roundHistory: [ ... ],
+    roundResult: { ... }
+});
+
+// ===== HISTORY / OTHER GAME EVENTS =====
+
+// Abandon the current game (match mode: the round is rolled back scoreless).
+socket.emit('game:abandon');
+
+// Clear the room's stored game history (host only).
+socket.emit('game:clearHistory');
+socket.on('game:historyCleared', { deletedCount: 3 });
+
+// Advisor-bot guess suggestions, sent only to the acting team's members.
+// Advisory only — the bot never reveals a card itself.
+socket.on('game:botSuggestion', {
+    team: "red",
+    clue: { word: "ocean", number: 2 },
+    advisor: { playerId: "16-hex", nickname: "BotAlice" },
+    suggestions: [{ index: 7, confidence: 0.82, reason: "..." }]
+});
 ```
 
 #### Bot Events
@@ -564,10 +602,13 @@ socket.on('room:playerReconnected', {
     nickname: "Alice"
 });
 
-// Host changed (when previous host disconnects)
+// Host changed (when the previous host disconnects, or when a lazy host
+// repair displaces a bot placeholder host in favor of a connected human —
+// the latter carries reason: 'hostRepaired')
 socket.on('room:hostChanged', {
     newHostPlayerId: "16-hex",
-    newHostNickname: "Bob"
+    newHostNickname: "Bob",
+    reason: "hostRepaired" // optional
 });
 ```
 
@@ -578,8 +619,34 @@ socket.on('room:hostChanged', {
 
 // Spectator chat message
 socket.emit('chat:spectator', {
-    text: "Great game!"
+    message: "Great game!"
 });
+
+// ===== SPECTATOR JOIN-REQUEST FLOW =====
+
+// Spectator asks the host to seat them on a team (role must be exactly
+// 'spectator' — an observer has seen the unmasked board and is refused)
+socket.emit('spectator:requestJoin', { team: "red" });
+
+// Host receives the request (sent to the host only)
+socket.on('spectator:joinRequest', {
+    requesterId: "16-hex",
+    requesterNickname: "Spectator1",
+    team: "red",
+    timestamp: 1234567890
+});
+
+// Host approves or denies (host only)
+socket.emit('spectator:approveJoin', {
+    requesterId: "16-hex",
+    approved: true,
+    team: "red" // optional override
+});
+
+// Requester is notified of the outcome (approval seats them as a clicker;
+// the room also gets a player:updated broadcast)
+socket.on('spectator:joinApproved', { team: "red", message: "...", timestamp: 1234567890 });
+socket.on('spectator:joinDenied', { message: "...", timestamp: 1234567890 });
 
 // Kick a player (host only)
 socket.emit('player:kick', {
@@ -588,9 +655,9 @@ socket.emit('player:kick', {
 
 // ===== SERVER → CLIENT =====
 
-// Spectator chat message (broadcast to all)
+// Spectator chat message (broadcast to the room's spectators)
 socket.on('chat:spectatorMessage', {
-    from: { nickname: "Spectator1" },
+    from: { playerId: "16-hex", nickname: "Spectator1", team: null, role: "spectator" },
     text: "Great game!",
     timestamp: 1234567890
 });
@@ -1027,7 +1094,7 @@ RATE_LIMIT_MAX_REQUESTS=100
 
 | Category | Tools | Coverage Target |
 |----------|-------|-----------------|
-| Unit Tests | Jest | 70% |
+| Unit Tests | Jest | Backend: 80% stmts / 75% branches / 85% funcs / 80% lines; Frontend: 70% |
 | Integration Tests | Jest + Supertest | Key flows |
 | WebSocket Tests | socket.io-client | All events |
 | Load Tests | k6 | 1000 concurrent |

@@ -50,9 +50,9 @@ Global thresholds are set lower because infrastructure modules (redis.ts, socket
 
 | Category | Suites | Tests |
 |----------|--------|-------|
-| Jest (backend + frontend) | 179 | 4,494 |
+| Jest (backend + frontend) | 191 | 4,904 |
 | E2E (Playwright) | 16 | — |
-| **Total** | **195** | — |
+| **Total** | **207** | — |
 
 ## Backend Testing (Jest)
 
@@ -261,7 +261,7 @@ describe('gameHandlers', () => {
 
 ### Testing with Real Redis
 
-> **Real-Redis Lua coverage:** a real-Redis Lua integration harness now exists at `server/src/__tests__/integration/luaScripts.test.ts`, which drives the 29 Lua atomic scripts against an embedded Redis (via `REDIS_URL=memory`) and asserts on their actual behavior, not just their source text. This closed HARDENING_PLAN.md P1-9, which has shipped. A blocking `e2e-smoke` CI job gates this integration path so a broken atomic script can no longer pass CI.
+> **Real-Redis Lua coverage:** a real-Redis Lua integration harness now exists at `server/src/__tests__/integration/luaScripts.test.ts`, which drives the 30 Lua atomic scripts against an embedded Redis (via `REDIS_URL=memory`) and asserts on their actual behavior, not just their source text. This closed HARDENING_PLAN.md P1-9, which has shipped. A blocking `e2e-smoke` CI job gates this integration path so a broken atomic script can no longer pass CI.
 
 For integration tests that need real Redis:
 

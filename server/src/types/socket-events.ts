@@ -312,15 +312,6 @@ export interface SpectatorChatReceivedPayload {
 }
 
 /**
- * Timer tick notification
- */
-export interface TimerTickPayload {
-    remaining: number;
-    total: number;
-    paused: boolean;
-}
-
-/**
  * Timer status notification
  */
 export interface TimerStatusPayload {
@@ -409,9 +400,8 @@ export interface ServerToClientEvents {
     'chat:spectatorMessage': (data: SpectatorChatReceivedPayload) => void;
     'chat:error': (data: ErrorResponse) => void;
 
-    // Timer events
+    // Timer events (countdown is client-local — the server never emits per-second ticks)
     'timer:started': (data: TimerStatusPayload) => void;
-    'timer:tick': (data: TimerTickPayload) => void;
     'timer:paused': (data: TimerStatusPayload) => void;
     'timer:resumed': (data: TimerStatusPayload) => void;
     'timer:stopped': () => void;

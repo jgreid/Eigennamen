@@ -9,10 +9,10 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 echo "🚀 Setting up Eigennamen development environment..."
 
-# Check Node.js version
+# Check Node.js version (package.json engines requires >=22; CI tests 22 and 24)
 NODE_VERSION=$(node -v 2>/dev/null | cut -d'v' -f2 | cut -d'.' -f1)
-if [ -z "$NODE_VERSION" ] || [ "$NODE_VERSION" -lt 18 ]; then
-    echo "❌ Node.js 18+ is required. Current version: $(node -v 2>/dev/null || echo 'not installed')"
+if [ -z "$NODE_VERSION" ] || [ "$NODE_VERSION" -lt 22 ]; then
+    echo "❌ Node.js 22+ is required. Current version: $(node -v 2>/dev/null || echo 'not installed')"
     exit 1
 fi
 echo "✓ Node.js version: $(node -v)"
@@ -27,12 +27,13 @@ if [ ! -f .env ]; then
     echo "📝 Creating .env file from template..."
     if [ -f .env.example ]; then
         cp .env.example .env
-        # Generate secure JWT secret
+        # Generate secure JWT secret (replace the whole JWT_SECRET line so this
+        # keeps working if .env.example's placeholder text changes again)
         JWT_SECRET=$(openssl rand -hex 32 2>/dev/null || node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
         if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i '' "s/your-development-secret-key-change-in-production/$JWT_SECRET/" .env
+            sed -i '' "s/^JWT_SECRET=.*/JWT_SECRET=$JWT_SECRET/" .env
         else
-            sed -i "s/your-development-secret-key-change-in-production/$JWT_SECRET/" .env
+            sed -i "s/^JWT_SECRET=.*/JWT_SECRET=$JWT_SECRET/" .env
         fi
         echo "✓ Generated secure JWT_SECRET"
     else

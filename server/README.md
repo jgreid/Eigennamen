@@ -228,10 +228,10 @@ Once the server is running:
 
 To verify everything is working correctly:
 ```bash
-npm test              # Run all tests (133 suites, 0 failures)
+npm test              # Run all tests (191 suites, 0 failures)
 npm run test:coverage # Run tests with coverage report
 npm run test:frontend # Run frontend unit tests (Jest + jsdom)
-npm run test:e2e      # Run E2E tests (13 Playwright specs)
+npm run test:e2e      # Run E2E tests (16 Playwright specs)
 ```
 
 ## Configuration
@@ -300,14 +300,14 @@ server/
 │   │   └── room/         # Room sub-module (membership)
 │   ├── socket/           # Socket.io setup
 │   │   └── handlers/     # Event-specific handlers (9 files)
-│   ├── frontend/         # Frontend TypeScript source (55 modules)
+│   ├── frontend/         # Frontend TypeScript source (65 modules)
 │   ├── shared/           # Shared code between frontend and backend
 │   ├── types/            # TypeScript type definitions
 │   ├── utils/            # Utilities (metrics, logging, locks, etc.)
 │   ├── validators/       # Zod validation schemas
-│   ├── scripts/          # Redis Lua scripts (27 atomic operations)
-│   └── __tests__/        # Jest tests (133 suites)
-├── e2e/                  # Playwright E2E tests (13 specs)
+│   ├── scripts/          # Redis Lua scripts (30 atomic operations)
+│   └── __tests__/        # Jest tests (191 suites)
+├── e2e/                  # Playwright E2E tests (16 specs)
 ├── Dockerfile
 └── package.json
 ```

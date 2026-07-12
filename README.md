@@ -8,7 +8,7 @@ A web-based implementation of the popular board game Eigennamen, optimized for r
 
 - **Standalone or multiplayer** — Works offline with URL-based state or with real-time server
 - **Three game modes** — Classic, Duet (cooperative 2-player), Match (competitive multi-round scoring)
-- **AI bot opponents** — Host-managed bots fill spymaster/clicker seats, from random play to a semantic spymaster (offline association table or optional word embeddings)
+- **AI bot opponents** — Host-managed bots fill spymaster, clicker, and advisor seats across a five-rung difficulty ladder and six playstyle personae. The semantic spymaster/guesser runs on an offline association table or optional word embeddings (including a wide tier that understands rare "word-nerd" clues), speaks the clue-capitalization house rule, supports custom lists via prepared semantic maps, and can optionally consult Claude (`BOT_LLM_MODEL`) with deterministic safety verification
 - **Real-time multiplayer** — Synchronized game state via Socket.io with reconnection support
 - **URL-based game sharing** — All game state encoded in the URL for easy sharing
 - **Custom word lists** — Use your own themed word lists (with optional database persistence)
@@ -291,6 +291,8 @@ Works in all modern browsers:
 | [docs/BACKUP_AND_DR.md](docs/BACKUP_AND_DR.md) | Backup strategy and disaster recovery |
 | [docs/INTELLIGENT_BOTS_SPEC.md](docs/INTELLIGENT_BOTS_SPEC.md) | AI bot design spec (engine, strategies, semantics) |
 | [docs/BOT_EMBEDDINGS.md](docs/BOT_EMBEDDINGS.md) | Optional word-embedding backend for bots |
+| [docs/BOT_SEMANTIC_MAPS.md](docs/BOT_SEMANTIC_MAPS.md) | Prepared semantic maps for full-strength bots on custom word lists |
+| [docs/BOT_LLM.md](docs/BOT_LLM.md) | Opt-in LLM-backed bot advice (Claude proposes, machinery verifies) |
 | [server/README.md](server/README.md) | Server setup and configuration |
 
 ## License

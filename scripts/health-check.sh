@@ -34,7 +34,9 @@ else
     echo "❌ Readiness check failed (HTTP $READY_STATUS)"
 fi
 
-# Detailed metrics
+# Detailed metrics — NOTE: in production /health/metrics requires Basic auth
+# (ADMIN_PASSWORD), so this section degrades gracefully there; it works
+# unauthenticated against local/dev servers.
 echo ""
 echo "📊 Detailed Metrics:"
 if curl -sf "$URL/health/metrics" > /dev/null 2>&1; then
