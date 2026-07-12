@@ -6,9 +6,12 @@ services:
       dockerfile: server/Dockerfile
       args:
         # Optional smart-bot embeddings. Default empty = unchanged build. To enable:
-        #   BOT_EMBEDDINGS_MODEL=glove BOT_EMBEDDINGS_PATH=/app/embeddings/vectors.vec docker compose up -d --build
+        #   BOT_EMBEDDINGS_MODEL=numberbatch docker compose up -d --build
+        # (the baked file is auto-detected at runtime). BOT_EMBEDDINGS_WIDE adds the
+        # wide comprehension tier — pair it with a BOT_EMBEDDINGS_MAX_WORDS raise and
+        # enough container memory (see fly.toml's notes; ~550 MB RSS at load).
         BOT_EMBEDDINGS_MODEL: ${BOT_EMBEDDINGS_MODEL:-}
-        BOT_EMBEDDINGS_TRIM: ${BOT_EMBEDDINGS_TRIM:-100000}
+        BOT_EMBEDDINGS_WIDE: ${BOT_EMBEDDINGS_WIDE:-0}
     ports:
       - "3000:3000"
     deploy:

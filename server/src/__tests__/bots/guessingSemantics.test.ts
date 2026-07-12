@@ -290,3 +290,28 @@ describe('embeddings auto-detection', () => {
         }
     });
 });
+
+describe('advisor sampling is scale-invariant (compressed vector scores)', () => {
+    // Compressed-scale field (vector-backend regime): the best read at 0.30,
+    // alternatives at 0.10-0.14. The old absolute-delta softmax went near-flat
+    // here, so a sampled advisor could push its BEST suggestion off the list a
+    // human sees. With the shared confidence-scaled weighting, the top read
+    // survives sampling essentially always.
+    const compressed: SemanticBackend = {
+        id: 'compressed',
+        relatedness: (_a, b) =>
+            b === 'BEST' ? 0.3 : b === 'OKAY' ? 0.14 : b === 'MEH' ? 0.12 : b === 'ALSO' ? 0.11 : 0.1,
+        hasSignal: () => true,
+    };
+    it('keeps the top suggestion in the sampled list at advisor temperature', () => {
+        const words = ['BEST', 'OKAY', 'MEH', 'ALSO', 'MORE'];
+        const s = skill({ temperature: 0.42 });
+        let included = 0;
+        const runs = 200;
+        for (let seed = 1; seed <= runs; seed++) {
+            const out = suggestGuesses(clickerView(words, 'CLUE', 3), compressed, 3, s, makeRng(seed));
+            if (out.some((g) => g.index === 0)) included++;
+        }
+        expect(included / runs).toBeGreaterThan(0.9);
+    });
+});

@@ -112,18 +112,19 @@ const FREQ_REF = {
 // the WIDE comprehension tier is requested: the tail must be ordered by real
 // attestation rank far beyond the 50k common region, so a word-nerd clue
 // (SIDEREAL, FUMAROLE, INGOT) gets a vector while unattested junk tokens never
-// enter. Same source, same license, same "word count" line format; `top` still
-// bounds only the breadth/generation region.
+// enter. Same source, same license, same "word count" line format. The
+// breadth/generation region cap always comes from FREQ_REF.top — this deep
+// reference contributes only its LENGTH (tail attestation ranks).
 const FREQ_REF_WIDE = {
   url: "https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/en/en_full.txt",
   out: "en_full.txt",
-  top: 40000,
 };
 
 // Default word budget for the wide comprehension tier (--wide with no value /
-// BOT_WIDE=1). Sized so the full artifact (~880 board words + 40k breadth +
-// the tail) stays comfortably inside the production 1 GB VM alongside the
-// server itself; see docs/BOT_EMBEDDINGS.md "Wide comprehension tier".
+// BOT_WIDE=1). Covers the full attested Numberbatch∩reference intersection
+// (~102k tail words) with headroom; the resulting ~140k-vector artifact needs
+// ~550 MB RSS at load, which is why the production VM is sized to 2 GB — see
+// docs/BOT_EMBEDDINGS.md "Wide comprehension tier" and fly.toml.
 const DEFAULT_WIDE = 110000;
 
 function parseArgs(argv) {
@@ -138,7 +139,7 @@ function parseArgs(argv) {
     run: true,
   };
   for (const arg of argv) {
-    if (arg === "--no-run" || arg === "--setup-only") opts.run = false;
+    if (arg === "--no-run") opts.run = false;
     else if (arg === "--board") opts.board = true;
     else if (arg === "--wide") opts.wide = DEFAULT_WIDE;
     else if (arg.startsWith("--wide="))
@@ -378,9 +379,6 @@ async function ensureModel(model, trim) {
   if (!spec) {
     console.error(
       `Unknown model: ${model}. Supported here: ${Object.keys(MODELS).join(", ")}.`,
-    );
-    console.error(
-      "For ConceptNet Numberbatch, use scripts/fetch-bot-embeddings.sh (see docs/BOT_EMBEDDINGS.md).",
     );
     process.exit(2);
   }

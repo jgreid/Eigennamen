@@ -234,9 +234,10 @@ export async function leaveRoom(code: string, sessionId: string): Promise<LeaveR
     // Previously removePlayer was called first, which deleted the old host's data and caused
     // atomicHostTransfer to always fail with OLD_HOST_NOT_FOUND, falling back to non-atomic path.
     // Uses distributed lock to prevent race with disconnectHandler's host transfer.
-    // Prefer a connected human successor; never hand host to a bot (N3). If only
-    // bots remain, firstPlayer is null and we skip the transfer — the room is torn
-    // down below anyway (no humans remain).
+    // Prefer a human successor via the shared ladder (N3). A connected BOT is
+    // the ladder's deliberate last resort — a placeholder that keeps the room
+    // resolvable until the bots-only teardown below (or ensureRoomHasHost's
+    // displacement when a human returns) settles it.
     const firstPlayer = selectHostSuccessor(remainingPlayers);
     if (room.hostSessionId === sessionId && firstPlayer) {
         const lockKey = `lock:host-transfer:${code}`;

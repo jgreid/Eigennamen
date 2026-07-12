@@ -695,7 +695,7 @@ function pickBestEffort(
 // imported at the top and used at generateClueCandidates' legality choke point
 // below. Re-export here so existing importers of these symbols from this module
 // keep working.
-export { makeBoardSafetyCheck, isClueBoardSafe };
+export { isClueBoardSafe };
 
 // Candidate-generation breadth. A broad set drawn near the whole own-card
 // centroid surfaces clues that cover many own cards; per-card neighbours surface

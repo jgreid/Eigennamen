@@ -64,7 +64,7 @@ function intendedGuesses(view: BotClickerView): number {
  * On the curated scale (best ≥ REF) both changes are near-no-ops, preserving
  * the tournament tuning the presets were built against.
  */
-const TEMPERATURE_CONFIDENCE_REF = 0.5;
+export const TEMPERATURE_CONFIDENCE_REF = 0.5;
 
 function selectIndexByTemperature(
     scored: { index: number; score: number }[],

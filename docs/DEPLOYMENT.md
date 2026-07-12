@@ -129,11 +129,14 @@ fly deploy
 
 The embedding-backed ("Smart") bots are **enabled by default** in the repo's
 `fly.toml`: `[build.args] BOT_EMBEDDINGS_MODEL = "numberbatch"` bakes the vectors
-at image build time, the server auto-detects the baked file at
-`/app/embeddings/vectors.vec` (no env var needed), and the `[[vm]]` block is
-sized to 1 GB for it. See [BOT_EMBEDDINGS.md](BOT_EMBEDDINGS.md) for model
-choice and details; comment the build-arg out (and optionally drop the VM to
-512 MB) to deploy without the bake.
+at image build time (including the **wide comprehension tier**,
+`BOT_EMBEDDINGS_WIDE`, so bots understand rare human clues), the server
+auto-detects the baked file at `/app/embeddings/vectors.vec` (no env var
+needed), and the `[[vm]]` block is sized to 2 GB for the ~140k-vector wide
+artifact (~550 MB at load). See [BOT_EMBEDDINGS.md](BOT_EMBEDDINGS.md) for
+model choice and details; set `BOT_EMBEDDINGS_WIDE = "0"` for a narrow build
+that fits a 1 GB VM, or comment the build-args out entirely (and optionally
+drop the VM to 512 MB) to deploy without the bake.
 
 ### Configuration (fly.toml)
 
@@ -179,7 +182,7 @@ start, the deploy fails health checks, and the pipeline auto-rolls back.
   path = "/health/ready"
 
 [[vm]]
-  memory = "1gb"
+  memory = "2gb"
   cpu_kind = "shared"
   cpus = 1
 ```

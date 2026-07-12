@@ -75,19 +75,7 @@ export async function createPlayer(
 ): Promise<Player> {
     const redis: RedisClient = getRedis();
 
-    const now = Date.now();
-    const player: Player = {
-        sessionId,
-        roomCode,
-        nickname,
-        team: null,
-        role: 'spectator',
-        isHost,
-        connected: true,
-        createdAt: now,
-        connectedAt: now,
-        lastSeen: now,
-    };
+    const player: Player = buildPlayerData(sessionId, roomCode, nickname, isHost);
 
     // Save player data
     await withTimeout(

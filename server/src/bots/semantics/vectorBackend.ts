@@ -501,7 +501,6 @@ function buildVectorBackend(loaded: LoadedVectors, opts: Required<VectorBackendO
     };
     /** Candidates scanned between event-loop yields in prewarm() (E4). */
     const PREWARM_CHUNK = 5000;
-    const yieldEventLoop = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
 
     const backend: SemanticBackend = {
         id: 'vectors',
@@ -623,7 +622,7 @@ function buildVectorBackend(loaded: LoadedVectors, opts: Required<VectorBackendO
                     if (score !== null) insertTopK(top, { word: cand, score }, q.k);
                     // Yield the event loop every chunk so a burst of full-vocabulary
                     // scans doesn't monopolise it and stall every other room (E4).
-                    if (++scanned % PREWARM_CHUNK === 0) await yieldEventLoop();
+                    if (++scanned % PREWARM_CHUNK === 0) await yieldToEventLoop();
                 }
                 storeNearest(cacheKey, top);
             }

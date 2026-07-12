@@ -44,10 +44,6 @@ export function isStrategyId(value: string): value is StrategyId {
     return (STRATEGY_IDS as readonly string[]).includes(value);
 }
 
-export function getFactory(strategyId: string): StrategyFactory | undefined {
-    return REGISTRY[strategyId];
-}
-
 /** Human-readable label for a strategy (used in default bot nicknames). */
 export function strategyLabel(strategyId: string): string {
     return REGISTRY[strategyId]?.label ?? 'Bot';
