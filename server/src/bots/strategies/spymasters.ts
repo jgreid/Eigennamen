@@ -27,7 +27,7 @@ import type {
 } from './types';
 import { resolveStyle } from './types';
 import type { EdgeKind, SemanticBackend } from '../semantics/backend';
-import { clueRetrieval, defaultSemanticBackend } from '../semantics/backend';
+import { clueRetrieval, guessRetrieval, defaultSemanticBackend } from '../semantics/backend';
 import { isClueLegalForBoard, normalizeClueWord, CLUE_NUMBER_MAX, ROUND_WIN_BONUS } from '../../shared/gameRules';
 import { makeBoardSafetyCheck, isClueBoardSafe } from './clueSafety';
 
@@ -237,6 +237,23 @@ const OPPONENT_WEIGHT = 0.8;
 // Match mode: bonus per extra point of value the covered own cards carry beyond
 // one-per-card. Zero effect outside match, where every card's value() is 1.
 const VALUE_WEIGHT = 0.3;
+// Redundant re-cluing (live-play finding): a clue that re-covers cards an OWED
+// earlier frame already points at transmits little new information — the
+// clicker keeps previous clues in mind (the clue-debt boost and the engine's
+// number+1 bonus guess exist precisely so owed cards get converted under later
+// clues), so the turn is better spent indicating cards no clue has touched.
+// Each intended card is discounted by up to REDUNDANCY_WEIGHT of its ~1.0 base
+// value, graded by how strongly the strongest owed frame retrieves it
+// (fit / INDICATED_FIT_REF, capped at 1): fresh-target clues win near-ties, a
+// mixed clue (one owed card bridged with fresh cards) keeps most of its value,
+// and a decisively better covered-only clue — the "very good reason" — can
+// still win. Bounced frames are void (their promises transfer nothing, the
+// same rule the clicker's debt boost applies) and delivered frames leave
+// nothing owed, so neither discounts anything. Fit runs on guessRetrieval —
+// the same scale the debt boost reads — so "already indicated" means exactly
+// "the guesser can still retrieve it from the old clue".
+const REDUNDANCY_WEIGHT = 0.6;
+const INDICATED_FIT_REF = 0.5;
 // Hard, persona-independent assassin berth: the weakest intended card must clear
 // the closest assassin by at least this, no matter how reckless the persona.
 // A clue is only as good as its worst plausible misfire, and the worst misfire
@@ -379,6 +396,10 @@ interface ScoreContext {
      *  (guesserMarginScale). 1 = full width (unknown/human/noisy guesser); < 1
      *  narrows it for a known argmax bot guesser that reads a tight clue correctly. */
     marginScale: number;
+    /** [0,1] per own word: how strongly an OWED earlier frame already points the
+     *  guesser at it (see REDUNDANCY_WEIGHT). Absent = no memory / no owed
+     *  frames — the redundancy discount is a no-op. */
+    alreadyIndicated?: (word: string) => number;
 }
 
 /** Highest retrieval of `clue` against any word in `words` (0 if the group is
@@ -575,6 +596,14 @@ export function scoreClue(
     // card is a whole future turn spent on a single-card clue.
     const winBonus = coversAll ? WIN_BONUS : 0;
     const strandPenalty = ctx.strandPenalty(ownScored.slice(intended).map((o) => o.word));
+    // Redundancy: discount intended cards an owed earlier frame already
+    // indicates (see REDUNDANCY_WEIGHT) — prefer transmitting NEW information.
+    let redundancyPenalty = 0;
+    if (ctx.alreadyIndicated) {
+        for (const o of ownScored.slice(0, intended)) {
+            redundancyPenalty += REDUNDANCY_WEIGHT * ctx.alreadyIndicated(o.word);
+        }
+    }
 
     const score =
         intended +
@@ -588,7 +617,8 @@ export function scoreClue(
         valueBonus +
         coverageBonus +
         winBonus -
-        strandPenalty;
+        strandPenalty -
+        redundancyPenalty;
     return { word: clue, leadOwn: intended, coversAll, score, weakestIntended, maxAss, berth };
 }
 
@@ -829,6 +859,21 @@ export function makeEmbeddingSpymaster(
             const legalCandidates = generateClueCandidates(view, groups, backend, proposals).filter(
                 (c) => !burned.has(normalizeClueWord(c))
             );
+            // Redundancy discount inputs (see REDUNDANCY_WEIGHT): cards an OWED
+            // frame (undelivered, unbounced) still points at are already in the
+            // guesser's head — prefer spending this turn on fresh targets.
+            const owedFrames = (ctx.memory?.clues ?? []).filter((c) => !c.bounced && c.taken < c.number);
+            const alreadyIndicated =
+                owedFrames.length === 0
+                    ? undefined
+                    : (word: string): number => {
+                          let best = 0;
+                          for (const f of owedFrames) {
+                              const fit = guessRetrieval(backend, f.word, word);
+                              if (fit > best) best = fit;
+                          }
+                          return Math.min(1, best / INDICATED_FIT_REF);
+                      };
             const style = resolveStyle(skill);
             // Restore the house-rule display case of a generated clue at emit time:
             // nearest() returns normalized (uppercase) keys, so a reference like
@@ -906,6 +951,7 @@ export function makeEmbeddingSpymaster(
                     assassinBerthFloor: berthFloor,
                     strandPenalty,
                     marginScale,
+                    alreadyIndicated,
                 };
                 const scored: ClueEval[] = [];
                 for (const clue of legalCandidates) {
