@@ -58,8 +58,8 @@
  */
 import {
   createReadStream,
+  createWriteStream,
   readFileSync,
-  writeFileSync,
   existsSync,
 } from "node:fs";
 import { createGunzip } from "node:zlib";
@@ -230,7 +230,17 @@ console.log(
 // Breadth selection: with --freq, keep every freq-common token the model has a
 // vector for (capped to `breadth` most-common afterwards); without it, a uniform
 // stride sample across the model's word-like tokens (alphabet-wide, bounded).
-const kept = []; // { u, vec, guaranteed, rank } — rank is freq rank or Infinity
+//
+// MEMORY: each kept row's vector payload is held as a Buffer, NOT a JS string.
+// A ~2.2 KB ASCII vector line costs ~4.4 KB on the V8 heap as a UTF-16 string,
+// and a --wide pass keeps EVERY attested candidate until the final cut —
+// hundreds of thousands of rows. As strings that overflowed the default heap
+// limit on Fly's remote Docker builder (FATAL "Reached heap limit" during the
+// first wide production bake) even though the same build fit easily on a big
+// dev machine. Buffers live off-heap, so the candidate pool costs the heap
+// only its row objects; the output is likewise STREAMED row-by-row below
+// rather than materialised as one giant string.
+const kept = []; // { u, vec: Buffer, guaranteed, rank } — rank is freq rank or Infinity
 const keptWords = new Set();
 let dim = 0;
 let sampleStride = 0;
@@ -272,10 +282,11 @@ await streamRows(inPath, (u, line, sp) => {
   }
   if (take) {
     // Re-emit with the normalized (uppercase, prefix-stripped) token so the
-    // file matches how the runtime loader keys everything.
+    // file matches how the runtime loader keys everything. Buffer, not string
+    // — see the MEMORY note above.
     kept.push({
       u,
-      vec: line.slice(sp + 1).trim(),
+      vec: Buffer.from(line.slice(sp + 1).trim(), "utf8"),
       guaranteed: isGuaranteed,
       rank,
       wideTier,
@@ -322,12 +333,28 @@ if (freqRank) {
 const coveredBoard = [...guaranteed].filter((u) => keptWords.has(u));
 const missing = [...guaranteed].filter((u) => !keptWords.has(u));
 
-const lines = ordered.map((k) => `${k.u} ${k.vec}`);
-const header = `${lines.length} ${dim}\n`;
-writeFileSync(outPath, header + lines.join("\n") + "\n");
+// Stream the output row-by-row: materialising ~140k rows as one joined string
+// costs 3× the file size on the V8 heap in one shot (see the MEMORY note) —
+// exactly what pushed the wide production bake over the builder's heap limit.
+const out = createWriteStream(outPath);
+const writeChunk = (chunk) =>
+  out.write(chunk) || new Promise((res) => out.once("drain", res));
+await writeChunk(`${ordered.length} ${dim}\n`);
+for (const k of ordered) {
+  // eslint-disable-next-line no-await-in-loop -- sequential backpressure-aware stream
+  await writeChunk(`${k.u} `);
+  // eslint-disable-next-line no-await-in-loop
+  await writeChunk(k.vec);
+  // eslint-disable-next-line no-await-in-loop
+  await writeChunk("\n");
+}
+await new Promise((res, rej) => {
+  out.once("error", rej);
+  out.end(res);
+});
 console.log(`Wrote ${outPath}`);
 console.log(
-  `  ${lines.length} vectors (dim ${dim}); board/concept coverage ${coveredBoard.length}/${guaranteed.size}; ` +
+  `  ${ordered.length} vectors (dim ${dim}); board/concept coverage ${coveredBoard.length}/${guaranteed.size}; ` +
     `${breadthRows.length} breadth ${freqRank ? "(freq-ordered → commonness prior ON)" : "(alphabetical → prior OFF)"}` +
     `${wide > 0 ? `; ${wideRows.length} wide comprehension-only tail` : ""}.`,
 );
