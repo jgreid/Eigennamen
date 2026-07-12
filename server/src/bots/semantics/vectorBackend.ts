@@ -391,6 +391,46 @@ function buildVectorBackend(loaded: LoadedVectors, opts: Required<VectorBackendO
 
     // Vector dimensionality (all vectors share it) and the full set of
     // clue-suitable words that HAVE a vector — the search space for nearest().
+    const dim = vecs.size > 0 ? (vecs.values().next().value as Float32Array).length : 0;
+
+    // Multi-word board entries ("ICE CREAM", "SCUBA DIVER") have no direct
+    // vector — .vec tokens are whitespace-delimited, so phrases can't even be
+    // stored under their board form, and the loader skips "_"-joined phrase
+    // rows. Without this they were fully OOV: every clue's pull toward them
+    // fell to the lexical bigram floor, where a spelling coincidence like
+    // justICE→ICE CREAM (Dice ≈ 0.31) outscores GENUINE Numberbatch relatedness
+    // (~0.22) and the spymaster confidently emits junk clues (live-play
+    // finding). The SPEC §20 answer, implemented here: average the phrase's
+    // token vectors (L2-normalised so cosines stay calibrated), using whichever
+    // tokens the model knows. Cached; null = no token had a vector.
+    const phraseVecCache = new Map<string, Float32Array | null>();
+    const getVec = (key: string): Float32Array | undefined => {
+        const direct = vecs.get(key);
+        if (direct) return direct;
+        if (!key.includes(' ') || dim === 0) return undefined;
+        const cached = phraseVecCache.get(key);
+        if (cached !== undefined) return cached ?? undefined;
+        const parts = key.split(/\s+/).filter((p) => p.length > 0);
+        const avg = new Float32Array(dim);
+        let n = 0;
+        for (const part of parts) {
+            const v = vecs.get(part);
+            if (!v) continue;
+            for (let i = 0; i < dim; i++) avg[i] = (avg[i] as number) + (v[i] as number);
+            n++;
+        }
+        let norm = 0;
+        for (let i = 0; i < dim; i++) norm += (avg[i] as number) ** 2;
+        if (n === 0 || norm === 0) {
+            phraseVecCache.set(key, null);
+            return undefined;
+        }
+        const inv = 1 / Math.sqrt(norm);
+        for (let i = 0; i < dim; i++) avg[i] = (avg[i] as number) * inv;
+        phraseVecCache.set(key, avg);
+        return avg;
+    };
+
     // Unlike vocabulary() (capped for a fixed scan), this spans the loaded
     // model so the spymaster can generate clues from its whole vocabulary —
     // EXCEPT the wide bake's comprehension-only tail: on a frequency-ordered
@@ -398,7 +438,6 @@ function buildVectorBackend(loaded: LoadedVectors, opts: Required<VectorBackendO
     // hasSignal) but never offered as clue candidates (see the constant's
     // rationale). Without a frequency prior (ranks === null) there is no tail
     // notion and the whole model remains eligible, as before.
-    const dim = vecs.size > 0 ? (vecs.values().next().value as Float32Array).length : 0;
     const candidateKeys: string[] = [];
     let fileRank = 0;
     for (const key of vecs.keys()) {
@@ -454,7 +493,7 @@ function buildVectorBackend(loaded: LoadedVectors, opts: Required<VectorBackendO
         const centroid = new Float32Array(dim);
         let n = 0;
         for (const key of inputSet) {
-            const v = vecs.get(key);
+            const v = getVec(key);
             if (!v) continue;
             for (let i = 0; i < dim; i++) centroid[i] = (centroid[i] as number) + (v[i] as number);
             n++;
@@ -508,8 +547,8 @@ function buildVectorBackend(loaded: LoadedVectors, opts: Required<VectorBackendO
             const A = normalizeClueWord(a);
             const B = normalizeClueWord(b);
             if (A === B) return 1;
-            const va = vecs.get(A);
-            const vb = vecs.get(B);
+            const va = getVec(A);
+            const vb = getVec(B);
             let cosine: number | null = null;
             if (va && vb) {
                 let dot = 0;
@@ -546,7 +585,7 @@ function buildVectorBackend(loaded: LoadedVectors, opts: Required<VectorBackendO
             // A vector pair is real semantic knowledge; an OOV pair is informed
             // only if the fallback chain (table/maps) has its own signal for it.
             if (normalizeClueWord(a) === normalizeClueWord(b)) return true;
-            if (vecs.has(normalizeClueWord(a)) && vecs.has(normalizeClueWord(b))) return true;
+            if (getVec(normalizeClueWord(a)) !== undefined && getVec(normalizeClueWord(b)) !== undefined) return true;
             return fallback.hasSignal?.(a, b) ?? false;
         },
         vocabulary(): string[] {

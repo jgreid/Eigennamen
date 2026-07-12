@@ -66,6 +66,58 @@ const NEARDUP_MIN_LEN = 6;
 const NEARDUP_PREFIX = 6;
 const NEARDUP_MAX_EDITS = 2;
 
+// Spelling-variant tier — the "red flag" rule. A clue that is the SAME WORD as
+// a board word in a different costume (CREME↔CREAM, GREY↔GRAY,
+// THEATRE↔THEATER, TEETH↔TOOTH) is legal by the substring/stem letter of
+// isClueLegalForBoard but sparks a table argument every time; the official
+// rulebook bans spelling variants outright ("English has three ways to spell
+// gray — you can't use any of them"). The mechanical fingerprint that separates
+// a variant from a genuinely distinct look-alike (PLANT↔PLANE, GLASS↔GRASS,
+// BEACH↔BENCH): variants keep the SAME CONSONANT SKELETON — only vowels change
+// or move — within a tiny edit budget. Distinct words differ in a consonant.
+// Bot-side only: dropping the occasional false positive costs the spymaster one
+// candidate among thousands, and humans keep the looser shared rule (edge cases
+// belong to the table, per the rulebook).
+const VARIANT_MIN_LEN = 4;
+const VARIANT_MAX_EDITS = 2;
+
+/** The word with vowels removed (Y counts as a vowel so GREY/GRAY collapse). */
+function consonantSkeleton(word: string): string {
+    return word.replace(/[AEIOUY]/g, '');
+}
+
+/** Fold one trailing plural -S so CREMES still reads as a variant of CREAM.
+ *  (A single S only: stripping -ES would mangle E-final words — CREMES is
+ *  CREME+S, not CREM+ES.) */
+function foldPlural(word: string): string {
+    if (word.length > 3 && word.endsWith('S')) return word.slice(0, -1);
+    return word;
+}
+
+/** Same word in a different costume, compared plural-folded. Two shapes:
+ *  (1) same length + same first letter + same consonant skeleton + tiny edit
+ *      distance — vowels swapped or moved (CREME/CREAM, GREY/GRAY,
+ *      THEATRE/THEATER, TEETH/TOOTH). Length must match: a vowel INSERTION
+ *      usually makes a different word (PLANT→PLANET), not a variant.
+ *  (2) the British/American -OUR/-OR ending swap (COLOUR/COLOR), the one
+ *      common variant family that DOES change length. */
+function isSpellingVariant(a: string, b: string): boolean {
+    const x = foldPlural(a);
+    const y = foldPlural(b);
+    if (Math.min(x.length, y.length) < VARIANT_MIN_LEN) return false;
+    if (
+        x.length === y.length &&
+        x[0] === y[0] &&
+        consonantSkeleton(x) === consonantSkeleton(y) &&
+        boundedLevenshtein(x, y, VARIANT_MAX_EDITS) <= VARIANT_MAX_EDITS
+    ) {
+        return true;
+    }
+    const ourOr = (p: string, q: string): boolean =>
+        p.endsWith('OUR') && q.endsWith('OR') && p.slice(0, -3) === q.slice(0, -2);
+    return ourOr(x, y) || ourOr(y, x);
+}
+
 /** Only characters ABOVE the ASCII range signal a foreign script. ASCII
  *  punctuation (apostrophe, hyphen, period) inside a legitimate reference clue
  *  like "McDonald's" or "Spider-Man" must pass — it is not a language marker. */
@@ -96,7 +148,22 @@ export function makeBoardSafetyCheck(boardWords: readonly string[]): (clue: stri
             if (isNonAscii(ch)) boardSpecials.add(ch);
         }
     }
-    const foldedBoard = boardWords.map((w) => foldDiacritics(w));
+    // Orthographic comparison targets: each board word as a whole, plus the
+    // tokens (≥3 chars) of multi-word entries — CREME must be tested against
+    // CREAM, not against "ICE CREAM", or the guards below are blind to
+    // compound boards (the same token treatment isClueLegalForBoard applies).
+    const foldedTargets: string[] = [];
+    const seenTargets = new Set<string>();
+    for (const w of boardWords) {
+        const folded = foldDiacritics(w);
+        const parts = folded.includes(' ') ? [folded, ...folded.split(/\s+/).filter((p) => p.length >= 3)] : [folded];
+        for (const t of parts) {
+            if (t.length > 0 && !seenTargets.has(t)) {
+                seenTargets.add(t);
+                foldedTargets.push(t);
+            }
+        }
+    }
     return (clue: string): boolean => {
         const c = normalizeClueWord(clue);
         if (c.length === 0) return false;
@@ -105,12 +172,18 @@ export function makeBoardSafetyCheck(boardWords: readonly string[]): (clue: stri
         for (const ch of c) {
             if (isNonAscii(ch) && !boardSpecials.has(ch)) return false;
         }
-        // (b) Near-duplicate guard on the diacritic-folded forms.
         const cf = foldDiacritics(clue);
-        for (const bf of foldedBoard) {
-            if (Math.min(cf.length, bf.length) < NEARDUP_MIN_LEN) continue;
-            if (sharedPrefixLen(cf, bf) < NEARDUP_PREFIX) continue;
-            if (boundedLevenshtein(cf, bf, NEARDUP_MAX_EDITS) <= NEARDUP_MAX_EDITS) return false;
+        for (const bf of foldedTargets) {
+            // (b) Near-duplicate cognate guard: a LONG word sharing a LONG root.
+            if (
+                Math.min(cf.length, bf.length) >= NEARDUP_MIN_LEN &&
+                sharedPrefixLen(cf, bf) >= NEARDUP_PREFIX &&
+                boundedLevenshtein(cf, bf, NEARDUP_MAX_EDITS) <= NEARDUP_MAX_EDITS
+            ) {
+                return false;
+            }
+            // (c) Spelling-variant guard (the "red flag" rule).
+            if (isSpellingVariant(cf, bf)) return false;
         }
         return true;
     };

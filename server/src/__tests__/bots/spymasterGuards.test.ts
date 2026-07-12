@@ -150,6 +150,37 @@ describe('PROMISE_FLOOR scales to the backend relatedness range', () => {
     });
 });
 
+describe('lexical-floor own pull is damped in target selection (ledger 2.29, spymaster half)', () => {
+    it('never promises a card whose only pull is the lexical bigram floor', () => {
+        // TRAP's 0.5 pull toward LINK carries no semantic provenance (hasSignal
+        // false — a spelling coincidence like justICE→ICE CREAM, whose raw Dice
+        // beats genuine relatedness on a compressed vector scale). The own pull
+        // is a prediction of the guesser, and the guesser damps exactly this —
+        // so the clue must promise only the genuinely-known OWNA. Before the
+        // fix, TRAP's raw 0.5 cleared both the margin and the promise floor and
+        // the spymaster emitted a 2 the clicker could never deliver.
+        // Two opponent cards, so the desperation exemption (opponent at match
+        // point keeps its full number) stays out of the way — as in the
+        // PROMISE_FLOOR tests above.
+        const board = view(['OWNA', 'TRAP', 'OPPO', 'OPPOX', 'NEUT'], ['red', 'red', 'blue', 'blue', 'neutral']);
+        const rel: Record<string, Record<string, number>> = {
+            LINK: { OWNA: 0.9, TRAP: 0.5, OPPO: 0.02, OPPOX: 0.02, NEUT: 0.02 },
+        };
+        const backend: SemanticBackend = {
+            id: 'stub-signal',
+            relatedness: (a: string, b: string) => rel[a]?.[b.toUpperCase()] ?? rel[b]?.[a.toUpperCase()] ?? 0,
+            vocabulary: () => ['LINK'],
+            hasSignal: (a: string, b: string) => {
+                const pair = [a.toUpperCase(), b.toUpperCase()].sort().join('|');
+                return pair !== 'LINK|TRAP'; // this one pull is lexical-floor only
+            },
+        };
+        const skill = base({});
+        const action = makeEmbeddingSpymaster(skill, backend).chooseClue(board, ctx(skill));
+        expect(action).toMatchObject({ kind: 'clue', word: 'LINK', number: 1 });
+    });
+});
+
 describe('guesser-competence margin (the team clicker sizes coverage)', () => {
     // Own OWNA(0.6) and OWNB(0.35) over a cold field whose brightest non-own is a
     // neutral at 0.25 — OWNB clears the field by 0.10. The full (human/unknown-

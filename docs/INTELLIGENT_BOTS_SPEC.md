@@ -595,12 +595,35 @@ turn economy. Tuning history for each lives in
   (`LEXICAL_GUESS_DAMP`) so a spelling coincidence (SUNDIAL→INDIA) never
   outranks a genuine read. A clue with NO semantic signal against any live
   card gets one least-bad guess and then banks the turn; the advisor labels
-  such suggestions spelling-only. The **spymaster's danger halos stay on raw
-  retrieval** — orthographic confusion is a real hazard for a human guesser,
-  so the damp never weakens safety margins.
+  such suggestions spelling-only. The **spymaster's OWN-card pull uses the
+  same damped channel** — the pull is a prediction of what the guesser
+  retrieves, so a provenance-less pull can never make a card an intended
+  target (ledger 2.29: "justice" pulled the then-vectorless ICE CREAM at raw
+  Dice 0.31 and got emitted; the clicker's damp then guaranteed the promised
+  card was never taken). The **danger halos stay on raw retrieval** —
+  orthographic confusion is a real hazard for a human guesser, so the damp
+  never weakens safety margins.
 - **Inflection folding.** The association table folds English inflections
   (ANIMALS→ANIMAL, SWIMMING→SWIM) at lookup, so inflected human clues still
   hit the concepts it knows.
+- **Token-averaged phrase vectors.** Multi-word board entries ("ICE CREAM",
+  "SCUBA DIVER") have no direct vector (.vec tokens are whitespace-delimited),
+  so the vector backend averages the phrase's token vectors (L2-normalised,
+  cached) for relatedness, provenance, and nearest() — the §20 practical note,
+  implemented. Without it a phrase was fully OOV and every pull toward it fell
+  to the lexical floor. Relatedly, `isClueLegalForBoard` applies the
+  compound-word rule to each token of a multi-word entry (≥3 chars), so
+  ICE/ICED/CREAMS — and justICE — are illegal clues for an ICE CREAM board.
+- **Spelling-variant red flag (bot-only).** `isClueBoardSafe` also refuses a
+  clue that is a board word (or a token of one) in a different costume —
+  plural-folded same length + same first letter + same consonant skeleton
+  within 2 edits (CREME/CREAM, GREY/GRAY, THEATRE/THEATER, TEETH/TOOTH), plus
+  the -OUR/-OR ending swap (COLOUR/COLOR). Such clues are legal by the shared
+  substring/stem letter but spark a table argument every time; the bot simply
+  never goes there, while humans keep the looser shared rule (edge cases
+  belong to the table, per the rulebook). Distinct look-alikes stay offered:
+  a variant never changes length, so PLANT survives a PLANET board, and
+  GLASS/GRASS, BEACH/BENCH differ in consonant skeleton.
 - **Core + stretch discipline.** A relative-cliff stop (bank when the next
   card is steep-below the last take, absolutely weak, AND blurred into its
   alternatives) plus an aggression-gated `number+1` bonus guess taken only
@@ -1066,9 +1089,10 @@ embeddings conflate every sense of a token under one vector.
 
 ### Practical notes
 
-- **Multi-word board entries** ("NEW YORK", "Marie Curie") → average token
-  vectors or treat the phrase as a unit; board words may be up to 50 chars
-  (`gameStartSchema`), clue words are single-token ≤ 40.
+- **Multi-word board entries** ("NEW YORK", "Marie Curie") → token vectors are
+  averaged (implemented — `vectorBackend`'s cached, L2-normalised phrase
+  fallback; see §11.2); board words may be up to 50 chars (`gameStartSchema`),
+  clue words are single-token ≤ 40.
 - **Default-zero assets:** with no embeddings asset the bots run on the baked
   curated association table (and `randomSpymaster` remains as the zero-semantics
   driver), so CI and fresh clones run with no downloads; embedding backends are

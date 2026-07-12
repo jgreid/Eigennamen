@@ -407,7 +407,18 @@ async function parseReplay(res: Response): Promise<ReplayData | null> {
 // very-early fetch can 404; retry once after a short beat.
 async function fetchReplay(roomCode: string, gameId: string): Promise<ReplayData | null> {
     const url = `/api/replays/${encodeURIComponent(roomCode)}/${encodeURIComponent(gameId)}`;
-    const opts = { headers: { Accept: 'application/json' } };
+    // The replay route requires X-Session-Id to verify room membership — without
+    // it every fetch 401s and the recap can never open (mirror the A9 share-link
+    // fetch in history-replay.ts).
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+    };
+    const sessionId = getClient()?.player?.sessionId;
+    if (sessionId) {
+        headers['X-Session-Id'] = sessionId;
+    }
+    const opts = { headers };
 
     const first = await fetch(url, opts);
     if (first.ok) return parseReplay(first);

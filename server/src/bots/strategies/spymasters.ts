@@ -467,8 +467,19 @@ export function scoreClue(
     // Keep each own card's word and value alongside its relatedness so the
     // intended set (the top cards by relatedness) can be scored by total value
     // in match mode, and the residual set fed to the cohesion term.
+    //
+    // The OWN pull is a PREDICTION of what the guesser retrieves, so it uses
+    // guessRetrieval — the same damped channel the clicker ranks with: a pull
+    // that is only the lexical bigram floor (hasSignal false) is damped, so a
+    // spelling coincidence can never make a card an intended target (ledger
+    // 2.29's spymaster half — "justice" pulled the vectorless ICE CREAM at
+    // Dice 0.31, above genuine Numberbatch relatedness, and got emitted; the
+    // clicker's damp then guaranteed the promised card was never taken).
+    // Danger halos (maxOpp/maxNeu/maxAss below) stay on RAW retrieval — an
+    // orthographic lookalike is a real hazard for a human guesser, so the damp
+    // must never thin the safety margins.
     const ownScored = groups.own
-        .map((w) => ({ word: w, rel: clueRetrieval(backend, clue, w), value: valueOf(w) }))
+        .map((w) => ({ word: w, rel: guessRetrieval(backend, clue, w), value: valueOf(w) }))
         .sort((a, b) => b.rel - a.rel);
     const own = ownScored.map((o) => o.rel);
     const maxOpp = maxRel(groups.opponent, clue, backend);
@@ -683,9 +694,11 @@ function pickBestEffort(
     const chosenWord = best.word;
 
     // Number: own cards that safely out-rank every dangerous (opponent/assassin)
-    // card by a hair, so the clicker's first guesses land on ours.
+    // card by a hair, so the clicker's first guesses land on ours. The own side
+    // predicts the guesser, so it uses the damped guessRetrieval (danger stays
+    // raw — same asymmetry as the main scorer's ownScored).
     const dangerMax = maxRel(dangerous, chosenWord, backend);
-    const ownAheadOfDanger = groups.own.filter((w) => clueRetrieval(backend, chosenWord, w) > dangerMax).length;
+    const ownAheadOfDanger = groups.own.filter((w) => guessRetrieval(backend, chosenWord, w) > dangerMax).length;
     const number = Math.max(1, Math.min(MAX_CLUE_NUMBER, ownAheadOfDanger));
     return { word: chosenWord, number };
 }

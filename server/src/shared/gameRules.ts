@@ -148,12 +148,25 @@ export function isClueLegalForBoard(clue: string, boardWords: string[]): boolean
     const c = normalizeClueWord(clue);
     if (c.length === 0) return false;
     const cStem = crudeStem(c);
+    const conflicts = (b: string): boolean => {
+        if (c === b || c.includes(b) || b.includes(c)) return true;
+        const bStem = crudeStem(b);
+        return cStem.length >= 3 && cStem === bStem;
+    };
     for (const raw of boardWords) {
         const b = normalizeClueWord(raw);
         if (b.length === 0) continue;
-        if (c === b || c.includes(b) || b.includes(c)) return false;
-        const bStem = crudeStem(b);
-        if (cStem.length >= 3 && cStem === bStem) return false;
+        if (conflicts(b)) return false;
+        // A multi-word entry ("ICE CREAM") also bans clues built on its parts —
+        // the compound-word rule: ICED/CREAMS are forms of ICE/CREAM, and the
+        // whole-string check above can't see that. Each token (≥3 chars, so a
+        // stray article in a custom entry doesn't over-block) gets the same
+        // substring + stem treatment as a standalone board word.
+        if (b.includes(' ')) {
+            for (const part of b.split(/\s+/)) {
+                if (part.length >= 3 && conflicts(part)) return false;
+            }
+        }
     }
     return true;
 }

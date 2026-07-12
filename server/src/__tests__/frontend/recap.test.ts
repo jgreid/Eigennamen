@@ -5,7 +5,7 @@
  * timeline, and the "View Recap" button visibility rule.
  */
 
-const mockClient = { getRoomCode: () => 'ROOM1' };
+const mockClient = { getRoomCode: () => 'ROOM1', player: { sessionId: 'session-abc' } };
 
 jest.mock('../../frontend/ui', () => ({
     openModal: jest.fn(),
@@ -107,6 +107,21 @@ describe('openRecap', () => {
 
         // currentReplayData is populated so the share-link flow can reuse it.
         expect(state.currentReplayData).toEqual(sampleReplay);
+    });
+
+    test('sends the X-Session-Id header the replay route requires for room membership', async () => {
+        (globalThis as Record<string, unknown>).fetch = jest.fn(() =>
+            Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ replay: sampleReplay }) })
+        );
+
+        await openRecap();
+
+        expect(globalThis.fetch).toHaveBeenCalledWith(
+            '/api/replays/ROOM1/g1',
+            expect.objectContaining({
+                headers: expect.objectContaining({ 'X-Session-Id': 'session-abc' }),
+            })
+        );
     });
 
     test('tags each clue block with an efficiency badge reflecting its outcome', async () => {
