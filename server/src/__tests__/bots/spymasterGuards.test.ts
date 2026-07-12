@@ -265,3 +265,109 @@ describe('endgame berth widening (one-way assassin discipline)', () => {
         expect(action).toMatchObject({ kind: 'clue', word: 'SOLO', number: 1 });
     });
 });
+
+describe('no-repeat clue rule (burned frames)', () => {
+    // Two viable clues; LINK strictly outranks PAIR, so temperature-0 selection
+    // takes LINK unless the no-repeat rule burns it.
+    const words = ['OWNA', 'OWNB', 'OPPO', 'OPPOX', 'NEUT'];
+    const types: ('red' | 'blue' | 'neutral' | 'assassin')[] = ['red', 'red', 'blue', 'blue', 'neutral'];
+    const backend = stub({
+        LINK: { OWNA: 0.9, OWNB: 0.8, OPPO: 0.02, NEUT: 0.02 },
+        PAIR: { OWNA: 0.7, OWNB: 0.6, OPPO: 0.02, NEUT: 0.02 },
+    });
+    const skill = base({});
+    const withMemory = (taken: number, bounced: boolean): BotContext => ({
+        ...ctx(skill),
+        memory: { clues: [{ word: 'LINK', number: 2, taken, bounced }] },
+    });
+
+    it('prefers the best clue when no frame burned it', () => {
+        const action = makeEmbeddingSpymaster(skill, backend).chooseClue(view(words, types), ctx(skill));
+        expect(action).toMatchObject({ kind: 'clue', word: 'LINK' });
+    });
+
+    it('never repeats a clue whose frame BOUNCED (a guess under it missed)', () => {
+        const action = makeEmbeddingSpymaster(skill, backend).chooseClue(view(words, types), withMemory(0, true));
+        expect(action).toMatchObject({ kind: 'clue', word: 'PAIR' });
+    });
+
+    it('never repeats a clue whose frame UNDERSHOT (promised more than it delivered)', () => {
+        const action = makeEmbeddingSpymaster(skill, backend).chooseClue(view(words, types), withMemory(1, false));
+        expect(action).toMatchObject({ kind: 'clue', word: 'PAIR' });
+    });
+
+    it('may repeat a clue whose frame FULLY delivered (the "more of the same" tactic)', () => {
+        const action = makeEmbeddingSpymaster(skill, backend).chooseClue(view(words, types), withMemory(2, false));
+        expect(action).toMatchObject({ kind: 'clue', word: 'LINK' });
+    });
+
+    it('a burned candidate pool falls through to a FRESH builtin, not the repeat', () => {
+        // The backend knows only LINK, and LINK's frame failed: the spymaster
+        // must reach into the abstract builtin vocabulary rather than re-give
+        // the word the guesser already failed to read.
+        const only = stub({ LINK: { OWNA: 0.9, OWNB: 0.8, OPPO: 0.02, NEUT: 0.02 } });
+        const action = makeEmbeddingSpymaster(skill, only).chooseClue(view(words, types), withMemory(0, true));
+        expect(action.kind).toBe('clue');
+        if (action.kind === 'clue') expect(action.word).not.toBe('LINK');
+    });
+});
+
+describe('redundancy discount (prefer cluing words no frame has indicated)', () => {
+    // Four own cards. RECLUE re-covers the two cards the owed OLD frame already
+    // points at, and outranks FRESH on raw relatedness — so temperature-0
+    // selection takes RECLUE unless the redundancy discount steers to FRESH.
+    const words = ['OWNA', 'OWNB', 'OWNC', 'OWND', 'OPPO', 'NEUT'];
+    const types: ('red' | 'blue' | 'neutral' | 'assassin')[] = ['red', 'red', 'red', 'red', 'blue', 'neutral'];
+    const backend = stub({
+        OLD: { OWNA: 0.8, OWNB: 0.7, OPPO: 0.02, NEUT: 0.02 },
+        RECLUE: { OWNA: 0.9, OWNB: 0.8, OPPO: 0.02, NEUT: 0.02 },
+        FRESH: { OWNC: 0.8, OWND: 0.7, OPPO: 0.02, NEUT: 0.02 },
+    });
+    const skill = base({});
+    const withFrame = (taken: number, bounced: boolean): BotContext => ({
+        ...ctx(skill),
+        memory: { clues: [{ word: 'OLD', number: 2, taken, bounced }] },
+    });
+
+    it('without memory, the raw-strongest clue wins', () => {
+        const action = makeEmbeddingSpymaster(skill, backend).chooseClue(view(words, types), ctx(skill));
+        expect(action).toMatchObject({ kind: 'clue', word: 'RECLUE' });
+    });
+
+    it('an OWED frame steers the next clue to fresh targets', () => {
+        // OLD 2 promised OWNA/OWNB and delivered neither (banked turn): those
+        // cards are already in the guesser's head, so the turn is better spent
+        // on OWNC/OWND even though RECLUE scores higher raw.
+        const action = makeEmbeddingSpymaster(skill, backend).chooseClue(view(words, types), withFrame(0, false));
+        expect(action).toMatchObject({ kind: 'clue', word: 'FRESH' });
+    });
+
+    it('a BOUNCED frame is void — its targets need fresh cluing, no discount', () => {
+        // A guess under OLD hit a non-own card: the frame burned, its promises
+        // transfer nothing (same rule as the clicker's debt boost), so
+        // re-covering OWNA/OWNB with a NEW word is the right play again.
+        const action = makeEmbeddingSpymaster(skill, backend).chooseClue(view(words, types), withFrame(0, true));
+        expect(action).toMatchObject({ kind: 'clue', word: 'RECLUE' });
+    });
+
+    it('a DELIVERED frame leaves nothing owed — no discount', () => {
+        const action = makeEmbeddingSpymaster(skill, backend).chooseClue(view(words, types), withFrame(2, false));
+        expect(action).toMatchObject({ kind: 'clue', word: 'RECLUE' });
+    });
+
+    it('a decisively better covered-only clue can still win (the "very good reason")', () => {
+        // FRESH is barely viable here (weak margins); RECLUE covers three owed
+        // cards cleanly. The discount is a preference, not a ban — the clearly
+        // superior play survives it.
+        const wideBackend = stub({
+            OLD: { OWNA: 0.8, OWNB: 0.75, OWNC: 0.7, OPPO: 0.02, NEUT: 0.02 },
+            RECLUE: { OWNA: 0.9, OWNB: 0.85, OWNC: 0.8, OPPO: 0.02, NEUT: 0.02 },
+            FRESH: { OWND: 0.25, OPPO: 0.15, NEUT: 0.1 },
+        });
+        const action = makeEmbeddingSpymaster(skill, wideBackend).chooseClue(view(words, types), {
+            ...ctx(skill),
+            memory: { clues: [{ word: 'OLD', number: 3, taken: 0, bounced: false }] },
+        });
+        expect(action).toMatchObject({ kind: 'clue', word: 'RECLUE' });
+    });
+});
