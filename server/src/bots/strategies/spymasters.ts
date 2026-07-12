@@ -23,6 +23,7 @@ import type {
     SkillParams,
     SeededRng,
     StyleParams,
+    BotSeatMemory,
 } from './types';
 import { resolveStyle } from './types';
 import type { EdgeKind, SemanticBackend } from '../semantics/backend';
@@ -779,6 +780,28 @@ function generateClueCandidates(
  * too poorly for any clue to lead safely, it degrades to a board-derived,
  * assassin-safe best-effort clue rather than a constant placeholder.
  */
+/**
+ * Never repeat a clue word the guessers already FAILED to convert (live-play
+ * finding): a frame that bounced (a guess under it hit a non-own card) or
+ * undershot (taken < number) is one the guesser demonstrably could not read —
+ * re-giving the identical word carries zero new information and spends a whole
+ * turn re-asking a question the table already answered. A frame that FULLY
+ * delivered is NOT burned: repeating it for fresh cards ("ANIMALS 2" delivered
+ * → "ANIMALS 2" again for two new animal cards) is the legitimate classic
+ * tactic. This composes with the clicker's clue-debt memory, which explicitly
+ * skips same-word frames — the designed recovery for a missed clue is a
+ * DIFFERENT word whose debt boost still points at the owed target. Matching is
+ * on the normalized clue key. Returns the burned key set (empty without
+ * memory, e.g. duet, where frame outcomes aren't classified).
+ */
+export function burnedClueKeys(memory: BotSeatMemory | undefined): Set<string> {
+    const burned = new Set<string>();
+    for (const c of memory?.clues ?? []) {
+        if (c.bounced || c.taken < c.number) burned.add(normalizeClueWord(c.word));
+    }
+    return burned;
+}
+
 export function makeEmbeddingSpymaster(
     skill: SkillParams,
     backend: SemanticBackend = defaultSemanticBackend
@@ -795,7 +818,17 @@ export function makeEmbeddingSpymaster(
             // pool at the same choke point as generated candidates — they must
             // win the same scoring and safety gates below to be emitted.
             const proposals = (ctx.llm?.clueProposals ?? []).map((p) => p.word);
-            const legalCandidates = generateClueCandidates(view, groups, backend, proposals);
+            // No-repeat rule (burnedClueKeys): filtering the CANDIDATE POOL —
+            // not scoring — means the blunder branch, temperature selection,
+            // and the best-effort fallback all obey it, and LLM proposals face
+            // it too. If it empties the pool, the builtin/abstract fallbacks
+            // below still produce a fresh word, so a burned repeat is only ever
+            // possible from the last-resort constant list (a board with
+            // literally no other legal clue — the "very good reason").
+            const burned = burnedClueKeys(ctx.memory);
+            const legalCandidates = generateClueCandidates(view, groups, backend, proposals).filter(
+                (c) => !burned.has(normalizeClueWord(c))
+            );
             const style = resolveStyle(skill);
             // Restore the house-rule display case of a generated clue at emit time:
             // nearest() returns normalized (uppercase) keys, so a reference like
@@ -911,7 +944,9 @@ export function makeEmbeddingSpymaster(
             // still refuses to make the assassin the clicker's top pick. Try the
             // generated candidates first, then the built-in abstract words, so even
             // a board the backend can't cover at all gets an assassin-safe placeholder.
-            const legalBuiltins = CLUE_VOCAB.filter((w) => isClueLegalForBoard(w, view.words as string[]));
+            const legalBuiltins = CLUE_VOCAB.filter(
+                (w) => isClueLegalForBoard(w, view.words as string[]) && !burned.has(normalizeClueWord(w))
+            );
             const fallback =
                 pickBestEffort(legalCandidates, groups, backend) ?? pickBestEffort(legalBuiltins, groups, backend);
             if (!fallback) {

@@ -265,3 +265,49 @@ describe('endgame berth widening (one-way assassin discipline)', () => {
         expect(action).toMatchObject({ kind: 'clue', word: 'SOLO', number: 1 });
     });
 });
+
+describe('no-repeat clue rule (burned frames)', () => {
+    // Two viable clues; LINK strictly outranks PAIR, so temperature-0 selection
+    // takes LINK unless the no-repeat rule burns it.
+    const words = ['OWNA', 'OWNB', 'OPPO', 'OPPOX', 'NEUT'];
+    const types: ('red' | 'blue' | 'neutral' | 'assassin')[] = ['red', 'red', 'blue', 'blue', 'neutral'];
+    const backend = stub({
+        LINK: { OWNA: 0.9, OWNB: 0.8, OPPO: 0.02, NEUT: 0.02 },
+        PAIR: { OWNA: 0.7, OWNB: 0.6, OPPO: 0.02, NEUT: 0.02 },
+    });
+    const skill = base({});
+    const withMemory = (taken: number, bounced: boolean): BotContext => ({
+        ...ctx(skill),
+        memory: { clues: [{ word: 'LINK', number: 2, taken, bounced }] },
+    });
+
+    it('prefers the best clue when no frame burned it', () => {
+        const action = makeEmbeddingSpymaster(skill, backend).chooseClue(view(words, types), ctx(skill));
+        expect(action).toMatchObject({ kind: 'clue', word: 'LINK' });
+    });
+
+    it('never repeats a clue whose frame BOUNCED (a guess under it missed)', () => {
+        const action = makeEmbeddingSpymaster(skill, backend).chooseClue(view(words, types), withMemory(0, true));
+        expect(action).toMatchObject({ kind: 'clue', word: 'PAIR' });
+    });
+
+    it('never repeats a clue whose frame UNDERSHOT (promised more than it delivered)', () => {
+        const action = makeEmbeddingSpymaster(skill, backend).chooseClue(view(words, types), withMemory(1, false));
+        expect(action).toMatchObject({ kind: 'clue', word: 'PAIR' });
+    });
+
+    it('may repeat a clue whose frame FULLY delivered (the "more of the same" tactic)', () => {
+        const action = makeEmbeddingSpymaster(skill, backend).chooseClue(view(words, types), withMemory(2, false));
+        expect(action).toMatchObject({ kind: 'clue', word: 'LINK' });
+    });
+
+    it('a burned candidate pool falls through to a FRESH builtin, not the repeat', () => {
+        // The backend knows only LINK, and LINK's frame failed: the spymaster
+        // must reach into the abstract builtin vocabulary rather than re-give
+        // the word the guesser already failed to read.
+        const only = stub({ LINK: { OWNA: 0.9, OWNB: 0.8, OPPO: 0.02, NEUT: 0.02 } });
+        const action = makeEmbeddingSpymaster(skill, only).chooseClue(view(words, types), withMemory(0, true));
+        expect(action.kind).toBe('clue');
+        if (action.kind === 'clue') expect(action.word).not.toBe('LINK');
+    });
+});
