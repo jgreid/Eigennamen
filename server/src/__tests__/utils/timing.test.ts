@@ -338,6 +338,72 @@ describe('Timing Middleware', () => {
                 })
             );
         });
+
+        describe('heap-limit-relative thresholds', () => {
+            // The thresholds must scale with the process's real heap limit, not
+            // absolute megabytes: the 512MB-era fixed 300/400MB numbers made the
+            // monitor warn every minute forever once the wide embeddings bake
+            // legitimately held ~356MB on the 2GB VM (live-prod false alarm).
+            const v8 = require('v8');
+            let heapStatsSpy;
+
+            const mockUsage = (heapUsedMB) => {
+                memoryUsageSpy.mockReturnValue({
+                    rss: (heapUsedMB + 200) * 1024 * 1024,
+                    heapTotal: (heapUsedMB + 5) * 1024 * 1024,
+                    heapUsed: heapUsedMB * 1024 * 1024,
+                    external: 174 * 1024 * 1024,
+                    arrayBuffers: 170 * 1024 * 1024,
+                });
+            };
+
+            beforeEach(() => {
+                // A 2GB-VM-class heap limit.
+                heapStatsSpy = jest
+                    .spyOn(v8, 'getHeapStatistics')
+                    .mockReturnValue({ heap_size_limit: 1024 * 1024 * 1024 });
+            });
+
+            afterEach(() => {
+                heapStatsSpy.mockRestore();
+            });
+
+            it('stays quiet at the live-prod level that used to false-alarm (356MB of 1GB limit)', () => {
+                mockUsage(356);
+                startMemoryMonitoring();
+                jest.advanceTimersByTime(60000);
+
+                expect(logger.warn).not.toHaveBeenCalledWith('High memory usage detected', expect.anything());
+                expect(logger.error).not.toHaveBeenCalledWith('Critical memory usage detected', expect.anything());
+                expect(logger.debug).toHaveBeenCalledWith(
+                    'Memory usage',
+                    expect.objectContaining({ heapLimitMB: 1024, heapUsagePercent: 35 })
+                );
+            });
+
+            it('warns above the warning fraction of the limit (800MB of 1GB)', () => {
+                mockUsage(800);
+                startMemoryMonitoring();
+                jest.advanceTimersByTime(60000);
+
+                expect(logger.warn).toHaveBeenCalledWith(
+                    'High memory usage detected',
+                    expect.objectContaining({ heapUsagePercent: 78 })
+                );
+                expect(logger.error).not.toHaveBeenCalledWith('Critical memory usage detected', expect.anything());
+            });
+
+            it('escalates to error above the critical fraction (950MB of 1GB)', () => {
+                mockUsage(950);
+                startMemoryMonitoring();
+                jest.advanceTimersByTime(60000);
+
+                expect(logger.error).toHaveBeenCalledWith(
+                    'Critical memory usage detected',
+                    expect.objectContaining({ heapUsagePercent: 93 })
+                );
+            });
+        });
     });
 
     describe('generateRequestId', () => {
