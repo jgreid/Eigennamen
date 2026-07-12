@@ -74,6 +74,46 @@ describe('isClueBoardSafe', () => {
     });
 });
 
+describe('spelling-variant guard (the "red flag" rule)', () => {
+    // Same word in a different costume: same consonant skeleton, tiny edit
+    // distance. Legal by the substring/stem letter of isClueLegalForBoard, but
+    // a table argument every time — the bot simply never goes there.
+    it('rejects a variant spelling of a board word', () => {
+        expect(isClueBoardSafe('CREME', ['CREAM'])).toBe(false);
+        expect(isClueBoardSafe('GREY', ['GRAY'])).toBe(false);
+        expect(isClueBoardSafe('THEATRE', ['THEATER'])).toBe(false);
+        expect(isClueBoardSafe('TEETH', ['TOOTH'])).toBe(false); // vowel-change plural
+    });
+
+    it('rejects a variant of a TOKEN of a multi-word board entry', () => {
+        expect(isClueBoardSafe('CREME', ['ICE CREAM'])).toBe(false);
+        expect(isClueBoardSafe('CREMES', ['ICE CREAM'])).toBe(false); // plural-folded variant
+    });
+
+    it('catches the British/American -OUR/-OR ending swap', () => {
+        expect(isClueBoardSafe('COLOUR', ['COLOR'])).toBe(false);
+        expect(isClueBoardSafe('FLAVOR', ['FLAVOUR'])).toBe(false);
+    });
+
+    it('keeps genuinely distinct look-alikes (different consonant skeleton)', () => {
+        expect(isClueBoardSafe('GLASS', ['GRASS'])).toBe(true);
+        expect(isClueBoardSafe('BEACH', ['BENCH'])).toBe(true);
+        expect(isClueBoardSafe('CROWN', ['CROWD'])).toBe(true);
+        expect(isClueBoardSafe('PLANE', ['PLANT'])).toBe(true);
+    });
+
+    it('keeps distinct words made by vowel INSERTION (a variant never changes length)', () => {
+        expect(isClueBoardSafe('PLANT', ['PLANET'])).toBe(true);
+        expect(isClueBoardSafe('PLANTS', ['PLANET'])).toBe(true);
+    });
+
+    it('keeps real clues for a multi-word entry', () => {
+        expect(isClueBoardSafe('GELATO', ['ICE CREAM'])).toBe(true);
+        expect(isClueBoardSafe('FROSTING', ['ICE CREAM'])).toBe(true);
+        expect(isClueBoardSafe('SUNDAE', ['ICE CREAM'])).toBe(true);
+    });
+});
+
 describe('generation filters cognate candidates before scoring', () => {
     function view(words: string[], types: ('red' | 'blue' | 'neutral' | 'assassin')[]): BotSpymasterView {
         return {

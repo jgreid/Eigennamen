@@ -614,6 +614,16 @@ turn economy. Tuning history for each lives in
   to the lexical floor. Relatedly, `isClueLegalForBoard` applies the
   compound-word rule to each token of a multi-word entry (≥3 chars), so
   ICE/ICED/CREAMS — and justICE — are illegal clues for an ICE CREAM board.
+- **Spelling-variant red flag (bot-only).** `isClueBoardSafe` also refuses a
+  clue that is a board word (or a token of one) in a different costume —
+  plural-folded same length + same first letter + same consonant skeleton
+  within 2 edits (CREME/CREAM, GREY/GRAY, THEATRE/THEATER, TEETH/TOOTH), plus
+  the -OUR/-OR ending swap (COLOUR/COLOR). Such clues are legal by the shared
+  substring/stem letter but spark a table argument every time; the bot simply
+  never goes there, while humans keep the looser shared rule (edge cases
+  belong to the table, per the rulebook). Distinct look-alikes stay offered:
+  a variant never changes length, so PLANT survives a PLANET board, and
+  GLASS/GRASS, BEACH/BENCH differ in consonant skeleton.
 - **Core + stretch discipline.** A relative-cliff stop (bank when the next
   card is steep-below the last take, absolutely weak, AND blurred into its
   alternatives) plus an aggression-gated `number+1` bonus guess taken only
