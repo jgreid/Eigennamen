@@ -317,6 +317,56 @@ describe('wide comprehension tier (beyond the frequency-trusted head region)', (
     });
 });
 
+describe('multi-word board entries (token-averaged phrase vectors)', () => {
+    // "ICE CREAM" has no direct vector (.vec tokens are whitespace-delimited and
+    // the loader skips "_" phrases), so before the fix it was fully OOV: every
+    // clue's pull toward it fell to the lexical bigram floor, where justICE→
+    // ICE CREAM (Dice ≈ 0.31) outscored genuine Numberbatch relatedness (~0.22)
+    // and got emitted as a clue (live-play finding). The backend now averages
+    // the phrase's token vectors (L2-normalised), so the pair scores a real
+    // cosine and carries real provenance.
+    function phraseBackend(): SemanticBackend {
+        const phrasePath = join(dir, 'phrase.vec');
+        // justice deliberately orthogonal to ice/cream; sundae near them.
+        writeFileSync(
+            phrasePath,
+            ['ice 1 0 0', 'cream 0.8 0.6 0', 'sundae 0.9 0.4 0.1', 'justice 0 0 1', ''].join('\n')
+        );
+        return makeVectorBackend({ path: phrasePath }) as SemanticBackend;
+    }
+
+    it('scores a phrase by the average of its token vectors', () => {
+        const b = phraseBackend();
+        // Real cosine against the averaged vector — high for its own tokens' area…
+        expect(b.relatedness('sundae', 'ICE CREAM')).toBeGreaterThan(0.7);
+        // …and near-zero for the orthogonal spelling lookalike: far BELOW its
+        // lexical Dice (~0.31), which is what the OOV fallback used to return.
+        expect(b.relatedness('justice', 'ICE CREAM')).toBeLessThan(0.1);
+    });
+
+    it('gives phrase pairs real provenance (hasSignal true → no guess damp, no lexical floor)', () => {
+        const b = phraseBackend();
+        expect(b.hasSignal!('justice', 'ICE CREAM')).toBe(true);
+        expect(b.hasSignal!('sundae', 'ICE CREAM')).toBe(true);
+    });
+
+    it('generates nearest() candidates for a phrase input', () => {
+        const b = phraseBackend();
+        const near = b.nearest!(['ICE CREAM'], 3);
+        expect(near.length).toBeGreaterThan(0);
+        const words = near.map((n) => n.word);
+        expect(words).toContain('SUNDAE'); // the semantically-close candidate
+        expect(words).not.toContain('ICE CREAM'); // never the input itself
+    });
+
+    it('falls back to the OOV chain when no token has a vector', () => {
+        const b = phraseBackend();
+        expect(b.hasSignal!('nessie', 'LOCH NESS')).toBe(false); // neither token known
+        // Fallback chain (table → lexical) still supplies a score.
+        expect(b.relatedness('nessie', 'LOCH NESS')).toBeGreaterThan(0);
+    });
+});
+
 describe('proper-noun case signal through the vector backend', () => {
     it('a mixed-case reference clue takes the curated proper reading when it is stronger', () => {
         // WONKA has no vector, and even if it did, embeddings conflate senses —

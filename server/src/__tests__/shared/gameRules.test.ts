@@ -7,9 +7,34 @@
 import {
     isValidClueWordShape,
     isValidClueNumberShape,
+    isClueLegalForBoard,
     CLUE_WORD_MAX_LENGTH,
     CLUE_NUMBER_MAX,
 } from '../../shared/gameRules';
+
+describe('isClueLegalForBoard — multi-word board entries (compound-word rule)', () => {
+    const board = ['ICE CREAM', 'APPLE', 'MOON'];
+
+    it('bans the parts of a multi-word entry and their forms', () => {
+        expect(isClueLegalForBoard('ICE', board)).toBe(false); // a part itself
+        expect(isClueLegalForBoard('CREAM', board)).toBe(false);
+        expect(isClueLegalForBoard('ICED', board)).toBe(false); // contains ICE
+        expect(isClueLegalForBoard('CREAMS', board)).toBe(false); // contains CREAM
+        expect(isClueLegalForBoard('JUSTICE', board)).toBe(false); // contains ICE (justICE — the live-play junk clue)
+    });
+
+    it('keeps genuinely distinct words legal', () => {
+        expect(isClueLegalForBoard('FROSTING', board)).toBe(true);
+        expect(isClueLegalForBoard('CREME', board)).toBe(true); // distinct word, not a form of CREAM
+        expect(isClueLegalForBoard('DESSERT', board)).toBe(true);
+    });
+
+    it('leaves single-word board entries under the existing whole-string rule', () => {
+        expect(isClueLegalForBoard('APPLES', board)).toBe(false); // contains APPLE
+        expect(isClueLegalForBoard('HONEYMOON', board)).toBe(false); // contains MOON
+        expect(isClueLegalForBoard('ORCHARD', board)).toBe(true);
+    });
+});
 
 describe('isValidClueWordShape', () => {
     it('accepts a normal single word', () => {
