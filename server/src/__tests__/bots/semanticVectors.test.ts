@@ -317,6 +317,29 @@ describe('wide comprehension tier (beyond the frequency-trusted head region)', (
     });
 });
 
+describe('clue-token blocklist (foreign function-word corpus leaks)', () => {
+    // Subtitle-derived "English" frequency references carry foreign lines, so
+    // words like UND/DER/VOUS land inside the trusted head and read as common
+    // English to the rank prior — an adversarial round caught "UND 1" emitted
+    // via the best-effort fallback. Generation must skip them; comprehension
+    // (relatedness) still reads them.
+    it('never offers a blocklisted token as a clue candidate', () => {
+        const leakPath = join(dir, 'leak.vec');
+        writeFileSync(leakPath, ['water 1 0 0', 'und 0.9 0.1 0', 'ocean 0.8 0.2 0', 'vous 0.7 0.3 0', ''].join('\n'));
+        const b = makeVectorBackend({ path: leakPath }) as SemanticBackend;
+        const vocab = (b.vocabulary?.() ?? []).map((w) => w.toUpperCase());
+        expect(vocab).not.toContain('UND');
+        expect(vocab).not.toContain('VOUS');
+        expect(vocab).toContain('OCEAN');
+        // nearest() (the generation path) never surfaces them either…
+        const near = b.nearest!(['WATER'], 3).map((n) => n.word);
+        expect(near).not.toContain('UND');
+        expect(near).not.toContain('VOUS');
+        // …but comprehension still reads the token fine.
+        expect(b.relatedness('und', 'water')).toBeGreaterThan(0.5);
+    });
+});
+
 describe('multi-word board entries (token-averaged phrase vectors)', () => {
     // "ICE CREAM" has no direct vector (.vec tokens are whitespace-delimited and
     // the loader skips "_" phrases), so before the fix it was fully OOV: every
