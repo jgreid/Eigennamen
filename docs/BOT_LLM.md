@@ -13,6 +13,13 @@ guarantee stays enforced by code, not by the model.
 ANTHROPIC_API_KEY=sk-ant-...        # standard Anthropic SDK credential chain
 BOT_LLM_MODEL=claude-sonnet-5       # naming a model turns the layer on
 # BOT_LLM_TIMEOUT_MS=8000           # per-call budget (default 8000, min 1000)
+
+# Per-seat overrides (fall back to BOT_LLM_MODEL; the value 'off' disables a
+# seat). Clue proposals are quality-sensitive; guess scoring runs on every bot
+# guess and is latency-sensitive — the classic split is sonnet clues + haiku
+# guesses:
+# BOT_LLM_MODEL_SPYMASTER=claude-sonnet-5
+# BOT_LLM_MODEL_CLICKER=claude-haiku-4-5
 ```
 
 Unset `BOT_LLM_MODEL` (or remove the key) to turn it off. Nothing else changes:
@@ -49,6 +56,16 @@ A decision sends ~400–600 input tokens and returns ~100–300; a busy game mak
 20–40 calls. That is roughly **$0.10–0.20 per game on Sonnet 5** (~3× less on
 Haiku, ~2× more on Opus) — game pace, not model choice, dominates the bill.
 
+The two call types have different sweet spots: guess scoring (every bot guess,
+latency player-visible) is an easy task Haiku handles well in ~1–2 s, while
+clue proposals (once per bot turn) reward Sonnet's composition. Mix them with
+the per-seat overrides:
+
+```bash
+BOT_LLM_MODEL_SPYMASTER=claude-sonnet-5
+BOT_LLM_MODEL_CLICKER=claude-haiku-4-5
+```
+
 ## How it works
 
 The live controller (`bots/botController.ts`) computes advice **asynchronously
@@ -70,8 +87,11 @@ data (`BotContext.llm` — see `bots/llm/llmAdvice.ts`):
   the difficulty ladder keeps meaning.
 
 Every failure mode — no key, timeout, refusal, malformed output — degrades to
-`null` and the bot decides exactly as it does without the layer. LLM advice can
-slow a decision by up to the timeout; it can never stall or break one.
+`null` and the bot decides exactly as it does without the layer. The client
+makes exactly **one attempt per decision** (SDK retries are disabled — the
+default retry policy silently tripled a slow decision's worst case), so LLM
+advice can slow a decision by at most the timeout; it can never stall or break
+one.
 
 ## Cost and latency
 
