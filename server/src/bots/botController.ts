@@ -391,7 +391,7 @@ async function emitAdvisorSuggestions(
     // failure/timeout leaves it undefined and the advisor ranks as before.
     let guessScores: ReadonlyMap<string, number> | undefined;
     if (isLLMAdviceEnabled()) {
-        guessScores = (await rankGuesses(view, llmAdviceConfig())) ?? undefined;
+        guessScores = (await rankGuesses(view, llmAdviceConfig('clicker'))) ?? undefined;
     }
     const suggestions = suggestGuesses(view, getSemanticBackend(), 3, skill, makeRng(seed), {
         ownRemaining,
@@ -569,10 +569,10 @@ export async function tickRoom(roomCode: string): Promise<void> {
             let llm: BotLLMAdvice | undefined;
             if (isLLMAdviceEnabled()) {
                 if (role === 'spymaster') {
-                    const proposals = await proposeClues(buildSpymasterView(game, team), llmAdviceConfig());
+                    const proposals = await proposeClues(buildSpymasterView(game, team), llmAdviceConfig('spymaster'));
                     if (proposals) llm = { clueProposals: proposals };
                 } else {
-                    const scores = await rankGuesses(buildClickerView(game, seat, team), llmAdviceConfig());
+                    const scores = await rankGuesses(buildClickerView(game, seat, team), llmAdviceConfig('clicker'));
                     if (scores) llm = { guessScores: scores };
                 }
             }

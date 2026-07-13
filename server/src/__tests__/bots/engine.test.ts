@@ -80,6 +80,15 @@ describe('engine rule scenarios', () => {
         expect(g.currentTurn).not.toBe(team);
     });
 
+    it('records the unlimited (-1) clue verbatim with the unlimited guess budget', () => {
+        const g = createEngineGame({ seed: 'unlim', gameMode: 'classic' });
+        const team = g.currentTurn;
+        const res = applyEngineClue(g, team, 'SIGNALX', -1);
+        expect(res.number).toBe(-1);
+        expect(res.guessesAllowed).toBe(0); // the unlimited sentinel
+        expect(g.currentClue?.number).toBe(-1);
+    });
+
     it('classic: a clue of N caps guesses at N+1 (maxGuesses ends the turn)', () => {
         const g = createEngineGame({ seed: 'max', gameMode: 'classic' });
         const team = g.currentTurn;
@@ -125,7 +134,7 @@ describe('engine rule scenarios', () => {
 
 describe('applyEngineClue clamps like submitClue.lua (N23)', () => {
     // These pin the engine's clamp to submitClue.lua's constants (CLUE_NUMBER_MAX=9,
-    // nil/negative→0, truncate) — the Lua clamp itself is covered directly by
+    // nil→0, below -1→-1, truncate) — the Lua clamp itself is covered directly by
     // __tests__/integration/luaScripts.test.ts. The parity harness can't drive
     // >9 because gameService.submitClue's Zod shape check rejects it before Lua.
     it('clamps a number above CLUE_NUMBER_MAX to 9 in the clue, history, and guess budget', () => {
@@ -139,12 +148,12 @@ describe('applyEngineClue clamps like submitClue.lua (N23)', () => {
         expect(last).toMatchObject({ action: 'clue', number: 9 });
     });
 
-    it('clamps a negative number to 0 (unlimited guesses)', () => {
+    it('clamps a below-range number to -1 (the unlimited sentinel)', () => {
         const g = createEngineGame({ seed: 'clamp-neg', gameMode: 'classic' });
         const res = applyEngineClue(g, g.currentTurn, 'SIGNALX', -5);
-        expect(res.number).toBe(0);
-        expect(res.guessesAllowed).toBe(0); // 0 = unlimited
-        expect(g.currentClue?.number).toBe(0);
+        expect(res.number).toBe(-1);
+        expect(res.guessesAllowed).toBe(0); // unlimited
+        expect(g.currentClue?.number).toBe(-1);
     });
 
     it('truncates a fractional number toward zero', () => {

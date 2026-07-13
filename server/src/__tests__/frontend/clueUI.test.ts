@@ -26,7 +26,14 @@ function setupDom(): void {
         </div>
         <form id="clue-controls" hidden>
           <input id="clue-word-input" />
-          <input id="clue-number-input" type="number" value="1" />
+          <select id="clue-number-input">
+            <option value="-1">U</option>
+            <option value="0">0</option>
+            <option value="1" selected>1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="9">9</option>
+          </select>
           <button type="submit" id="btn-give-clue">Give</button>
         </form>`;
 }
@@ -48,6 +55,12 @@ describe('updateClueUI', () => {
         expect(document.getElementById('clue-display-word')!.textContent).toBe('FRUIT');
         expect(document.getElementById('clue-display-number')!.textContent).toContain('3');
         expect(display.classList.contains('clue-red')).toBe(true);
+    });
+
+    it('renders the unlimited clue number as U', () => {
+        (state as any).gameState.currentClue = { word: 'OCEAN', number: -1, team: 'blue' };
+        updateClueUI();
+        expect(document.getElementById('clue-display-number')!.textContent).toBe('· U');
     });
 
     it('hides the chip when there is no clue', () => {
@@ -83,10 +96,22 @@ describe('submitClueFromForm', () => {
 
     it('emits game:clue with the word and number and clears the inputs', () => {
         (document.getElementById('clue-word-input') as HTMLInputElement).value = 'fruit';
-        (document.getElementById('clue-number-input') as HTMLInputElement).value = '3';
+        (document.getElementById('clue-number-input') as HTMLSelectElement).value = '3';
         submitClueFromForm();
         expect(EigennamenClient.submitClue).toHaveBeenCalledWith('fruit', 3);
         expect((document.getElementById('clue-word-input') as HTMLInputElement).value).toBe('');
+    });
+
+    it('submits the unlimited (U) selection as -1 and the anti-clue as 0', () => {
+        (document.getElementById('clue-word-input') as HTMLInputElement).value = 'ocean';
+        (document.getElementById('clue-number-input') as HTMLSelectElement).value = '-1';
+        submitClueFromForm();
+        expect(EigennamenClient.submitClue).toHaveBeenCalledWith('ocean', -1);
+
+        (document.getElementById('clue-word-input') as HTMLInputElement).value = 'feathers';
+        (document.getElementById('clue-number-input') as HTMLSelectElement).value = '0';
+        submitClueFromForm();
+        expect(EigennamenClient.submitClue).toHaveBeenCalledWith('feathers', 0);
     });
 
     it('rejects an empty word', () => {

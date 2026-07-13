@@ -8,6 +8,7 @@
 import { state } from './state.js';
 import { t } from './i18n.js';
 import { UI } from './constants.js';
+import { formatClueNumber } from '../shared/index.js';
 
 let initialized = false;
 let logOpen = true;
@@ -61,10 +62,11 @@ export function logClue(team: string, word: string, count: number): void {
 
     li.append(label, document.createTextNode(' '), wordEl);
 
-    if (typeof count === 'number' && count > 0) {
+    // 0 (anti-clue) and -1 (unlimited, shown as U) are meaningful — show them.
+    if (typeof count === 'number' && Number.isFinite(count)) {
         const numEl = document.createElement('span');
         numEl.className = 'gamelog-number';
-        numEl.textContent = `(${count})`;
+        numEl.textContent = `(${formatClueNumber(count)})`;
         li.append(document.createTextNode(' '), numEl);
     }
     append(li);

@@ -73,18 +73,59 @@ beforeEach(() => {
 });
 
 describe('config gates', () => {
-    const prev = process.env.BOT_LLM_MODEL;
+    const VARS = ['BOT_LLM_MODEL', 'BOT_LLM_MODEL_SPYMASTER', 'BOT_LLM_MODEL_CLICKER'] as const;
+    const prev: Record<string, string | undefined> = {};
+    beforeEach(() => {
+        for (const v of VARS) {
+            prev[v] = process.env[v];
+            delete process.env[v];
+        }
+    });
     afterEach(() => {
-        if (prev === undefined) delete process.env.BOT_LLM_MODEL;
-        else process.env.BOT_LLM_MODEL = prev;
+        for (const v of VARS) {
+            if (prev[v] === undefined) delete process.env[v];
+            else process.env[v] = prev[v];
+        }
     });
 
     it('is disabled without BOT_LLM_MODEL and enabled with it', () => {
-        delete process.env.BOT_LLM_MODEL;
         expect(isLLMAdviceEnabled()).toBe(false);
         process.env.BOT_LLM_MODEL = 'claude-sonnet-5';
         expect(isLLMAdviceEnabled()).toBe(true);
         expect(llmAdviceConfig()).toEqual({ model: 'claude-sonnet-5', timeoutMs: 8000 });
+    });
+
+    it('per-seat overrides beat the base model; unset seats fall back', () => {
+        process.env.BOT_LLM_MODEL = 'claude-sonnet-5';
+        process.env.BOT_LLM_MODEL_CLICKER = 'claude-haiku-4-5';
+        expect(llmAdviceConfig('clicker').model).toBe('claude-haiku-4-5');
+        expect(llmAdviceConfig('spymaster').model).toBe('claude-sonnet-5');
+        expect(llmAdviceConfig().model).toBe('claude-sonnet-5');
+    });
+
+    it('a per-seat override alone enables the layer for that seat only', () => {
+        process.env.BOT_LLM_MODEL_CLICKER = 'claude-haiku-4-5';
+        expect(isLLMAdviceEnabled()).toBe(true);
+        expect(llmAdviceConfig('clicker').model).toBe('claude-haiku-4-5');
+        expect(llmAdviceConfig('spymaster').model).toBe('');
+    });
+
+    it("the 'off' sentinel disables a seat, and a disabled seat never calls the API", async () => {
+        process.env.BOT_LLM_MODEL = 'claude-sonnet-5';
+        process.env.BOT_LLM_MODEL_SPYMASTER = 'off';
+        expect(isLLMAdviceEnabled()).toBe(true); // clicker still on
+        const cfg = llmAdviceConfig('spymaster');
+        expect(cfg.model).toBe('');
+        expect(await proposeClues(spymasterView(), cfg)).toBeNull();
+        expect(mockCreate).not.toHaveBeenCalled();
+    });
+
+    it('constructs the SDK client with retries disabled (one attempt per decision)', async () => {
+        const MockAnthropic = jest.requireMock('@anthropic-ai/sdk') as jest.Mock;
+        MockAnthropic.mockClear();
+        mockCreate.mockResolvedValue(reply({ scores: { BEAR: 0.9 } }));
+        await rankGuesses(clickerView('animal', 1), CFG);
+        expect(MockAnthropic).toHaveBeenCalledWith({ maxRetries: 0 });
     });
 });
 
@@ -140,6 +181,16 @@ describe('rankGuesses', () => {
         expect(await rankGuesses(noClue, CFG)).toBeNull();
         mockCreate.mockRejectedValue(new Error('nope'));
         expect(await rankGuesses(clickerView('animal', 2), CFG)).toBeNull();
+    });
+
+    it('omits the count for anti-clue (0) and unlimited (-1) so scores stay pure match-strengths', async () => {
+        mockCreate.mockResolvedValue(reply({ scores: { BEAR: 0.9 } }));
+        await rankGuesses(clickerView('feathers', 0), CFG);
+        await rankGuesses(clickerView('ocean', -1), CFG);
+        for (const call of mockCreate.mock.calls) {
+            const content = (call[0] as { messages: Array<{ content: string }> }).messages[0]!.content;
+            expect(content).not.toMatch(/for (0|-1) card/);
+        }
     });
 });
 

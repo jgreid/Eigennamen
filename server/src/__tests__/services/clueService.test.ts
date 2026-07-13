@@ -150,8 +150,8 @@ describe('gameService.submitClue', () => {
             expect(mockRedis.get).not.toHaveBeenCalled();
         });
 
-        it('rejects a negative clue number', async () => {
-            await expect(submitClue('TEST01', 'red', 'FRUIT', -1, 'Spy')).rejects.toMatchObject({
+        it('rejects a clue number below the unlimited sentinel', async () => {
+            await expect(submitClue('TEST01', 'red', 'FRUIT', -2, 'Spy')).rejects.toMatchObject({
                 code: ERROR_CODES.INVALID_INPUT,
             });
             expect(mockRedis.get).not.toHaveBeenCalled();

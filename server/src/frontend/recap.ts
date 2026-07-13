@@ -13,6 +13,7 @@ import { getClient } from './clientAccessor.js';
 import { copyReplayLink } from './history-replay.js';
 import { openReplay } from './history.js';
 import type { ReplayData, ReplayEvent } from './multiplayerTypes.js';
+import { formatClueNumber } from '../shared/index.js';
 
 interface RecapGuess {
     word: string;
@@ -212,11 +213,15 @@ function renderTimeline(replay: ReplayData): void {
         const header = el('div', 'recap-clue-header');
         header.appendChild(el('span', 'recap-clue-team', teamName(block.team, replay)));
         header.appendChild(el('span', 'recap-clue-word', block.word));
-        header.appendChild(el('span', 'recap-clue-number', `(${block.number})`));
+        header.appendChild(el('span', 'recap-clue-number', `(${formatClueNumber(block.number)})`));
 
         // Efficiency badge: cards landed / promised, colored by outcome.
         const eff = computeClueEfficiency(block);
-        const badge = el('span', `recap-clue-eff recap-clue-eff-${eff.rating}`, `${eff.landed}/${eff.promised}`);
+        const badge = el(
+            'span',
+            `recap-clue-eff recap-clue-eff-${eff.rating}`,
+            `${eff.landed}/${formatClueNumber(eff.promised)}`
+        );
         badge.title = t(`recap.rating.${eff.rating}`);
         badge.setAttribute('aria-label', t(`recap.rating.${eff.rating}`));
         header.appendChild(badge);

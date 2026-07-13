@@ -7,7 +7,7 @@ import { state } from './state.js';
 import { t } from './i18n.js';
 import { showToast } from './ui.js';
 import { isClientConnected } from './clientAccessor.js';
-import { isClueLegalForBoard } from '../shared/index.js';
+import { isClueLegalForBoard, formatClueNumber, CLUE_NUMBER_UNLIMITED, CLUE_NUMBER_MAX } from '../shared/index.js';
 
 /** True when the local player is the current-turn spymaster and no clue is active. */
 function localIsActiveSpymaster(): boolean {
@@ -31,7 +31,8 @@ export function updateClueUI(): void {
     if (display && wordEl && numEl) {
         if (clue && clue.word) {
             wordEl.textContent = clue.word;
-            numEl.textContent = typeof clue.number === 'number' ? `· ${clue.number}` : '';
+            // -1 renders as "U" (unlimited); 0 is the anti-clue and shows as 0.
+            numEl.textContent = typeof clue.number === 'number' ? `· ${formatClueNumber(clue.number)}` : '';
             display.classList.remove('clue-red', 'clue-blue');
             if (clue.team === 'red' || clue.team === 'blue') display.classList.add(`clue-${clue.team}`);
             display.hidden = false;
@@ -48,12 +49,13 @@ export function updateClueUI(): void {
 /** Read the form, validate, and emit game:clue. */
 export function submitClueFromForm(): void {
     const wordInput = document.getElementById('clue-word-input') as HTMLInputElement | null;
-    const numInput = document.getElementById('clue-number-input') as HTMLInputElement | null;
+    const numInput = document.getElementById('clue-number-input') as HTMLSelectElement | null;
     if (!wordInput) return;
 
     const word = wordInput.value.trim();
+    // The selector offers U (-1, unlimited), 0 (anti-clue), and 1–9.
     const parsed = numInput ? parseInt(numInput.value, 10) : 1;
-    const number = Number.isFinite(parsed) ? Math.max(0, Math.min(9, parsed)) : 1;
+    const number = Number.isFinite(parsed) ? Math.max(CLUE_NUMBER_UNLIMITED, Math.min(CLUE_NUMBER_MAX, parsed)) : 1;
 
     if (!word) {
         showToast(t('clue.errorEmpty'), 'warning');

@@ -15,7 +15,7 @@
 import type { GameState, Team, RevealResult, ClueResult, EndTurnResult, GameMode } from '../types';
 
 import { BOARD_SIZE, DUET_BOARD_CONFIG, GAME_HISTORY } from '../config/constants';
-import { DEFAULT_WORDS, CLUE_NUMBER_MAX } from '../shared/gameRules';
+import { DEFAULT_WORDS, CLUE_NUMBER_MAX, CLUE_NUMBER_UNLIMITED } from '../shared/gameRules';
 import { hashString, generateBoardLayout, selectBoardWords, generateCardScores } from '../services/game/boardGenerator';
 import {
     validateCardIndex,
@@ -90,21 +90,24 @@ export function createEngineGame(opts: CreateEngineGameOptions): GameState {
     return game;
 }
 
-/** Codenames clue → guess budget: N grants N+1 guesses; 0 = unlimited. */
+/** Codenames clue → guess budget: N grants N+1 guesses; 0 (anti-clue) and
+ *  -1 (unlimited "U") both map to the guessesAllowed=0 unlimited sentinel. */
 function guessesForClue(n: number): number {
     return n >= 1 ? n + 1 : 0;
 }
 
 /**
- * Clamp a clue number to [0, CLUE_NUMBER_MAX] the exact way submitClue.lua does
- * (nil/negative → 0, above the cap → the cap). gameService.submitClue already
- * rejects out-of-range numbers before Lua runs, so this is the same last-resort
- * defense-in-depth for a direct engine caller (or a future strategy emitting a
- * float or 10+). Kept in lockstep so the parity harness stays green. (N23)
+ * Clamp a clue number to [CLUE_NUMBER_UNLIMITED, CLUE_NUMBER_MAX] the exact way
+ * submitClue.lua does (nil → 0, below -1 → -1, above the cap → the cap).
+ * gameService.submitClue already rejects out-of-range numbers before Lua runs,
+ * so this is the same last-resort defense-in-depth for a direct engine caller
+ * (or a future strategy emitting a float or 10+). Kept in lockstep so the
+ * parity harness stays green. (N23)
  */
 function clampClueNumber(n: number): number {
-    if (!Number.isFinite(n) || n < 0) return 0;
+    if (!Number.isFinite(n)) return 0;
     const truncated = Math.trunc(n);
+    if (truncated < CLUE_NUMBER_UNLIMITED) return CLUE_NUMBER_UNLIMITED;
     return truncated > CLUE_NUMBER_MAX ? CLUE_NUMBER_MAX : truncated;
 }
 

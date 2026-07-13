@@ -32,22 +32,46 @@ export interface LLMAdviceConfig {
     readonly timeoutMs: number;
 }
 
+/** The two seats that consult the LLM. The spymaster composes clue proposals
+ *  (the harder, quality-sensitive task); the clicker/advisor scores the current
+ *  clue against the board (easier and latency-sensitive — it runs on every bot
+ *  guess). BOT_LLM_MODEL_SPYMASTER / BOT_LLM_MODEL_CLICKER let each seat run a
+ *  different model (e.g. sonnet clues + haiku guesses). */
+export type LLMAdviceRole = 'spymaster' | 'clicker';
+
 /** Hard bounds so a runaway response can't flood the candidate pool. */
 const MAX_PROPOSALS = 6;
 const DEFAULT_TIMEOUT_MS = 8000;
 const MAX_TOKENS = 1500;
 
-/** LLM advice is enabled by naming a model; credentials resolve via the
- *  Anthropic SDK's standard chain (ANTHROPIC_API_KEY etc.). */
-export function isLLMAdviceEnabled(): boolean {
-    return Boolean(process.env.BOT_LLM_MODEL?.trim());
+/** Same explicit-disable sentinel BOT_EMBEDDINGS_PATH uses. */
+const OFF_SENTINEL = /^(off|none|0|false|disabled)$/i;
+
+/** The model a seat should use: the per-seat override when set, else the base
+ *  BOT_LLM_MODEL. The 'off' sentinel disables a seat (or, on the base var, the
+ *  whole layer) explicitly. Empty string = this seat gets no LLM advice. */
+function resolveModel(role?: LLMAdviceRole): string {
+    const base = process.env.BOT_LLM_MODEL?.trim() ?? '';
+    const override = role
+        ? (role === 'spymaster' ? process.env.BOT_LLM_MODEL_SPYMASTER : process.env.BOT_LLM_MODEL_CLICKER)?.trim()
+        : undefined;
+    const model = override || base;
+    return OFF_SENTINEL.test(model) ? '' : model;
 }
 
-/** The runtime config, from env. Callers gate on isLLMAdviceEnabled() first. */
-export function llmAdviceConfig(): LLMAdviceConfig {
+/** LLM advice is enabled by naming a model for at least one seat; credentials
+ *  resolve via the Anthropic SDK's standard chain (ANTHROPIC_API_KEY etc.). */
+export function isLLMAdviceEnabled(): boolean {
+    return Boolean(resolveModel('spymaster') || resolveModel('clicker'));
+}
+
+/** The runtime config for a seat, from env. Callers gate on
+ *  isLLMAdviceEnabled() first; a seat disabled by the per-seat sentinel yields
+ *  an empty model and the advice calls no-op to null for it. */
+export function llmAdviceConfig(role?: LLMAdviceRole): LLMAdviceConfig {
     const timeout = Number(process.env.BOT_LLM_TIMEOUT_MS);
     return {
-        model: (process.env.BOT_LLM_MODEL ?? '').trim(),
+        model: resolveModel(role),
         timeoutMs: Number.isFinite(timeout) && timeout >= 1000 ? timeout : DEFAULT_TIMEOUT_MS,
     };
 }
@@ -75,8 +99,13 @@ let client: AnthropicClient | null | undefined;
 function getClient(): AnthropicClient | null {
     if (client !== undefined) return client;
     try {
-        const Anthropic = require('@anthropic-ai/sdk') as new () => AnthropicClient;
-        client = new Anthropic();
+        const Anthropic = require('@anthropic-ai/sdk') as new (opts?: { maxRetries?: number }) => AnthropicClient;
+        // maxRetries: 0 — the SDK default (2) silently retries timeouts/5xx,
+        // stretching one "slow" decision to ~3× the configured timeout (observed
+        // as 26s bot pauses in play). One attempt per decision: the advice
+        // either arrives within BOT_LLM_TIMEOUT_MS or the bot decides without
+        // it, keeping the documented worst case true.
+        client = new Anthropic({ maxRetries: 0 });
     } catch (err) {
         logger.warn('Bot LLM advice disabled: Anthropic SDK/client unavailable', {
             error: err instanceof Error ? err.message : String(err),
@@ -100,8 +129,10 @@ function warnOnce(kind: string, message: string, err?: unknown): void {
     logger.warn(message, err ? { error: err instanceof Error ? err.message : String(err) } : undefined);
 }
 
-/** Call the model with a hard timeout; returns the first text block or null. */
+/** Call the model with a hard timeout; returns the first text block or null.
+ *  A seat with no resolved model (per-seat 'off') skips the call entirely. */
 async function callModel(system: string, user: string, cfg: LLMAdviceConfig): Promise<string | null> {
+    if (!cfg.model) return null;
     const anthropic = getClient();
     if (!anthropic) return null;
     try {
@@ -198,9 +229,13 @@ export async function rankGuesses(view: BotClickerView, cfg: LLMAdviceConfig): P
         if (!view.revealed[i]) unrevealed.push(view.words[i] as string);
     }
     if (unrevealed.length === 0) return null;
+    // For an anti-clue (0) or unlimited (-1) the count is omitted: the scores
+    // must stay pure match-strengths — the clicker's anti-clue mode INVERTS
+    // them into an avoid signal, which breaks if the model discounts matches
+    // because "the clue says none relate".
+    const countLine = view.currentClue.number > 0 ? ` for ${view.currentClue.number} card(s)` : '';
     const user =
-        `Clue: "${view.currentClue.word}" for ${view.currentClue.number} card(s).\n` +
-        `Unrevealed board words:\n${unrevealed.join('\n')}`;
+        `Clue: "${view.currentClue.word}"${countLine}.\n` + `Unrevealed board words:\n${unrevealed.join('\n')}`;
 
     const text = await callModel(CLICKER_SYSTEM, user, cfg);
     if (!text) return null;
