@@ -38,7 +38,7 @@
          the whole app. Freshness is handled instead by the content-hash ?v= cache-bust
          below, which esbuild keeps in sync with the file contents on every build. -->
     <script defer src="/js/socket.io.min.js?v=9336af8f"></script>
-    <script defer src="/js/socket-client.js?v=123676f2"></script>
+    <script defer src="/js/socket-client.js?v=21f16823"></script>
     <link rel="stylesheet" href="/css/variables.css" />
     <link rel="stylesheet" href="/css/layout.css" />
     <link rel="stylesheet" href="/css/components.css" />
@@ -609,16 +609,24 @@
                 spellcheck="false"
                 data-i18n-arialabel="aria.clueWord" aria-label="Clue word"
               />
-              <input
-                type="number"
+              <select
                 class="clue-number-input"
                 id="clue-number-input"
                 data-testid="clue-number-input"
-                min="0"
-                max="9"
-                value="1"
                 data-i18n-arialabel="aria.numberOfCards" aria-label="Number of cards"
-              />
+              >
+                <option value="-1">U</option>
+                <option value="0">0</option>
+                <option value="1" selected>1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+              </select>
               <button
                 type="submit"
                 class="btn-give-clue"
@@ -2015,7 +2023,7 @@
       </div>
     </div>
 
-    <script type="module" src="/js/modules/app.js?v=8cd0920c"></script>
+    <script type="module" src="/js/modules/app.js?v=a65afe48"></script>
     <!-- Fallback: detect if the ES module failed to load + service worker registration -->
     <script src="/js/app-fallback.js"></script>
   </body>

@@ -48,11 +48,17 @@ describe('logClue', () => {
         expect(li.querySelector('.gamelog-number')!.textContent).toBe('(2)');
     });
 
-    test('omits the number element for an unlimited (0) clue', () => {
+    test('shows the anti-clue (0) count — it means "avoid this", not nothing', () => {
         logClue('blue', 'SKY', 0);
         const li = entries().children[0] as HTMLElement;
         expect(li.classList.contains('blue')).toBe(true);
-        expect(li.querySelector('.gamelog-number')).toBeNull();
+        expect(li.querySelector('.gamelog-number')!.textContent).toBe('(0)');
+    });
+
+    test('renders the unlimited (-1) clue as U', () => {
+        logClue('blue', 'SKY', -1);
+        const li = entries().children[0] as HTMLElement;
+        expect(li.querySelector('.gamelog-number')!.textContent).toBe('(U)');
     });
 
     test('ignores an empty clue word', () => {

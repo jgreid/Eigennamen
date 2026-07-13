@@ -117,6 +117,11 @@ export function suggestGuesses(
 ): GuessSuggestion[] {
     const clue = view.currentClue;
     if (!clue) return [];
+    // Anti-clue (number 0): the clue word marks cards to AVOID, so ranking by
+    // fit would recommend exactly the cards the spymaster warned against. The
+    // advisor has no clue-debt memory to suggest leftovers from, so it stays
+    // silent — no advice beats anti-advice.
+    if (clue.number === 0) return [];
 
     // Frame doubt (Phase 4.1, shared with the clicker): when the given
     // reading fits nothing and the case-flipped sense clears the bar, rank

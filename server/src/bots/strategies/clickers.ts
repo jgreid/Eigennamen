@@ -223,6 +223,59 @@ const PRESSURE_OPP_REMAINING_MAX = 1;
 // whose halo genuinely lights the assassin keeps it in play (the spymaster's fault).
 const PLAUSIBLE_FIT_FRAC = 0.5;
 
+// Debt PICKUP (distinct from the debtBoost tie-breaker below): spending a
+// whole guess on a card because it fits an OWED earlier clue — the classic
+// use of the +1 bonus ("DINNER 2 delivered one; take the leftover now") and
+// the whole point of an anti-clue turn. The candidate is scored against the
+// OWED clue itself, on the same guessRetrieval scale as normal guessing, and
+// must fit it like a real target (the DEBT_FIT_BAR the boost already uses)
+// AND stand clear of the next-best debt candidate — the same floor+separation
+// discipline every other reach-guess obeys. Deterministic argmax, no
+// temperature: working the debt is fulfilling a promise, not a stretch, so it
+// is not gated on aggression (timidity still raises the endgame bar via
+// ENDGAME_BONUS_BUMP at the call sites).
+const DEBT_PICKUP_GAP = 0.1;
+
+// Anti-clue avoidance: a card matching the anti-word at or above this level is
+// off-limits for the whole turn, even as a debt pickup — the spymaster said
+// "not this". Set below the genuine-read band (~0.4+) so a real match never
+// slips through, while incidental low-level halo doesn't freeze the board.
+const ANTI_AVOID_BAR = 0.35;
+
+/** The best owed-clue pickup among `candidates`, or null when no card fits an
+ *  owed clue at `floor` with clear separation. `fitOf(word)` = the card's best
+ *  fit across owed (undelivered, unbounced, positive-count) earlier clues. */
+function bestDebtPickup(
+    ctx: BotContext,
+    backend: SemanticBackend,
+    view: BotClickerView,
+    candidates: readonly number[],
+    floor: number
+): { index: number; fit: number } | null {
+    const clues = ctx.memory?.clues;
+    if (!clues || clues.length === 0) return null;
+    const owed = clues.filter((c) => !c.bounced && c.number > 0 && c.taken < c.number);
+    if (owed.length === 0) return null;
+    let best: { index: number; fit: number } | null = null;
+    let second = 0;
+    for (const index of candidates) {
+        const word = view.words[index] as string;
+        let fit = 0;
+        for (const c of owed) {
+            const f = guessRetrieval(backend, c.word, word);
+            if (f > fit) fit = f;
+        }
+        if (!best || fit > best.fit) {
+            second = best?.fit ?? 0;
+            best = { index, fit };
+        } else if (fit > second) {
+            second = fit;
+        }
+    }
+    if (!best || best.fit < floor || best.fit - second < DEBT_PICKUP_GAP) return null;
+    return best;
+}
+
 /** Bonus for a card that fits the strongest owed (undelivered, unbounced)
  *  earlier clue, from the seat's optional memory. 0 without memory. */
 function debtBoost(ctx: BotContext, backend: SemanticBackend, currentClue: string, word: string): number {
@@ -281,6 +334,34 @@ export function makeGreedyClicker(
         chooseGuess(view: BotClickerView, ctx: BotContext): BotAction {
             const choices = unrevealedIndices(view);
             if (choices.length === 0 || !view.currentClue) return { kind: 'endTurn' };
+
+            // Anti-clue (number 0 — the rulebook's "none of our words relate
+            // to this"): the clue word marks cards to AVOID, and the unlimited
+            // guesses exist to work LEFTOVERS from earlier clues. Ranking by
+            // fit — the normal path — would guess exactly the card the
+            // spymaster warned against ("baseball 0" → DIAMOND, observed
+            // live). So: exclude cards that match the anti-word (LLM read when
+            // attached, backend otherwise), then pick up owed-clue debt while
+            // it clears the real-target bar; with nothing owed (or no memory),
+            // bank rather than blind-guess. Deterministic — an anti-clue turn
+            // is bookkeeping, not a read to get noisy about.
+            if (view.currentClue.number === 0) {
+                const antiWord = view.currentClue.word;
+                const llmScores = ctx.llm?.guessScores;
+                const matchStrength = (word: string): number =>
+                    llmScores?.get(normalizeClueWord(word)) ?? guessRetrieval(backend, antiWord, word);
+                const safe = choices.filter((i) => matchStrength(view.words[i] as string) < ANTI_AVOID_BAR);
+                const endgameAnti = view.ownRemaining !== undefined && view.ownRemaining <= ENDGAME_OWN_MAX;
+                const pick = bestDebtPickup(
+                    ctx,
+                    backend,
+                    view,
+                    safe,
+                    DEBT_FIT_BAR + (endgameAnti ? ENDGAME_BONUS_BUMP : 0)
+                );
+                if (pick) return { kind: 'reveal', index: pick.index };
+                return { kind: 'endTurn' };
+            }
 
             // Frame doubt (Phase 4.1): when the given reading of the clue is
             // uniformly weak on this board and the case-flipped sense clears
@@ -378,6 +459,22 @@ export function makeGreedyClicker(
                     best.score - Math.max(second, 0) >= BONUS_FIELD_GAP
                 ) {
                     return { kind: 'reveal', index: best.index };
+                }
+                // Debt pickup — the +1's classic use: nothing leftover fits
+                // THIS clue tightly, but a card still owed by an EARLIER clue
+                // does (scored against that clue, same floor discipline).
+                // Live-play finding: bots almost never spent the bonus on
+                // outstanding promised words, because the ranking above only
+                // ever sees fit-to-the-current-clue (+ the tiny debtBoost).
+                if (engineAllows) {
+                    const pick = bestDebtPickup(
+                        ctx,
+                        backend,
+                        view,
+                        choices,
+                        DEBT_FIT_BAR + (endgame ? ENDGAME_BONUS_BUMP : 0)
+                    );
+                    if (pick) return { kind: 'reveal', index: pick.index };
                 }
                 return { kind: 'endTurn' };
             }

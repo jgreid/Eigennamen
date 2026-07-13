@@ -628,6 +628,22 @@ turn economy. Tuning history for each lives in
   card is steep-below the last take, absolutely weak, AND blurred into its
   alternatives) plus an aggression-gated `number+1` bonus guess taken only
   when the top leftover is tighter than the core. Ledger 2.11.
+- **Debt pickup on the +1** (`bestDebtPickup`, live-play finding). When the
+  aggression bonus doesn't fire, the +1 is offered to OUTSTANDING clues: a
+  card still owed by an earlier (undelivered, unbounced) clue is scored
+  against THAT clue and taken when it fits like a real target
+  (`DEBT_FIT_BAR`, endgame-bumped) and stands clear of the next debt
+  candidate. Deterministic argmax, not aggression-gated — working the debt
+  fulfils a promise, it isn't a stretch. Distinct from the tiny `debtBoost`
+  tie-breaker, which stays capped below the assassin berth.
+- **Anti-clue (0) and unlimited (U/-1) semantics** (rulebook). A `0` clue
+  marks its word as AVOID: the clicker excludes cards matching the anti-word
+  (LLM read when attached, backend otherwise, `ANTI_AVOID_BAR`), works owed
+  leftovers via the same debt-pickup discipline, and banks rather than
+  blind-guess when nothing is owed; the advisor stays silent (no
+  anti-advice). A `U` (-1) clue is a positive clue with no count: normal
+  ranking under the unlimited guess budget, stopped by the ordinary
+  confidence gates. Both map to the engine's `guessesAllowed = 0` sentinel.
 - **Late-game pressure override** (`PRESSURE_OPP_REMAINING_MAX`): when the
   clue's remaining grant covers ALL own unrevealed cards (win in reach) or the
   opponent sits at match point (≤1 card left, so a banked turn's option value

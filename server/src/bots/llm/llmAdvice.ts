@@ -229,9 +229,13 @@ export async function rankGuesses(view: BotClickerView, cfg: LLMAdviceConfig): P
         if (!view.revealed[i]) unrevealed.push(view.words[i] as string);
     }
     if (unrevealed.length === 0) return null;
+    // For an anti-clue (0) or unlimited (-1) the count is omitted: the scores
+    // must stay pure match-strengths — the clicker's anti-clue mode INVERTS
+    // them into an avoid signal, which breaks if the model discounts matches
+    // because "the clue says none relate".
+    const countLine = view.currentClue.number > 0 ? ` for ${view.currentClue.number} card(s)` : '';
     const user =
-        `Clue: "${view.currentClue.word}" for ${view.currentClue.number} card(s).\n` +
-        `Unrevealed board words:\n${unrevealed.join('\n')}`;
+        `Clue: "${view.currentClue.word}"${countLine}.\n` + `Unrevealed board words:\n${unrevealed.join('\n')}`;
 
     const text = await callModel(CLICKER_SYSTEM, user, cfg);
     if (!text) return null;

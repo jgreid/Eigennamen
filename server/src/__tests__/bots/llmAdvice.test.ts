@@ -182,6 +182,16 @@ describe('rankGuesses', () => {
         mockCreate.mockRejectedValue(new Error('nope'));
         expect(await rankGuesses(clickerView('animal', 2), CFG)).toBeNull();
     });
+
+    it('omits the count for anti-clue (0) and unlimited (-1) so scores stay pure match-strengths', async () => {
+        mockCreate.mockResolvedValue(reply({ scores: { BEAR: 0.9 } }));
+        await rankGuesses(clickerView('feathers', 0), CFG);
+        await rankGuesses(clickerView('ocean', -1), CFG);
+        for (const call of mockCreate.mock.calls) {
+            const content = (call[0] as { messages: Array<{ content: string }> }).messages[0]!.content;
+            expect(content).not.toMatch(/for (0|-1) card/);
+        }
+    });
 });
 
 describe('greedy clicker with LLM advice', () => {

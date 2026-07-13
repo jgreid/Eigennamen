@@ -5,6 +5,7 @@ import { t } from './i18n.js';
 import type { ReplayData, ReplayEvent } from './multiplayerTypes.js';
 import { logger } from './logger.js';
 import { getClient } from './clientAccessor.js';
+import { formatClueNumber } from '../shared/index.js';
 
 // Replay speed options (in milliseconds between moves)
 const REPLAY_SPEEDS: Record<string, number> = {
@@ -202,7 +203,10 @@ export function renderReplayEventLog(): void {
                 // Detail fragments were hardcoded English shipped to de/es/fr (N18).
                 detailText = t('history.clueDetail', {
                     word: String(event.data?.word || ''),
-                    number: String(event.data?.number ?? ''),
+                    number:
+                        typeof event.data?.number === 'number'
+                            ? formatClueNumber(event.data.number)
+                            : String(event.data?.number ?? ''),
                 });
                 break;
             case 'reveal':

@@ -307,7 +307,10 @@ socket.emit('game:start', {
     wordList: [] // Optional: 25+ custom words (omit for the default list)
 });
 
-// Give a clue (spymaster of the team whose turn it is only)
+// Give a clue (spymaster of the team whose turn it is only).
+// number: 1-9 ordinary count; 0 = anti-clue ("none of ours relate to this -
+// avoid it"); -1 = unlimited (shown as "U"). Both 0 and -1 grant unlimited
+// guesses (guessesAllowed = 0 sentinel).
 socket.emit('game:clue', {
     word: "ANIMALS",
     number: 3
@@ -872,8 +875,9 @@ const schemas = {
             .transform(removeControlChars)
             .pipe(z.string().min(1).max(40))
             .refine((w) => !/\s/.test(w), 'Clue must be a single word'),
-        // number: integer 0–9 (CLUE_NUMBER_MAX)
-        number: z.number().int().min(0).max(9)
+        // number: integer -1–9 (CLUE_NUMBER_UNLIMITED..CLUE_NUMBER_MAX);
+        // -1 = unlimited ("U"), 0 = anti-clue — both map to unlimited guesses
+        number: z.number().int().min(-1).max(9)
     }),
     // Note: board-word legality (a clue must not reference a word on the board)
     // is enforced in the SERVICE layer (gameService.submitClue), not the schema.

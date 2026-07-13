@@ -437,3 +437,129 @@ describe('2.11 endgame stretch discipline (lesson 11 — the guesser-side berth 
         expect(makeGreedyClicker(s, bonusBackend).chooseGuess(spent(2), ctx(s))).toEqual({ kind: 'endTurn' });
     });
 });
+
+describe('debt PICKUP: the +1 bonus works outstanding clues (live-play finding)', () => {
+    // CURR reaches only TAKEN (already revealed); the earlier, under-delivered
+    // OLDIE clue reaches LEFTOVER at real-target strength. FILLER fits nothing.
+    const map: SemanticMap = {
+        version: 2,
+        words: ['TAKEN', 'LEFTOVER', 'FILLER'],
+        concepts: {
+            CURR: [{ word: 'TAKEN', weight: 0.9 }],
+            OLDIE: [{ word: 'LEFTOVER', weight: 0.8 }],
+        },
+    };
+    const backend = makeCustomMapBackend([map], lexicalBackend);
+    // Clue CURR 1, one guess spent (TAKEN revealed own) — the +1 is live.
+    const spentView = (): BotClickerView => ({
+        ...clickerView(['TAKEN', 'LEFTOVER', 'FILLER'], 'CURR', 1, 1),
+        revealed: [true, false, false],
+        types: ['red', null, null],
+    });
+    const owed = (over: Partial<BotSeatMemory['clues'][number]> = {}): BotSeatMemory => ({
+        clues: [{ word: 'OLDIE', number: 2, taken: 0, bounced: false, ...over }],
+    });
+
+    it('spends the +1 on the owed leftover — scored against the OWED clue, not the current one', () => {
+        const s = skill(); // aggression-less persona: the normal bonus never fires
+        expect(makeGreedyClicker(s, backend).chooseGuess(spentView(), ctx(s, owed()))).toEqual({
+            kind: 'reveal',
+            index: 1,
+        });
+    });
+
+    it('without memory the same position banks (previous behavior preserved)', () => {
+        const s = skill();
+        expect(makeGreedyClicker(s, backend).chooseGuess(spentView(), ctx(s))).toEqual({ kind: 'endTurn' });
+    });
+
+    it('a bounced or delivered frame transfers no pickup', () => {
+        const s = skill();
+        expect(makeGreedyClicker(s, backend).chooseGuess(spentView(), ctx(s, owed({ bounced: true })))).toEqual({
+            kind: 'endTurn',
+        });
+        expect(makeGreedyClicker(s, backend).chooseGuess(spentView(), ctx(s, owed({ taken: 2 })))).toEqual({
+            kind: 'endTurn',
+        });
+    });
+
+    it('a weak owed fit (below the real-target bar) banks instead', () => {
+        const weakMap: SemanticMap = {
+            version: 2,
+            words: ['TAKEN', 'LEFTOVER', 'FILLER'],
+            concepts: {
+                CURR: [{ word: 'TAKEN', weight: 0.9 }],
+                OLDIE: [{ word: 'LEFTOVER', weight: 0.3 }], // under DEBT_FIT_BAR
+            },
+        };
+        const weak = makeCustomMapBackend([weakMap], lexicalBackend);
+        const s = skill();
+        expect(makeGreedyClicker(s, weak).chooseGuess(spentView(), ctx(s, owed()))).toEqual({ kind: 'endTurn' });
+    });
+});
+
+describe('anti-clue (0) and unlimited (U/-1) semantics', () => {
+    // AVOIDME points hard at BADCARD; the earlier OLDIE clue owes LEFTOVER.
+    const map: SemanticMap = {
+        version: 2,
+        words: ['BADCARD', 'LEFTOVER', 'FILLER'],
+        concepts: {
+            AVOIDME: [{ word: 'BADCARD', weight: 0.9 }],
+            OLDIE: [{ word: 'LEFTOVER', weight: 0.8 }],
+        },
+    };
+    const backend = makeCustomMapBackend([map], lexicalBackend);
+    const antiView = (): BotClickerView => ({
+        ...clickerView(['BADCARD', 'LEFTOVER', 'FILLER'], 'AVOIDME', 0),
+        guessesAllowed: 0, // the unlimited sentinel both 0 and -1 map to
+    });
+    const owed = (): BotSeatMemory => ({
+        clues: [{ word: 'OLDIE', number: 2, taken: 0, bounced: false }],
+    });
+
+    it('never guesses the anti-match; works the owed leftover instead', () => {
+        const s = skill();
+        expect(makeGreedyClicker(s, backend).chooseGuess(antiView(), ctx(s, owed()))).toEqual({
+            kind: 'reveal',
+            index: 1,
+        });
+    });
+
+    it('with nothing owed it banks rather than blind-guessing', () => {
+        const s = skill();
+        expect(makeGreedyClicker(s, backend).chooseGuess(antiView(), ctx(s))).toEqual({ kind: 'endTurn' });
+    });
+
+    it('a debt card that also matches the anti-word stays off-limits', () => {
+        const overlap: SemanticMap = {
+            version: 2,
+            words: ['BOTH', 'FILLER'],
+            concepts: {
+                AVOIDME: [{ word: 'BOTH', weight: 0.9 }],
+                OLDIE: [{ word: 'BOTH', weight: 0.8 }],
+            },
+        };
+        const b = makeCustomMapBackend([overlap], lexicalBackend);
+        const v: BotClickerView = {
+            ...clickerView(['BOTH', 'FILLER'], 'AVOIDME', 0),
+            guessesAllowed: 0,
+        };
+        const s = skill();
+        expect(makeGreedyClicker(s, b).chooseGuess(v, ctx(s, owed()))).toEqual({ kind: 'endTurn' });
+    });
+
+    it('the advisor stays silent on an anti-clue (no anti-advice)', () => {
+        const v = antiView();
+        expect(suggestGuesses(v, backend, 3)).toEqual([]);
+    });
+
+    it('an unlimited (U/-1) clue guesses matches positively with no count cap', () => {
+        const uView: BotClickerView = {
+            ...clickerView(['BADCARD', 'LEFTOVER', 'FILLER'], 'AVOIDME', -1),
+            guessesAllowed: 0,
+        };
+        const s = skill();
+        // U is a positive clue: argmax match (BADCARD here) is the right pick.
+        expect(makeGreedyClicker(s, backend).chooseGuess(uView, ctx(s))).toEqual({ kind: 'reveal', index: 0 });
+    });
+});

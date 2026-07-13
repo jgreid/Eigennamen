@@ -54,7 +54,7 @@ async function setupTwoPlayerGame(browser, mode) {
  */
 async function clueThenReveal(spy, clk, index) {
     await spy.locator(sel.clueWordInput).fill('signal');
-    await spy.locator(sel.clueNumberInput).fill('9');
+    await spy.locator(sel.clueNumberInput).selectOption('9');
     await spy.locator(sel.giveClueBtn).click();
     await clk.locator(sel.boardCard).nth(index).click();
 }

@@ -8,8 +8,10 @@ import {
     isValidClueWordShape,
     isValidClueNumberShape,
     isClueLegalForBoard,
+    formatClueNumber,
     CLUE_WORD_MAX_LENGTH,
     CLUE_NUMBER_MAX,
+    CLUE_NUMBER_UNLIMITED,
 } from '../../shared/gameRules';
 
 describe('isClueLegalForBoard — multi-word board entries (compound-word rule)', () => {
@@ -70,18 +72,19 @@ describe('isValidClueWordShape', () => {
 });
 
 describe('isValidClueNumberShape', () => {
-    it('accepts 0 (unlimited guesses convention)', () => {
+    it('accepts 0 (the anti-clue) and -1 (the unlimited "U" sentinel)', () => {
         expect(isValidClueNumberShape(0)).toEqual({ valid: true });
+        expect(isValidClueNumberShape(CLUE_NUMBER_UNLIMITED)).toEqual({ valid: true });
     });
 
     it('accepts a number at exactly CLUE_NUMBER_MAX', () => {
         expect(isValidClueNumberShape(CLUE_NUMBER_MAX)).toEqual({ valid: true });
     });
 
-    it('rejects a negative number', () => {
-        const result = isValidClueNumberShape(-1);
+    it('rejects a number below the unlimited sentinel', () => {
+        const result = isValidClueNumberShape(-2);
         expect(result.valid).toBe(false);
-        expect(result.reason).toMatch(/at least 0/i);
+        expect(result.reason).toMatch(/at least -1/i);
     });
 
     it('rejects a number above CLUE_NUMBER_MAX', () => {
@@ -99,5 +102,13 @@ describe('isValidClueNumberShape', () => {
     it('rejects NaN and Infinity', () => {
         expect(isValidClueNumberShape(NaN).valid).toBe(false);
         expect(isValidClueNumberShape(Infinity).valid).toBe(false);
+    });
+});
+
+describe('formatClueNumber', () => {
+    it('renders the unlimited sentinel as U and everything else as digits', () => {
+        expect(formatClueNumber(CLUE_NUMBER_UNLIMITED)).toBe('U');
+        expect(formatClueNumber(0)).toBe('0');
+        expect(formatClueNumber(3)).toBe('3');
     });
 });

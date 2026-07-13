@@ -6,7 +6,7 @@
 --
 -- KEYS[1]: Game key (e.g., `room:ABC123:game`)
 -- ARGV[1]: Clue word (already sanitized/validated by the caller)
--- ARGV[2]: Clue number (integer >= 0)
+-- ARGV[2]: Clue number (integer >= -1; -1 is the unlimited "U" sentinel, 0 the anti-clue)
 -- ARGV[3]: Spymaster nickname
 -- ARGV[4]: Expected current turn team (race condition guard)
 -- ARGV[5]: Timestamp (ms)
@@ -18,13 +18,10 @@
 local gameKey = KEYS[1]
 local word = ARGV[1]
 local number = tonumber(ARGV[2])
--- Must match CLUE_NUMBER_MAX in shared/gameRules.ts. gameService.submitClue
--- already rejects an out-of-range number before this script ever runs, so
--- this clamp is last-resort defense-in-depth for any future direct caller —
--- consistent with this script's existing nil-guard convention (clamp to a
--- safe value rather than erroring out). See docs/HARDENING_PLAN.md P1-8.
 local CLUE_NUMBER_MAX = 9
-if number == nil or number < 0 then number = 0 end
+local CLUE_NUMBER_UNLIMITED = -1
+if number == nil then number = 0 end
+if number < CLUE_NUMBER_UNLIMITED then number = CLUE_NUMBER_UNLIMITED end
 if number > CLUE_NUMBER_MAX then number = CLUE_NUMBER_MAX end
 local spymaster = ARGV[3]
 local expectedTeam = ARGV[4]
@@ -68,7 +65,8 @@ if game.currentClue and game.currentClue ~= cjson.null then
 end
 
 -- Codenames convention: a clue number of N grants N+1 guesses.
--- A number of 0 means "unlimited" — matching guessesAllowed=0 elsewhere.
+-- 0 (anti-clue) and -1 (unlimited "U") both grant unlimited guesses --
+-- matching the guessesAllowed=0 sentinel elsewhere.
 local guessesAllowed
 if number >= 1 then
     guessesAllowed = number + 1

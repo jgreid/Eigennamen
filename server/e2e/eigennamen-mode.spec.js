@@ -268,7 +268,7 @@ test.describe('Eigennamen Multiplayer Gameplay', () => {
 
             // Host (spymaster) gives a clue so the clicker may reveal.
             await host.locator(sel.clueWordInput).fill('signal');
-            await host.locator(sel.clueNumberInput).fill('1');
+            await host.locator(sel.clueNumberInput).selectOption('1');
             await host.locator(sel.giveClueBtn).click();
 
             // Guest (clicker) reveals the first card (stable index-0 locator).

@@ -67,6 +67,20 @@ export const CLUE_WORD_MAX_LENGTH = 40;
 /** Maximum value for a clue number. */
 export const CLUE_NUMBER_MAX = 9;
 
+/**
+ * Wire sentinel for the "unlimited" clue (the rulebook's ∞, shown as "U").
+ * Distinct from 0, which is the rulebook's ANTI-clue ("none of our words
+ * relate to this — avoid it"). Both grant unlimited guesses on the engine
+ * side (guessesAllowed = 0); the difference is what the clue word MEANS to
+ * the guessers, and bot clickers read them accordingly (clickers.ts).
+ */
+export const CLUE_NUMBER_UNLIMITED = -1;
+
+/** Display form of a clue number: the unlimited sentinel renders as "U". */
+export function formatClueNumber(clueNumber: number): string {
+    return clueNumber === CLUE_NUMBER_UNLIMITED ? 'U' : String(clueNumber);
+}
+
 // ---- Custom word lists ----
 
 /**
@@ -125,10 +139,13 @@ export function isValidClueWordShape(word: string): ClueShapeValidation {
     return { valid: true };
 }
 
-/** Structural validation for a clue number: a whole number within [0, CLUE_NUMBER_MAX]. */
+/** Structural validation for a clue number: a whole number within
+ *  [CLUE_NUMBER_UNLIMITED, CLUE_NUMBER_MAX] — -1 is the unlimited ("U")
+ *  sentinel, 0 the anti-clue, 1–9 ordinary counts. */
 export function isValidClueNumberShape(clueNumber: number): ClueShapeValidation {
     if (!Number.isInteger(clueNumber)) return { valid: false, reason: 'Clue number must be a whole number' };
-    if (clueNumber < 0) return { valid: false, reason: 'Clue number must be at least 0' };
+    if (clueNumber < CLUE_NUMBER_UNLIMITED)
+        return { valid: false, reason: 'Clue number must be at least -1 (U = unlimited)' };
     if (clueNumber > CLUE_NUMBER_MAX) return { valid: false, reason: `Clue number cannot exceed ${CLUE_NUMBER_MAX}` };
     return { valid: true };
 }
