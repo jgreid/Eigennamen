@@ -534,6 +534,22 @@ const CANDIDATES = {
   DOG: ["BARK", "TAIL"],
   POKER: ["CARD", "DECK", "CLUB", "JACK", "QUEEN", "KING", "CASINO", "DICE"],
   GHOST: ["GHOST", "SHADOW", "SOUL", "SPIRIT", "WITCH"],
+  // Round-3 data-quality audit: close the last zero/thin-signal board words
+  // (KID, LITTER, UNDERTAKER, FAIR, LIFE, LINK, PASTE, POISON had no or almost
+  // no curated edges — pure lexical play on table-only setups).
+  DEATH: ["LIFE", "POISON", "UNDERTAKER", "GHOST"],
+  FUNERAL: ["UNDERTAKER", "CHURCH"],
+  WRESTLING: ["UNDERTAKER", "RING", "GIANT"],
+  KITTEN: ["LITTER", "CAT"],
+  PUPPY: ["LITTER", "DOG"],
+  GOAT: ["KID", "HORN"],
+  BABY: ["KID", "BOTTLE"],
+  CARNIVAL: ["FAIR", "PARK"],
+  FESTIVAL: ["FAIR", "CONCERT"],
+  CHAIN: ["LINK", "LOCK"],
+  GLUE: ["PASTE", "STICK"],
+  COPY: ["PASTE", "CAT"],
+  VENOM: ["POISON", "SCORPION"],
 };
 
 // 3) Filter to real board words, drop near-empty concepts, dedupe. Plain-string

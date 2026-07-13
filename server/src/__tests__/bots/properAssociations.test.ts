@@ -25,6 +25,15 @@ describe('caseSignal (the house-rule convention)', () => {
         expect(caseSignal('McQueen')).toBe('proper');
     });
 
+    it('knows Apple-the-company (adversarial-round finding: the canonical proper/common split)', () => {
+        // Mixed-case "Apple" must carry a curated reference reading — without a
+        // table entry it fell through to the sense-conflated vector and read as
+        // the fruit even when capitalized.
+        expect(caseSignal('Apple')).toBe('proper');
+        expect(PROPER_ASSOCIATIONS['Apple']).toBeDefined();
+        expect(PROPER_ASSOCIATIONS['Apple']!.length).toBeGreaterThan(0);
+    });
+
     it('reads all-lowercase as the explicit common sense', () => {
         expect(caseSignal('alien')).toBe('common');
     });

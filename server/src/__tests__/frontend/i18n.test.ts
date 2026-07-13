@@ -320,7 +320,8 @@ describe('i18n module', () => {
         test('fetches word list for non-English language', async () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
-                text: async () => 'Apfel\nBanane\nKirsche\n' + Array(25).fill('WORT').join('\n'),
+                text: async () =>
+                    'Apfel\nBanane\nKirsche\n' + Array.from({ length: 25 }, (_, i) => `WORT${i}`).join('\n'),
             });
 
             const result = await getLocalizedWordList('de');
@@ -331,6 +332,16 @@ describe('i18n module', () => {
             expect(result).not.toBeNull();
             expect(result!.length).toBeGreaterThanOrEqual(25);
             expect(result![0]).toBe('APFEL');
+        });
+
+        test('dedupes repeated entries (a duplicated list word must not deal twice on one board)', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                text: async () => 'Apfel\nBanane\napfel\nBANANE\nKirsche\n',
+            });
+
+            const result = await getLocalizedWordList('de');
+            expect(result).toEqual(['APFEL', 'BANANE', 'KIRSCHE']);
         });
 
         test('returns null when fetch fails', async () => {

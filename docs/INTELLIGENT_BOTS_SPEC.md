@@ -664,7 +664,13 @@ turn economy. Tuning history for each lives in
   restores a **commonness prior** for alphabetical sources
   (`build-board-vectors.mjs --freq`) so the rank→commonness rarity tax works —
   decisive for recognizability (85% → ~19% of clue words outside the top-50k
-  without/with it; BOT_CLUE_LESSONS Round 6).
+  without/with it; BOT_CLUE_LESSONS Round 6). A small `CLUE_TOKEN_BLOCKLIST`
+  (`vectorBackend.ts`) additionally drops non-English FUNCTION words that leak
+  into subtitle-derived "English" frequency references (UND, DER, VOUS, MUY…)
+  from clue generation — they land inside the trusted head, so the rank prior
+  reads them as common, and one won a desperate-fallback single in an
+  adversarial round ("UND 1"). Generation-only: comprehension still reads them,
+  and ambiguous tokens with real English readings (POUR, HAY, CON, UNO) stay.
 - **Clue-capitalization house rule** — mixed-case denotes the pop-culture
   reference, lowercase the common sense, canonical acronyms carry the signal:
   see §20 "The clue-capitalization signal"; clue case is preserved end-to-end.
@@ -1019,9 +1025,11 @@ The shipped baked table for the default word list lives in
 `server/src/bots/semantics/associations.ts` and is **generated, not hand-edited**:
 edit the concept→board-word groups in `scripts/generate-associations.mjs` (every
 target is filtered against `DEFAULT_WORDS`, so only real board words survive) and
-regenerate with `npm run bots:associations` (currently 91 clue concepts / 704
-verified pairs). The `tableBackend` falls back to lexical similarity for any pair
-not covered, so custom word lists still degrade gracefully.
+regenerate with `npm run bots:associations` (currently 104 clue concepts / 733
+verified pairs — the round-3 data audit closed the last zero-signal board words,
+so every default word now carries at least one curated edge through the
+map+table chain). The `tableBackend` falls back to lexical similarity for any
+pair not covered, so custom word lists still degrade gracefully.
 
 ### Custom semantic maps (SHIPPED — the prepared-list path)
 

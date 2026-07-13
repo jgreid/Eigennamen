@@ -67,6 +67,68 @@ const DEFAULTS = {
 // with a hot cosine could still ride into a single-card clue.
 const COMMONNESS_PRIOR_REF = 50_000;
 
+// Non-English FUNCTION words that leak into "English" frequency references
+// (subtitle corpora carry foreign lines), landing INSIDE the trusted head where
+// the rank→commonness prior reads them as common English — an adversarial round
+// caught the spymaster emitting "UND 1" (rank ~13k) via the best-effort
+// fallback on a berth-starved board. Function words only, and only ones with NO
+// English reading: content-word leaks rarely beat a real English neighbour on
+// cosine, and ambiguous tokens (POUR, HAY, CON, UNO, NADA, MIT, VON, COMO…) are
+// legitimate clue words that must stay. Applied to clue GENERATION only —
+// comprehension (relatedness/hasSignal) still reads them fine.
+const CLUE_TOKEN_BLOCKLIST = new Set([
+    // German
+    'UND',
+    'DER',
+    'DAS',
+    'EIN',
+    'EINE',
+    'IST',
+    'NICHT',
+    'AUCH',
+    'ODER',
+    'ABER',
+    'SEHR',
+    'SIND',
+    'WIRD',
+    'DASS',
+    'NOCH',
+    'IHR',
+    'SIE',
+    'WIR',
+    // French
+    'VOUS',
+    'NOUS',
+    'AVEC',
+    'DANS',
+    'MAIS',
+    'SONT',
+    'CETTE',
+    'ELLE',
+    'TRES',
+    // Round-3 audit additions (no standalone English reading)
+    'AUF',
+    'LOS',
+    'LAS',
+    // Spanish
+    'MUY',
+    'PERO',
+    'ESTA',
+    'ESTE',
+    'ESTO',
+    'POR',
+    'QUE',
+    'UNOS',
+    'UNAS',
+]);
+
+/** A token generation must never offer as a clue: blocklisted foreign
+ *  function words, or junk-shaped tokens (repeated single letter — MMM, III,
+ *  OOO — which read as noise, not words). */
+function isBlockedClueToken(key: string): boolean {
+    return CLUE_TOKEN_BLOCKLIST.has(key) || /^(.)\1+$/.test(key);
+}
+
 const CHUNK_BYTES = 1 << 20; // 1 MiB read buffer
 
 /** Hand the event loop back once — used by the async loader between chunks so a
@@ -444,7 +506,12 @@ function buildVectorBackend(loaded: LoadedVectors, opts: Required<VectorBackendO
         const generationEligible = ranks === null || fileRank < opts.priorRef;
         fileRank++;
         if (!generationEligible) continue;
-        if (key.length >= opts.minLen && key.length <= opts.maxLen && /^[A-ZÀ-ÖØ-Þ]+$/.test(key)) {
+        if (
+            key.length >= opts.minLen &&
+            key.length <= opts.maxLen &&
+            /^[A-ZÀ-ÖØ-Þ]+$/.test(key) &&
+            !isBlockedClueToken(key)
+        ) {
             candidateKeys.push(key);
         }
     }
@@ -462,7 +529,7 @@ function buildVectorBackend(loaded: LoadedVectors, opts: Required<VectorBackendO
     // embeddings token of the same normalized form, and survives the vocabCap.
     for (const w of [...tableVocab, ...vocab]) {
         const k = normalizeClueWord(w);
-        if (k && !seen.has(k)) {
+        if (k && !seen.has(k) && !isBlockedClueToken(k)) {
             seen.add(k);
             merged.push(w);
             if (merged.length >= opts.vocabCap) break;

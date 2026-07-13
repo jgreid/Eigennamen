@@ -56,6 +56,15 @@ export const PROPER_ASSOCIATIONS: Record<string, AssociationTarget[]> = {
     ET: ['ALIEN', 'MOON', 'KID'],
     Frankenstein: ['BOLT', 'SCIENTIST', 'LAB'],
     Frozen: ['ICE', 'SNOW', 'SNOWMAN', 'PRINCESS', 'QUEEN'],
+    // Round-3 data audit: the superhero/brand reference hubs were almost
+    // entirely missing (Apple was just the first symptom).
+    Hulk: ['GREEN', 'SUPERHERO', 'GIANT'],
+    Marvel: ['SUPERHERO', 'COMIC', 'FILM'],
+    Hollywood: ['FILM', 'STAR'],
+    Netflix: ['FILM', 'SCREEN', 'STREAM'],
+    YouTube: ['SCREEN', 'STREAM', 'FILM'],
+    Yoda: ['FORCE', 'GREEN', 'SPACE'],
+    Bond: ['SPY', 'AGENT', 'CASINO'],
     Godzilla: ['DINOSAUR', 'TOKYO', 'GIANT'],
     Gotham: ['BAT', 'NIGHT', 'SUPERHERO'],
     Halloween: ['WITCH', 'GHOST', 'PUMPKIN', 'NIGHT'],
@@ -104,6 +113,11 @@ export const PROPER_ASSOCIATIONS: Record<string, AssociationTarget[]> = {
     USSR: ['MOSCOW', 'REVOLUTION'],
 
     // Games & tech
+    // "Apple" the company — THE canonical proper/common case split (found by an
+    // adversarial round: mixed-case Apple still read as the fruit). The key
+    // collides with board word APPLE by design: the clue simply can't fire on
+    // boards carrying it (see the collision note above).
+    Apple: ['SCREEN', 'TABLET', 'MOUSE', 'GENIUS'],
     iPhone: ['APPLE', 'SCREEN', 'TABLET'],
     Lego: ['BLOCK', 'PLASTIC'],
     Mario: ['PIPE', 'PRINCESS', 'STAR'],
@@ -111,6 +125,8 @@ export const PROPER_ASSOCIATIONS: Record<string, AssociationTarget[]> = {
     Pikachu: ['MOUSE', 'BOLT'],
     Pokemon: ['MOUSE', 'BALL'],
     Tetris: ['BLOCK', 'SQUARE', 'LINE'],
+    Monopoly: ['BANK', 'HOTEL', 'DICE'],
+    Tesla: ['CAR', 'BATTERY', 'SCIENTIST'],
     Zelda: ['LINK', 'PRINCESS'],
 
     // Ledger round 2–3 references (the live-play misfires, curated to spec:
@@ -134,7 +150,7 @@ export const PROPER_ASSOCIATIONS: Record<string, AssociationTarget[]> = {
     Cleopatra: ['EGYPT', 'QUEEN', 'PYRAMID'],
     Einstein: ['GENIUS', 'SCIENTIST'],
     Elvis: ['KING', 'ROCK', 'STAR'],
-    Houdini: ['LOCK', 'SPELL'],
+    Houdini: ['LOCK', 'KEY'],
     Jordan: ['AIR', 'BALL', 'STAR'],
     Mozart: ['PIANO', 'OPERA', 'CONCERT', 'NOTE'],
     Napoleon: ['FRANCE', 'WAR', 'REVOLUTION'],
@@ -148,6 +164,13 @@ export const PROPER_ASSOCIATIONS: Record<string, AssociationTarget[]> = {
     Eiffel: ['TOWER', 'FRANCE'],
     Everest: ['MOUNT', 'HIMALAYAS', 'SNOW'],
     Ferrari: ['CAR', 'HORSE'],
+    Amazon: [
+        { word: 'FOREST', weight: 1 },
+        { word: 'SERVER', weight: 0.6 },
+        { word: 'BOX', weight: 0.6 },
+    ],
+    Bermuda: ['TRIANGLE', 'SHIP', 'PLANE'],
+    Rolex: ['WATCH', 'GOLD', 'TIME'],
     Liberty: ['TORCH', 'NEW YORK', 'CROWN'],
     Mars: ['SPACE', 'WAR', 'CHOCOLATE'],
     NASA: ['SPACE', 'MOON', 'SATELLITE'],
@@ -235,7 +258,7 @@ export const PROPER_FAME: Record<string, number> = {
     Neptune: 0.75,
     Pixar: 0.8,
     Pompeii: 0.75,
-    Poseidon: 0.7,
+    Poseidon: 0.8,
     Roswell: 0.65,
     Sparta: 0.8,
     Sputnik: 0.7,
