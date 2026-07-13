@@ -19,6 +19,36 @@ Unset `BOT_LLM_MODEL` (or remove the key) to turn it off. Nothing else changes:
 strategies receive no advice and behave exactly as before, so tests and the
 self-play harness stay deterministic.
 
+### Production (Fly.io)
+
+`fly.toml` ships `BOT_LLM_MODEL = "claude-sonnet-5"` in `[env]`, so the layer is
+one secret away from live:
+
+```bash
+fly secrets set ANTHROPIC_API_KEY=sk-ant-...   # restarts the machine; tier is live
+```
+
+Until the secret exists the layer stays dormant: the SDK client fails to
+initialise, logs one warning (`Bot LLM advice disabled: Anthropic SDK/client
+unavailable`), and bots play the embeddings tier as before. To disable, run
+`fly secrets unset ANTHROPIC_API_KEY` (dormant again) or remove the
+`BOT_LLM_MODEL` line from `fly.toml`.
+
+### Choosing a model
+
+Any current Claude model ID works (use the exact alias — no date suffixes).
+Rules of thumb, priced per million tokens (mid-2026):
+
+| Model            | ID                | $ in / out | Fit                                                                  |
+| ---------------- | ----------------- | ---------- | -------------------------------------------------------------------- |
+| Claude Sonnet 5  | `claude-sonnet-5` | $3 / $15   | Shipped default — strong proposals at ~1–2 s latency                  |
+| Claude Haiku 4.5 | `claude-haiku-4-5`| $1 / $5    | Cheapest and fastest; weaker proposals, still fully verified          |
+| Claude Opus 4.8  | `claude-opus-4-8` | $5 / $25   | Highest ceiling; brushes the 8 s timeout more often on big boards     |
+
+A decision sends ~400–600 input tokens and returns ~100–300; a busy game makes
+20–40 calls. That is roughly **$0.10–0.20 per game on Sonnet 5** (~3× less on
+Haiku, ~2× more on Opus) — game pace, not model choice, dominates the bill.
+
 ## How it works
 
 The live controller (`bots/botController.ts`) computes advice **asynchronously

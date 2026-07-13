@@ -140,6 +140,40 @@ existing `npm run bots:analyze` clue-diagnostics harness per language.
 **Related:** A1 (word-list library), BOT_SEMANTIC_MAPS, BOT_EMBEDDINGS,
 INTELLIGENT_BOTS_SPEC.
 
+### A5. Multilingual embedding vectors for the built-in locale lists — **declined for now**
+
+**Status:** declined July 2026 ("no one is going to play in non-English
+languages any time soon") — recorded here so the sizing isn't lost when that
+changes.
+
+**Idea:** Give the German/Spanish/French built-in word lists the same embedding
+coverage English has, so bots on those boards play the semantic tier instead of
+the lexical fallback.
+
+**Why:** The July 2026 word-data-quality audit measured the gap precisely: the
+English list is fully covered (400/400 words carry vectors after token-averaged
+phrase vectors landed), while **606 locale words have no vector at all** —
+de 215/393, es 227/398, fr 164/398. On those boards bots degrade to lexical
+similarity (spelling overlap), the weakest tier.
+
+**Rough scope — two independent tiers:**
+
+- **Tier 1 — comprehension parity (~1 session):** merge the multilingual
+  ConceptNet Numberbatch vectors (`/c/de/…`, `/c/es/…`, `/c/fr/…` — the same
+  artifact family the English bake uses; `scripts/fetch-bot-embeddings.sh`
+  already knows the download) into the board-vector bake, keyed by locale word.
+  Bots then *understand* locale board words and human clues. Clue generation
+  stays English-flavoured because the candidate pools and frequency priors are
+  English.
+- **Tier 2 — language-correct generation (~1 session, depends on Tier 1):**
+  per-language clue-candidate pools and commonness priors, plus board-language
+  detection (coverage-based — whichever language's vector set claims the most
+  board words) so a German board yields German clues.
+
+**Related:** A4 covers semantic maps for *custom* lists; this entry is about
+the *built-in* locale lists. Also BOT_EMBEDDINGS and the locale word-list
+de-duplication fix that shipped alongside the audit.
+
 ---
 
 ## B. Half-built feature dispositions (IMPROVEMENT_PLAN Phase F)

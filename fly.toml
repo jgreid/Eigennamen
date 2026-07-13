@@ -79,6 +79,16 @@ kill_timeout = 15
   BOT_EMBEDDINGS_MAX_WORDS = "200000"
   # BOT_EMBEDDINGS_PATH = "/app/embeddings/vectors.vec"
 
+  # Opt-in LLM bot advice (docs/BOT_LLM.md): naming a model turns the layer on,
+  # but it only ACTIVATES once the ANTHROPIC_API_KEY secret exists
+  # (fly secrets set ANTHROPIC_API_KEY=sk-ant-...). Without the key the SDK
+  # client fails to initialise, warns once, and bots play the embeddings tier —
+  # so this line is safe to deploy before the secret is set. One bounded call
+  # per bot decision (max_tokens 1500, 8s timeout), roughly $0.10–0.20 per busy
+  # game at claude-sonnet-5 pricing. To turn off: remove this line, or
+  # fly secrets unset ANTHROPIC_API_KEY (dormant again).
+  BOT_LLM_MODEL = "claude-sonnet-5"
+
   # CORS origin - set to your Fly app domain
   # Override with: fly secrets set CORS_ORIGIN=https://yourdomain.com
   CORS_ORIGIN = "https://eigennamen.fly.dev"
