@@ -220,11 +220,19 @@ export async function getLocalizedWordList(lang: string = currentLanguage): Prom
         if (!response.ok) return null;
 
         const text = await response.text();
-        return text
-            .split('\n')
-            .map((w) => w.trim())
-            .filter((w) => w.length > 0 && !w.startsWith('#'))
-            .map((w) => w.toUpperCase());
+        // Dedupe defensively: the board generator samples the pool as-is, so a
+        // duplicated list entry could deal the same word twice onto one board
+        // (the shipped de/es/fr lists each carried 2-3 dupes before the data
+        // audit cleaned them).
+        return [
+            ...new Set(
+                text
+                    .split('\n')
+                    .map((w) => w.trim())
+                    .filter((w) => w.length > 0 && !w.startsWith('#'))
+                    .map((w) => w.toUpperCase())
+            ),
+        ];
     } catch {
         return null;
     }

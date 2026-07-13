@@ -106,6 +106,10 @@ const CLUE_TOKEN_BLOCKLIST = new Set([
     'CETTE',
     'ELLE',
     'TRES',
+    // Round-3 audit additions (no standalone English reading)
+    'AUF',
+    'LOS',
+    'LAS',
     // Spanish
     'MUY',
     'PERO',
@@ -117,6 +121,13 @@ const CLUE_TOKEN_BLOCKLIST = new Set([
     'UNOS',
     'UNAS',
 ]);
+
+/** A token generation must never offer as a clue: blocklisted foreign
+ *  function words, or junk-shaped tokens (repeated single letter — MMM, III,
+ *  OOO — which read as noise, not words). */
+function isBlockedClueToken(key: string): boolean {
+    return CLUE_TOKEN_BLOCKLIST.has(key) || /^(.)\1+$/.test(key);
+}
 
 const CHUNK_BYTES = 1 << 20; // 1 MiB read buffer
 
@@ -499,7 +510,7 @@ function buildVectorBackend(loaded: LoadedVectors, opts: Required<VectorBackendO
             key.length >= opts.minLen &&
             key.length <= opts.maxLen &&
             /^[A-ZÀ-ÖØ-Þ]+$/.test(key) &&
-            !CLUE_TOKEN_BLOCKLIST.has(key)
+            !isBlockedClueToken(key)
         ) {
             candidateKeys.push(key);
         }
@@ -518,7 +529,7 @@ function buildVectorBackend(loaded: LoadedVectors, opts: Required<VectorBackendO
     // embeddings token of the same normalized form, and survives the vocabCap.
     for (const w of [...tableVocab, ...vocab]) {
         const k = normalizeClueWord(w);
-        if (k && !seen.has(k) && !CLUE_TOKEN_BLOCKLIST.has(k)) {
+        if (k && !seen.has(k) && !isBlockedClueToken(k)) {
             seen.add(k);
             merged.push(w);
             if (merged.length >= opts.vocabCap) break;

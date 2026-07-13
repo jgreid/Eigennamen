@@ -1025,9 +1025,11 @@ The shipped baked table for the default word list lives in
 `server/src/bots/semantics/associations.ts` and is **generated, not hand-edited**:
 edit the concept→board-word groups in `scripts/generate-associations.mjs` (every
 target is filtered against `DEFAULT_WORDS`, so only real board words survive) and
-regenerate with `npm run bots:associations` (currently 91 clue concepts / 704
-verified pairs). The `tableBackend` falls back to lexical similarity for any pair
-not covered, so custom word lists still degrade gracefully.
+regenerate with `npm run bots:associations` (currently 104 clue concepts / 733
+verified pairs — the round-3 data audit closed the last zero-signal board words,
+so every default word now carries at least one curated edge through the
+map+table chain). The `tableBackend` falls back to lexical similarity for any
+pair not covered, so custom word lists still degrade gracefully.
 
 ### Custom semantic maps (SHIPPED — the prepared-list path)
 
