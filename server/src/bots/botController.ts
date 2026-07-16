@@ -35,6 +35,7 @@ import { resolveSkill } from './presets';
 import { makeRng } from './rng';
 import { buildClickerView, buildSpymasterView, playOneAction, prewarmSpymasterClues } from './playOneAction';
 import { isLLMAdviceEnabled, llmAdviceConfig, proposeClues, rankGuesses } from './llm/llmAdvice';
+import { dryRunChosenClue } from './llm/clueDryRun';
 import { applyClue, applyReveal, applyEndTurn } from '../socket/handlers/gameActions';
 import type { GameActor } from '../socket/handlers/gameActions';
 import { isKnownBotless, isBotfulnessKnown, recordBotful, clearBotRoomCache } from './botRoomCache';
@@ -569,7 +570,28 @@ export async function tickRoom(roomCode: string): Promise<void> {
             let llm: BotLLMAdvice | undefined;
             if (isLLMAdviceEnabled()) {
                 if (role === 'spymaster') {
-                    const proposals = await proposeClues(buildSpymasterView(game, team), llmAdviceConfig('spymaster'));
+                    // Desperation context (classic/match only): when the opponent
+                    // sits at match point, a safe partial clue loses anyway — the
+                    // only winning shape is one bridging EVERY remaining own card,
+                    // so tell the proposer that outright. Without it the proposal
+                    // pool contains no real win attempt for the scorer to pick.
+                    let mustCover: string[] | undefined;
+                    if (((game.gameMode as GameMode) ?? 'classic') !== 'duet') {
+                        const oppTeam = team === 'red' ? 'blue' : 'red';
+                        let oppRemaining = 0;
+                        const ownRemaining: string[] = [];
+                        for (let i = 0; i < game.words.length; i++) {
+                            if (game.revealed[i]) continue;
+                            if (game.types[i] === oppTeam) oppRemaining++;
+                            else if (game.types[i] === team) ownRemaining.push(game.words[i] as string);
+                        }
+                        if (oppRemaining <= 1 && ownRemaining.length > 0) mustCover = ownRemaining;
+                    }
+                    const proposals = await proposeClues(
+                        buildSpymasterView(game, team),
+                        llmAdviceConfig('spymaster'),
+                        mustCover ? { mustCover } : undefined
+                    );
                     if (proposals) llm = { clueProposals: proposals };
                 } else {
                     const scores = await rankGuesses(buildClickerView(game, seat, team), llmAdviceConfig('clicker'));
@@ -603,8 +625,63 @@ export async function tickRoom(roomCode: string): Promise<void> {
             // new one. (N21)
             const expectedGameId = game.id;
 
-            const action = playOneAction(game, seat, strategy, ctx);
+            let action = playOneAction(game, seat, strategy, ctx);
             if (action.kind === 'noop') break;
+
+            // Guesser dry-run (the verifier/guesser asymmetry fix — see
+            // bots/llm/clueDryRun.ts): before a clue lands, simulate the
+            // clicker's exact scoring call on it and read the ranking WITH the
+            // key. Assassin inside the guess grant → veto (burn the word via a
+            // synthetic bounced memory entry and re-pick ONCE); an intruder
+            // inside the promise → trim; a strong clean own-card prefix beyond
+            // the promise → raise. Any LLM failure leaves the clue exactly as
+            // chosen. Duet is exempt (dual keys don't fit the single-key walk).
+            // The awaits here sit inside the expectedGameId window guarded by
+            // botMayStillAct below, like the pace pause.
+            if (action.kind === 'clue' && ctx.gameMode !== 'duet' && isLLMAdviceEnabled()) {
+                const board = { words: game.words, revealed: game.revealed, types: game.types, team };
+                const first = await dryRunChosenClue(board, action.word, action.number);
+                if (!first.veto) {
+                    if (first.number !== action.number) {
+                        logger.info(
+                            `bot dry-run refined clue "${action.word}" ${action.number}→${first.number} in ${roomCode}`
+                        );
+                    }
+                    action = { ...action, number: first.number };
+                } else {
+                    logger.info(
+                        `bot dry-run vetoed clue "${action.word}" in ${roomCode} (assassin in the guesser's reach); re-picking`
+                    );
+                    const retryCtx = {
+                        ...ctx,
+                        memory: {
+                            clues: [...ctx.memory.clues, { word: action.word, number: 1, taken: 0, bounced: true }],
+                        },
+                    };
+                    const retry = playOneAction(game, seat, strategy, retryCtx);
+                    if (retry.kind === 'clue') {
+                        const second = await dryRunChosenClue(board, retry.word, retry.number);
+                        if (second.veto) {
+                            // Both picks read assassin-hot to the simulated
+                            // guesser. A clue must still be given — emit the
+                            // retry at the minimum promise (smallest grant).
+                            logger.warn(
+                                `bot dry-run vetoed the re-pick "${retry.word}" too in ${roomCode}; emitting it at 1`
+                            );
+                            action = { ...retry, number: 1 };
+                        } else {
+                            action = { ...retry, number: second.number };
+                        }
+                    } else if (retry.kind === 'noop') {
+                        // The re-pick produced nothing (shouldn't happen — the
+                        // spymaster has a board-derived fallback). Keep the
+                        // original clue at the minimum promise over stalling.
+                        action = { ...action, number: 1 };
+                    } else {
+                        action = retry;
+                    }
+                }
+            }
 
             // Keep the bot alive across the disconnect GC window.
             await playerService.updatePlayer(seat.sessionId, { lastSeen: Date.now() }).catch(() => {

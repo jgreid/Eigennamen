@@ -194,3 +194,37 @@ export function makeBoardSafetyCheck(boardWords: readonly string[]): (clue: stri
 export function isClueBoardSafe(clue: string, boardWords: readonly string[]): boolean {
     return makeBoardSafetyCheck(boardWords)(clue);
 }
+
+// Cognate-root tier — the SEMANTIC arm of the cognate guard. The orthographic
+// guards above are deliberately blind to cognates whose shared root sits
+// mid-word (AMBASSADE↔EMBASSY share MBASS, not a prefix) or whose edit
+// distance is large (CANADIANS↔CANADA). Sharing a root is itself harmless
+// (UNDERSTAND is a fine clue with UNDERTAKER on the board) — the leak needs
+// BOTH the shared root AND a strong retrieval reading back to that very board
+// word. So this tier only supplies the root test; the caller (spymasters'
+// candidate filter) pairs it with a backend retrieval bar, keeping this module
+// free of semantics dependencies.
+export const COGNATE_ROOT_MIN = 5;
+
+/** Character n-grams (length COGNATE_ROOT_MIN) of a folded word, spaces dropped
+ *  so multi-word entries ("ICE CREAM") contribute their joined letters too. */
+export function cognateRootGrams(word: string): Set<string> {
+    const w = foldDiacritics(word).replace(/\s+/g, '');
+    const grams = new Set<string>();
+    for (let i = 0; i + COGNATE_ROOT_MIN <= w.length; i++) {
+        grams.add(w.slice(i, i + COGNATE_ROOT_MIN));
+    }
+    return grams;
+}
+
+/** Whether two words share a character run of COGNATE_ROOT_MIN letters
+ *  anywhere (AMBASSADE/EMBASSY → MBASS, CANADIANS/CANADA → CANAD). Both words
+ *  must be long enough to carry a root at all. */
+export function sharesCognateRoot(a: string, b: string): boolean {
+    const ga = cognateRootGrams(a);
+    if (ga.size === 0) return false;
+    for (const g of cognateRootGrams(b)) {
+        if (ga.has(g)) return true;
+    }
+    return false;
+}
