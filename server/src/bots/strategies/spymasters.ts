@@ -29,7 +29,7 @@ import { resolveStyle } from './types';
 import type { EdgeKind, SemanticBackend } from '../semantics/backend';
 import { clueRetrieval, guessRetrieval, defaultSemanticBackend } from '../semantics/backend';
 import { isClueLegalForBoard, normalizeClueWord, CLUE_NUMBER_MAX, ROUND_WIN_BONUS } from '../../shared/gameRules';
-import { makeBoardSafetyCheck, isClueBoardSafe } from './clueSafety';
+import { makeBoardSafetyCheck, isClueBoardSafe, cognateRootGrams } from './clueSafety';
 
 /** Abstract words unlikely to collide with a Codenames board; filtered for
  *  legality at runtime so a collision is simply skipped. */
@@ -771,6 +771,13 @@ export function clueCandidateQueries(
     return queries;
 }
 
+/** Retrieval bar for the semantic arm of the cognate guard: a candidate that
+ *  shares a ≥5-letter root with a board word is rejected only when the backend
+ *  also reads it STRAIGHT BACK to that word (AMBASSADE→EMBASSY 0.91,
+ *  CANADIANS→CANADA 0.78 in live play), so incidental root-sharers survive
+ *  (UNDERSTAND with UNDERTAKER on the board retrieves ~0). */
+const COGNATE_RETRIEVAL_BAR = 0.7;
+
 function generateClueCandidates(
     view: BotSpymasterView,
     groups: BoardGroups,
@@ -786,8 +793,29 @@ function generateClueCandidates(
     // face the exact same legality/safety gates as every generated candidate.
     const words = view.words as string[];
     const boardSafe = makeBoardSafetyCheck(words);
+    // Semantic arm of the cognate guard: shared root + hot retrieval back to
+    // the very board word it resembles = a translation/derivative leak the
+    // orthographic guards can't see (mid-word roots, large edit distances).
+    // Board gram sets built once; the retrieval call only runs on root hits.
+    const boardGrams = words.map((w) => cognateRootGrams(w));
+    const leaksCognate = (c: string): boolean => {
+        const clueGrams = cognateRootGrams(c);
+        if (clueGrams.size === 0) return false;
+        for (let i = 0; i < words.length; i++) {
+            const grams = boardGrams[i] as Set<string>;
+            let sharedRoot = false;
+            for (const g of clueGrams) {
+                if (grams.has(g)) {
+                    sharedRoot = true;
+                    break;
+                }
+            }
+            if (sharedRoot && guessRetrieval(backend, c, words[i] as string) >= COGNATE_RETRIEVAL_BAR) return true;
+        }
+        return false;
+    };
     const legal = (candidates: string[]): string[] =>
-        candidates.filter((c) => isClueLegalForBoard(c, words) && boardSafe(c));
+        candidates.filter((c) => isClueLegalForBoard(c, words) && boardSafe(c) && !leaksCognate(c));
     const extras = legal([...extraCandidates]);
 
     const queries = clueCandidateQueries(groups, backend);

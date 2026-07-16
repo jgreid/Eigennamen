@@ -84,7 +84,29 @@ data (`BotContext.llm` — see `bots/llm/llmAdvice.ts`):
   each unrevealed card (0–1). That read replaces backend retrieval as the
   primary ranking; the discipline layer (confidence floors, plausible-set
   noise, bonus-guess gates, persona knobs) still shapes the actual guess, so
-  the difficulty ladder keeps meaning.
+  the difficulty ladder keeps meaning. LLM scores run hot relative to the
+  backend scale the discipline floors were tuned on, so the `+1` bonus-guess
+  floor is raised (`LLM_BONUS_FLOOR_BUMP`) whenever the ranking is LLM-scored —
+  "tighter than the core, not merely plausible" holds on both scales.
+- **Guesser dry-run** (`bots/llm/clueDryRun.ts`): after the spymaster picks its
+  clue — from proposals or its own generation — ONE extra LLM call simulates
+  the clicker's exact scoring call on that clue, and the resulting ranking is
+  read with the key in hand. This closes the verifier/guesser asymmetry (the
+  margins are certified against the semantic backend, but the guesser acting
+  on the clue reads richer): if the assassin sits inside the engine's `number+1`
+  guess grant the clue is **vetoed** (the word is burned via the no-repeat
+  memory and the spymaster re-picks once); a non-own card intruding inside the
+  promise **trims** the number to the clean own-card prefix; a clean own-card
+  prefix longer than the promise, each card read with real confidence,
+  **raises** the number — the fix for the 1-clue treadmill. Any failure leaves
+  the clue exactly as chosen; duet is exempt (dual keys don't fit the
+  single-key walk). The call bills to the spymaster seat's model, falling back
+  to the clicker's so clicker-only setups still get verified clues.
+- **Desperation proposals**: when the opponent sits at match point (classic /
+  match modes), a safe partial clue loses anyway, so the proposal prompt says
+  so outright — the guesser must find ALL remaining own words this turn — and
+  asks for clues bridging the full set. The proposals still face every
+  deterministic gate; desperation never relaxes the assassin machinery.
 
 Every failure mode — no key, timeout, refusal, malformed output — degrades to
 `null` and the bot decides exactly as it does without the layer. The client
@@ -95,10 +117,11 @@ one.
 
 ## Cost and latency
 
-One API call per bot decision (a clue or a guess ranking), with bounded output
-(`max_tokens` ≈ 1.5k). Game pace naturally limits volume: a busy room makes a
-few calls per minute. Bots already pause "to think", so a couple of seconds of
-latency reads naturally; the timeout caps the worst case.
+One API call per bot decision (a clue or a guess ranking), plus one dry-run
+call per bot clue (two on a veto re-pick), with bounded output (`max_tokens` ≈
+1.5k). Game pace naturally limits volume: a busy room makes a few calls per
+minute. Bots already pause "to think", so a couple of seconds of latency reads
+naturally; the timeout caps the worst case.
 
 ## Security notes
 
