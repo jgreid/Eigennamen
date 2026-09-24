@@ -20,6 +20,11 @@
  * ranking with the key in hand:
  *  - assassin in reach of the guess grant (number+1) → VETO the clue (the
  *    caller burns the word and re-picks once);
+ *  - the TOP read is a wrong card held with real confidence → VETO too: the
+ *    first guess lands on it whatever the number says (a bounce ends the
+ *    turn), so no trim can save the clue — it communicates the wrong card
+ *    entirely (live: CURVE 2 for TRIANGLE+FORK, backend 0.41/0.29 over
+ *    SHOULDER 0.14, and the clicker took red SHOULDER first);
  *  - an opponent/neutral card intruding inside the promise → TRIM the number
  *    to the clean own-card prefix;
  *  - a clean own-card prefix LONGER than the promise (each card carrying a
@@ -38,11 +43,27 @@ import { normalizeClueWord, CLUE_NUMBER_MAX } from '../../shared/gameRules';
  *  confidence — a cold board's argmax noise must not inflate the number. */
 export const DRYRUN_RAISE_MIN_SCORE = 0.5;
 
+/** A wrong card at the TOP of the ranking vetoes only when the guesser holds
+ *  it with real confidence; a cold wrong argmax trims to 1 instead — burning
+ *  the clue over simulation noise would cost re-picks for nothing. */
+export const DRYRUN_MISREAD_VETO_MIN_SCORE = 0.5;
+
+export type DryRunVetoReason = 'assassin' | 'misread';
+
 export interface DryRunAdjustment {
     /** The refined promise. Meaningless when veto is true. */
     readonly number: number;
-    /** The assassin sits inside the guess grant — do not give this clue. */
+    /** Do not give this clue: the assassin sits inside the guess grant, or
+     *  the guesser's confident top read is a wrong card (reason says which). */
     readonly veto: boolean;
+    readonly reason?: DryRunVetoReason;
+}
+
+/** Human-readable veto cause for the driver's log line. */
+export function describeDryRunVeto(adjustment: DryRunAdjustment): string {
+    return adjustment.reason === 'misread'
+        ? "the guesser's top read is a wrong card"
+        : "the assassin is in the guesser's reach";
 }
 
 export interface DryRunBoard {
@@ -92,7 +113,15 @@ export function adjustClueFromDryRun(
     // The engine grants number+1 guesses, so the assassin is in reach whenever
     // its rank is <= number. Trimming can move it out of reach only while a
     // clean guess remains ahead of it; assassin at rank 0 or 1 is unfixable.
-    if (assassinRank <= 1) return { number, veto: true };
+    if (assassinRank <= 1) return { number, veto: true, reason: 'assassin' };
+
+    // A confidently wrong TOP read is equally unfixable by number: the first
+    // guess lands on it regardless of the promise and the bounce ends the
+    // turn, so the clue communicates the wrong card entirely. (An assassin on
+    // top was already vetoed above with the graver reason.)
+    if (cleanPrefix === 0 && (ranked[0]?.score ?? 0) >= DRYRUN_MISREAD_VETO_MIN_SCORE) {
+        return { number, veto: true, reason: 'misread' };
+    }
 
     let refined = Math.max(number, strongCleanPrefix); // raise
     refined = Math.min(refined, Math.max(1, cleanPrefix)); // trim to the clean prefix

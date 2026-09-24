@@ -35,7 +35,7 @@ import { resolveSkill } from './presets';
 import { makeRng } from './rng';
 import { buildClickerView, buildSpymasterView, playOneAction, prewarmSpymasterClues } from './playOneAction';
 import { isLLMAdviceEnabled, llmAdviceConfig, proposeClues, rankGuesses } from './llm/llmAdvice';
-import { dryRunChosenClue } from './llm/clueDryRun';
+import { dryRunChosenClue, describeDryRunVeto } from './llm/clueDryRun';
 import { applyClue, applyReveal, applyEndTurn } from '../socket/handlers/gameActions';
 import type { GameActor } from '../socket/handlers/gameActions';
 import { isKnownBotless, isBotfulnessKnown, recordBotful, clearBotRoomCache } from './botRoomCache';
@@ -631,11 +631,12 @@ export async function tickRoom(roomCode: string): Promise<void> {
             // Guesser dry-run (the verifier/guesser asymmetry fix — see
             // bots/llm/clueDryRun.ts): before a clue lands, simulate the
             // clicker's exact scoring call on it and read the ranking WITH the
-            // key. Assassin inside the guess grant → veto (burn the word via a
-            // synthetic bounced memory entry and re-pick ONCE); an intruder
-            // inside the promise → trim; a strong clean own-card prefix beyond
-            // the promise → raise. Any LLM failure leaves the clue exactly as
-            // chosen. Duet is exempt (dual keys don't fit the single-key walk).
+            // key. Assassin inside the guess grant, or a confidently wrong top
+            // read, → veto (burn the word via a synthetic bounced memory entry
+            // and re-pick ONCE); an intruder inside the promise → trim; a
+            // strong clean own-card prefix beyond the promise → raise. Any LLM
+            // failure leaves the clue exactly as chosen. Duet is exempt (dual
+            // keys don't fit the single-key walk).
             // The awaits here sit inside the expectedGameId window guarded by
             // botMayStillAct below, like the pace pause.
             if (action.kind === 'clue' && ctx.gameMode !== 'duet' && isLLMAdviceEnabled()) {
@@ -650,7 +651,7 @@ export async function tickRoom(roomCode: string): Promise<void> {
                     action = { ...action, number: first.number };
                 } else {
                     logger.info(
-                        `bot dry-run vetoed clue "${action.word}" in ${roomCode} (assassin in the guesser's reach); re-picking`
+                        `bot dry-run vetoed clue "${action.word}" in ${roomCode} (${describeDryRunVeto(first)}); re-picking`
                     );
                     const retryCtx = {
                         ...ctx,
@@ -666,7 +667,7 @@ export async function tickRoom(roomCode: string): Promise<void> {
                             // guesser. A clue must still be given — emit the
                             // retry at the minimum promise (smallest grant).
                             logger.warn(
-                                `bot dry-run vetoed the re-pick "${retry.word}" too in ${roomCode}; emitting it at 1`
+                                `bot dry-run vetoed the re-pick "${retry.word}" too in ${roomCode} (${describeDryRunVeto(second)}); emitting it at 1`
                             );
                             action = { ...retry, number: 1 };
                         } else {

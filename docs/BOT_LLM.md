@@ -95,7 +95,12 @@ data (`BotContext.llm` — see `bots/llm/llmAdvice.ts`):
   margins are certified against the semantic backend, but the guesser acting
   on the clue reads richer): if the assassin sits inside the engine's `number+1`
   guess grant the clue is **vetoed** (the word is burned via the no-repeat
-  memory and the spymaster re-picks once); a non-own card intruding inside the
+  memory and the spymaster re-picks once); a wrong card sitting at the TOP of
+  the ranking with real confidence (`DRYRUN_MISREAD_VETO_MIN_SCORE`) is vetoed
+  too — the first guess lands on it whatever the number says and the bounce
+  ends the turn, so no trim can save a clue that communicates the wrong card
+  (live: CURVE for TRIANGLE+FORK, and the clicker took the opponent's
+  SHOULDER first); a non-own card intruding inside the
   promise **trims** the number to the clean own-card prefix; a clean own-card
   prefix longer than the promise, each card read with real confidence,
   **raises** the number — the fix for the 1-clue treadmill. Any failure leaves

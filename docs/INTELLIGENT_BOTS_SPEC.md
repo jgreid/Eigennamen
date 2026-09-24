@@ -711,7 +711,9 @@ turn economy. Tuning history for each lives in
   misses (NOVEL→HOBBIT), and the 1-clue treadmill (promise trims on backend-
   cold tails). So with LLM advice enabled, the live driver makes ONE extra
   call after the clue is chosen — the clicker's exact scoring call — and reads
-  the ranking with the key: assassin inside the engine's `number+1` grant →
+  the ranking with the key: assassin inside the engine's `number+1` grant, or
+  a confidently wrong card on TOP of the ranking (`DRYRUN_MISREAD_VETO_MIN_SCORE`
+  — trimming cannot save a clue whose first guess lands wrong) →
   **veto** (the word is burned via the no-repeat memory and the spymaster
   re-picks once; a twice-vetoed turn emits at number 1); an intruder inside
   the promise → **trim** to the clean own-card prefix; a clean prefix longer

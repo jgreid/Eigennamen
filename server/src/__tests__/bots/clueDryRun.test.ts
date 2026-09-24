@@ -1,9 +1,9 @@
 /**
  * Guesser dry-run (bots/llm/clueDryRun.ts): after the spymaster picks a clue,
  * one extra LLM call simulates the clicker's read of it, and the ranking —
- * read WITH the key — vetoes assassin-in-reach clues, trims intrusions out of
- * the promise, and raises the number over a strong clean own-card prefix.
- * Every failure leaves the clue exactly as chosen.
+ * read WITH the key — vetoes assassin-in-reach clues and confidently-misread
+ * top cards, trims intrusions out of the promise, and raises the number over
+ * a strong clean own-card prefix. Every failure leaves the clue as chosen.
  */
 import type { DryRunBoard } from '../../bots/llm/clueDryRun';
 
@@ -51,9 +51,9 @@ describe('adjustClueFromDryRun (pure)', () => {
         expect(adjustClueFromDryRun(board(), s, 1)).toEqual({ number: 1, veto: false });
     });
 
-    it('vetoes when the assassin is the top read', () => {
+    it('vetoes when the assassin is the top read — the assassin reason, not misread', () => {
         const s = scores({ ALIEN: 0.9, BEAR: 0.8, LION: 0.7, TIGER: 0.2, CAR: 0.1, TREE: 0.1 });
-        expect(adjustClueFromDryRun(board(), s, 2).veto).toBe(true);
+        expect(adjustClueFromDryRun(board(), s, 2)).toMatchObject({ veto: true, reason: 'assassin' });
     });
 
     it('vetoes at assassin rank 1: the engine +1 grant reaches it even at number 1', () => {
@@ -75,10 +75,17 @@ describe('adjustClueFromDryRun (pure)', () => {
         expect(adjustClueFromDryRun(board({ revealed }), s, 5)).toEqual({ number: 2, veto: false });
     });
 
-    it('floors at 1 even when the guesser reads nothing clean', () => {
-        // Top read is the opponent's card: cleanPrefix 0, but a clue of 0
-        // would be an anti-clue — the trim floors at 1.
+    it('vetoes a confidently wrong top read — no number survives a first guess that lands wrong (the live CURVE→SHOULDER shape)', () => {
+        // The guesser's top read is the opponent's CAR at 0.9: the first
+        // guess takes it whatever the number says, so trimming cannot help.
         const s = scores({ CAR: 0.9, BEAR: 0.8, LION: 0.7, TIGER: 0.2, TREE: 0.1, ALIEN: 0.0 });
+        expect(adjustClueFromDryRun(board(), s, 2)).toMatchObject({ veto: true, reason: 'misread' });
+    });
+
+    it('trims to 1 instead of vetoing when the wrong top read is cold argmax noise', () => {
+        // Same shape but nothing clears the misread bar (0.5): burning the
+        // clue over simulation noise would waste re-picks, so floor at 1.
+        const s = scores({ CAR: 0.4, BEAR: 0.3, LION: 0.2, TIGER: 0.2, TREE: 0.1, ALIEN: 0.0 });
         expect(adjustClueFromDryRun(board(), s, 2)).toEqual({ number: 1, veto: false });
     });
 });
