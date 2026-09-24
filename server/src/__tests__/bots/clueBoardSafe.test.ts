@@ -8,6 +8,7 @@
  * isClueBoardSafe rejects both, board-derived so it stays language-agnostic.
  */
 import { isClueBoardSafe, makeEmbeddingSpymaster } from '../../bots/strategies/spymasters';
+import { sharesCognateRoot } from '../../bots/strategies/clueSafety';
 import { makeRng } from '../../bots/rng';
 import type { SemanticBackend } from '../../bots/semantics/backend';
 import type { BotSpymasterView, BotContext, SkillParams } from '../../bots/strategies/types';
@@ -151,5 +152,63 @@ describe('generation filters cognate candidates before scoring', () => {
         if (action.kind === 'clue') {
             expect(action.word).toBe('UPRISING');
         }
+    });
+
+    it('the semantic arm rejects a mid-word-root cognate the orthographic guards miss (AMBASSADE)', () => {
+        // AMBASSADE↔EMBASSY share no prefix and differ by too many edits for
+        // the near-dup guard, but share the MBASS root AND retrieve hot — the
+        // live leak class (also CANADIANS→CANADA, live retrieval 0.78).
+        const board = view(['EMBASSY', 'OPPO', 'NEUT'], ['red', 'blue', 'neutral']);
+        const rel: Record<string, number> = { AMBASSADE: 0.9, CONSULATE: 0.8 };
+        const backend: SemanticBackend = {
+            id: 'stub',
+            relatedness: (a, b) => {
+                const key = a.toUpperCase() === 'EMBASSY' ? b : a;
+                return rel[key.toUpperCase()] ?? 0.02;
+            },
+            nearest: () => [
+                { word: 'AMBASSADE', score: 0.9 },
+                { word: 'CONSULATE', score: 0.8 },
+            ],
+        };
+        const action = makeEmbeddingSpymaster(skill, backend).chooseClue(board, ctx);
+        expect(action.kind).toBe('clue');
+        if (action.kind === 'clue') {
+            expect(action.word).toBe('CONSULATE');
+        }
+    });
+
+    it('a shared root with COLD retrieval survives — incidental morphology is not a leak', () => {
+        // UNDERSTAND shares UNDER with UNDERTAKER, but nobody reads it back to
+        // the board word (retrieval ~0): dropping it would strip a strong clue.
+        const board = view(['KNOWLEDGE', 'UNDERTAKER', 'NEUT'], ['red', 'blue', 'neutral']);
+        const pair: Record<string, number> = { 'UNDERSTAND|KNOWLEDGE': 0.9, 'UNDERSTAND|UNDERTAKER': 0.05 };
+        const backend: SemanticBackend = {
+            id: 'stub',
+            relatedness: (a, b) =>
+                pair[`${a.toUpperCase()}|${b.toUpperCase()}`] ?? pair[`${b.toUpperCase()}|${a.toUpperCase()}`] ?? 0.02,
+            nearest: () => [{ word: 'UNDERSTAND', score: 0.9 }],
+        };
+        const action = makeEmbeddingSpymaster(skill, backend).chooseClue(board, ctx);
+        expect(action).toEqual({ kind: 'clue', word: 'UNDERSTAND', number: 1 });
+    });
+});
+
+describe('sharesCognateRoot (the semantic arm root test)', () => {
+    it('finds shared ≥5-letter roots anywhere in the word', () => {
+        expect(sharesCognateRoot('AMBASSADE', 'EMBASSY')).toBe(true); // MBASS, mid-word
+        expect(sharesCognateRoot('CANADIANS', 'CANADA')).toBe(true); // CANAD, prefix
+        expect(sharesCognateRoot('UNDERSTAND', 'UNDERTAKER')).toBe(true); // UNDER — root alone is not a verdict
+    });
+
+    it('no shared root for unrelated or too-short overlaps', () => {
+        expect(sharesCognateRoot('LEMON', 'ORANGE')).toBe(false);
+        expect(sharesCognateRoot('PARC', 'PARK')).toBe(false); // 4 letters — below the root bar
+        expect(sharesCognateRoot('NYC', 'NEW YORK')).toBe(false); // abbreviation: the prompt line's job, not this guard's
+    });
+
+    it('joins multi-word entries and folds diacritics before matching', () => {
+        expect(sharesCognateRoot('CREAMY', 'ICE CREAM')).toBe(true); // CREAM inside the joined ICECREAM
+        expect(sharesCognateRoot('RÉVOLUTIONNAIRE', 'REVOLUTION')).toBe(true);
     });
 });

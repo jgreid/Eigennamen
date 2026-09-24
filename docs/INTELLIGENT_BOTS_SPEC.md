@@ -651,6 +651,12 @@ turn economy. Tuning history for each lives in
   argmax — including the bonus guess, with no aggression requirement — because
   in those states NOT guessing is the play that loses the game. Pressed picks
   are argmax, never temperature samples; duet is exempt (no opponent).
+- **LLM-scale bonus floor.** When the ranking is LLM-scored the `+1` bonus
+  floor is raised by `LLM_BONUS_FLOOR_BUMP`: Claude gives thematic fits
+  0.6–0.8 where the backend scale the floors were tuned on gives 0.0–0.1
+  (live misses: MANUS→SHOULDER, SLEEPS→HORSE, ENVIRONMENTALIST→BAT all
+  cleared the old gates and missed), so "tighter than the core, not merely
+  plausible" holds on both scales.
 
 **Clue selection (spymaster):**
 
@@ -687,6 +693,39 @@ turn economy. Tuning history for each lives in
   reads them as common, and one won a desperate-fallback single in an
   adversarial round ("UND 1"). Generation-only: comprehension still reads them,
   and ambiguous tokens with real English readings (POUR, HAY, CON, UNO) stay.
+- **Cognate-root guard (semantic arm).** The orthographic hygiene above is
+  blind to cognates whose shared root sits mid-word or beyond its edit budget,
+  so the candidate choke point also rejects a clue that shares a ≥5-letter
+  character run with a board word (`sharesCognateRoot`, diacritic-folded) AND
+  retrieves hot back to that very word (`guessRetrieval` ≥
+  `COGNATE_RETRIEVAL_BAR`) — the live leak class AMBASSADE→EMBASSY (0.91) and
+  CANADIANS→CANADA (0.78). Root-sharing alone is never a verdict: UNDERSTAND
+  survives an UNDERTAKER board (retrieval ~0). Rootless equivalents
+  (NYC→NEW YORK, MANUS→HAND) are handled in the LLM proposer's system prompt,
+  which bans translations, abbreviations, and foreign-language equivalents of
+  board words outright.
+- **Guesser dry-run (LLM tier, `bots/llm/clueDryRun.ts`).** The margins,
+  halos, and assassin berth are certified against the semantic BACKEND, but
+  the guesser acting on the clue (LLM clicker or human) reads richer — the
+  asymmetry behind live assassin hits (ROUND→REVOLUTION, backend 0.10), halo
+  misses (NOVEL→HOBBIT), and the 1-clue treadmill (promise trims on backend-
+  cold tails). So with LLM advice enabled, the live driver makes ONE extra
+  call after the clue is chosen — the clicker's exact scoring call — and reads
+  the ranking with the key: assassin inside the engine's `number+1` grant, or
+  a confidently wrong card on TOP of the ranking (`DRYRUN_MISREAD_VETO_MIN_SCORE`
+  — trimming cannot save a clue whose first guess lands wrong) →
+  **veto** (the word is burned via the no-repeat memory and the spymaster
+  re-picks once; a twice-vetoed turn emits at number 1); an intruder inside
+  the promise → **trim** to the clean own-card prefix; a clean prefix longer
+  than the promise with every card read ≥ `DRYRUN_RAISE_MIN_SCORE` →
+  **raise**. Failure-neutral (any LLM failure leaves the clue as chosen);
+  duet exempt; bills the spymaster seat's model with clicker fallback.
+- **Desperation-aware proposals.** When the opponent sits at match point
+  (classic/match), the proposal prompt states the real win condition — the
+  guesser must find ALL remaining own words THIS turn (`mustCover`) — so the
+  pool contains genuine full-bridge attempts instead of safe partial clues
+  that lose anyway. Proposals still face every deterministic gate; the
+  assassin machinery never relaxes.
 - **Clue-capitalization house rule** — mixed-case denotes the pop-culture
   reference, lowercase the common sense, canonical acronyms carry the signal:
   see §20 "The clue-capitalization signal"; clue case is preserved end-to-end.

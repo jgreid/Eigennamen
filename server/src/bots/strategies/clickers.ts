@@ -154,6 +154,13 @@ const CLIFF_SEPARATION = 0.035;
 const BONUS_FLOOR_BASE = 0.6;
 const BONUS_FLOOR_TIMIDITY = 0.2;
 const BONUS_FIELD_GAP = 0.2;
+// The LLM's scores run hot relative to the backend scale the floors were tuned
+// on: Claude happily gives a thematic fit 0.6-0.8 where the backend gives
+// 0.0-0.1 (live: MANUS->SHOULDER, SLEEPS->HORSE, ENVIRONMENTALIST->BAT all
+// cleared the bonus gates on LLM scores and all missed; each is 0.00-0.06 on
+// the backend). The bump restores "tighter than the core, not merely
+// plausible" on the hotter scale.
+const LLM_BONUS_FLOOR_BUMP = 0.15;
 
 // Clue debt (Phase 4.3, ledger lessons 9/24/27): a card that also fits an
 // OWED earlier clue (promised more than it delivered, never bounced) is more
@@ -451,7 +458,10 @@ export function makeGreedyClicker(
                     return { kind: 'reveal', index: best.index };
                 }
                 const bonusFloor =
-                    BONUS_FLOOR_BASE + BONUS_FLOOR_TIMIDITY * (1 - aggression) + (endgame ? ENDGAME_BONUS_BUMP : 0);
+                    BONUS_FLOOR_BASE +
+                    (llmScores ? LLM_BONUS_FLOOR_BUMP : 0) +
+                    BONUS_FLOOR_TIMIDITY * (1 - aggression) +
+                    (endgame ? ENDGAME_BONUS_BUMP : 0);
                 if (
                     engineAllows &&
                     aggression > 0 &&

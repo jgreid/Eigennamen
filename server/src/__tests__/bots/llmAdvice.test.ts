@@ -158,6 +158,29 @@ describe('proposeClues', () => {
         mockCreate.mockResolvedValue(reply({ proposals: [] }));
         expect(await proposeClues(spymasterView(), CFG)).toBeNull();
     });
+
+    it('appends the URGENT ENDGAME directive only when mustCover is set', async () => {
+        mockCreate.mockResolvedValue(reply({ proposals: [{ word: 'FAUNA', number: 2, targets: [] }] }));
+        await proposeClues(spymasterView(), CFG, { mustCover: ['BEAR', 'LION'] });
+        const promptOf = (call: unknown[]): string =>
+            (call[0] as { messages: Array<{ content: string }> }).messages[0]!.content;
+        const urgent = promptOf(mockCreate.mock.calls[0]!);
+        expect(urgent).toContain('URGENT ENDGAME');
+        expect(urgent).toContain('BEAR, LION');
+        expect(urgent).toContain('number 2');
+        mockCreate.mockClear();
+        mockCreate.mockResolvedValue(reply({ proposals: [{ word: 'FAUNA', number: 2, targets: [] }] }));
+        await proposeClues(spymasterView(), CFG);
+        expect(promptOf(mockCreate.mock.calls[0]!)).not.toContain('URGENT ENDGAME');
+    });
+
+    it('the system prompt bans translations/abbreviations of board words (the AMBASSADE/NYC class)', async () => {
+        mockCreate.mockResolvedValue(reply({ proposals: [{ word: 'FAUNA', number: 2, targets: [] }] }));
+        await proposeClues(spymasterView(), CFG);
+        const system = (mockCreate.mock.calls[0]![0] as { system: string }).system;
+        expect(system).toContain('translation');
+        expect(system).toContain('abbreviation');
+    });
 });
 
 describe('rankGuesses', () => {
@@ -224,6 +247,32 @@ describe('greedy clicker with LLM advice', () => {
         const s = skill();
         const action = makeGreedyClicker(s, tableBackend).chooseGuess(clickerView('GRIZZLY', 2, 1), ctx(s));
         expect(action).toEqual({ kind: 'endTurn' });
+    });
+
+    it('holds the +1 bonus guess to a higher floor on the hotter LLM score scale', () => {
+        // Claude gives thematic fits 0.6–0.8 where the backend the floors were
+        // tuned on gives 0.0–0.1 (live misses: MANUS→SHOULDER, SLEEPS→HORSE,
+        // ENVIRONMENTALIST→BAT). Promise spent (number 1, one guess used):
+        // the +1 needs BONUS_FLOOR_BASE + LLM_BONUS_FLOOR_BUMP now.
+        const s = skill({ aggression: 1 });
+        const llmOf = (top: number): BotContext['llm'] => ({
+            guessScores: new Map([
+                ['BEAR', top],
+                ['LION', 0.1],
+                ['CAR', 0.1],
+                ['ALIEN', 0.05],
+                ['TREE', 0.1],
+            ]),
+        });
+        // 0.70 cleared the pre-bump floor (0.6 at full aggression) — banks now.
+        expect(makeGreedyClicker(s, tableBackend).chooseGuess(clickerView('MANUS', 1, 1), ctx(s, llmOf(0.7)))).toEqual({
+            kind: 'endTurn',
+        });
+        // A genuinely tight read still spends the +1.
+        expect(makeGreedyClicker(s, tableBackend).chooseGuess(clickerView('MANUS', 1, 1), ctx(s, llmOf(0.9)))).toEqual({
+            kind: 'reveal',
+            index: 0,
+        });
     });
 });
 
