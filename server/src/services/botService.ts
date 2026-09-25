@@ -179,6 +179,16 @@ async function rollbackBot(redis: RedisClient, roomCode: string, team: Team, ses
  * Remove a bot from a room. Throws if the session is not a bot in this room.
  */
 export async function removeBot(roomCode: string, sessionId: string): Promise<void> {
+    // Same per-room lock as addBot so a remove can't interleave with an add's
+    // seat-occupancy check, and so the controller's pre-apply seat re-check
+    // (botMayStillAct) and this removal serialize on the room (R19).
+    return withLock(`bot-manage:${roomCode}`, () => removeBotLocked(roomCode, sessionId), {
+        lockTimeout: 5000,
+        maxRetries: 3,
+    });
+}
+
+async function removeBotLocked(roomCode: string, sessionId: string): Promise<void> {
     const redis: RedisClient = getRedis();
 
     const player = await playerService.getPlayer(sessionId);

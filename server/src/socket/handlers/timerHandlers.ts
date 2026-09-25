@@ -69,6 +69,13 @@ function timerHandlers(io: Server, socket: GameSocket): void {
             if (!ctx.game || ctx.game.gameOver) {
                 throw new GameStateError(ERROR_CODES.GAME_NOT_STARTED, 'No active game in progress');
             }
+            // game:pause pauses the timer with it; resuming the timer alone would
+            // let it expire into endTurn.lua's GAME_PAUSED rejection, which used
+            // to consume the Redis timer and leave the game timer-less after
+            // game:resume. The timer comes back with game:resume (R12).
+            if (ctx.game.paused) {
+                throw GameStateError.gamePaused();
+            }
 
             const { createTimerExpireCallback } = getSocketFunctions();
             const result: TimerInfo | null = await timerService.resumeTimer(ctx.roomCode, createTimerExpireCallback());

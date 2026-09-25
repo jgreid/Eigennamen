@@ -694,6 +694,21 @@ describe('Real-Redis Lua script integration', () => {
             expect(await redis.ttl('player:p2')).toBeGreaterThan(30);
         });
 
+        it('atomicRefreshTtl also refreshes each member session-auth secret TTL (R1)', async () => {
+            // The N1 handshake secret was minted with the player TTL but only
+            // re-extended on create/join/reconnect; a long-lived host whose player
+            // hash kept being refreshed here could outlive its own secret.
+            const code = freshRoomCode();
+            await roomService.createRoom(code, 'host-1', { nickname: 'Host' });
+            await playerService.mintSessionAuthSecret('host-1');
+
+            const redis = getRedis();
+            await redis.expire('session:auth:host-1', 30);
+            await roomService.refreshRoomTTL(code);
+
+            expect(await redis.ttl('session:auth:host-1')).toBeGreaterThan(30);
+        });
+
         it('atomicSetRoomStatus updates status and returns OK (nil for a missing room)', async () => {
             const code = freshRoomCode();
             await roomService.createRoom(code, 'host-1', { nickname: 'Host' });

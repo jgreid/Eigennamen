@@ -56,7 +56,14 @@ function createTimerExpireCallback(
                             return await gameService.endTurn(roomCode, 'Timer', game.currentTurn);
                         } catch (endTurnErr) {
                             const code = (endTurnErr as { code?: string }).code;
-                            if (code === ERROR_CODES.NOT_YOUR_TURN || code === ERROR_CODES.GAME_OVER) {
+                            // GAME_PAUSED: the game was paused between arming and
+                            // expiry — the paused game keeps its turn; game:resume
+                            // restarts the timer (R12).
+                            if (
+                                code === ERROR_CODES.NOT_YOUR_TURN ||
+                                code === ERROR_CODES.GAME_OVER ||
+                                code === ERROR_CODES.GAME_PAUSED
+                            ) {
                                 logger.debug(
                                     `Timer expiry for room ${roomCode} is stale (turn already advanced); skipping`
                                 );

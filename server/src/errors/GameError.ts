@@ -257,6 +257,13 @@ export const SAFE_ERROR_CODES: readonly SafeErrorCode[] = [
     'GAME_NOT_STARTED',
     'GAME_PAUSED',
     'NO_CLUE_GIVEN',
+    // Purely user-facing rule/validation outcomes whose message IS the
+    // explanation; without them here the client saw a generic "unexpected
+    // error" for an observer trying to join mid-game or a reserved nickname (R9).
+    'OBSERVER_CANNOT_JOIN_MIDGAME',
+    'RESERVED_NAME',
+    'SESSION_NOT_FOUND',
+    'SESSION_VALIDATION_RATE_LIMITED',
 ] as const;
 
 /**

@@ -6,6 +6,16 @@ import { encodeWordsForURL } from './utils.js';
  * Called after any state change (reveal, new game, end turn).
  */
 export function updateURL(): void {
+    try {
+        updateURLUnsafe();
+    } catch (err) {
+        // The URL is a convenience (share/refresh); a failure to encode it must
+        // never abort the caller's state → render sequence (R6).
+        console.warn('[url-state] Failed to update URL:', err);
+    }
+}
+
+function updateURLUnsafe(): void {
     const revealed = state.gameState.revealed.map((r) => (r ? '1' : '0')).join('');
     const turn = state.gameState.currentTurn === 'blue' ? 'b' : 'r';
 

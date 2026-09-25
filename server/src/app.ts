@@ -223,7 +223,9 @@ app.use(
         origin: corsOriginCheck,
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Requested-With'],
+        // X-Session-Id: required by GET /api/replays (routes/replayRoutes.ts); without it
+        // cross-origin replay fetches fail CORS preflight (R16).
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Requested-With', 'X-Session-Id'],
     })
 );
 
@@ -300,13 +302,20 @@ app.use(
 );
 
 // Health check routes (readiness, liveness, metrics)
-// Mounted before static files so /health/* is handled by the router
+// Mounted before static files so /health/* is handled by the router.
+// /health/metrics and /health/metrics/prometheus verify ADMIN_PASSWORD with a
+// full scrypt derivation per request in production; without a limiter they
+// were an unbounded online brute-force surface and a cheap CPU-exhaustion
+// vector (the /health, /ready, /live probes stay unthrottled for load
+// balancers). Same limiter /metrics already uses (R2).
+app.use('/health/metrics', strictLimiter);
 app.use('/health', healthRoutes);
 
 // OpenAPI/Swagger documentation (accessible at /api-docs)
-// In production, gate behind admin auth to prevent API reconnaissance
+// In production, gate behind admin auth to prevent API reconnaissance —
+// rate-limited first for the same reason as /health/metrics (R2).
 if (isProduction()) {
-    app.use('/api-docs', basicAuth);
+    app.use('/api-docs', strictLimiter, basicAuth);
 }
 setupSwagger(app as unknown as Express);
 

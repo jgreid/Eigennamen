@@ -604,19 +604,18 @@ export function sweepStaleTimers(): number {
             swept++;
 
             // Recovery: if this stale timer had an expire callback that never
-            // ran (e.g., lock timeout prevented it), fire it now as a fallback.
+            // ran (e.g. the CAD eval threw on a Redis blip), fire it now as a
+            // fallback — through the SAME compare-and-delete guard a normal
+            // expiry uses. Firing onExpire directly ended whatever turn was
+            // current two minutes later even when the Redis timer had since
+            // been re-armed for a later turn or the turn had switched by hand
+            // (the expectedTeam guard is read at callback time, so it could not
+            // help). With the CAD, a superseded/paused/gone timer is a no-op (R11).
             if (timer.onExpire) {
-                logger.warn(`Stale timer recovery: firing onExpire for room ${roomCode}`);
-                try {
-                    const result = timer.onExpire(roomCode);
-                    if (result && typeof result === 'object' && 'catch' in result) {
-                        (result as Promise<void>).catch((err: Error) => {
-                            logger.error(`Stale timer recovery callback failed for room ${roomCode}:`, err.message);
-                        });
-                    }
-                } catch (err) {
-                    logger.error(`Stale timer recovery callback threw for room ${roomCode}:`, (err as Error).message);
-                }
+                logger.warn(`Stale timer recovery: re-checking expiry for room ${roomCode}`);
+                createTimerExpirationCallback(roomCode, timer.endTime, timer.onExpire)().catch((err: Error) => {
+                    logger.error(`Stale timer recovery callback failed for room ${roomCode}:`, err.message);
+                });
             }
         }
     }

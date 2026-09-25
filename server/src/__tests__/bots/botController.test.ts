@@ -81,6 +81,11 @@ describe('botController.tickRoom', () => {
         // Default to a botful room so the acting-seat logic below runs as before;
         // the bot-less-skip path is covered by its own test.
         playerService.getPlayersInRoom.mockResolvedValue([spymasterBot]);
+        // R19: the pre-apply seat re-check (botMayStillAct) runs on EVERY action,
+        // pace or not — default to "the bot still holds its seat".
+        playerService.getPlayer.mockImplementation(async (sid) =>
+            sid === spymasterBot.sessionId ? spymasterBot : null
+        );
     });
     afterEach(() => stopBotController());
 
@@ -107,6 +112,28 @@ describe('botController.tickRoom', () => {
             'bot-1',
             expect.objectContaining({ lastSeen: expect.any(Number) })
         );
+    });
+
+    it('drops the move when the bot was removed before apply, even with zero pace (R19)', async () => {
+        // The seat re-check used to run only inside the "thinking pause" branch,
+        // which is disabled under NODE_ENV=test (pace 0) — so the whole pre-apply
+        // window (config read, LLM dry-run, keep-alive) went unverified and a
+        // bot:remove landing in it let the removed bot make one last move.
+        gameService.getGame.mockResolvedValue(gameNoClue);
+        playerService.getTeamMembers.mockResolvedValue([spymasterBot]);
+        botService.getBotConfig.mockResolvedValue({
+            strategyId: 'randomSpymaster',
+            skillPreset: 'intermediate',
+            seed: 1,
+        });
+        // By the time the action is about to land, the bot is gone.
+        playerService.getPlayer.mockResolvedValue(null);
+
+        await tickRoom('ROOM01');
+
+        expect(gameActions.applyClue).not.toHaveBeenCalled();
+        expect(gameActions.applyReveal).not.toHaveBeenCalled();
+        expect(gameActions.applyEndTurn).not.toHaveBeenCalled();
     });
 
     it('does nothing when the acting seat is a human', async () => {
@@ -356,6 +383,9 @@ describe('botController.tickRoom self-healing (re-arm)', () => {
         });
         playerService.getTeamMembers.mockResolvedValue([spymasterBot]);
         playerService.getPlayersInRoom.mockResolvedValue([spymasterBot]);
+        playerService.getPlayer.mockImplementation(async (sid) =>
+            sid === spymasterBot.sessionId ? spymasterBot : null
+        );
     });
     afterEach(() => {
         stopBotController();
@@ -367,7 +397,9 @@ describe('botController.tickRoom self-healing (re-arm)', () => {
         // mutation, and a human waiting on this clue cannot produce one.
         gameService.getGame
             .mockResolvedValueOnce(gameNoClue) // attempt 1: spymaster's turn (clue rejected)
+            .mockResolvedValueOnce(gameNoClue) // attempt 1: pre-apply seat/game re-check (R19)
             .mockResolvedValueOnce(gameNoClue) // retry: spymaster's turn (clue succeeds)
+            .mockResolvedValueOnce(gameNoClue) // retry: pre-apply re-check
             .mockResolvedValue(gameWithClue); // then clicker's turn, no bot clicker -> clean stop
         gameActions.applyClue.mockRejectedValueOnce(new Error('reveal lock timeout')).mockResolvedValue({});
 
@@ -450,7 +482,9 @@ describe('botController.tickRoom self-healing (re-arm)', () => {
         // fully clear backoff state, not just avoid re-arming this one time.
         gameService.getGame
             .mockResolvedValueOnce(gameNoClue) // attempt 1: fails
+            .mockResolvedValueOnce(gameNoClue) // attempt 1: pre-apply re-check (R19)
             .mockResolvedValueOnce(gameNoClue) // retry: succeeds
+            .mockResolvedValueOnce(gameNoClue) // retry: pre-apply re-check
             .mockResolvedValue(gameWithClue); // then clicker's turn, no bot clicker -> clean stop
         gameActions.applyClue.mockRejectedValueOnce(new Error('transient')).mockResolvedValue({});
 

@@ -87,6 +87,8 @@ module.exports = {
             ...sharedConfig,
             displayName: 'frontend',
             testEnvironment: 'jsdom',
+            // jsdom lacks TextEncoder/TextDecoder (used by the URL word codec, R6)
+            setupFiles: ['<rootDir>/src/__tests__/helpers/jsdomPolyfills.ts'],
             testMatch: ['**/__tests__/frontend/**/*.test.ts'],
             testPathIgnorePatterns: ['/node_modules/', '/dist/'],
             // Map .js imports in frontend source to .ts files so ts-jest can resolve them

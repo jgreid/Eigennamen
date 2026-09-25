@@ -42,6 +42,17 @@ export function getErrorMessage(error: ServerErrorData): string {
         PLAYER_NOT_FOUND: 'Session expired \u2014 please refresh the page and rejoin',
         INVALID_INPUT: 'Invalid request \u2014 please check your input and try again',
         SERVER_ERROR: 'Server error \u2014 please try again in a moment',
+        OBSERVER_CANNOT_JOIN_MIDGAME:
+            'Observers can\u2019t join a team while a game is in progress \u2014 wait for it to end',
+        RESERVED_NAME: 'That nickname is reserved \u2014 please choose another',
+        SESSION_NOT_FOUND: 'Session not found \u2014 please refresh the page and rejoin',
+        SESSION_VALIDATION_RATE_LIMITED: 'Too many connection attempts \u2014 wait a moment and try again',
+        SESSION_EXPIRED: 'Session expired \u2014 please refresh the page and rejoin',
+        ROOM_FULL: 'That room is full \u2014 try another room or wait for a seat to open',
+        ROOM_ALREADY_EXISTS: 'A room with that ID already exists \u2014 pick a different Room ID or join it',
+        GAME_IN_PROGRESS: 'A game is already in progress in this room',
+        NOT_HOST: 'Only the host can do that',
+        NOT_AUTHORIZED: 'You\u2019re not allowed to do that',
     };
 
     // Check for exact code match first

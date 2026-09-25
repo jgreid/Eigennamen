@@ -41,6 +41,22 @@ export async function joinRoom(roomId: string, sessionId: string, nickname: stri
         player = null;
     }
     let isReconnecting = false;
+    let previousRoom: JoinRoomResult['previousRoom'];
+
+    // A session that is still a member of ANOTHER room (second tab, client bug,
+    // crafted client) must leave it first. ATOMIC_JOIN_SCRIPT overwrites the
+    // player hash's roomCode but knows nothing about the old room's member and
+    // team sets, so without this the old room kept a ghost: it never counted as
+    // human-empty (bots-only teardown never fired), its host record still
+    // resolved to a live human so nobody there could ever become host, and the
+    // ghost stayed eligible for host succession (R5).
+    if (player && player.roomCode && player.roomCode !== normalizedRoomId) {
+        const oldCode = player.roomCode;
+        const left = await leaveRoom(oldCode, sessionId);
+        previousRoom = { code: oldCode, newHostId: left.newHostId, roomDeleted: left.roomDeleted };
+        logger.info(`Player ${sessionId} left room "${oldCode}" to join "${roomId}"`);
+        player = null;
+    }
 
     if (player && player.roomCode === normalizedRoomId) {
         // Reconnection - update player status
@@ -165,6 +181,7 @@ export async function joinRoom(roomId: string, sessionId: string, nickname: stri
         game: gameState,
         player,
         isReconnecting,
+        ...(previousRoom ? { previousRoom } : {}),
     };
 }
 

@@ -282,6 +282,38 @@ describe('Room Service', () => {
 
             expect(result.room).toBeDefined();
         });
+
+        test('a session still in ANOTHER room is removed from it first (R5)', async () => {
+            const playerService = require('../../services/playerService');
+            mockRedisStorage['room:other-room'] = JSON.stringify({
+                code: 'other-room',
+                roomId: 'other-room',
+                hostSessionId: 'host-9',
+                status: 'waiting',
+                settings: {},
+            });
+            mockPlayerStorage['host-9'] = { sessionId: 'host-9', roomCode: 'other-room', nickname: 'H9', isHost: true };
+            mockPlayerStorage['player-1'] = {
+                sessionId: 'player-1',
+                roomCode: 'other-room',
+                nickname: 'Player1',
+                connected: true,
+            };
+
+            const result = await roomService.joinRoom('game-room', 'player-1', 'Player1');
+
+            // Removed from the old room (not silently left as a ghost member there)…
+            expect(playerService.removePlayer).toHaveBeenCalledWith('player-1');
+            expect(result.previousRoom).toEqual({ code: 'other-room', newHostId: null, roomDeleted: false });
+            // …and seated as a fresh joiner of the new room, not a "reconnect".
+            expect(result.isReconnecting).toBe(false);
+            expect(result.player.roomCode).toBe('game-room');
+        });
+
+        test('a plain (same-room or first) join reports no previousRoom (R5)', async () => {
+            const result = await roomService.joinRoom('game-room', 'player-1', 'Player1');
+            expect(result.previousRoom).toBeUndefined();
+        });
     });
 
     describe('joinRoom allowSpectators enforcement (F2)', () => {

@@ -37,6 +37,15 @@ if redis.call('EXISTS', playersKey) == 1 then
         if redis.call('EXISTS', playerKey) == 1 then
             redis.call('EXPIRE', playerKey, ttl)
         end
+        -- The per-session handshake secret (session:auth:<id>, N1) must outlive
+        -- every state the session can return to. It was minted with the player
+        -- TTL but only re-extended on create/join/reconnect, so a long-lived
+        -- host whose player hash kept being refreshed here could outlive its
+        -- own secret and fall back to the weaker IP-only session check (R1).
+        local authKey = 'session:auth:' .. sessionId
+        if redis.call('EXISTS', authKey) == 1 then
+            redis.call('EXPIRE', authKey, ttl)
+        end
     end
 end
 

@@ -34,7 +34,11 @@ export type ErrorCode =
     | 'PLAYER_NOT_FOUND'
     | 'GAME_NOT_STARTED'
     | 'GAME_PAUSED'
-    | 'NO_CLUE_GIVEN';
+    | 'NO_CLUE_GIVEN'
+    | 'OBSERVER_CANNOT_JOIN_MIDGAME'
+    | 'RESERVED_NAME'
+    | 'SESSION_NOT_FOUND'
+    | 'SESSION_VALIDATION_RATE_LIMITED';
 
 /**
  * Base interface for game errors
@@ -123,7 +127,11 @@ export type SafeErrorCode =
     | 'SPYMASTER_CANNOT_CHANGE_ROLE'
     | 'GAME_NOT_STARTED'
     | 'GAME_PAUSED'
-    | 'NO_CLUE_GIVEN';
+    | 'NO_CLUE_GIVEN'
+    | 'OBSERVER_CANNOT_JOIN_MIDGAME'
+    | 'RESERVED_NAME'
+    | 'SESSION_NOT_FOUND'
+    | 'SESSION_VALIDATION_RATE_LIMITED';
 
 /**
  * Sanitized error for client emission

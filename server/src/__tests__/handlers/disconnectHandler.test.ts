@@ -525,6 +525,26 @@ describe('disconnectHandler', () => {
             );
         });
 
+        it('should no-op (no broadcast) when the game was paused before expiry (R12)', async () => {
+            gameService.getGame.mockResolvedValue({ gameOver: false, currentTurn: 'red' });
+            // endTurn.lua rejects mutations on a paused game; the paused game keeps
+            // its turn and game:resume restarts the timer — this expiry is stale.
+            gameService.endTurn.mockRejectedValue(Object.assign(new Error('paused'), { code: 'GAME_PAUSED' }));
+
+            await expect(callback('ROOM01')).resolves.toBeUndefined();
+
+            expect(emitToRoom).not.toHaveBeenCalledWith(
+                'ROOM01',
+                expect.stringContaining('turnEnded'),
+                expect.any(Object)
+            );
+            expect(emitToRoom).not.toHaveBeenCalledWith(
+                'ROOM01',
+                expect.stringContaining('expired'),
+                expect.any(Object)
+            );
+        });
+
         it('should handle errors in timer expiry', async () => {
             gameService.getGame.mockRejectedValue(new Error('Redis error'));
 

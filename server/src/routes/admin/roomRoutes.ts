@@ -9,7 +9,8 @@ import { z } from 'zod';
 import { normalizeRoomCode } from '../../utils/sanitize';
 import { tryParseJSON } from '../../utils/parseJSON';
 import { audit } from '../../services/auditService';
-import { removePlayer } from '../../services/playerService';
+import { removePlayer, getPlayersInRoom, toPublicPlayers, derivePlayerId } from '../../services/playerService';
+import { SOCKET_EVENTS } from '../../config/constants';
 import * as roomService from '../../services/roomService';
 import { incrementCounter, METRIC_NAMES } from '../../utils/metrics';
 
@@ -448,18 +449,26 @@ router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, re
                 timestamp: new Date().toISOString(),
             });
 
-            // Also notify others in the room
-            io.to(`room:${normalizedCode}`).emit('room:playerKicked', {
-                playerId,
-                reason: 'Kicked by administrator',
-            });
-
             // Force the player's socket to leave the room
             io.in(`player:${playerId}`).socketsLeave(`room:${normalizedCode}`);
         }
 
         // Remove player from room (handles player set, team sets, reconnection tokens, and player data)
         await removePlayer(playerId);
+
+        // Tell the rest of the room. This used to emit a bespoke 'room:playerKicked'
+        // that no client handles, so peers kept a stale roster until their next
+        // action failed. Emit the same room:playerLeft the leave path uses, with
+        // the post-removal roster, so every client updates in place (R7).
+        if (io) {
+            const remaining = await getPlayersInRoom(normalizedCode);
+            io.to(`room:${normalizedCode}`).emit(SOCKET_EVENTS.ROOM_PLAYER_LEFT, {
+                playerId: derivePlayerId(playerId),
+                newHost: null,
+                players: toPublicPlayers(remaining),
+                reason: 'admin',
+            });
+        }
 
         logger.info('Player kicked by admin', {
             code: normalizedCode,
@@ -536,13 +545,19 @@ router.delete('/api/rooms/:code', async (req: AdminRequest, res: Response): Prom
             return;
         }
 
-        // Notify all players in the room before closing
+        // Notify all players in the room before closing. 'room:forceClosed' had
+        // no client handler, so players saw nothing until their next action
+        // failed with ROOM_NOT_FOUND. room:kicked is what the client already
+        // handles for "you are no longer in this room" (it leaves multiplayer
+        // mode and shows the reason), so reuse it (R7).
         const io = req.app.get('io');
         if (io) {
-            io.to(`room:${normalizedCode}`).emit('room:forceClosed', {
+            io.to(`room:${normalizedCode}`).emit(SOCKET_EVENTS.ROOM_KICKED, {
                 reason: 'Room closed by administrator',
+                code: 'ROOM_CLOSED',
                 timestamp: new Date().toISOString(),
             });
+            io.in(`room:${normalizedCode}`).socketsLeave(`room:${normalizedCode}`);
         }
 
         // Use roomService to properly clean up the room

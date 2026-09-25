@@ -92,6 +92,12 @@ export interface JoinRoomResult {
     player: Player;
     /** Whether this was a reconnection */
     isReconnecting: boolean;
+    /**
+     * Set when the session was a member of a DIFFERENT room at join time and
+     * was removed from it first (R5). Lets the socket handler leave the old
+     * socket rooms and announce the departure there.
+     */
+    previousRoom?: { code: string; newHostId: string | null; roomDeleted: boolean };
 }
 
 /**

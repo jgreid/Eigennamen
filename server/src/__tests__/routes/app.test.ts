@@ -57,9 +57,10 @@ jest.mock('../../utils/correlationId', () => ({
 
 jest.mock('../../socket/rateLimitHandler', () => ({}));
 
+const mockStrictLimiter = jest.fn((req, res, next) => next());
 jest.mock('../../middleware/rateLimit', () => ({
     apiLimiter: (req, res, next) => next(),
-    strictLimiter: (req, res, next) => next(),
+    strictLimiter: (req, res, next) => mockStrictLimiter(req, res, next),
 }));
 
 jest.mock('../../middleware/csrf', () => ({
@@ -286,7 +287,51 @@ describe('Express Application', () => {
         });
     });
 
+    describe('rate limiting on admin-password-guarded endpoints (R2)', () => {
+        beforeEach(() => {
+            mockStrictLimiter.mockImplementation((req, res, next) => next());
+        });
+        afterEach(() => {
+            // jest.fn implementations survive clearMocks/restoreMocks — put the
+            // pass-through back so later suites' /metrics requests aren't 429'd.
+            mockStrictLimiter.mockImplementation((req, res, next) => next());
+        });
+
+        it('routes /health/metrics and /health/metrics/prometheus through strictLimiter', async () => {
+            await request(app).get('/health/metrics');
+            expect(mockStrictLimiter).toHaveBeenCalledTimes(1);
+            await request(app).get('/health/metrics/prometheus');
+            expect(mockStrictLimiter).toHaveBeenCalledTimes(2);
+        });
+
+        it('leaves the load-balancer probes unthrottled', async () => {
+            await request(app).get('/health');
+            await request(app).get('/health/ready');
+            await request(app).get('/health/live');
+            expect(mockStrictLimiter).not.toHaveBeenCalled();
+        });
+
+        it('rejects when the limiter says so, before any password work', async () => {
+            mockStrictLimiter.mockImplementation((req, res) =>
+                res.status(429).json({ error: { code: 'RATE_LIMITED' } })
+            );
+            const response = await request(app).get('/health/metrics').set('Authorization', 'Basic eDp5');
+            expect(response.status).toBe(429);
+        });
+    });
+
     describe('CORS', () => {
+        it('allows the X-Session-Id header on preflight (needed by GET /api/replays, R16)', async () => {
+            const response = await request(app)
+                .options('/api/replays/ROOM/00000000-0000-4000-8000-000000000000')
+                .set('Origin', 'http://localhost:3000')
+                .set('Access-Control-Request-Method', 'GET')
+                .set('Access-Control-Request-Headers', 'X-Session-Id');
+
+            expect([200, 204]).toContain(response.status);
+            expect((response.headers['access-control-allow-headers'] || '').toLowerCase()).toContain('x-session-id');
+        });
+
         it('should allow configured origin', async () => {
             const response = await request(app)
                 .options('/api/rooms/TEST/exists')

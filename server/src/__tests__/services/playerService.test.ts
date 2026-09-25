@@ -537,6 +537,23 @@ describe('Player Service', () => {
             expect(mockRedis.sRem).toHaveBeenCalledWith('room:ABC123:team:red', 's1');
         });
 
+        test('drops a member whose hash belongs to another room from the roster and the sets (R5)', async () => {
+            const local = mockPlayer({ sessionId: 's1', roomCode: 'ABC123', connectedAt: 1000 });
+            const foreign = mockPlayer({ sessionId: 's2', roomCode: 'OTHER1', connectedAt: 2000 });
+            mockRedis.sMembers.mockResolvedValue(['s1', 's2']);
+            mockRedis.mGet.mockResolvedValue([JSON.stringify(local), JSON.stringify(foreign)]);
+            mockRedis.sRem.mockResolvedValue(1);
+
+            const players = await playerService.getPlayersInRoom('ABC123');
+
+            expect(players.map((p) => p.sessionId)).toEqual(['s1']);
+            expect(mockRedis.sRem).toHaveBeenCalledWith('room:ABC123:players', 's2');
+            expect(mockRedis.sRem).toHaveBeenCalledWith('room:ABC123:team:red', 's2');
+            expect(mockRedis.sRem).toHaveBeenCalledWith('room:ABC123:team:blue', 's2');
+            // Not an orphan for the Lua sweep — its hash exists, just elsewhere.
+            expect(mockRedis.eval).not.toHaveBeenCalled();
+        });
+
         test('handles JSON parse errors', async () => {
             mockRedis.sMembers.mockResolvedValue(['s1', 's2']);
             mockRedis.mGet.mockResolvedValue([

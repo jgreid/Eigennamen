@@ -213,6 +213,28 @@ describe('shuffleWithSeed', () => {
 });
 
 describe('encodeWordsForURL / decodeWordsFromURL', () => {
+    it('round-trips words outside Latin-1 instead of throwing (R6)', () => {
+        // btoa() rejects any code point above U+00FF; a French, Turkish, Japanese
+        // or emoji custom list used to throw InvalidCharacterError mid-reveal.
+        const words = ['ŒUF', 'İSTANBUL', 'ŁÓDŹ', '日本', '🍕 PIZZA', 'ÉCOLE'];
+        expect(() => encodeWordsForURL(words)).not.toThrow();
+        expect(decodeWordsFromURL(encodeWordsForURL(words))).toEqual(words);
+    });
+
+    it('is byte-for-byte compatible with pre-R6 links for ASCII words', () => {
+        const words = ['APPLE', 'NEW YORK', 'A|B'];
+        const legacy = btoa(words.map((w) => w.replace(/\\/g, '\\\\').replace(/\|/g, '\\|')).join('|'))
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=+$/, '');
+        expect(encodeWordsForURL(words)).toBe(legacy);
+    });
+
+    it('still decodes a pre-R6 link that btoa()-encoded Latin-1 characters as single bytes', () => {
+        const legacy = btoa('ÉCOLE|CAFÉ').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        expect(decodeWordsFromURL(legacy)).toEqual(['ÉCOLE', 'CAFÉ']);
+    });
+
     it('round-trips a basic word list', () => {
         const words = ['APPLE', 'BANANA', 'CHERRY'];
         expect(decodeWordsFromURL(encodeWordsForURL(words))).toEqual(words);
