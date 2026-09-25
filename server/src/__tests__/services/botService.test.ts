@@ -136,6 +136,10 @@ describe('botService.removeBot', () => {
     it('removes a bot and deletes its config', async () => {
         playerService.getPlayer.mockResolvedValue({ sessionId: 'bot-1', roomCode: 'ROOM01', isBot: true });
         await removeBot('ROOM01', 'bot-1');
+        // R19: same per-room lock as addBot, so a remove can't interleave with an
+        // add's seat check or the controller's pre-apply seat re-check.
+        const { withLock } = require('../../utils/distributedLock');
+        expect(withLock).toHaveBeenCalledWith('bot-manage:ROOM01', expect.any(Function), expect.any(Object));
         expect(playerService.removePlayer).toHaveBeenCalledWith('bot-1');
         expect(mockRedis.del).toHaveBeenCalledWith('bot:bot-1:cfg');
     });

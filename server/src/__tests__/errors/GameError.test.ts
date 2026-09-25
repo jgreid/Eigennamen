@@ -226,9 +226,25 @@ describe('SAFE_ERROR_CODES', () => {
     test('does not include SERVER_ERROR (internal details)', () => {
         expect(SAFE_ERROR_CODES).not.toContain('SERVER_ERROR');
     });
+
+    test('includes the user-facing rule outcomes whose message IS the explanation (R9)', () => {
+        expect(SAFE_ERROR_CODES).toContain('OBSERVER_CANNOT_JOIN_MIDGAME');
+        expect(SAFE_ERROR_CODES).toContain('RESERVED_NAME');
+        expect(SAFE_ERROR_CODES).toContain('SESSION_NOT_FOUND');
+        expect(SAFE_ERROR_CODES).toContain('SESSION_VALIDATION_RATE_LIMITED');
+    });
 });
 
 describe('sanitizeErrorForClient', () => {
+    test('keeps the explanatory message for OBSERVER_CANNOT_JOIN_MIDGAME (R9)', () => {
+        const error = new GameError(
+            ERROR_CODES.OBSERVER_CANNOT_JOIN_MIDGAME,
+            'Observers cannot take a team seat while a game is in progress'
+        );
+        const sanitized = sanitizeErrorForClient(error);
+        expect(sanitized.message).toBe('Observers cannot take a team seat while a game is in progress');
+    });
+
     test('preserves message for safe error codes', () => {
         const error = new GameError(ERROR_CODES.ROOM_NOT_FOUND, 'Room ABC not found');
         const sanitized = sanitizeErrorForClient(error);

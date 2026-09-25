@@ -87,8 +87,31 @@ export function escapeWordDelimiter(word: string): string {
 export function unescapeWordDelimiter(word: string): string {
     return word.replace(/\\\|/g, '|').replace(/\\\\/g, '\\');
 }
+// btoa() only accepts Latin-1 and THROWS (InvalidCharacterError) on any code
+// point above U+00FF — so a custom list with ŒUF, İSTANBUL, 日本 or an emoji
+// broke every standalone URL update (and, because updateURL ran before the
+// render batch, left the board un-repainted after a reveal). Encode the UTF-8
+// bytes instead (R6). ASCII-only payloads produce byte-identical output to the
+// old scheme, so existing shared links keep decoding.
+function bytesToBase64Url(bytes: Uint8Array): string {
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]!);
+    }
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function base64UrlToBytes(encoded: string): Uint8Array {
+    const binary = atob(encoded.replace(/-/g, '+').replace(/_/g, '/'));
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+}
+
 export function encodeWordsForURL(words: string[]): string {
-    return btoa(words.map(escapeWordDelimiter).join('|')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return bytesToBase64Url(new TextEncoder().encode(words.map(escapeWordDelimiter).join('|')));
 }
 
 // Defense-in-depth cap on encoded payload length before atob() to prevent URL
@@ -99,8 +122,18 @@ const MAX_ENCODED_WORDS_BYTES = 8 * 1024;
 export function decodeWordsFromURL(encoded: string): string[] | null {
     try {
         if (encoded.length > MAX_ENCODED_WORDS_BYTES) return null;
-        const padded = encoded.replace(/-/g, '+').replace(/_/g, '/');
-        const decoded = atob(padded);
+        const bytes = base64UrlToBytes(encoded);
+        let decoded: string;
+        try {
+            decoded = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+        } catch {
+            // Not valid UTF-8: a link made before R6 with Latin-1 characters
+            // (e.g. É as the single byte 0xC9). Read it the way it was written.
+            decoded = '';
+            for (let i = 0; i < bytes.length; i++) {
+                decoded += String.fromCharCode(bytes[i]!);
+            }
+        }
         // Split on unescaped | only (not preceded by odd number of backslashes)
         const parts: string[] = [];
         let current = '';

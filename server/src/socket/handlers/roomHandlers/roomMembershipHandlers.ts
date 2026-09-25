@@ -29,6 +29,29 @@ interface RoomJoinInput {
     nickname: string;
 }
 
+/**
+ * Tell a room that a member left: the updated roster (+ new host, if any) and
+ * refreshed stats. Shared by room:leave and the cross-room join path (R5).
+ */
+async function announceDeparture(
+    io: Server,
+    roomCode: string,
+    sessionId: string,
+    newHostId: string | null
+): Promise<void> {
+    const remainingPlayers: Player[] = await playerService.getPlayersInRoom(roomCode);
+
+    safeEmitToRoom(io, roomCode, SOCKET_EVENTS.ROOM_PLAYER_LEFT, {
+        playerId: playerService.derivePlayerId(sessionId),
+        newHost: newHostId ? playerService.derivePlayerId(newHostId) : null,
+        players: playerService.toPublicPlayers(remainingPlayers || []),
+    });
+
+    // Broadcast updated stats so clients reflect the player departure
+    const roomStats: RoomStats = await playerService.getRoomStats(roomCode, remainingPlayers);
+    safeEmitToRoom(io, roomCode, SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
+}
+
 export default function roomMembershipHandlers(io: Server, socket: GameSocket): void {
     /**
      * Create a new room
@@ -68,7 +91,7 @@ export default function roomMembershipHandlers(io: Server, socket: GameSocket): 
                 const sessionToken = await playerService.mintSessionAuthSecret(socket.sessionId);
 
                 socket.emit(SOCKET_EVENTS.ROOM_CREATED, {
-                    room,
+                    room: roomService.toPublicRoom(room),
                     player: playerService.toSelfPlayer(player),
                     sessionToken,
                     stats: roomStats,
@@ -95,6 +118,7 @@ export default function roomMembershipHandlers(io: Server, socket: GameSocket): 
                 game: GameState | null;
                 player: Player;
                 isReconnecting: boolean;
+                previousRoom?: { code: string; newHostId: string | null; roomDeleted: boolean };
             };
             try {
                 joinResult = (await withTimeout(
@@ -107,6 +131,7 @@ export default function roomMembershipHandlers(io: Server, socket: GameSocket): 
                     game: GameState | null;
                     player: Player;
                     isReconnecting: boolean;
+                    previousRoom?: { code: string; newHostId: string | null; roomDeleted: boolean };
                 };
             } catch (error) {
                 // Track failed attempt for rate limiting (prevents room enumeration).
@@ -122,7 +147,18 @@ export default function roomMembershipHandlers(io: Server, socket: GameSocket): 
                 throw error;
             }
 
-            const { room, players, game, player, isReconnecting } = joinResult;
+            const { room, players, game, player, isReconnecting, previousRoom } = joinResult;
+
+            // The session was pulled out of another room by joinRoom (R5): drop
+            // its socket-room memberships there so it stops receiving that
+            // room's broadcasts, and tell that room it left.
+            if (previousRoom && previousRoom.code !== room.code) {
+                socket.leave(`room:${previousRoom.code}`);
+                socket.leave(`spectators:${previousRoom.code}`);
+                if (!previousRoom.roomDeleted) {
+                    await announceDeparture(io, previousRoom.code, socket.sessionId, previousRoom.newHostId);
+                }
+            }
 
             socket.join(`room:${room.code}`);
             socket.join(`player:${socket.sessionId}`);
@@ -161,7 +197,7 @@ export default function roomMembershipHandlers(io: Server, socket: GameSocket): 
             const sessionToken = await playerService.mintSessionAuthSecret(socket.sessionId);
 
             socket.emit(SOCKET_EVENTS.ROOM_JOINED, {
-                room,
+                room: roomService.toPublicRoom(room),
                 players: playerService.toPublicPlayers(players),
                 game: gameState,
                 you: playerService.toSelfPlayer(player),
@@ -217,17 +253,7 @@ export default function roomMembershipHandlers(io: Server, socket: GameSocket): 
             socket.leave(`spectators:${ctx.roomCode}`);
             socket.leave(`player:${ctx.sessionId}`);
 
-            const remainingPlayers: Player[] = await playerService.getPlayersInRoom(ctx.roomCode);
-
-            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_PLAYER_LEFT, {
-                playerId: playerService.derivePlayerId(ctx.sessionId),
-                newHost: result?.newHostId ? playerService.derivePlayerId(result.newHostId) : null,
-                players: playerService.toPublicPlayers(remainingPlayers || []),
-            });
-
-            // Broadcast updated stats so clients reflect the player departure
-            const roomStats: RoomStats = await playerService.getRoomStats(ctx.roomCode, remainingPlayers);
-            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
+            await announceDeparture(io, ctx.roomCode, ctx.sessionId, result?.newHostId ?? null);
 
             logger.info(`Player ${ctx.sessionId} left room ${ctx.roomCode}`);
             socket.roomCode = null;

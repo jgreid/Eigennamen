@@ -693,13 +693,18 @@ export async function tickRoom(roomCode: string): Promise<void> {
             const pace = paceDelayMs(game.stateVersion ?? 0);
             if (pace > 0) {
                 await sleep(pace);
-                // The bot could have been removed/kicked/reseated during the pause,
-                // OR the game could have been replaced (forfeit → next round). Drop
-                // the action unless the bot still holds the seat AND it's still the
-                // same live game the action was computed for. (N21 + seat re-verify)
-                if (!(await botMayStillAct(roomCode, seat, role, team, expectedGameId))) {
-                    break;
-                }
+            }
+            // The bot could have been removed/kicked/reseated during the pause OR
+            // during the awaits above (config read, LLM dry-run, keep-alive),
+            // OR the game could have been replaced (forfeit → next round). Drop
+            // the action unless the bot still holds the seat AND it's still the
+            // same live game the action was computed for. This runs
+            // unconditionally, immediately before apply: applyClue/Reveal/EndTurn
+            // do no actor validation of their own, and the Lua ops guard only
+            // team/turn/clue/gameOver/paused — so this check is the only thing
+            // between a just-removed bot and one last move (N21 + R19).
+            if (!(await botMayStillAct(roomCode, seat, role, team, expectedGameId))) {
+                break;
             }
 
             const actor = { sessionId: seat.sessionId, nickname: seat.nickname, team, role: seat.role };

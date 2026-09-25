@@ -77,6 +77,9 @@ describe('Room Resync and Recovery Handlers', () => {
         // Direct-to-self projection (room:resynced/room:reconnected `you`) —
         // pass through, like the public projections above.
         playerService.toSelfPlayer.mockImplementation((p) => p);
+        // Peer-facing room projection (R1) — pass through here; the projection
+        // itself is covered by publicRoom.test.ts and the R1 regression below.
+        roomService.toPublicRoom.mockImplementation((room) => room);
         // Real one-way derivation for peer-facing playerId fields (N1).
         playerService.derivePlayerId.mockImplementation(
             jest.requireActual('../../services/player/publicId').derivePlayerId

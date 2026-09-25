@@ -93,6 +93,10 @@ const strictLimiter = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
+    // Same load-test escape hatch as apiLimiter (fail-closed in production):
+    // this limiter now also fronts /health/metrics (R2), which the bundled
+    // memory-leak load test polls once per iteration.
+    skip: () => isRateLimitRelaxed(),
     handler: (req: Request, res: Response, _next: NextFunction, options: { message: unknown }) => {
         logger.warn(`Strict rate limit exceeded for IP: ${req.ip}`);
         res.status(429).json(options.message);

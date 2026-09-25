@@ -148,8 +148,6 @@ export function revealCard(index: number): void {
         state.gameState.currentTurn = state.gameState.currentTurn === 'red' ? 'blue' : 'red';
     }
 
-    updateURL();
-
     // Batch DOM updates using requestAnimationFrame for better performance
     if (!state.pendingUIUpdate) {
         state.pendingUIUpdate = true;
@@ -163,6 +161,10 @@ export function revealCard(index: number): void {
             state.pendingUIUpdate = false;
         });
     }
+
+    // After the render batch is queued: the URL is secondary to the board, and
+    // updateURL() is non-throwing regardless (R6).
+    updateURL();
 
     // Clear animation tracking after animation completes (animation duration + buffer)
     setTimeout(() => {

@@ -57,6 +57,7 @@ import { playerSchema } from './schemas';
 import { updatePlayer } from '../playerService';
 import { withLock } from '../../utils/distributedLock';
 import { SAFE_CLEANUP_ORPHANS_SCRIPT } from '../../scripts';
+import { normalizeRoomCode } from '../../utils/sanitize';
 
 /**
  * Get all players on a specific team - O(1) lookup using team sets
@@ -205,14 +206,22 @@ export async function getPlayersInRoom(roomCode: string): Promise<Player[]> {
 
     const players: Player[] = [];
     const orphanedSessionIds: string[] = [];
+    const foreignSessionIds: string[] = [];
+    const thisRoom = normalizeRoomCode(roomCode);
 
     for (let i = 0; i < sessionIds.length; i++) {
         const playerData = playerDataArray[i];
         const currentSessionId = sessionIds[i];
         if (playerData && currentSessionId) {
             const player = tryParseJSON(playerData, playerSchema, `player ${currentSessionId}`) as Player | null;
-            if (player) {
+            if (player && normalizeRoomCode(player.roomCode) === thisRoom) {
                 players.push(player);
+            } else if (player) {
+                // Hash exists but belongs to ANOTHER room: a stale member-set entry
+                // (the session joined elsewhere). Not a roster member here — and
+                // not an "orphan" for the Lua sweep either, which only removes ids
+                // whose hash is gone. Drop it from this room's sets directly (R5).
+                foreignSessionIds.push(currentSessionId);
             } else {
                 orphanedSessionIds.push(currentSessionId);
             }
@@ -246,6 +255,23 @@ export async function getPlayersInRoom(roomCode: string): Promise<Player[]> {
                 `Failed to clean up orphaned session IDs from room ${roomCode}:`,
                 (cleanupError as Error).message
             );
+        }
+    }
+
+    if (foreignSessionIds.length > 0) {
+        try {
+            await withTimeout(
+                Promise.all([
+                    redis.sRem(`room:${roomCode}:players`, ...foreignSessionIds),
+                    redis.sRem(`room:${roomCode}:team:red`, ...foreignSessionIds),
+                    redis.sRem(`room:${roomCode}:team:blue`, ...foreignSessionIds),
+                ]),
+                TIMEOUTS.REDIS_OPERATION,
+                `getPlayersInRoom-cleanupForeign-${roomCode}`
+            );
+            logger.info(`Dropped ${foreignSessionIds.length} member(s) of other rooms from room ${roomCode}`);
+        } catch (cleanupError) {
+            logger.warn(`Failed to drop foreign-room members from room ${roomCode}:`, (cleanupError as Error).message);
         }
     }
 

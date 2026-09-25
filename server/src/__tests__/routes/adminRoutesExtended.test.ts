@@ -127,6 +127,9 @@ jest.mock('../../middleware/rateLimit', () => ({
 // Mock player service
 jest.mock('../../services/playerService', () => ({
     removePlayer: jest.fn(async () => {}),
+    getPlayersInRoom: jest.fn(async () => []),
+    toPublicPlayers: jest.fn((arr) => arr),
+    derivePlayerId: jest.requireActual('../../services/player/publicId').derivePlayerId,
 }));
 
 // Mock room service
@@ -332,6 +335,16 @@ describe('Admin Routes Extended Tests', () => {
 
             // Verify proper cleanup via playerService
             expect(removePlayer).toHaveBeenCalledWith(playerId);
+
+            // R7: peers get the same room:playerLeft the leave path emits (with
+            // the post-removal roster) instead of an unhandled 'room:playerKicked'.
+            const { derivePlayerId } = require('../../services/playerService');
+            expect(mockIo.to).toHaveBeenCalledWith(`room:${roomCode.toLowerCase()}`);
+            expect(mockIo.emit).toHaveBeenCalledWith(
+                'room:playerLeft',
+                expect.objectContaining({ playerId: derivePlayerId(playerId), reason: 'admin', players: [] })
+            );
+            expect(mockIo.emit).not.toHaveBeenCalledWith('room:playerKicked', expect.anything());
 
             // Verify metrics and audit
             expect(incrementCounter).toHaveBeenCalledWith(METRIC_NAMES.PLAYER_KICKS, 1, {

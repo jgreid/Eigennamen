@@ -75,6 +75,9 @@ describe('Room Handlers', () => {
         // Direct-to-self projection (room:created player / room:joined you /
         // room:resynced you) — pass through, like the public projections above.
         playerService.toSelfPlayer.mockImplementation((p) => p);
+        // Peer-facing room projection (R1) — pass through here; the projection
+        // itself is covered by publicRoom.test.ts and the R1 regression below.
+        roomService.toPublicRoom.mockImplementation((room) => room);
         // Real one-way derivation for peer-facing playerId fields (N1).
         playerService.derivePlayerId.mockImplementation(
             jest.requireActual('../../services/player/publicId').derivePlayerId
@@ -306,6 +309,59 @@ describe('Room Handlers', () => {
             await eventHandlers['room:join']({ roomId: 'test-room', nickname: 'Player1' });
 
             expect(mockSocket.to().emit).toHaveBeenCalledWith('room:playerJoined', expect.any(Object));
+        });
+
+        test('never emits the host sessionId to a joiner: room is projected to hostPlayerId (R1)', async () => {
+            const { toPublicRoom } = jest.requireActual('../../services/room/publicRoom');
+            const { derivePlayerId } = jest.requireActual('../../services/player/publicId');
+            roomService.toPublicRoom.mockImplementation(toPublicRoom);
+            roomService.joinRoom.mockResolvedValue({
+                room: { code: 'test-room', roomId: 'test-room', hostSessionId: 'host-secret-session', settings: {} },
+                players: [],
+                game: null,
+                player: { sessionId: 'session-1', nickname: 'Peer', roomCode: 'test-room' },
+                isReconnecting: false,
+            });
+            playerService.getRoomStats.mockResolvedValue({});
+            playerService.invalidateRoomReconnectToken.mockResolvedValue(undefined);
+
+            await eventHandlers['room:join']({ roomId: 'test-room', nickname: 'Peer' });
+
+            const joined = mockSocket.emit.mock.calls.find((c) => c[0] === 'room:joined');
+            expect(joined).toBeDefined();
+            expect(joined[1].room.hostPlayerId).toBe(derivePlayerId('host-secret-session'));
+            expect(joined[1].room).not.toHaveProperty('hostSessionId');
+            expect(JSON.stringify(joined[1].room)).not.toContain('host-secret-session');
+        });
+
+        test('leaves the previous room (socket rooms + departure broadcast) on a cross-room join (R5)', async () => {
+            roomService.joinRoom.mockResolvedValue({
+                room: { code: 'room-b', roomId: 'room-b', settings: {} },
+                players: [],
+                game: null,
+                player: { sessionId: 'session-1', nickname: 'Mover', roomCode: 'room-b' },
+                isReconnecting: false,
+                previousRoom: { code: 'room-a', newHostId: null, roomDeleted: false },
+            });
+            playerService.getRoomStats.mockResolvedValue({});
+            playerService.getPlayersInRoom.mockResolvedValue([]);
+            playerService.invalidateRoomReconnectToken.mockResolvedValue(undefined);
+
+            await eventHandlers['room:join']({ roomId: 'room-b', nickname: 'Mover' });
+
+            expect(mockSocket.leave).toHaveBeenCalledWith('room:room-a');
+            expect(mockSocket.leave).toHaveBeenCalledWith('spectators:room-a');
+            expect(mockSocket.join).toHaveBeenCalledWith('room:room-b');
+            expect(mockIo.to).toHaveBeenCalledWith('room:room-a');
+            const emitted = mockIo.to.mock.results.flatMap((r) => r.value.emit.mock.calls);
+            expect(emitted).toEqual(
+                expect.arrayContaining([
+                    [
+                        'room:playerLeft',
+                        expect.objectContaining({ playerId: playerService.derivePlayerId('session-1') }),
+                    ],
+                ])
+            );
         });
 
         test('still emits room:joined when token invalidation fails (non-critical)', async () => {

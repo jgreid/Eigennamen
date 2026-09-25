@@ -42,6 +42,20 @@ describe('url-state', () => {
         state.teamNames = { red: 'Red', blue: 'Blue' };
     });
 
+    test('never throws when word encoding fails — the board render must not be aborted (R6)', () => {
+        state.gameState.customWords = true;
+        state.gameState.words = new Array(BOARD_SIZE).fill('X');
+        (encodeWordsForURL as jest.Mock).mockImplementationOnce(() => {
+            throw new DOMException('Invalid character', 'InvalidCharacterError');
+        });
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+        expect(() => updateURL()).not.toThrow();
+        expect(replaceStateSpy).not.toHaveBeenCalled();
+        expect(warn).toHaveBeenCalled();
+        warn.mockRestore();
+    });
+
     test('encodes revealed state as 1/0 string', () => {
         updateURL();
 

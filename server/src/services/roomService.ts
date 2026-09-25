@@ -13,6 +13,10 @@ import { RoomError, PlayerError, ServerError, GameStateError } from '../errors/G
 import { tryParseJSON } from '../utils/parseJSON';
 import { incrementCounter, METRIC_NAMES } from '../utils/metrics';
 import { ATOMIC_CREATE_ROOM_SCRIPT, ATOMIC_REFRESH_TTL_SCRIPT, ATOMIC_UPDATE_SETTINGS_SCRIPT } from '../scripts';
+
+// Peer-facing room projection (strips the host's bearer sessionId — R1)
+export { toPublicRoom } from './room/publicRoom';
+export type { PublicRoom } from './room/publicRoom';
 import { z } from 'zod';
 
 // Zod schema for Room data from Redis.

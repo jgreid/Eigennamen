@@ -253,7 +253,7 @@ export default function roomReconnectionHandlers(io: Server, socket: GameSocket)
                 const sessionToken = await playerService.mintSessionAuthSecret(socket.sessionId);
 
                 socket.emit(SOCKET_EVENTS.ROOM_RECONNECTED, {
-                    room,
+                    room: roomService.toPublicRoom(room),
                     players: playerService.toPublicPlayers(players),
                     game: gameState,
                     you: playerService.toSelfPlayer(player),

@@ -22,6 +22,7 @@ const gameService = require('../../services/gameService');
 const { getSocketFunctions } = require('../../socket/socketFunctionProvider');
 const timerHandlers = require('../../socket/handlers/timerHandlers');
 const { ERROR_CODES } = require('../../config/constants');
+const { clearGameStateCache } = require('../../socket/playerContext');
 
 describe('Timer Handlers', () => {
     let mockSocket;
@@ -29,6 +30,9 @@ describe('Timer Handlers', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        // The context resolver caches game state briefly per room; each test
+        // sets its own gameService.getGame mock, so start from an empty cache.
+        clearGameStateCache();
 
         // Create mock socket
         mockSocket = {
@@ -198,6 +202,19 @@ describe('Timer Handlers', () => {
                 expect.objectContaining({
                     code: 'NOT_HOST',
                 })
+            );
+        });
+
+        it('should refuse to resume the timer while the game itself is paused (R12)', async () => {
+            gameService.getGame.mockResolvedValue({ currentTurn: 'red', gameOver: false, paused: true });
+
+            const handler = mockSocket._handlers['timer:resume'];
+            await handler();
+
+            expect(timerService.resumeTimer).not.toHaveBeenCalled();
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'timer:error',
+                expect.objectContaining({ code: ERROR_CODES.GAME_PAUSED })
             );
         });
 

@@ -464,6 +464,72 @@ describe('Timer Service', () => {
         });
     });
 
+    describe('sweepStaleTimers recovery goes through the compare-and-delete guard (R11)', () => {
+        const STALE_MS = 2 * 60 * 1000 + 1000;
+
+        test('a stale local entry whose Redis timer was re-armed for a later turn does NOT end the turn', async () => {
+            const onExpire = jest.fn();
+            const { endTime: armedEndTime } = await timerService.startTimer('ROOM1', 30, onExpire);
+            const key = 'timer:ROOM1';
+
+            // Make the original timeout's CAD eval blow up (Redis blip) so the local
+            // entry survives its own expiry — the only way an entry goes stale.
+            const realEval = mockRedis.eval.getMockImplementation();
+            let blip = true;
+            mockRedis.eval.mockImplementation(async (script, options) => {
+                if (blip && typeof script === 'string' && script.includes('SUPERSEDED')) {
+                    blip = false;
+                    throw new Error('redis blip');
+                }
+                return realEval(script, options);
+            });
+            jest.advanceTimersByTime(30000);
+            await flushPromises();
+            expect(onExpire).not.toHaveBeenCalled();
+            expect(timerService.getActiveTimerCount()).toBe(1);
+
+            // Meanwhile the turn changed and the timer was re-armed (new endTime).
+            const stored = JSON.parse(mockRedis._storage[key]);
+            stored.endTime = armedEndTime + 90000;
+            mockRedis._storage[key] = JSON.stringify(stored);
+
+            jest.advanceTimersByTime(STALE_MS);
+            expect(timerService.sweepStaleTimers()).toBe(1);
+            await flushPromises();
+
+            // Firing onExpire directly here (the old behaviour) would have ended the
+            // NEW turn; the CAD sees SUPERSEDED and leaves the re-armed timer alone.
+            expect(onExpire).not.toHaveBeenCalled();
+            expect(JSON.parse(mockRedis._storage[key]).endTime).toBe(armedEndTime + 90000);
+        });
+
+        test('a stale local entry whose Redis timer is still the armed one DOES recover the expiry', async () => {
+            const onExpire = jest.fn();
+            await timerService.startTimer('ROOM1', 30, onExpire);
+            const key = 'timer:ROOM1';
+
+            const realEval = mockRedis.eval.getMockImplementation();
+            let blip = true;
+            mockRedis.eval.mockImplementation(async (script, options) => {
+                if (blip && typeof script === 'string' && script.includes('SUPERSEDED')) {
+                    blip = false;
+                    throw new Error('redis blip');
+                }
+                return realEval(script, options);
+            });
+            jest.advanceTimersByTime(30000);
+            await flushPromises();
+            expect(onExpire).not.toHaveBeenCalled();
+
+            jest.advanceTimersByTime(STALE_MS);
+            expect(timerService.sweepStaleTimers()).toBe(1);
+            await flushPromises();
+
+            expect(onExpire).toHaveBeenCalledWith('ROOM1');
+            expect(mockRedis._storage[key]).toBeUndefined();
+        });
+    });
+
     describe('cleanupAllTimers', () => {
         test('clears all active timers', async () => {
             const onExpire1 = jest.fn();

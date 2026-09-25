@@ -161,10 +161,13 @@ function createTestApp(adminPassword = null) {
     app.use(express.json());
 
     // Mock socket.io
+    const roomEmit = jest.fn();
     const mockIO = {
         fetchSockets: jest.fn(async () => [{ id: '1' }, { id: '2' }]),
         emit: jest.fn(),
-        to: jest.fn(() => ({ emit: jest.fn() })),
+        to: jest.fn(() => ({ emit: roomEmit })),
+        in: jest.fn(() => ({ socketsLeave: jest.fn() })),
+        roomEmit,
     };
     app.set('io', mockIO);
 
@@ -554,6 +557,14 @@ describe('Admin Routes', () => {
 
             const io = app.get('io');
             expect(io.to).toHaveBeenCalledWith('room:notify');
+            // R7: the old bespoke 'room:forceClosed' had no client handler, so
+            // players saw nothing until their next action failed. The room is
+            // told through room:kicked, which the client already handles.
+            expect(io.roomEmit).toHaveBeenCalledWith(
+                'room:kicked',
+                expect.objectContaining({ code: 'ROOM_CLOSED', reason: expect.stringContaining('administrator') })
+            );
+            expect(io.in).toHaveBeenCalledWith('room:notify');
         });
 
         it('should return 404 for non-existing room', async () => {
