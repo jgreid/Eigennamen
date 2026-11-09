@@ -36,10 +36,10 @@ jobs:
         language: ['javascript-typescript']
     steps:
       - name: Checkout repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@7aefa1c9aed02ae41531ec219164e64a0f087410 # v4
+        uses: github/codeql-action/init@0911ee96d2d6c8def97122c36c5cadd93829a4b4 # v4
         with:
           languages: ${{ matrix.language }}
           queries: +security-extended,security-and-quality
@@ -60,9 +60,9 @@ jobs:
               - 'node_modules'
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@7aefa1c9aed02ae41531ec219164e64a0f087410 # v4
+        uses: github/codeql-action/autobuild@0911ee96d2d6c8def97122c36c5cadd93829a4b4 # v4
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@7aefa1c9aed02ae41531ec219164e64a0f087410 # v4
+        uses: github/codeql-action/analyze@0911ee96d2d6c8def97122c36c5cadd93829a4b4 # v4
         with:
           category: '/language:${{ matrix.language }}'
